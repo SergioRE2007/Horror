@@ -2,6 +2,14 @@
 
 Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE2007/RNG-Sword-Breaker`). Si hace falta ver cómo se resolvió algo, mirar allí su `CLAUDE.md`, `docs/sistemas/` y el código: es la referencia. Lo propio de este juego se irá añadiendo aquí cuando empecemos.
 
+## Qué hay en el repo
+
+- `src/` (lo que sincroniza Rojo, `default.project.json`): de momento solo los `init` vacíos y un `Config` mínimo.
+- `plantillas/`: módulos de Sword Breaker que sirven en cualquier juego, copiados tal cual y **sin sincronizar**. Para usar uno: pasarlo a `src/`, quitarle lo propio de Sword Breaker (espadas, mazmorras, comercio…) y registrarlo en su `init`. Guardado con candado (`server/PlayerData`), avisos en el idioma de cada uno (`server/Tell`, `server/Language`, `shared/Lang`, `client/Language`, `client/LangSwap`, `client/WorldText`), normas por país (`server/Policy`), reconexión por inactividad (`server/Rejoin`), `shared/Format`, `shared/Chance`, `shared/Remotes`, la librería de interfaz `client/Ui`, sonidos `client/Sfx`, `client/Settings`, modo rendimiento `client/Performance`, aviso de pantalla vertical `client/Orientation`, números flotantes `client/FloatText`, pantalla de carga `first/Loading` y las regresiones de Lune `tests/regressions.luau`. Cuando ya no quede nada por pasar, borrar la carpeta.
+- `tools/`: `sonidos` (ElevenLabs; `npm install` dentro antes de usarlo), `blender` (los scripts de Sword Breaker como ejemplo, `subir_modelo.mjs` para subir un `.fbx` con Open Cloud y `cuerpo_r15.obj`, el cuerpo R15 para diseñar sobre él) y `ui` (`botones.mjs`).
+- Claves (nunca en el repo): Open Cloud de Roblox en `Documents\Roblox\clave-roblox.txt`; ElevenLabs en la configuración del MCP `elevenlabs` de este proyecto (`~/.claude.json`), que es de donde la lee `tools/sonidos`.
+- MCP de este proyecto: `Roblox_Studio` y `figma` (globales), `blender` y `elevenlabs` (solo aquí).
+
 ## Sobre Sergio
 
 - Habla español y no programa: todo el código lo escribe Claude. Da ideas a grandes rasgos y espera que Claude proponga los detalles, los construya y los pruebe.
@@ -13,7 +21,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 
 ## Git
 
-- Este juego lo hace Sergio solo, pero con GitHub igual que el primero. Al empezar: `git switch main` y `git pull`. Una rama por funcionalidad, nunca commits directos en `main`.
+- Este juego lo hace Sergio solo, pero con GitHub igual que el primero: repo privado `SergioRE2007/Horror`, rama `main`. Al empezar: `git switch main` y `git pull`. Una rama por funcionalidad, nunca commits directos en `main`.
 - Al terminar y haber probado: commit, `git push`, `gh pr create --fill` y `gh pr merge --squash --delete-branch`, preguntando antes de juntar con `main`.
 - Comentarios del código en español. El `.rbxl` no se sube. No subir valores de `Config` bajados temporalmente para probar.
 
@@ -48,6 +56,8 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 - `CLAUDE.md` del proyecto corto; el detalle de cada sistema en `docs/sistemas/<sistema>.md` (en el primer juego el `CLAUDE.md` creció tanto que gastaba muchos tokens).
 
 ## Estilo visual que le gusta
+
+(Era el de un simulador RNG; para el juego de terror, decidir con Sergio qué se mantiene: helpers comunes, nada plano y mayúsculas sí; colores y aspecto, seguramente no.)
 
 - Estilo "simulador de Roblox": ventanas oscuras con cabecera degradada y borde negro grueso, inventarios en casillas cuadradas con el borde del color de la rareza y cartel al pasar el ratón, botones de color con relieve que se aclaran y se hunden, fuente `FredokaOne` con borde negro. Nada plano: siempre degradado y borde. Todo con helpers comunes (`Ui`), no estilos sueltos.
 - Texto de botones, títulos de ventanas y botones del menú siempre en mayúsculas.

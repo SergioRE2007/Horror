@@ -1,0 +1,1 @@
+-- Arranque del cliente: cada sistema es un módulo hijo con una función start().
