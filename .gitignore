@@ -1,0 +1,9 @@
+# Archivos del lugar
+/*.rbxl
+/*.rbxlx
+/*.rbxl.lock
+/*.rbxlx.lock
+
+sourcemap.json
+node_modules/
+graphify-out/
