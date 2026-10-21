@@ -50,26 +50,48 @@ local function dentroDeCasa(p: Vector3): boolean
 	return math.abs(p.X) < 27 and math.abs(p.Z) < 23
 end
 
--- Pieza del cuerpo unida a la raíz con un Motor6D (el cliente mueve su Transform).
-local function miembro(nombre: string, tamano: Vector3, articulacion: Vector3, desde: Vector3, color: Color3): BasePart
+-- Piel gris y fría, como de muerto, un poco brillante (mojada).
+local PIEL, OSCURA, SANGRE = Color3.fromRGB(84, 82, 80), Color3.fromRGB(40, 37, 36), Color3.fromRGB(70, 6, 6)
+
+local function pieza(nombre: string, tamano: Vector3, color: Color3, material: Enum.Material?): Part
 	local p = Instance.new("Part")
 	p.Name = nombre
 	p.Size = tamano
 	p.Color = color
-	p.Material = Enum.Material.SmoothPlastic
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.Reflectance = if material then 0 else 0.04
 	p.CanCollide = false
 	p.CanQuery = false
+	p.CanTouch = false
 	p.Massless = true
-	p.CFrame = raiz.CFrame * CFrame.new(articulacion) * CFrame.new(-desde)
+	return p
+end
+
+-- Pieza del cuerpo unida a `padre` con un Motor6D (el cliente mueve su Transform). El motor va siempre en la raíz.
+-- `junta`: dónde está la articulación en el padre; `desde`: dónde está en la pieza.
+local function miembro(nombre: string, tamano: Vector3, padre: BasePart, junta: CFrame, desde: CFrame, color: Color3): BasePart
+	local p = pieza(nombre, tamano, color)
+	p.CFrame = padre.CFrame * junta * desde:Inverse()
 	p.Parent = modelo
 	local motor = Instance.new("Motor6D")
 	motor.Name = nombre
-	motor.Part0 = raiz
+	motor.Part0 = padre
 	motor.Part1 = p
-	motor.C0 = CFrame.new(articulacion)
-	motor.C1 = CFrame.new(desde)
+	motor.C0 = junta
+	motor.C1 = desde
 	motor.Parent = raiz
 	return p
+end
+
+-- Adorno pegado a `padre` en `donde` (coordenadas del padre).
+local function pegar(padre: BasePart, tamano: Vector3, donde: CFrame, color: Color3, material: Enum.Material?)
+	local p = pieza("Adorno", tamano, color, material)
+	p.CFrame = padre.CFrame * donde
+	local soldadura = Instance.new("WeldConstraint")
+	soldadura.Part0 = padre
+	soldadura.Part1 = p
+	soldadura.Parent = p
+	p.Parent = modelo
 end
 
 local function crearModelo(cf: CFrame)
@@ -85,29 +107,51 @@ local function crearModelo(cf: CFrame)
 	raiz.Parent = m
 	m.PrimaryPart = raiz
 
-	local carne, palida = Color3.fromRGB(78, 52, 50), Color3.fromRGB(110, 92, 86)
-	-- Encorvado: torso y cabeza adelantados; brazos larguísimos casi hasta el suelo.
-	miembro("Torso", Vector3.new(3.2, 3.8, 1.8), Vector3.new(0, 0.2, 0), Vector3.new(0, -0.4, 0.3), carne)
-	miembro("Cabeza", Vector3.new(1.7, 2.1, 1.7), Vector3.new(0, 2.3, -0.9), Vector3.new(0, -0.9, 0), palida)
-	miembro("BrazoI", Vector3.new(0.8, 5.6, 0.8), Vector3.new(-2.1, 1.9, -0.4), Vector3.new(0, 2.6, 0), carne)
-	miembro("BrazoD", Vector3.new(0.8, 5.6, 0.8), Vector3.new(2.1, 1.9, -0.4), Vector3.new(0, 2.6, 0), carne)
-	miembro("PiernaI", Vector3.new(1.1, 3.6, 1.1), Vector3.new(-0.8, -1.5, 0), Vector3.new(0, 1.7, 0), carne)
-	miembro("PiernaD", Vector3.new(1.1, 3.6, 1.1), Vector3.new(0.8, -1.5, 0), Vector3.new(0, 1.7, 0), carne)
-	local cabeza = m:FindFirstChild("Cabeza") :: BasePart
-	local boca = Instance.new("Part")
-	boca.Name = "Boca"
-	boca.Size = Vector3.new(0.35, 1.3, 0.1)
-	boca.Color = Color3.fromRGB(70, 8, 8)
-	boca.Material = Enum.Material.SmoothPlastic
-	boca.CanCollide = false
-	boca.CanQuery = false
-	boca.Massless = true
-	boca.CFrame = cabeza.CFrame * CFrame.new(0, -0.2, -0.86)
-	local soldadura = Instance.new("WeldConstraint")
-	soldadura.Part0 = cabeza
-	soldadura.Part1 = boca
-	soldadura.Parent = boca
-	boca.Parent = m
+	-- Flaco y encorvado (el torso se inclina hacia delante desde la cadera), cabeza alargada colgando, mandíbula
+	-- abierta con dientes, ojos hundidos con un punto claro, costillas y espinazo marcados, brazos larguísimos con
+	-- garras y sangre en la boca, el pecho y las garras. Provisional hasta el modelo de verdad.
+	local torso = miembro("Torso", Vector3.new(2.3, 3.8, 1.3), raiz, CFrame.new(0, -0.8, 0) * CFrame.Angles(-0.4, 0, 0), CFrame.new(0, -1.9, 0), PIEL)
+	for i = 0, 3 do
+		pegar(torso, Vector3.new(2.0 - i * 0.15, 0.18, 0.2), CFrame.new(0, 0.1 + i * 0.42, -0.66), OSCURA)
+		pegar(torso, Vector3.new(0.35, 0.3, 0.3), CFrame.new(0, 0.2 + i * 0.5, 0.66), PIEL)
+	end
+	pegar(torso, Vector3.new(0.55, 1.6, 0.1), CFrame.new(0.15, 0.9, -0.7), SANGRE, Enum.Material.SmoothPlastic)
+
+	local cabeza = miembro("Cabeza", Vector3.new(1.3, 1.8, 1.4), torso, CFrame.new(0, 1.9, -0.2) * CFrame.Angles(0.15, 0, 0), CFrame.new(0, -0.6, 0.4), PIEL)
+	-- Ojos: cuencas negras hundidas, una más alta que otra, con un puntito claro al fondo.
+	for i, x in { -0.32, 0.3 } do
+		local y = if i == 1 then 0.38 else 0.31
+		pegar(cabeza, Vector3.new(0.42, 0.36, 0.1), CFrame.new(x, y, -0.67) * CFrame.Angles(0, 0, (i - 1.5) * 0.3), Color3.new(0, 0, 0), Enum.Material.SmoothPlastic)
+		pegar(cabeza, Vector3.new(0.06, 0.06, 0.05), CFrame.new(x, y, -0.73), Color3.fromRGB(165, 155, 135), Enum.Material.Neon)
+	end
+	-- Dientes amarillentos, desiguales y torcidos, arriba y abajo.
+	local diente = Color3.fromRGB(176, 162, 124)
+	local function dientes(padre: BasePart, y: number, z: number, hacia: number)
+		for i = -2, 2 do
+			local largo = azar:NextNumber(0.2, 0.4)
+			pegar(padre, Vector3.new(0.1, largo, 0.08), CFrame.new(i * 0.19 + azar:NextNumber(-0.03, 0.03), y + hacia * largo / 2, z)
+				* CFrame.Angles(0, 0, azar:NextNumber(-0.25, 0.25)), diente, Enum.Material.SmoothPlastic)
+		end
+	end
+	pegar(cabeza, Vector3.new(0.95, 0.5, 0.1), CFrame.new(0, -0.45, -0.67), Color3.fromRGB(25, 0, 0), Enum.Material.SmoothPlastic)
+	dientes(cabeza, -0.2, -0.72, -1)
+	local mandibula = miembro("Mandibula", Vector3.new(1.1, 0.35, 1.2), cabeza, CFrame.new(0, -0.8, 0.5), CFrame.new(0, 0, 0.6), PIEL)
+	dientes(mandibula, 0.15, -0.52, 1)
+	-- Sangre que le chorrea de las comisuras y la barbilla.
+	for _, x in { -0.42, 0.1, 0.38 } do
+		local largo = azar:NextNumber(0.4, 0.9)
+		pegar(mandibula, Vector3.new(0.09, largo, 0.05), CFrame.new(x, 0.1 - largo / 2, -0.61), SANGRE, Enum.Material.SmoothPlastic)
+	end
+
+	for _, lado in { -1, 1 } do
+		local brazo = miembro(if lado < 0 then "BrazoI" else "BrazoD", Vector3.new(0.45, 6.4, 0.45), torso, CFrame.new(lado * 1.35, 1.6, 0) * CFrame.Angles(0.4, 0, 0), CFrame.new(0, 3.0, 0), PIEL)
+		for i = -1, 1 do
+			pegar(brazo, Vector3.new(0.12, 1.3, 0.12), CFrame.new(i * 0.18, -3.75, -0.1) * CFrame.Angles(0.35, 0, 0), Color3.fromRGB(40, 12, 10), Enum.Material.SmoothPlastic)
+		end
+	end
+	for _, lado in { -1, 1 } do
+		miembro(if lado < 0 then "PiernaI" else "PiernaD", Vector3.new(0.7, 4.2, 0.7), raiz, CFrame.new(lado * 0.6, -0.9, 0), CFrame.new(0, 2.0, 0), OSCURA)
+	end
 
 	humanoide = Instance.new("Humanoid")
 	humanoide.HipHeight = ALTURA - raiz.Size.Y / 2
@@ -223,6 +267,10 @@ local function elegirPresa(soloFuera: boolean): (Player?, Vector3?)
 	return mejor, destino
 end
 
+local function mirarA(punto: Vector3)
+	raiz.CFrame = CFrame.lookAt(raiz.Position, Vector3.new(punto.X, raiz.Position.Y, punto.Z))
+end
+
 -- Caza durante `duracion` segundos. `soloFuera`: en el bosque, solo a los que están fuera de la casa.
 local function cazar(duracion: number, soloFuera: boolean)
 	local fin = os.clock() + duracion
@@ -239,6 +287,7 @@ local function cazar(duracion: number, soloFuera: boolean)
 				else (suCabeza.Position - raiz.Position).Magnitude < G.Pillar
 			if alcanza then
 				humanoide:MoveTo(raiz.Position)
+				mirarA(if suCabeza then suCabeza.Position else destino) -- de cara a su víctima: el susto le ve la cara
 				Muerte.matar(presa, cabeza())
 				task.wait(2.5)
 				ultimoVisto = nil
@@ -273,10 +322,6 @@ local function quitarModelo()
 		modelo:Destroy()
 		modelo = nil
 	end
-end
-
-local function mirarA(punto: Vector3)
-	raiz.CFrame = CFrame.lookAt(raiz.Position, Vector3.new(punto.X, raiz.Position.Y, punto.Z))
 end
 
 local function ataque(el: Model, noche: number)

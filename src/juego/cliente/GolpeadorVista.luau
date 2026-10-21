@@ -9,7 +9,7 @@ local Sonido = require(script.Parent.Sonido)
 
 local GolpeadorVista = {}
 
-type Bicho = { modelo: Model, raiz: BasePart, motores: { [string]: Motor6D }, fase: number, golpe: number, pisada: number }
+type Bicho = { modelo: Model, raiz: BasePart, motores: { [string]: Motor6D }, fase: number, golpe: number, pisada: number, rugido: number }
 local bichos: { [Model]: Bicho } = {}
 
 local function preparar(modelo: Instance)
@@ -21,10 +21,10 @@ local function preparar(modelo: Instance)
 		return
 	end
 	local motores = {}
-	for _, nombre in { "PiernaI", "PiernaD", "BrazoI", "BrazoD", "Cabeza" } do
+	for _, nombre in { "Torso", "PiernaI", "PiernaD", "BrazoI", "BrazoD", "Cabeza", "Mandibula" } do
 		motores[nombre] = raiz:WaitForChild(nombre, 5) :: Motor6D
 	end
-	bichos[modelo] = { modelo = modelo, raiz = raiz, motores = motores, fase = 0, golpe = -math.huge, pisada = 1 }
+	bichos[modelo] = { modelo = modelo, raiz = raiz, motores = motores, fase = 0, golpe = -math.huge, pisada = 1, rugido = -math.huge }
 end
 
 -- Ángulo de los brazos durante el golpe: arriba, abajo de golpe contra la ventana y vuelta.
@@ -63,6 +63,11 @@ local function animar(dt: number)
 		m.BrazoI.Transform = CFrame.Angles(golpe - s * 0.35 * paso + vaiven, 0, -0.1)
 		m.BrazoD.Transform = CFrame.Angles(golpe + s * 0.35 * paso - vaiven, 0, 0.1)
 		m.Cabeza.Transform = CFrame.Angles(0.15 * math.sin(ahora * 0.5), 0, 0.35 + 0.12 * math.sin(ahora * 0.7))
+		-- Respira con el pecho; al golpear se echa hacia delante. La boca, entreabierta; del todo al golpear y rugir.
+		local rugiendo = ahora - b.rugido < 4
+		m.Torso.Transform = CFrame.Angles(-golpe * 0.12 + math.sin(ahora * 2.2) * 0.04 + (if rugiendo then 0.25 else 0), 0, 0)
+		local abre = 0.25 + 0.08 * math.sin(ahora * 3) + golpe * 0.25 + (if rugiendo then 0.6 + 0.1 * math.sin(ahora * 30) else 0)
+		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
 		-- Una pisada cada vez que el seno cambia de signo.
 		local lado = if s >= 0 then 1 else -1
 		if rapidez > 2 and lado ~= b.pisada then
@@ -81,6 +86,16 @@ local function cercano(punto: Vector3): Bicho?
 		end
 	end
 	return mejor
+end
+
+-- Abre la boca del todo unos segundos (el susto al morir). Devuelve el bicho más cercano a `punto`, si hay.
+function GolpeadorVista.rugir(punto: Vector3): Model?
+	local b = cercano(punto)
+	if b then
+		b.rugido = os.clock()
+		return b.modelo
+	end
+	return nil
 end
 
 function GolpeadorVista.start()
@@ -102,6 +117,9 @@ function GolpeadorVista.start()
 			b.golpe = os.clock()
 		elseif tipo == "Entra" then
 			Sonido.en("Rugido", centro.Position)
+			if b then
+				b.rugido = os.clock() + 0.6 -- ruge al aparecer dentro
+			end
 		end
 	end)
 end

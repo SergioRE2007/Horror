@@ -38,6 +38,11 @@ function Ciclo.fase(): (string, number)
 	return fase, noche
 end
 
+-- Salta ya a esa fase (solo el modo de pruebas).
+function Ciclo.forzar(nuevaFase: string)
+	poner(nuevaFase, noche)
+end
+
 -- Vuelve al principio del día de esta noche (cuando mueren todos).
 function Ciclo.reiniciarDia()
 	poner("Dia", noche)

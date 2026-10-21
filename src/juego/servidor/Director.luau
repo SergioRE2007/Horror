@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
+local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Casa = require(script.Parent.Casa)
 local Ciclo = require(script.Parent.Ciclo)
@@ -61,6 +62,37 @@ function Director.start()
 			noche(turno, n)
 		end
 	end)
+	-- Modo de pruebas: ServerStorage.Prueba:Fire(orden, punto). Órdenes: "Noche", "Dia", "Ataque" (a la ventana o
+	-- puerta más cerca del punto) y "Esconder" (el primer jugador, en el escondite más cerca del punto).
+	if Prueba.activa() then
+		local orden = Instance.new("BindableEvent")
+		orden.Name = "Prueba"
+		orden.Event:Connect(function(que: string, punto: Vector3?)
+			if que == "Esconder" then
+				local mejor, distancia = nil, math.huge
+				for _, sitio in game:GetService("CollectionService"):GetTagged("Escondite") do
+					local d = (sitio.Mando.Position - (punto or Vector3.zero)).Magnitude
+					if d < distancia then
+						mejor, distancia = sitio, d
+					end
+				end
+				Muerte.esconder(Players:GetPlayers()[1], mejor)
+			elseif que == "Ataque" then
+				local mejor, distancia = nil, math.huge
+				for _, el in Casa.atacables() do
+					local d = ((el:GetAttribute("Fuera") :: Vector3) - (punto or Vector3.zero)).Magnitude
+					if d < distancia then
+						mejor, distancia = el, d
+					end
+				end
+				Golpeador.quitar()
+				Golpeador.atacar(mejor, select(2, Ciclo.fase()))
+			else
+				Ciclo.forzar(que)
+			end
+		end)
+		orden.Parent = game:GetService("ServerStorage")
+	end
 	Muerte.alMorirTodos(function()
 		local mio = turno
 		for _, jugador in Players:GetPlayers() do

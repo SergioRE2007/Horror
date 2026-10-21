@@ -176,13 +176,12 @@ local function armario(centro: Vector3, frente: Vector3)
 	trozo(Vector3.new(0.3, 8, 3), Vector3.new(2.15, 0, 0))
 	trozo(Vector3.new(4.6, 0.3, 3), Vector3.new(0, 3.85, 0))
 	trozo(Vector3.new(4.6, 0.3, 3), Vector3.new(0, -3.85, 0))
-	for i = 0, 11 do -- puertas de lamas con rendijas
-		trozo(Vector3.new(4.0, 0.32, 0.15), Vector3.new(0, -3.4 + i * 0.62, -1.35))
-	end
-	local suelo = centro.Y - 4
+	for i = 0, 18 do -- puertas de lamas con rendijas estrechas: se ve fuera a rayas
+		trozo(Vector3.new(4.0, 0.25, 0.12), Vector3.new(0, -3.6 + i * 0.4, -1.35))
+	end	local suelo = centro.Y - 4
 	modelo:SetAttribute("Tipo", "Armario")
 	modelo:SetAttribute("Dentro", CFrame.lookAt(Vector3.new(centro.X, suelo + 3, centro.Z), Vector3.new(centro.X, suelo + 3, centro.Z) + frente))
-	modelo:SetAttribute("Vista", cf * CFrame.new(0, 1.6, -0.6))
+	modelo:SetAttribute("Vista", cf * CFrame.new(0, 1.6, 0.4)) -- al fondo: las lamas no tapan media pantalla
 	modelo:SetAttribute("Salida", CFrame.lookAt(Vector3.new(centro.X, suelo + 3, centro.Z) + frente * 3.5,
 		Vector3.new(centro.X, suelo + 3, centro.Z) + frente * 6))
 	modelo:SetAttribute("Ocupado", 0)

@@ -76,6 +76,8 @@ local function esconder(jugador: Player, sitio: Model)
 	jugador:SetAttribute("Escondido", sitio:GetAttribute("Vista"))
 end
 
+Muerte.esconder = esconder -- también para el modo de pruebas (Director)
+
 local function salir(jugador: Player)
 	local dato = escondidos[jugador]
 	if not dato then

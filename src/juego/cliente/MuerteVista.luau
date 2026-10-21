@@ -14,6 +14,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local GolpeadorVista = require(script.Parent.GolpeadorVista)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -133,28 +134,81 @@ local function mirarVivos(siguiente: boolean)
 	mirando.Visible = true
 end
 
-local function manchas(padre: GuiObject)
-	for _ = 1, 7 do
-		local mancha = Instance.new("Frame")
-		local tamano = azar:NextNumber(0.12, 0.3)
-		mancha.AnchorPoint = Vector2.new(0.5, 0.5)
-		mancha.Position = UDim2.fromScale(if azar:NextNumber() < 0.5 then azar:NextNumber(0, 0.2) else azar:NextNumber(0.8, 1), azar:NextNumber(0, 1))
-		mancha.Size = UDim2.fromScale(tamano, tamano)
-		mancha.BackgroundColor3 = Color3.fromRGB(azar:NextInteger(70, 110), 0, 0)
-		mancha.BorderSizePixel = 0
-		mancha.ZIndex = 91
-		local aspecto = Instance.new("UIAspectRatioConstraint")
-		aspecto.Parent = mancha
-		local redondo = Instance.new("UICorner")
-		redondo.CornerRadius = UDim.new(0.5, 0)
-		redondo.Parent = mancha
-		mancha.Parent = padre
-		TweenService:Create(mancha, TweenInfo.new(2.5), { Position = mancha.Position + UDim2.fromScale(0, 0.08) }):Play()
-		task.delay(3, function()
-			TweenService:Create(mancha, TweenInfo.new(1.5), { BackgroundTransparency = 1 }):Play()
-			task.delay(1.5, mancha.Destroy, mancha)
-		end)
+-- Sangre en la pantalla: goterones que caen desde el borde de arriba y salpicaduras con gotas alrededor.
+-- Los tamaños van en proporción a la altura de la pantalla (RelativeYY) para que no se deformen.
+local function gota(padre: GuiObject, posicion: UDim2, ancho: number, alto: number, giro: number): Frame
+	local g = Instance.new("Frame")
+	g.AnchorPoint = Vector2.new(0.5, 0.5)
+	g.Position = posicion
+	g.Size = UDim2.fromScale(ancho, alto)
+	g.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	g.Rotation = giro
+	g.BackgroundColor3 = Color3.new(1, 1, 1)
+	g.BorderSizePixel = 0
+	g.ZIndex = 91
+	local redondo = Instance.new("UICorner")
+	redondo.CornerRadius = UDim.new(0.5, 0)
+	redondo.Parent = g
+	local brillo = Instance.new("UIGradient") -- rojo oscuro, más claro por un lado: que parezca mojado
+	brillo.Color = ColorSequence.new(Color3.fromRGB(96, 3, 3), Color3.fromRGB(36, 0, 0))
+	brillo.Rotation = 90 + giro
+	brillo.Parent = g
+	g.Parent = padre
+	return g
+end
+
+local function salpicadura(padre: GuiObject, x: number, y: number, grande: number)
+	local aspecto = camara.ViewportSize.X / math.max(1, camara.ViewportSize.Y)
+	for _ = 1, 5 do -- el centro: manchas encimadas, forma irregular
+		local t = grande * azar:NextNumber(0.5, 1)
+		gota(padre, UDim2.fromScale(x + azar:NextNumber(-0.4, 0.4) * grande / aspecto, y + azar:NextNumber(-0.4, 0.4) * grande),
+			t, t * azar:NextNumber(0.7, 1.2), azar:NextNumber(0, 180))
 	end
+	for _ = 1, azar:NextInteger(12, 18) do -- gotas que salen hacia fuera, alargadas en la dirección en que salieron
+		local angulo = azar:NextNumber(0, math.pi * 2)
+		local lejos = grande * azar:NextNumber(0.6, 1.6)
+		local t = grande * azar:NextNumber(0.05, 0.18)
+		gota(padre, UDim2.fromScale(x + math.cos(angulo) * lejos / aspecto, y + math.sin(angulo) * lejos),
+			t, t * azar:NextNumber(1.5, 3.5), math.deg(angulo) + 90)
+	end
+end
+
+local function sangre(): Frame
+	local capaSangre = Instance.new("Frame")
+	capaSangre.Name = "Sangre"
+	capaSangre.Size = UDim2.fromScale(1, 1)
+	capaSangre.BackgroundTransparency = 1
+	capaSangre.ZIndex = 91
+	capaSangre.Parent = capa
+	-- Borde de arriba empapado y goterones que bajan despacio, cada uno con su gota gorda al final.
+	local borde = gota(capaSangre, UDim2.fromScale(0.5, 0), 4, 0.07, 0)
+	borde.SizeConstraint = Enum.SizeConstraint.RelativeXY
+	borde.Size = UDim2.fromScale(1.1, 0.07)
+	for _ = 1, azar:NextInteger(14, 20) do
+		local ancho = azar:NextNumber(0.012, 0.035)
+		local chorro = gota(capaSangre, UDim2.fromScale(azar:NextNumber(0, 1), 0), ancho, 0, 0)
+		chorro.AnchorPoint = Vector2.new(0.5, 0)
+		local bola = gota(chorro, UDim2.fromScale(0.5, 1), 1.7, 1.9, 0)
+		bola.SizeConstraint = Enum.SizeConstraint.RelativeXX
+		TweenService:Create(chorro, TweenInfo.new(azar:NextNumber(2, 5), Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = UDim2.fromScale(ancho, azar:NextNumber(0.12, 0.55)) }):Play()
+	end
+	-- Salpicaduras grandes en los lados y una pequeña arriba (abajo en el centro va el aviso).
+	salpicadura(capaSangre, azar:NextNumber(0.02, 0.18), azar:NextNumber(0.25, 0.8), azar:NextNumber(0.22, 0.32))
+	salpicadura(capaSangre, azar:NextNumber(0.82, 0.98), azar:NextNumber(0.25, 0.8), azar:NextNumber(0.22, 0.32))
+	salpicadura(capaSangre, azar:NextNumber(0.35, 0.65), azar:NextNumber(0.05, 0.15), azar:NextNumber(0.08, 0.12))
+	return capaSangre
+end
+
+local function quitarSangre(capaSangre: Frame, despues: number)
+	task.delay(despues, function()
+		for _, g in capaSangre:GetDescendants() do
+			if g:IsA("Frame") then
+				TweenService:Create(g, TweenInfo.new(3), { BackgroundTransparency = 1 }):Play()
+			end
+		end
+		task.delay(3, capaSangre.Destroy, capaSangre)
+	end)
 end
 
 local function meHanPillado(cabeza: Vector3)
@@ -166,26 +220,64 @@ local function meHanPillado(cabeza: Vector3)
 	local desde = if mia then mia.Position else camara.CFrame.Position
 	local hacia = (desde - cabeza)
 	hacia = if hacia.Magnitude > 0.1 then hacia.Unit else Vector3.zAxis
-	local ojo = cabeza + hacia * 2.4 - Vector3.new(0, 0.3, 0)
+	-- La cara del bicho de frente, con la boca abierta, echándose encima; una luz para que se le vea en lo oscuro.
+	local bicho = GolpeadorVista.rugir(cabeza)
+	local cara = bicho and bicho:FindFirstChild("Cabeza") :: BasePart?
+	local luz: Attachment? = nil
+	if cara then
+		luz = Instance.new("Attachment") -- delante de la cara: dentro de la cabeza no la alumbraría
+		luz.Position = Vector3.new(0, -0.3, -1.6)
+		local foco = Instance.new("PointLight")
+		foco.Color = Color3.fromRGB(255, 215, 195)
+		foco.Brightness = 1.2
+		foco.Range = 6
+		foco.Parent = luz
+		luz.Parent = cara
+	end
+	personajeVisible(false)
+	local filtroSusto = RaycastParams.new()
+	filtroSusto.FilterType = Enum.RaycastFilterType.Exclude
+	filtroSusto.FilterDescendantsInstances = { workspace:FindFirstChild("Bichos") :: Instance, personaje :: Instance }
 	camara.CameraType = Enum.CameraType.Scriptable
+	local campo = camara.FieldOfView
+	camara.FieldOfView = 60
 	Sonido.tocar("Susto")
-	rojo.BackgroundTransparency = 0.2
+	rojo.BackgroundTransparency = 0.35
 	TweenService:Create(rojo, TweenInfo.new(1.4), { BackgroundTransparency = 1 }):Play()
-	manchas(capa)
+	local capaSangre = sangre()
 	local t0 = os.clock()
-	while os.clock() - t0 < 1.6 do
-		local fuerza = 0.25 * (1 - (os.clock() - t0) / 1.6) + 0.05
-		camara.CFrame = CFrame.lookAt(ojo, cabeza)
+	while os.clock() - t0 < 1.8 do
+		local t = os.clock() - t0
+		local fuerza = 0.16 * (1 - t / 1.8) + 0.03
+		local ojo, centro
+		if cara and cara.Parent then
+			local acerca = 1 - math.clamp(t / 0.2, 0, 1)
+			centro = cara.Position - Vector3.new(0, 0.6, 0)
+			ojo = (cara.CFrame * CFrame.new(0, -0.5, -(2.7 + acerca * 3.5))).Position
+			local choque = workspace:Raycast(centro, ojo - centro, filtroSusto) -- sin meterse en las paredes
+			if choque then
+				ojo = choque.Position + (centro - ojo).Unit * 0.3
+			end
+		else
+			centro, ojo = cabeza, cabeza + hacia * 2.4
+		end
+		camara.CFrame = CFrame.lookAt(ojo, centro)
 			* CFrame.new(azar:NextNumber(-fuerza, fuerza), azar:NextNumber(-fuerza, fuerza), 0)
+			* CFrame.Angles(0, 0, azar:NextNumber(-fuerza, fuerza) * 0.5)
 		RunService.RenderStepped:Wait()
 	end
-	TweenService:Create(negro, TweenInfo.new(0.8), { BackgroundTransparency = 0 }):Play()
+	if luz then
+		luz:Destroy()
+	end
+	TweenService:Create(negro, TweenInfo.new(0.6), { BackgroundTransparency = 0 }):Play()
 	task.wait(1.2)
+	camara.FieldOfView = campo
 	Ui.aviso(Lang.t(nil, "It got you. You'll wake up at dawn."), 5)
 	susto = false
 	camara.CameraType = Enum.CameraType.Custom
 	mirarVivos(false)
 	TweenService:Create(negro, TweenInfo.new(1.5), { BackgroundTransparency = 1 }):Play()
+	quitarSangre(capaSangre, 3) -- se queda goteando un poco sobre lo que ves de muerto
 end
 
 local function charco(posicion: Vector3)
@@ -258,7 +350,8 @@ local function capas()
 	salir = Ui.boton(Lang.t(nil, "Leave"), {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.fromScale(0.5, 0.93),
-		Size = UDim2.fromOffset(170, 56),
+		Size = UDim2.fromOffset(220, 80), -- que se acierte con el dedo en el móvil
+		TextSize = 28,
 		Visible = false,
 		ZIndex = 96,
 	})

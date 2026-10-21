@@ -22,15 +22,24 @@ local DIA = {
 	Densidad = 0.38,
 	Niebla = Color3.fromRGB(150, 154, 158),
 	Brillo = 0,
+	Exposicion = 0,
+	Lamparas = 1,
 }
+-- Noche oscura pero legible: la luna alta azula el bosque y recorta la casa y los troncos; la niebla, azul oscura y
+-- no negra, para que las siluetas se vean a lo lejos. Sin subir la exposición la luz de luna de Roblox sale negra
+-- del todo; al subirla, las lámparas de la casa se bajan para que dentro siga en penumbra (Lamparas = proporción).
 local NOCHE = {
-	Brightness = 0.5,
-	Ambient = Color3.fromRGB(24, 22, 22),
-	OutdoorAmbient = Color3.fromRGB(38, 42, 56),
-	Densidad = 0.46,
-	Niebla = Color3.fromRGB(12, 14, 20),
-	Brillo = -0.04,
+	Brightness = 1.4,
+	Ambient = Color3.fromRGB(26, 25, 28),
+	OutdoorAmbient = Color3.fromRGB(62, 70, 92),
+	Densidad = 0.36,
+	Niebla = Color3.fromRGB(30, 36, 52),
+	Brillo = -0.02,
+	Exposicion = 1.6,
+	Lamparas = 0.41,
 }
+
+local lamparas: { [Light]: number } = {} -- luz → su brillo puesto por el servidor
 
 local atmosfera: Atmosphere
 local color: ColorCorrectionEffect
@@ -51,7 +60,13 @@ local function momento(): (number, number)
 	if fase == "Dia" then
 		return math.clamp((p - 0.8) / 0.2, 0, 1), 6.5 + p * 12
 	end
-	return 1 - math.clamp((p - 0.9) / 0.1, 0, 1), (18.5 + p * 12) % 24
+	-- De noche la hora corre deprisa hasta medianoche y luego apenas se mueve (la luna siempre alta); al final, hacia
+	-- el amanecer.
+	local k = 1 - math.clamp((p - 0.9) / 0.1, 0, 1)
+	local hora = if p < 0.08 then 18.5 + p / 0.08 * 5.5
+		elseif p < 0.9 then (24 + (p - 0.08) / 0.82 * 2) % 24
+		else 2 + (p - 0.9) / 0.1 * 4.5
+	return k, hora
 end
 
 local function pintar()
@@ -64,6 +79,15 @@ local function pintar()
 	atmosfera.Color = DIA.Niebla:Lerp(NOCHE.Niebla, k)
 	atmosfera.Decay = atmosfera.Color
 	color.Brightness = mezcla(DIA.Brillo, NOCHE.Brillo, k)
+	Lighting.ExposureCompensation = mezcla(DIA.Exposicion, NOCHE.Exposicion, k)
+	local proporcion = mezcla(DIA.Lamparas, NOCHE.Lamparas, k)
+	for luz, base in lamparas do
+		if luz.Parent then
+			luz.Brightness = base * proporcion
+		else
+			lamparas[luz] = nil
+		end
+	end
 	viento.Volume = Config.Sonidos.Viento.Volumen * (1 + k)
 end
 
@@ -109,6 +133,16 @@ function Ambiente.start()
 	color.Contrast = 0.1
 	color.Parent = Lighting
 	viento = Sonido.bucle("Viento")
+	local function apuntarLuz(luz: Instance)
+		if luz:IsA("Light") and not lamparas[luz] then
+			lamparas[luz] = luz.Brightness
+		end
+	end
+	local mapa = workspace:WaitForChild("Mapa")
+	mapa.DescendantAdded:Connect(apuntarLuz)
+	for _, luz in mapa:GetDescendants() do
+		apuntarLuz(luz)
+	end
 
 	local faseAntes = workspace:GetAttribute("Fase")
 	local avisado = false

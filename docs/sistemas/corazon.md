@@ -27,9 +27,20 @@ Todo con bloques grises. Animaciones sencillas a propósito: se mejoran más ade
 - Bajar persianas (los prompts solo salen si la cosa está en pantalla: hay que mirarla), golpes contra persiana bajada hasta cansarse, esconderse en el armario y salir.
 - Sin errores en consola.
 
+## Segunda tanda (21-10-2026)
+
+- Golpeador provisional rehecho de piezas: flaco y encorvado, piel gris de muerto, cabeza ladeada colgando, cuencas negras con un puntito claro, dientes torcidos, mandíbula que se abre (más al golpear y al rugir), costillas, espinazo, garras y sangre en boca, pecho y garras. Al pillarte se gira hacia ti.
+- Noche: la luz de luna de Roblox sale negra sin más; `Ambiente` sube la exposición de noche (1,6) y baja las lámparas en proporción (0,41) para que dentro siga en penumbra. La hora de noche se queda cerca de medianoche (luna alta). Si el generador cambia el brillo de las lámparas, `Ambiente` guarda el brillo de cada luz al aparecer: habrá que avisarle.
+- Armario: 19 lamas finas y la cámara al fondo; se ve fuera a rayas.
+- Susto: cámara de frente a la cara (sin meterse en paredes) con la boca abierta y una luz delante; sangre en pantalla con goterones que bajan desde arriba y salpicaduras con gotas, que se queda goteando un poco al pasar a mirar.
+- Móvil: el HUD baja a 0,55 en un teléfono, así que el botón de acción táctil es de 200×90 y SALIR de 220×80. Los avisos, más arriba (0,76) para no pisar SALIR.
+- Modo de pruebas: `ServerStorage.Prueba:Fire("Noche" | "Dia" | "Ataque" | "Esconder", punto)`.
+- Probado: el bicho te saca del armario si te vio esconderte (a los 0,2 s) y no te encuentra si no te vio (pasó a 5 studs y siguió). Sin errores.
+
 ## Por dónde vamos (pendiente)
 
 - Probar jugando de verdad si da tensión (Sergio): oír de dónde vienen los golpes, correr a bajar la persiana, esconderse.
-- Sin ver aún: el modelo del Golpeador de cerca, la noche tras subir la luz de luna y las lámparas, las rendijas del armario más abiertas, el susto en pantalla, mirar a los vivos y la vista de móvil.
+- Sin probar con 2 jugadores: mirar a los vivos de muerto (en Studio: Probar → Clientes y servidores, 2 jugadores).
+- Móvil comprobado con una maqueta de los controles de Roblox sobre la pantalla de Studio, no en un teléfono.
+- Los avisos de esconderse salen solo para lo que se mira y de uno en uno (el más cercano): con una puerta al lado, hay que mirar bien el armario.
 - Equilibrio a ojo: daño 5-7 por golpe (un ataque quita ~60 % a una persiana), paciencia 14-20 s, caza 35 s.
-- Sin probar: el bicho sacando a alguien de su escondite y con 2 jugadores.

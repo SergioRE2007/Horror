@@ -104,7 +104,7 @@ function Ui.aviso(texto: string, segundos: number?)
 	end
 	local t = Ui.texto(texto, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromScale(0.5, 0.86),
+		Position = UDim2.fromScale(0.5, 0.76), -- encima del botón SALIR del escondite
 		Size = UDim2.fromScale(0.8, 0.05),
 		TextSize = 26,
 		TextTransparency = 1,

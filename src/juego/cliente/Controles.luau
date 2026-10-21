@@ -93,9 +93,9 @@ local function mostrar(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputT
 
 	local pintado: Pintado = { cartel = cartel, raya = raya, boton = nil, conexiones = {} }
 	if tactil then
-		local boton = Ui.boton(textoDe(prompt), {
-			Size = UDim2.fromOffset(150, 70),
-			TextSize = 22,
+		local boton = Ui.boton(textoDe(prompt), { -- grande: en el móvil el HUD se encoge a la mitad y hay que darle con el dedo
+			Size = UDim2.fromOffset(200, 90),
+			TextSize = 28,
 			TextWrapped = true,
 		})
 		boton.Parent = botonera
@@ -142,7 +142,7 @@ function Controles.start()
 	botonera.Name = "Acciones"
 	botonera.AnchorPoint = Vector2.new(1, 0.5)
 	botonera.Position = UDim2.fromScale(0.97, 0.52) -- encima del botón de saltar de Roblox
-	botonera.Size = UDim2.fromOffset(150, 150)
+	botonera.Size = UDim2.fromOffset(200, 190)
 	botonera.BackgroundTransparency = 1
 	local lista = Instance.new("UIListLayout")
 	lista.Padding = UDim.new(0, 10)
