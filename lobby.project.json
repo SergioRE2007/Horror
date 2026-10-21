@@ -1,0 +1,45 @@
+{
+  "name": "Lobby",
+  "servePort": 34873,
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+
+    "ServerScriptService": {
+      "Comun": {
+        "$path": "src/comun/servidor"
+      },
+      "Servidor": {
+        "$path": "src/lobby/servidor"
+      }
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Comun": {
+          "$path": "src/comun/cliente"
+        },
+        "Cliente": {
+          "$path": "src/lobby/cliente"
+        }
+      }
+    },
+
+    "Workspace": {
+      "$properties": {
+        "FilteringEnabled": true
+      }
+    },
+
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}

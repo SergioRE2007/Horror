@@ -1,0 +1,45 @@
+{
+  "name": "Juego",
+  "servePort": 34872,
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+
+    "ServerScriptService": {
+      "Comun": {
+        "$path": "src/comun/servidor"
+      },
+      "Servidor": {
+        "$path": "src/juego/servidor"
+      }
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Comun": {
+          "$path": "src/comun/cliente"
+        },
+        "Cliente": {
+          "$path": "src/juego/cliente"
+        }
+      }
+    },
+
+    "Workspace": {
+      "$properties": {
+        "FilteringEnabled": true
+      }
+    },
+
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}
