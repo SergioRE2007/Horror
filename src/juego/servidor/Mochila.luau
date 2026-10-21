@@ -35,6 +35,7 @@ local COLOR = {
 	Linterna = Color3.fromRGB(60, 60, 60),
 	Camara = Color3.fromRGB(45, 45, 48),
 	Hacha = Color3.fromRGB(120, 95, 70),
+	Movil = Color3.fromRGB(30, 30, 34),
 }
 
 -- La carga con la que sale un objeto nuevo (linterna llena, cámara con el carrete entero).
@@ -43,6 +44,8 @@ local function cargaNueva(tipo: string): number?
 		return 1
 	elseif tipo == "Camara" then
 		return Config.Flash.Fotos
+	elseif tipo == "Movil" then
+		return 1
 	end
 	return nil
 end
@@ -63,12 +66,26 @@ function Mochila.publicar(jugador: Player)
 	end
 	local camara = Rejilla.primera(r, "Camara")
 	jugador:SetAttribute("Fotos", if camara then camara.carga or 0 else 0)
+	local movil = Rejilla.primera(r, "Movil")
+	jugador:SetAttribute("Bateria", if movil then movil.carga or 0 else nil) -- nil: no lleva móvil
 end
 
 -- La linterna o la cámara que usa (la primera que metió), o nil si no lleva.
 function Mochila.primera(jugador: Player, tipo: string): Rejilla.Cosa?
 	local r = rejillas[jugador]
 	return r and Rejilla.primera(r, tipo)
+end
+
+-- Saca de la mochila la primera cosa de ese tipo (la devuelve, o nil si no lleva).
+function Mochila.sacar(jugador: Player, tipo: string): Rejilla.Cosa?
+	local r = rejillas[jugador]
+	local cosa = r and Rejilla.primera(r, tipo)
+	if not r or not cosa then
+		return nil
+	end
+	Rejilla.sacar(r, cosa.id)
+	Mochila.publicar(jugador)
+	return cosa
 end
 
 -- Gasta una pila o un carrete de repuesto. false si no le quedan.
@@ -81,8 +98,8 @@ function Mochila.gastar(jugador: Player, tipo: string): boolean
 	return true
 end
 
--- Una pieza suelta en el mundo que se puede coger.
-local function soltar(tipo: string, carga: number?, cf: CFrame, velocidad: Vector3?): BasePart
+-- Una pieza suelta en el mundo que se puede coger (Generador también deja así el móvil en el enchufe).
+function Mochila.dejar(tipo: string, carga: number?, cf: CFrame, velocidad: Vector3?): BasePart
 	local w, h = Rejilla.tamano(CAT, tipo, false)
 	local pieza = Instance.new("Part")
 	pieza.Name = tipo
@@ -152,12 +169,12 @@ local function tirar(jugador: Player, id: unknown)
 		return
 	end
 	local cf = cabeza.CFrame * CFrame.new(0, -0.8, -1.6)
-	soltar(cosa.tipo, cosa.carga, cf, cabeza.CFrame.LookVector * 8 + Vector3.new(0, 4, 0))
+	Mochila.dejar(cosa.tipo, cosa.carga, cf, cabeza.CFrame.LookVector * 8 + Vector3.new(0, 4, 0))
 	Mochila.publicar(jugador)
 end
 
 local function abrir(jugador: Player, abierta: boolean)
-	if abierta and (not puede(jugador) or jugador:GetAttribute("Cargando")) then
+	if abierta and (not puede(jugador) or jugador:GetAttribute("Cargando") or jugador:GetAttribute("Trabajando")) then
 		abierta = false
 	end
 	jugador:SetAttribute("MochilaAbierta", abierta or nil)
@@ -233,7 +250,7 @@ function Mochila.start()
 	carpeta.Name = "Objetos"
 	carpeta.Parent = workspace
 	for _, o in Mapa.objetos do
-		soltar(o.tipo, cargaNueva(o.tipo), o.cf)
+		Mochila.dejar(o.tipo, cargaNueva(o.tipo), o.cf)
 	end
 	Players.PlayerAdded:Connect(alEntrar)
 	for _, jugador in Players:GetPlayers() do

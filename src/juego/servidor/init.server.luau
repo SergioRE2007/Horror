@@ -19,5 +19,8 @@ require(Sistemas.Golpeador).start()
 require(Sistemas.Cargar).start()
 require(Sistemas.Mochila).start()
 require(Sistemas.Equipo).start()
+require(Sistemas.Recursos).start()
+require(Sistemas.Generador).start()
+require(Sistemas.Movil).start()
 require(Sistemas.Director).start()
 require(Sistemas.Ciclo).start() -- lo último: el primer día empieza cuando todos están escuchando

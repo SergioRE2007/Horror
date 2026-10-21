@@ -122,7 +122,7 @@ function Director.start()
 		end
 	end)
 	-- Modo de pruebas: ServerStorage.Prueba:Fire(orden, punto). Órdenes: "Noche", "Dia", "Ataque" o "Raspador" (a la
-	-- ventana o puerta más cerca del punto) y "Esconder" (el primer jugador, en el escondite más cerca del punto).
+	-- ventana o puerta más cerca del punto), "Romper" (la rompe) y "Esconder" (el primer jugador, en el escondite más cerca del punto).
 	if Prueba.activa() then
 		local orden = Instance.new("BindableEvent")
 		orden.Name = "Prueba"
@@ -136,6 +136,11 @@ function Director.start()
 					end
 				end
 				Muerte.esconder(Players:GetPlayers()[1], mejor)
+			elseif que == "Romper" then -- rompe la ventana o puerta de fuera más cerca (para probar a repararla)
+				local el = masCerca(punto, false)
+				if el then
+					Casa.romper(el)
+				end
 			elseif que == "Ataque" or que == "Raspador" then
 				local el = masCerca(punto, que == "Raspador")
 				if el then
