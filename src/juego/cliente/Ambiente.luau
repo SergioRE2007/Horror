@@ -43,7 +43,7 @@ local lamparas: { [Light]: number } = {} -- luz → su brillo puesto por el serv
 
 local atmosfera: Atmosphere
 local color: ColorCorrectionEffect
-local viento: Sound
+local viento: Sound? -- nil mientras no haya un viento en Config.Sonidos
 
 local function mezcla(a: number, b: number, k: number): number
 	return a + (b - a) * k
@@ -88,7 +88,9 @@ local function pintar()
 			lamparas[luz] = nil
 		end
 	end
-	viento.Volume = Config.Sonidos.Viento.Volumen * (1 + k)
+	if viento then
+		viento.Volume = Config.Sonidos.Viento.Volumen * (1 + k)
+	end
 end
 
 -- Título grande que aparece y se va (al anochecer).
@@ -132,7 +134,7 @@ function Ambiente.start()
 	color.Saturation = -0.35 -- colores apagados, realistas
 	color.Contrast = 0.1
 	color.Parent = Lighting
-	viento = Sonido.bucle("Viento")
+	viento = if Config.Sonidos.Viento then Sonido.bucle("Viento") else nil
 	local function apuntarLuz(luz: Instance)
 		if luz:IsA("Light") and not lamparas[luz] then
 			lamparas[luz] = luz.Brightness
