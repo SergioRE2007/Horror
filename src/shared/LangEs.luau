@@ -17,4 +17,8 @@ return {
 	["It got you. You'll wake up at dawn."] = "Te ha pillado. Despertarás al amanecer.",
 	["Watching {name}"] = "Mirando a {name}",
 	["Nobody made it. The day starts again."] = "No ha sobrevivido nadie. El día vuelve a empezar.",
+	["No batteries left."] = "No te quedan pilas.",
+	["No film left."] = "No te quedan carretes.",
+	["Flashlight"] = "Linterna",
+	["{n} photos"] = "{n} fotos",
 }
