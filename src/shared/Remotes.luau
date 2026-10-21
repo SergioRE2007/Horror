@@ -12,6 +12,8 @@ local NOMBRES = {
 	"Raspador", -- servidor -> todos: ("Chilla", modelo) le ha dado un flash, o ("Entra", ventana)
 	"Linterna", -- cliente -> servidor: enciende o apaga mi linterna (si no tiene pila, la cambia)
 	"Flash", -- cliente -> servidor: (dirección de la cámara) hago una foto; servidor -> todos: (jugador) ha hecho una
+	"Mochila", -- cliente -> servidor: ("Abrir", abierta), ("Mover", id, x, y, girada) o ("Tirar", id)
+	"Cargar", -- cliente -> servidor: suelto lo pesado que llevo
 }
 
 local Remotes = {}

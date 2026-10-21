@@ -287,6 +287,81 @@ do
 	comprobaciones += 2
 end
 
+-- Rejilla de la mochila: caber, girar, mover, sacar, gastar y rehacerla de datos rotos.
+do
+	local Rejilla = cargar("src/shared/Rejilla")
+	local cat = Config.Objetos
+	local M = Config.Mochila
+	for tipo, o in cat do
+		assert(o.Tam[1] >= 1 and o.Tam[2] >= 1 and o.Tam[1] <= M.Ancho and o.Tam[2] <= M.Alto, `tamaño raro: {tipo}`)
+		assert(Lang.es[o.Nombre], `sin español: {o.Nombre}`)
+	end
+	for _, tipo in M.Inicio do
+		assert(cat[tipo], `inicio con tipo desconocido: {tipo}`)
+	end
+	comprobaciones += 1
+	local r = Rejilla.nueva(M.Ancho, M.Alto)
+	for _, tipo in M.Inicio do
+		assert(Rejilla.meter(r, cat, tipo, nil), `lo de inicio no cabe: {tipo}`)
+	end
+	igual(#r.cosas, #M.Inicio, "inicio metido")
+
+	r = Rejilla.nueva(4, 3)
+	local hacha = Rejilla.poner(r, cat, "Hacha", 1, 1, false)
+	igual(hacha ~= nil, true, "hacha 1x3 de pie cabe")
+	igual(Rejilla.poner(r, cat, "Pila", 1, 2, false), nil, "no se pisa")
+	igual(Rejilla.cabe(r, cat, "Hacha", 3, 1, true), false, "girada (3x1) desde x=3 se sale")
+	igual(Rejilla.cabe(r, cat, "Hacha", 2, 1, true, hacha.id), true, "girada en la fila de arriba cabe (ignorando la suya)")
+	igual(Rejilla.cabe(r, cat, "Pila", 0, 1, false), false, "fuera por la izquierda")
+	igual(Rejilla.cabe(r, cat, "Pila", 1.5, 1, false), false, "casilla no entera")
+	igual(Rejilla.cabe(r, cat, "Nada", 3, 1, false), false, "tipo desconocido")
+	igual(Rejilla.mover(r, cat, hacha.id, 2, 1, true), true, "mover y girar")
+	igual(Rejilla.en(r, cat, 4, 1), hacha, "la hacha girada ocupa (4,1)")
+	igual(Rejilla.en(r, cat, 1, 1), nil, "(1,1) queda libre")
+	igual(Rejilla.mover(r, cat, hacha.id, 3, 1, true), false, "no se mueve fuera")
+	igual(hacha.x, 2, "al fallar no cambia")
+	igual(Rejilla.mover(r, cat, hacha.id, 1, 2, "si"), false, "girada que no es booleano")
+	igual(Rejilla.mover(r, cat, 99, 1, 2, false), false, "id que no existe")
+	local cam = Rejilla.meter(r, cat, "Camara")
+	igual(cam and cam.x, 1, "la cámara 2x2 al primer hueco: x")
+	igual(cam and cam.y, 2, "la cámara 2x2 al primer hueco: y")
+	igual(Rejilla.meter(r, cat, "Linterna") ~= nil, true, "la linterna 1x2 al lado")
+	igual(Rejilla.meter(r, cat, "Pila") ~= nil, true, "queda un hueco")
+	igual(Rejilla.meter(r, cat, "Pila") ~= nil, true, "y otro")
+	igual(Rejilla.meter(r, cat, "Pila") ~= nil, true, "y el último")
+	igual(Rejilla.meter(r, cat, "Pila"), nil, "llena")
+	igual(Rejilla.contar(r, "Pila"), 3, "tres pilas")
+	igual(Rejilla.gastar(r, "Pila"), true, "gastar una pila")
+	igual(Rejilla.contar(r, "Pila"), 2, "quedan dos")
+	igual(Rejilla.gastar(r, "Carrete"), false, "no hay carretes")
+	igual(Rejilla.primera(r, "Camara"), cam, "primera cámara")
+	igual(Rejilla.sacar(r, cam.id), cam, "sacar la cámara")
+	igual(Rejilla.buscar(r, cam.id), nil, "ya no está")
+	igual(Rejilla.cabe(r, cat, "Camara", 1, 2, false), true, "su hueco queda libre")
+
+	-- De datos rotos: tipos raros fuera, lo que pisa se recoloca, lo que no cabe sobra, ids repetidos se cambian.
+	local datos = { cosas = {
+		{ id = 1, tipo = "Camara", x = 1, y = 1, girada = false, carga = 4 },
+		{ id = 2, tipo = "Camara", x = 2, y = 1, girada = false }, -- pisa a la otra
+		{ id = 1, tipo = "Pila", x = 4, y = 1, girada = false }, -- id repetido
+		{ id = 5, tipo = "Bomba", x = 1, y = 3 },
+		{ id = 6, tipo = "Pila", x = 1, y = 1, carga = 0 / 0 },
+		"basura",
+	} }
+	local r2, sobran = Rejilla.desde(datos, cat, 4, 2)
+	igual(Rejilla.buscar(r2, 1).tipo, "Camara", "la primera cámara se queda en su sitio")
+	igual(Rejilla.buscar(r2, 1).carga, 4, "con su carga")
+	igual(Rejilla.contar(r2, "Camara"), 2, "la segunda cámara se recoloca al lado")
+	igual(Rejilla.contar(r2, "Pila"), 0, "las pilas ya no caben")
+	igual(#sobran, 2, "sobran las dos pilas")
+	igual(sobran[2].carga, nil, "una carga NaN no se queda")
+	igual(r2.siguiente > 2, true, "siguiente id por encima de los usados")
+	local r3 = Rejilla.desde(nil, cat, 3, 3)
+	igual(#r3.cosas, 0, "de nada, vacía")
+	local r4, sobran4 = Rejilla.desde({ cosas = { { id = 3, tipo = "Hacha", x = 1, y = 1, girada = false } } }, cat, M.Grande[1], M.Grande[2])
+	igual(Rejilla.buscar(r4, 3) ~= nil and #sobran4 == 0, true, "a una mochila más grande, todo en su sitio")
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")
