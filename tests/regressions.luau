@@ -222,6 +222,54 @@ do
 	end
 end
 
+-- Defensa: persianas, cristales y puertas contra el Golpeador.
+do
+	local Defensa = cargar("src/shared/Defensa")
+	local cfg = Config.Casa
+
+	local v = Defensa.nueva("Ventana", cfg)
+	igual(Defensa.golpe(v, 0, 10, cfg), "Grieta", "ventana sin persiana: se agrieta")
+	igual(Defensa.golpe(v, 0, 10, cfg), "Grieta", "segunda grieta")
+	igual(Defensa.golpe(v, 0, 10, cfg), "Entra", "al romper el cristal entra")
+
+	v = Defensa.nueva("Ventana", cfg)
+	igual(Defensa.persiana(v, 0, cfg), true, "bajar la persiana")
+	igual(Defensa.golpe(v, cfg.TiempoPersiana / 2, 10, cfg), "Grieta", "a medio bajar no protege")
+	igual(Defensa.persiana(v, 0.1, cfg), false, "no se toca a medio mover")
+	igual(Defensa.golpe(v, cfg.TiempoPersiana, 10, cfg), "Persiana", "bajada del todo aguanta")
+	igual(v.vida, cfg.VidaPersiana - 10, "la persiana pierde vida")
+	igual(v.cristal, 1, "la grieta de antes sigue")
+
+	v.atacada = true
+	igual(Defensa.persiana(v, 10, cfg), true, "subirla en pleno ataque")
+	igual(Defensa.golpe(v, 11, 10, cfg), "Entra", "abrir la persiana al Golpeador: entra")
+
+	v = Defensa.nueva("Ventana", cfg)
+	Defensa.persiana(v, 0, cfg)
+	local resultado
+	for _ = 1, 100 do
+		resultado = Defensa.golpe(v, 10, 30, cfg)
+		if resultado ~= "Persiana" then break end
+	end
+	igual(resultado, "PersianaRota", "la persiana acaba rompiéndose")
+	igual(Defensa.persiana(v, 20, cfg), false, "una persiana rota no se baja")
+	igual(Defensa.necesitaReparar(v), true, "rota necesita reparar")
+	Defensa.reparar(v)
+	igual(Defensa.necesitaReparar(v), false, "reparada")
+	igual(Defensa.persiana(v, 20, cfg), true, "reparada se puede bajar")
+
+	local p = Defensa.nueva("Puerta", cfg)
+	igual(Defensa.golpe(p, 0, 10, cfg), "Puerta", "puerta cerrada aguanta")
+	Defensa.puerta(p, 5, cfg)
+	igual(Defensa.golpe(p, 6, 10, cfg), "Entra", "puerta abierta: entra")
+	p = Defensa.nueva("Puerta", cfg)
+	igual(Defensa.golpe(p, 0, cfg.VidaPuerta, cfg), "Entra", "puerta derribada")
+	igual(Defensa.puerta(p, 10, cfg), false, "puerta rota no se cierra")
+	p = Defensa.nueva("Puerta", cfg)
+	p.bloqueada = true
+	igual(Defensa.puerta(p, 0, cfg), false, "con llave no se abre")
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")

@@ -8,6 +8,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 - Le preocupa el gasto de tokens: respuestas cortas, leer solo lo necesario, una funcionalidad por conversación. No volcar árboles enteros del juego ni archivos grandes sin necesidad.
 - Le gustan las físicas y los juegos RNG. Quiere una base sólida que se pueda ampliar. No hay modelos propios: piezas, código y modelos de Blender hechos por script; los sonidos, con ElevenLabs.
 - Números de equilibrio de contenido nuevo: a ojo siguiendo a los vecinos, sin preguntarle cuántas horas debe durar; avisar en una línea de que son a ojo.
+- En este juego, pedido por el usuario: en la partida siempre primera persona (en el lobby da igual).
 - Público (primer juego): niños. En este juego de terror, pedido por el usuario: que dé miedo de verdad, con sangre y algo de gore, sin pasar de la etiqueta Moderate de Roblox (Restricted es 17+ con DNI y no se quiere). Se mantiene: poca información en pantalla (carteles de pocas líneas, avisos de una sola, sin "monedas/s" ni desgloses), juego "relativamente f2p": pocos pases de juego y nada imprescindible de pago.
 - Cuando algo de Claude no le convence lo dice con frases cortas ("no se nota mucho", "molesta"): rehacerlo más grande y vistoso, no retocar un poco. Los cambios que pide se apuntan en el `CLAUDE.md` o en `docs/sistemas/` con "pedido por el usuario", para no deshacerlos sin querer más adelante.
 
