@@ -10,3 +10,11 @@ local Comun = ServerScriptService:WaitForChild("Comun")
 require(Comun.Limpieza).start() -- lo primero: deja el Workspace solo con lo del código
 require(Comun.Idioma).start()
 require(Comun.Datos).start()
+
+local Sistemas = script
+require(Sistemas.Mapa).start() -- la casa y el bosque, antes que lo que los usa
+require(Sistemas.Casa).start()
+require(Sistemas.Muerte).start()
+require(Sistemas.Golpeador).start()
+require(Sistemas.Director).start()
+require(Sistemas.Ciclo).start() -- lo último: el primer día empieza cuando todos están escuchando
