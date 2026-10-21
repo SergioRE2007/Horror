@@ -2,14 +2,17 @@
 -- El servidor guarda el estado de cada una y lo publica en atributos del modelo; el cliente (CasaVista) lo anima.
 -- Las puertas: el servidor nunca mueve la hoja (la gira cada cliente); solo le quita la colisión al abrirse.
 -- Cada cosa tiene un ProximityPrompt principal (persiana o puerta) y otro de reparar que sale solo si hace falta.
+-- Se repara clavando un tablón que se lleva en las manos (Cargar.alUsar "Tablon").
 -- Los textos de los prompts van en inglés y el cliente los traduce al pintarlos (Controles).
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Defensa = require(ReplicatedStorage.Shared.Defensa)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Cargar = require(script.Parent.Cargar)
 
 local Casa = {}
 
@@ -79,7 +82,6 @@ local function preparar(el: Model, tipo: string)
 	local mando = el:WaitForChild("Mando") :: BasePart
 	local principal = nuevoPrompt(mando, Enum.KeyCode.E, Enum.KeyCode.ButtonX, "")
 	local reparar = nuevoPrompt(mando, Enum.KeyCode.R, Enum.KeyCode.ButtonY, "Repair")
-	reparar.HoldDuration = cfg.Reparar
 	reparar.UIOffset = Vector2.new(0, 60)
 	prompts[el] = { principal = principal, reparar = reparar }
 
@@ -100,11 +102,10 @@ local function preparar(el: Model, tipo: string)
 			publicar(el)
 		end
 	end)
+	-- Se repara con un tablón en las manos (Cargar, R): este prompt solo sale con las manos libres y lo recuerda.
 	reparar.Triggered:Connect(function(jugador)
-		local e = estados[el]
-		if puede(jugador, el) and Defensa.necesitaReparar(e) then
-			Defensa.reparar(e)
-			publicar(el)
+		if puede(jugador, el) and Defensa.necesitaReparar(estados[el]) then
+			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Bring a plank to repair it."))
 		end
 	end)
 	publicar(el)
@@ -201,10 +202,62 @@ function Casa.restaurar(foto: { [Model]: Defensa.Estado })
 	end
 end
 
+-- Clavar un tablón (llevándolo en las manos, R): deja la persiana y el cristal, o la puerta, como nuevos. Se clava por
+-- dentro en las ventanas y del lado del jugador en las puertas.
+local function prepararClavar(jugador: Player, el: Instance, _pieza: BasePart): (CFrame?, number?)
+	local e = estados[el :: Model]
+	if not e or e.bloqueada or not puede(jugador, el :: Model) then
+		return nil
+	end
+	if not Defensa.necesitaReparar(e) then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "It doesn't need repairs."))
+		return nil
+	end
+	local inclinado = CFrame.Angles(0, 0, math.rad(9)) * CFrame.Angles(math.pi / 2, 0, 0) -- de canto contra la pared
+	if e.tipo == "Ventana" then
+		return (el:GetAttribute("Centro") :: CFrame) * CFrame.new(0, 0, 1.3) * inclinado, Config.Talar.Clavar
+	end
+	local bisagra = el:GetAttribute("Bisagra") :: CFrame
+	local raiz = (jugador.Character :: Model):FindFirstChild("HumanoidRootPart") :: BasePart
+	local lado = if bisagra:PointToObjectSpace(raiz.Position).Z >= 0 then 1 else -1
+	return bisagra * CFrame.new(el:GetAttribute("Ancho") / 2, 4.5, 0.6 * lado) * inclinado, Config.Talar.Clavar
+end
+
 function Casa.start()
+	Cargar.alUsar("Tablon", {
+		etiquetas = { "Ventana", "Puerta" },
+		accion = "Clavar",
+		preparar = prepararClavar,
+		terminar = function(_jugador, el, pieza)
+			pieza:Destroy()
+			local e = estados[el :: Model]
+			Defensa.reparar(e)
+			publicar(el :: Model)
+		end,
+	})
 	for _, el in CollectionService:GetTagged("Ventana") do
 		preparar(el, "Ventana")
 	end
+	-- Con las manos ocupadas no salen los prompts: una puerta cerrada se abre de un empujón al ir hacia ella.
+	task.spawn(function()
+		while true do
+			task.wait(0.2)
+			for _, jugador in Players:GetPlayers() do
+				local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+				if not raiz or not jugador:GetAttribute("Cargando") then
+					continue
+				end
+				for el, e in estados do
+					local mando = el:FindFirstChild("Mando") :: BasePart
+					local hacia = (mando.Position - raiz.Position) * Vector3.new(1, 0, 1)
+					if e.tipo == "Puerta" and not e.abierta and not e.bloqueada and hacia.Magnitude < 4.5
+						and hacia.Unit:Dot(raiz.CFrame.LookVector) > 0.5 and Defensa.puerta(e, ahora(), cfg) then
+						publicar(el)
+					end
+				end
+			end
+		end
+	end)
 	for _, el in CollectionService:GetTagged("Puerta") do
 		preparar(el, "Puerta")
 	end

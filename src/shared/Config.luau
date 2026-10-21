@@ -34,8 +34,7 @@ Config.Casa = {
 	VidaPersiana = 100,
 	VidaPuerta = 160,
 	GolpesCristal = 3, -- golpes al cristal sin persiana hasta romperlo y entrar
-	Reparar = 4, -- segundos manteniendo pulsado para reparar (provisional: gratis hasta que haya tablones)
-	Alcance = 8, -- distancia para tocar las cosas
+	Alcance = 8, -- distancia para tocar las cosas (reparar: con un tablón, ver Config.Talar)
 }
 
 -- El Golpeador (juego/servidor/Golpeador y Director). Rangos {mínimo, máximo}.
@@ -128,7 +127,7 @@ Config.Mochila = {
 	Ancho = 8,
 	Alto = 6,
 	Grande = { 10, 8 }, -- ampliada (pase de juego, más adelante)
-	Inicio = { "Linterna", "Camara", "Pila", "Pila", "Carrete" }, -- lo que llevas al empezar
+	Inicio = { "Linterna", "Camara", "Movil", "Pila", "Pila", "Carrete" }, -- lo que llevas al empezar
 	Casilla = 0.42, -- studs que mide una casilla en el mundo (lo tirado)
 }
 
@@ -146,6 +145,38 @@ Config.Cargar = {
 	Fuerza = 0.6, -- parte del peso que levanta cada uno: con 2 que la cogen, 1,2 veces el peso del motor
 	Delante = 1.4, -- studs entre tu cuerpo y lo que llevas
 	Suelta = 9, -- si se queda más lejos (atascada), se te cae
+}
+
+-- Talar, serrar y clavar (juego/servidor/Recursos y Casa): árbol -> troncos -> (caballete) tablones -> reparar una
+-- persiana o una puerta. Solo se talan los árboles finos de cerca de la casa. Números a ojo.
+Config.Talar = {
+	Arboles = 45, -- árboles que se pueden talar
+	Golpes = { 5, 7 }, -- hachazos hasta que cae
+	Cada = 0.65, -- segundos entre hachazos
+	Troncos = 2, -- troncos que salen de un árbol
+	Serrar = 3, -- segundos serrando un tronco en el caballete
+	Tablones = 2, -- tablones que salen de un tronco
+	Clavar = 3.5, -- segundos clavando un tablón: deja la persiana (y el cristal) o la puerta como nuevas
+	Rebrota = 2, -- noches hasta que un árbol talado vuelve a crecer
+}
+
+-- Generador del cobertizo (juego/servidor/Generador): sin gasolina no hay luz en la casa ni enchufe. Se arranca tirando
+-- de la cuerda y se llena con el bidón. Con más jugadores gasta más (Config.Dificultad, Tareas). Números a ojo.
+Config.Generador = {
+	Deposito = 480, -- segundos encendido con el depósito lleno (una noche son 240)
+	Inicio = 0.3, -- parte del depósito llena al empezar la partida
+	PorBidon = 0.5, -- parte del depósito que llena un bidón lleno
+	Verter = 3, -- segundos echando gasolina
+	Arranca = 0.4, -- probabilidad de arrancar con cada tirón; al tercero seguido arranca seguro
+	Tiron = 1.1, -- segundos entre tirones
+}
+
+-- Móvil (juego/servidor/Movil, cliente MovilUi): mapa con dónde estáis tú y tus amigos (pedido por el usuario). Gasta
+-- batería mientras se mira y se carga en el enchufe de la casa con el generador encendido. Números a ojo.
+Config.Movil = {
+	Duracion = 150, -- segundos mirándolo con la batería llena
+	Carga = 60, -- segundos en el enchufe hasta llenarse
+	Radio = 90, -- studs de mundo que se ven del centro al borde (de lado) de la pantalla
 }
 
 -- Modo de pruebas: solo actúa en Studio (shared/Prueba). Con él no se lee ni se guarda nada.
@@ -173,6 +204,12 @@ Config.Sonidos = {
 	Chillido = { Id = 9125474863, Volumen = 1.6, Alcance = 150 }, -- el Raspador al recibir el flash
 	Linterna = { Id = 9070807695, Volumen = 0.5 },
 	Flash = { Id = 118206070547709, Volumen = 0.9, Alcance = 50 },
+	Hachazo = { Id = 9120950231, Volumen = 1.2, Alcance = 90 },
+	Caida = { Id = 9120796401, Volumen = 2, Alcance = 150 }, -- el árbol al dar contra el suelo
+	Serrar = { Id = 100885263044327, Volumen = 0.8, Alcance = 50 }, -- en bucle
+	Martillo = { Id = 175233098, Volumen = 1, Alcance = 60 },
+	Motor = { Id = 83031465221433, Volumen = 0.5, Alcance = 70 }, -- el generador encendido, en bucle
+	Verter = { Id = 9117865590, Volumen = 0.8, Alcance = 30 },
 	-- Sin viento de fondo hasta tener uno de ElevenLabs: el de la biblioteca sonaba saturado (pedido por el usuario).
 	-- Viento = { Id = ..., Volumen = 0.12 },
 }

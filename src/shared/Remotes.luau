@@ -14,6 +14,10 @@ local NOMBRES = {
 	"Flash", -- cliente -> servidor: (dirección de la cámara) hago una foto; servidor -> todos: (jugador) ha hecho una
 	"Mochila", -- cliente -> servidor: ("Abrir", abierta), ("Mover", id, x, y, girada) o ("Tirar", id)
 	"Cargar", -- cliente -> servidor: suelto lo pesado que llevo
+	"Usar", -- cliente -> servidor: (objetivo) uso lo que llevo en las manos con esto (serrar, clavar, echar gasolina)
+	"Trabajo", -- servidor -> todos: (jugador, que, pieza, segundos) para animar: "Hachazo", "Serrar", "Clavar", "Verter",
+	-- "Parar" (lo ha dejado a medias) y "Parte" (un árbol caído se parte en troncos; jugador = nil)
+	"Movil", -- cliente -> servidor: (abierto) miro o guardo el móvil
 }
 
 local Remotes = {}
