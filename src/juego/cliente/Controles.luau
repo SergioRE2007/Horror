@@ -151,13 +151,16 @@ function Controles.start()
 	lista.Parent = botonera
 	botonera.Parent = Ui.hud()
 
-	-- Con las manos ocupadas (llevando algo pesado) o la mochila abierta no se toca nada.
+	-- Con las manos ocupadas (llevando algo pesado o trabajando) o la mochila abierta no se toca nada. Lo que se hace
+	-- con lo que llevas en las manos lo pinta CargarVista.
 	local jugador = game:GetService("Players").LocalPlayer
 	local function manosLibres()
-		ProximityPromptService.Enabled = not (jugador:GetAttribute("Cargando") or jugador:GetAttribute("MochilaAbierta"))
+		ProximityPromptService.Enabled = not (jugador:GetAttribute("Cargando") or jugador:GetAttribute("MochilaAbierta")
+			or jugador:GetAttribute("Trabajando"))
 	end
-	jugador:GetAttributeChangedSignal("Cargando"):Connect(manosLibres)
-	jugador:GetAttributeChangedSignal("MochilaAbierta"):Connect(manosLibres)
+	for _, atributo in { "Cargando", "MochilaAbierta", "Trabajando" } do
+		jugador:GetAttributeChangedSignal(atributo):Connect(manosLibres)
+	end
 
 	ProximityPromptService.PromptShown:Connect(function(prompt, tipo)
 		if prompt.Style == Enum.ProximityPromptStyle.Custom then

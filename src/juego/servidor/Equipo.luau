@@ -117,7 +117,7 @@ local function flash(jugador: Player, hacia: unknown)
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "You don't have a camera."))
 		return
 	end
-	if jugador:GetAttribute("Cargando") or jugador:GetAttribute("MochilaAbierta") then
+	if jugador:GetAttribute("Cargando") or jugador:GetAttribute("MochilaAbierta") or jugador:GetAttribute("Trabajando") then
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Your hands are full."))
 		return
 	end

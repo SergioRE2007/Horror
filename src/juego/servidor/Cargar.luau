@@ -4,6 +4,7 @@
 -- la cosa: con todos los que hacen falta sube; con menos no llega y se arrastra por el suelo.
 --   Atributos del jugador: Cargando (el tipo de lo que lleva). El cliente (CargarVista) pide soltar con el remote Cargar.
 --   Se suelta sola al esconderse, al morir o si se queda atascada lejos.
+--   Con R se usa con algo (Cargar.alUsar): serrar en el caballete, clavar en una ventana o puerta, echar gasolina.
 -- Mientras se lleva no choca con los jugadores (grupos de colisión "Cargado" y "Personajes").
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -51,6 +52,9 @@ function Cargar.ajustarVelocidad(jugador: Player)
 	if jugador:GetAttribute("MochilaAbierta") then
 		factor, salto = 0, false
 	end
+	if jugador:GetAttribute("Trabajando") then
+		factor, salto = 0, false
+	end
 	local agarre = agarres[jugador]
 	if agarre then
 		local peso = agarre.pieza:GetAttribute("Peso")
@@ -76,9 +80,11 @@ local function rehacer(pieza: BasePart)
 		pieza:SetNetworkOwner(nil) -- entre varios, el servidor
 	end
 	pieza.CollisionGroup = if #lista > 0 then "Cargado" else "Default"
+	-- Lo que lleva uno solo no choca con nada: al girarse en una sala se atascaba en las paredes y se caía.
+	pieza.CanCollide = #lista ~= 1
 	local prompt = pieza:FindFirstChildOfClass("ProximityPrompt")
 	if prompt then
-		prompt.Enabled = #lista < peso
+		prompt.Enabled = #lista < peso and not pieza:GetAttribute("Trabajo")
 	end
 	for _, j in lista do
 		Cargar.ajustarVelocidad(j)
@@ -106,7 +112,7 @@ end
 
 local function puede(jugador: Player): boolean
 	return table.find(Muerte.vivos(), jugador) ~= nil and not jugador:GetAttribute("Escondido")
-		and not jugador:GetAttribute("MochilaAbierta") and not agarres[jugador]
+		and not jugador:GetAttribute("MochilaAbierta") and not agarres[jugador] and not jugador:GetAttribute("Trabajando")
 end
 
 local function coger(jugador: Player, pieza: BasePart)
@@ -154,7 +160,8 @@ local function coger(jugador: Player, pieza: BasePart)
 	rehacer(pieza)
 end
 
-local function nuevoPesado(tipo: string, cf: CFrame)
+-- Una cosa pesada nueva en el mundo. `carga`: la gasolina del bidón (0..1; lleno si no se dice).
+function Cargar.nuevo(tipo: string, cf: CFrame, carga: number?): BasePart
 	local datos = PESADOS[tipo]
 	local pieza = Instance.new("Part")
 	pieza.Name = tipo
@@ -166,6 +173,9 @@ local function nuevoPesado(tipo: string, cf: CFrame)
 	end
 	pieza:SetAttribute("Tipo", tipo)
 	pieza:SetAttribute("Peso", datos.Peso)
+	if tipo == "Bidon" then
+		pieza:SetAttribute("Carga", carga or 1)
+	end
 	CollectionService:AddTag(pieza, "Pesado")
 	local giro = Instance.new("AlignOrientation")
 	giro.Name = "Giro"
@@ -188,6 +198,93 @@ local function nuevoPesado(tipo: string, cf: CFrame)
 	end)
 	quienes[pieza] = {}
 	pieza.Parent = carpeta
+	return pieza
+end
+
+-- Lo que se hace con lo que llevas en las manos (R o el botón): serrar un tronco en el caballete, clavar un tablón,
+-- echar gasolina. Cada sistema registra el suyo con Cargar.alUsar(tipo, uso):
+--   etiquetas: a qué se le puede hacer (CollectionService; el objetivo tiene un "Mando").
+--   preparar(jugador, objetivo, pieza) -> (cf, segundos): dónde se queda la pieza mientras se trabaja; nil si no vale
+--   (preparar avisa del porqué). terminar(jugador, objetivo, pieza): al acabar; la pieza sigue anclada ahí, así que
+--   la quita o la devuelve con Cargar.liberar.
+-- Mientras se trabaja: atributo Trabajando del jugador (la acción) y no se mueve; si muere o se esconde, se deja.
+export type Uso = {
+	etiquetas: { string },
+	accion: string,
+	preparar: (Player, Instance, BasePart) -> (CFrame?, number?),
+	terminar: (Player, Instance, BasePart) -> (),
+	cancelar: ((Player, Instance, BasePart) -> ())?, -- si se deja a medias (antes de soltar la pieza)
+}
+local usos: { [string]: Uso } = {}
+
+function Cargar.alUsar(tipo: string, uso: Uso)
+	usos[tipo] = uso
+end
+
+-- Devuelve al mundo con física una pieza que estaba anclada trabajando.
+function Cargar.liberar(pieza: BasePart, cf: CFrame?)
+	pieza:SetAttribute("Trabajo", nil)
+	if cf then
+		pieza.CFrame = cf
+	end
+	pieza.Anchored = false
+	rehacer(pieza)
+end
+
+local function usar(jugador: Player, objetivo: unknown)
+	local agarre = agarres[jugador]
+	local raiz = raizDe(jugador)
+	if not agarre or not raiz or typeof(objetivo) ~= "Instance" or jugador:GetAttribute("Trabajando") then
+		return
+	end
+	local pieza = agarre.pieza
+	local uso = usos[pieza:GetAttribute("Tipo")]
+	if not uso or #quienes[pieza] > 1 then
+		return
+	end
+	local vale = false
+	for _, etiqueta in uso.etiquetas do
+		vale = vale or CollectionService:HasTag(objetivo, etiqueta)
+	end
+	local mando = objetivo:FindFirstChild("Mando")
+	if not vale or not mando or not mando:IsA("BasePart") or (mando.Position - raiz.Position).Magnitude > Config.Casa.Alcance + 4 then
+		return
+	end
+	local cf, segundos = uso.preparar(jugador, objetivo, pieza)
+	if not cf or not segundos then
+		return
+	end
+	Cargar.soltar(jugador)
+	pieza:SetAttribute("Trabajo", true)
+	pieza.Anchored = true
+	pieza.CFrame = cf
+	pieza.CollisionGroup = "Cargado"
+	local prompt = pieza:FindFirstChildOfClass("ProximityPrompt")
+	if prompt then
+		prompt.Enabled = false
+	end
+	jugador:SetAttribute("Trabajando", uso.accion)
+	Cargar.ajustarVelocidad(jugador)
+	Remotes.Trabajo:FireAllClients(jugador, uso.accion, pieza, segundos)
+	local fin = os.clock() + segundos
+	while os.clock() < fin do
+		task.wait(0.1)
+		if not pieza.Parent or not table.find(Muerte.vivos(), jugador) or jugador:GetAttribute("Escondido") then
+			jugador:SetAttribute("Trabajando", nil)
+			Cargar.ajustarVelocidad(jugador)
+			if uso.cancelar then
+				uso.cancelar(jugador, objetivo, pieza)
+			end
+			if pieza.Parent then
+				Cargar.liberar(pieza) -- a medias: se cae donde estaba
+			end
+			Remotes.Trabajo:FireAllClients(jugador, "Parar", pieza, 0)
+			return
+		end
+	end
+	jugador:SetAttribute("Trabajando", nil)
+	Cargar.ajustarVelocidad(jugador)
+	uso.terminar(jugador, objetivo, pieza)
 end
 
 -- Cada fotograma: cada agarre va delante de quien lo lleva; si se queda atascado lejos, se suelta.
@@ -202,11 +299,13 @@ local function seguir()
 		local plano = raiz.CFrame.LookVector * Vector3.new(1, 0, 1)
 		local frente = if plano.Magnitude > 0.01 then plano.Unit else Vector3.zAxis
 		local lista = quienes[pieza]
-		local fondo = if pieza:GetAttribute("Peso") > 1 then 0 else pieza.Size.Z / 2
+		-- Lo largo de uno (troncos, tablones) va a lo largo, hacia delante: atravesado no cabía por las puertas.
+		local largo = pieza:GetAttribute("Peso") == 1 and pieza.Size.X > 3
+		local fondo = if pieza:GetAttribute("Peso") > 1 then 0 elseif largo then pieza.Size.X / 2 - 1.2 else pieza.Size.Z / 2
 		local destino = raiz.Position + frente * (C.Delante + 0.8 + fondo) - Vector3.new(0, 0.6, 0)
 		agarre.empuje.Position = destino
-		-- Uno solo la lleva atravesada delante; entre dos, a lo largo de uno al otro (cada uno coge un extremo).
-		local eje = frente:Cross(Vector3.yAxis)
+		-- Uno solo: lo largo hacia delante y lo demás atravesado; entre dos, de uno al otro (cada uno coge un extremo).
+		local eje = if largo then frente else frente:Cross(Vector3.yAxis)
 		if #lista >= 2 and lista[1] == jugador then
 			local otra = raizDe(lista[2])
 			local entre = if otra then (otra.Position - raiz.Position) * Vector3.new(1, 0, 1) else Vector3.zero
@@ -244,7 +343,7 @@ function Cargar.start()
 	carpeta.Name = "Pesados"
 	carpeta.Parent = workspace
 	for _, p in Mapa.pesados do
-		nuevoPesado(p.tipo, p.cf)
+		Cargar.nuevo(p.tipo, p.cf)
 	end
 	local function alEntrar(jugador: Player)
 		jugador.CharacterAdded:Connect(grupoPersonaje)
@@ -261,6 +360,7 @@ function Cargar.start()
 	end
 	Players.PlayerRemoving:Connect(Cargar.soltar)
 	Remotes.Cargar.OnServerEvent:Connect(Cargar.soltar)
+	Remotes.Usar.OnServerEvent:Connect(usar)
 	RunService.Heartbeat:Connect(seguir)
 end
 
