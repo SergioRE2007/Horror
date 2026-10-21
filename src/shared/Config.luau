@@ -77,7 +77,8 @@ Config.Sonidos = {
 	Puerta = { Id = 9120829478, Volumen = 0.6, Alcance = 40 },
 	Latido = { Id = 9043365842, Volumen = 0.7 },
 	Susto = { Id = 9113985451, Volumen = 2 },
-	Viento = { Id = 6544555787, Volumen = 0.12 },
+	-- Sin viento de fondo hasta tener uno de ElevenLabs: el de la biblioteca sonaba saturado (pedido por el usuario).
+	-- Viento = { Id = ..., Volumen = 0.12 },
 }
 
 return Config
