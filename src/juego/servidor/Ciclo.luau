@@ -48,8 +48,9 @@ function Ciclo.reiniciarDia()
 	poner("Dia", noche)
 end
 
-function Ciclo.start()
-	task.defer(poner, "Dia", 1) -- en diferido: que los demás sistemas se apunten antes con alCambiar
+-- `primera`: la noche del día con el que se empieza (la guardada de la partida, ver Partida).
+function Ciclo.start(primera: number?)
+	task.defer(poner, "Dia", primera or 1) -- en diferido: que los demás sistemas se apunten antes con alCambiar
 	task.spawn(function()
 		while true do
 			task.wait(0.25)

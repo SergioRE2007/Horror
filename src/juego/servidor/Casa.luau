@@ -85,7 +85,7 @@ local function preparar(el: Model, tipo: string)
 	reparar.UIOffset = Vector2.new(0, 60)
 	prompts[el] = { principal = principal, reparar = reparar }
 
-	-- Siempre estados[el] (no `e`): restaurar cambia la tabla.
+	-- Siempre estados[el] (no `e`): importar cambia la tabla.
 	principal.Triggered:Connect(function(jugador)
 		local e = estados[el]
 		if not puede(jugador, el) then
@@ -182,21 +182,33 @@ function Casa.puertas(): { Model }
 	return lista
 end
 
--- Foto del estado de toda la casa (al amanecer) para volver a él si mueren todos.
-function Casa.foto(): { [Model]: Defensa.Estado }
-	local foto = {}
+-- Lo que se guarda de la casa (Partida, al amanecer): [clave] = { vida, persiana, cristal, abierta, bloqueada }.
+function Casa.exportar()
+	local t = {}
 	for el, e in estados do
-		foto[el] = table.clone(e)
+		local clave = el:GetAttribute("Clave")
+		if clave then
+			t[clave] = { vida = e.vida, persiana = e.persiana, cristal = e.cristal, abierta = e.abierta, bloqueada = e.bloqueada }
+		end
 	end
-	return foto
+	return t
 end
 
-function Casa.restaurar(foto: { [Model]: Defensa.Estado })
-	for el, guardado in foto do
-		local e = table.clone(guardado)
-		e.atacada = false
-		e.abiertaEnAtaque = false
-		e.cambio = -math.huge
+-- Deja toda la casa como en `t` (lo de Casa.exportar, ya arreglado); lo que no esté, como nuevo.
+function Casa.importar(t)
+	for el, viejo in estados do
+		local e = Defensa.nueva(viejo.tipo, cfg)
+		e.bloqueada = el:GetAttribute("Bloqueada") == true
+		local g = t[el:GetAttribute("Clave")]
+		if g then
+			e.vida = math.clamp(g.vida, 0, e.vidaMax)
+			e.persiana = g.persiana
+			e.cristal = math.clamp(g.cristal, 0, cfg.GolpesCristal)
+			e.abierta = g.abierta
+			if g.bloqueada ~= nil then
+				e.bloqueada = g.bloqueada
+			end
+		end
 		estados[el] = e
 		publicar(el)
 	end

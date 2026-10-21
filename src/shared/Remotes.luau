@@ -18,6 +18,7 @@ local NOMBRES = {
 	"Trabajo", -- servidor -> todos: (jugador, que, pieza, segundos) para animar: "Hachazo", "Serrar", "Clavar", "Verter",
 	-- "Parar" (lo ha dejado a medias) y "Parte" (un árbol caído se parte en troncos; jugador = nil)
 	"Movil", -- cliente -> servidor: (abierto) miro o guardo el móvil
+	"Coche", -- cliente -> servidor (lobby): ("Ranura", n), ("Nueva", nueva) o ("Arrancar"): solo el dueño del coche
 }
 
 local Remotes = {}

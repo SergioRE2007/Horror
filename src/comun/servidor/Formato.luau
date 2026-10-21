@@ -32,6 +32,12 @@ function Formato.arreglarJugador(guardado: any)
 			guardado[clave] = valor
 		end
 	end
+	-- Resumen de cada ranura de partida, ["1"] = { noche, hora }: lo apunta el servidor del juego al guardarla.
+	for ranura, resumen in guardado.partidas do
+		if type(ranura) ~= "string" or type(resumen) ~= "table" or type(resumen.noche) ~= "number" or resumen.noche ~= resumen.noche then
+			guardado.partidas[ranura] = nil
+		end
+	end
 	local monedas = guardado.monedas
 	if monedas ~= monedas or monedas < 0 or monedas == math.huge then
 		guardado.monedas = 0
