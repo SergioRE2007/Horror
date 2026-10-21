@@ -1,0 +1,326 @@
+-- Esconderse, el susto al morir y mirar a los demás.
+--   Escondido (atributo Escondido del jugador = dónde va la cámara): cámara fija dentro del armario o debajo de la
+--   cama con un leve respirar, latido que sube cuanto más cerca está el bicho, bordes oscuros y botón SALIR
+--   (también E, espacio o B del mando).
+--   Te pillan (remote Muerte): la cámara mira a la cara del bicho, temblor, destello rojo, grito y sangre en la
+--   pantalla; luego negro y a mirar a los vivos (clic o toque para cambiar, en tercera persona) hasta el amanecer.
+--   A otro: un charco de sangre donde ha muerto.
+local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local Lang = require(ReplicatedStorage.Shared.Lang)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Sonido = require(script.Parent.Sonido)
+local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
+
+local MuerteVista = {}
+
+local jugador = Players.LocalPlayer
+local camara = workspace.CurrentCamera
+local azar = Random.new()
+
+local capa: Frame -- bordes oscuros, sangre y negro
+local bordes: ImageLabel
+local rojo: Frame
+local negro: Frame
+local salir: TextButton
+local mirando: TextLabel
+local latido: Sound?
+local susto = false -- durante el susto nadie más toca la cámara
+local mirado = 0 -- índice del vivo al que miras de muerto
+
+local function personajeVisible(visible: boolean)
+	local personaje = jugador.Character
+	if personaje then
+		for _, parte in personaje:GetDescendants() do
+			if parte:IsA("BasePart") or parte:IsA("Decal") then
+				parte.LocalTransparencyModifier = if visible then 0 else 1
+			end
+		end
+	end
+end
+
+local function bichoMasCerca(desde: Vector3): number
+	local carpeta = workspace:FindFirstChild("Bichos")
+	local mejor = math.huge
+	for _, bicho in if carpeta then carpeta:GetChildren() else {} do
+		local raiz = bicho:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if raiz then
+			mejor = math.min(mejor, (raiz.Position - desde).Magnitude)
+		end
+	end
+	return mejor
+end
+
+-- Cámara del escondite: fija, con un leve respirar.
+local function enEscondite()
+	local vista = jugador:GetAttribute("Escondido")
+	if typeof(vista) ~= "CFrame" or susto then
+		return
+	end
+	local t = os.clock()
+	camara.CameraType = Enum.CameraType.Scriptable
+	camara.CFrame = vista * CFrame.new(0, math.sin(t * 1.6) * 0.04, 0) * CFrame.Angles(math.sin(t * 0.8) * 0.01, math.sin(t * 0.5) * 0.02, 0)
+	local cerca = bichoMasCerca(vista.Position)
+	if latido then
+		latido.Volume = 0.25 + 1.2 * math.clamp(1 - cerca / 45, 0, 1)
+		latido.PlaybackSpeed = 1 + 0.5 * math.clamp(1 - cerca / 30, 0, 1)
+	end
+end
+
+local function cambiarEscondido()
+	local escondido = typeof(jugador:GetAttribute("Escondido")) == "CFrame"
+	salir.Visible = escondido
+	TweenService:Create(bordes, TweenInfo.new(0.6), { ImageTransparency = if escondido then 0.05 else 1 }):Play()
+	personajeVisible(not escondido)
+	if escondido then
+		latido = latido or Sonido.bucle("Latido")
+		ContextActionService:BindAction("SalirEscondite", function(_, estado)
+			if estado == Enum.UserInputState.Begin then
+				Remotes.Salir:FireServer()
+			end
+			return Enum.ContextActionResult.Sink
+		end, false, Enum.KeyCode.E, Enum.KeyCode.Space, Enum.KeyCode.ButtonB)
+	else
+		ContextActionService:UnbindAction("SalirEscondite")
+		if latido then
+			latido:Destroy()
+			latido = nil
+		end
+		if not susto then
+			camara.CameraType = Enum.CameraType.Custom
+		end
+	end
+end
+
+local function vivos(): { Player }
+	local lista = {}
+	for _, otro in Players:GetPlayers() do
+		local humanoide = otro.Character and otro.Character:FindFirstChildOfClass("Humanoid")
+		if otro ~= jugador and humanoide and humanoide.Health > 0 and not otro:GetAttribute("Muerto") then
+			table.insert(lista, otro)
+		end
+	end
+	return lista
+end
+
+-- De muerto: la cámara sigue a uno de los vivos.
+local function mirarVivos(siguiente: boolean)
+	if not jugador:GetAttribute("Muerto") or susto then
+		mirando.Visible = false
+		return
+	end
+	local lista = vivos()
+	if #lista == 0 then
+		mirando.Visible = false
+		return
+	end
+	if siguiente then
+		mirado += 1
+	end
+	mirado = ((mirado - 1) % #lista) + 1
+	local otro = lista[mirado]
+	local humanoide = otro.Character and otro.Character:FindFirstChildOfClass("Humanoid")
+	if humanoide and camara.CameraSubject ~= humanoide then
+		camara.CameraType = Enum.CameraType.Custom
+		camara.CameraSubject = humanoide
+	end
+	mirando.Text = Lang.t(nil, "Watching {name}", { name = otro.DisplayName })
+	mirando.Visible = true
+end
+
+local function manchas(padre: GuiObject)
+	for _ = 1, 7 do
+		local mancha = Instance.new("Frame")
+		local tamano = azar:NextNumber(0.12, 0.3)
+		mancha.AnchorPoint = Vector2.new(0.5, 0.5)
+		mancha.Position = UDim2.fromScale(if azar:NextNumber() < 0.5 then azar:NextNumber(0, 0.2) else azar:NextNumber(0.8, 1), azar:NextNumber(0, 1))
+		mancha.Size = UDim2.fromScale(tamano, tamano)
+		mancha.BackgroundColor3 = Color3.fromRGB(azar:NextInteger(70, 110), 0, 0)
+		mancha.BorderSizePixel = 0
+		mancha.ZIndex = 91
+		local aspecto = Instance.new("UIAspectRatioConstraint")
+		aspecto.Parent = mancha
+		local redondo = Instance.new("UICorner")
+		redondo.CornerRadius = UDim.new(0.5, 0)
+		redondo.Parent = mancha
+		mancha.Parent = padre
+		TweenService:Create(mancha, TweenInfo.new(2.5), { Position = mancha.Position + UDim2.fromScale(0, 0.08) }):Play()
+		task.delay(3, function()
+			TweenService:Create(mancha, TweenInfo.new(1.5), { BackgroundTransparency = 1 }):Play()
+			task.delay(1.5, mancha.Destroy, mancha)
+		end)
+	end
+end
+
+local function meHanPillado(cabeza: Vector3)
+	susto = true
+	ContextActionService:UnbindAction("SalirEscondite")
+	salir.Visible = false
+	local personaje = jugador.Character
+	local mia = personaje and personaje:FindFirstChild("Head") :: BasePart?
+	local desde = if mia then mia.Position else camara.CFrame.Position
+	local hacia = (desde - cabeza)
+	hacia = if hacia.Magnitude > 0.1 then hacia.Unit else Vector3.zAxis
+	local ojo = cabeza + hacia * 2.4 - Vector3.new(0, 0.3, 0)
+	camara.CameraType = Enum.CameraType.Scriptable
+	Sonido.tocar("Susto")
+	rojo.BackgroundTransparency = 0.2
+	TweenService:Create(rojo, TweenInfo.new(1.4), { BackgroundTransparency = 1 }):Play()
+	manchas(capa)
+	local t0 = os.clock()
+	while os.clock() - t0 < 1.6 do
+		local fuerza = 0.25 * (1 - (os.clock() - t0) / 1.6) + 0.05
+		camara.CFrame = CFrame.lookAt(ojo, cabeza)
+			* CFrame.new(azar:NextNumber(-fuerza, fuerza), azar:NextNumber(-fuerza, fuerza), 0)
+		RunService.RenderStepped:Wait()
+	end
+	TweenService:Create(negro, TweenInfo.new(0.8), { BackgroundTransparency = 0 }):Play()
+	task.wait(1.2)
+	Ui.aviso(Lang.t(nil, "It got you. You'll wake up at dawn."), 5)
+	susto = false
+	camara.CameraType = Enum.CameraType.Custom
+	mirarVivos(false)
+	TweenService:Create(negro, TweenInfo.new(1.5), { BackgroundTransparency = 1 }):Play()
+end
+
+local function charco(posicion: Vector3)
+	local resultado = workspace:Raycast(posicion, Vector3.new(0, -8, 0))
+	if not resultado then
+		return
+	end
+	local p = Instance.new("Part")
+	p.Shape = Enum.PartType.Cylinder
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.Material = Enum.Material.SmoothPlastic
+	p.Reflectance = 0.15
+	p.Color = Color3.fromRGB(60, 4, 4)
+	p.Size = Vector3.new(0.05, 1, 1)
+	p.CFrame = CFrame.new(resultado.Position + Vector3.new(0, 0.03, 0)) * CFrame.Angles(0, 0, math.pi / 2)
+	p.Parent = workspace.Terrain
+	local final = azar:NextNumber(5, 7)
+	TweenService:Create(p, TweenInfo.new(6, Enum.EasingStyle.Quad), { Size = Vector3.new(0.05, final, final) }):Play()
+	-- Se limpia al amanecer.
+	local conexion
+	conexion = workspace:GetAttributeChangedSignal("Fase"):Connect(function()
+		if workspace:GetAttribute("Fase") == "Dia" then
+			conexion:Disconnect()
+			p:Destroy()
+		end
+	end)
+end
+
+local function capas()
+	capa = Instance.new("Frame")
+	capa.Name = "Muerte"
+	capa.Size = UDim2.fromScale(1, 1)
+	capa.BackgroundTransparency = 1
+	capa.ZIndex = 90
+	capa.Parent = Ui.hud()
+	-- Bordes oscuros al esconderse: un degradado radial hecho con UIGradient sobre un marco.
+	bordes = Instance.new("ImageLabel")
+	bordes.Size = UDim2.fromScale(1, 1)
+	bordes.BackgroundTransparency = 1
+	bordes.Image = "rbxasset://textures/ui/TopBar/WhiteOverlayAsset.png"
+	bordes.ImageColor3 = Color3.new(0, 0, 0)
+	bordes.ImageTransparency = 1
+	bordes.ZIndex = 90
+	local degradado = Instance.new("UIGradient")
+	degradado.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.18, 0.75),
+		NumberSequenceKeypoint.new(0.82, 0.75),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	degradado.Parent = bordes
+	bordes.Parent = capa
+	rojo = Instance.new("Frame")
+	rojo.Size = UDim2.fromScale(1, 1)
+	rojo.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+	rojo.BackgroundTransparency = 1
+	rojo.BorderSizePixel = 0
+	rojo.ZIndex = 92
+	rojo.Parent = capa
+	negro = Instance.new("Frame")
+	negro.Size = UDim2.fromScale(1, 1)
+	negro.BackgroundColor3 = Color3.new(0, 0, 0)
+	negro.BackgroundTransparency = 1
+	negro.BorderSizePixel = 0
+	negro.ZIndex = 95
+	negro.Parent = capa
+
+	salir = Ui.boton(Lang.t(nil, "Leave"), {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.fromScale(0.5, 0.93),
+		Size = UDim2.fromOffset(170, 56),
+		Visible = false,
+		ZIndex = 96,
+	})
+	salir.Activated:Connect(function()
+		Remotes.Salir:FireServer()
+	end)
+	salir.Parent = capa
+	mirando = Ui.texto("", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.fromScale(0.5, 0.95),
+		Size = UDim2.fromScale(0.6, 0.04),
+		TextSize = 22,
+		Visible = false,
+		ZIndex = 96,
+	})
+	mirando.Parent = capa
+end
+
+function MuerteVista.start()
+	capas()
+	jugador:GetAttributeChangedSignal("Escondido"):Connect(cambiarEscondido)
+	jugador:GetAttributeChangedSignal("Muerto"):Connect(function()
+		if not jugador:GetAttribute("Muerto") then
+			mirando.Visible = false
+			jugador.CameraMode = Enum.CameraMode.LockFirstPerson
+			jugador.CameraMinZoomDistance = 0.5
+		else -- de muerto se mira a los demás desde detrás
+			jugador.CameraMode = Enum.CameraMode.Classic
+			jugador.CameraMinZoomDistance = 10
+		end
+	end)
+	jugador.CharacterAdded:Connect(function(personaje)
+		camara.CameraType = Enum.CameraType.Custom
+		camara.CameraSubject = personaje:WaitForChild("Humanoid")
+	end)
+	Remotes.Muerte.OnClientEvent:Connect(function(quien: Player, cabeza: Vector3)
+		if quien == jugador then
+			task.spawn(meHanPillado, cabeza)
+		else
+			local raiz = quien.Character and quien.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if raiz then
+				charco(raiz.Position)
+			end
+		end
+	end)
+	UserInputService.InputBegan:Connect(function(entrada, procesado)
+		if procesado or not jugador:GetAttribute("Muerto") then
+			return
+		end
+		if entrada.UserInputType == Enum.UserInputType.MouseButton1 or entrada.UserInputType == Enum.UserInputType.Touch then
+			mirarVivos(true)
+		end
+	end)
+	RunService.RenderStepped:Connect(function()
+		enEscondite()
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			mirarVivos(false) -- por si el que mirabas ha muerto
+		end
+	end)
+end
+
+return MuerteVista
