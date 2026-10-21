@@ -5,6 +5,9 @@
 --   "Ventana": cristal y persiana. "Puerta": hoja que gira en la bisagra. "Escondite": armarios y camas.
 -- Medidas en studs: suelo de abajo arriba en y = 1, el de arriba en y = 14; paredes de 12 de alto.
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local Mapa = {}
 
@@ -27,6 +30,8 @@ Mapa.salas = {} :: { Vector3 }
 -- Dónde empiezan los objetos sueltos (Mochila) y las cosas pesadas (Cargar).
 Mapa.objetos = {} :: { { tipo: string, cf: CFrame } }
 Mapa.pesados = {} :: { { tipo: string, cf: CFrame } }
+-- Lámparas de la casa (las enciende Generador).
+Mapa.lamparas = {} :: { BasePart }
 
 local casa: Model
 
@@ -61,7 +66,9 @@ local function lampara(posicion: Vector3)
 	luz.Brightness = 1.1
 	luz.Range = 22
 	luz.Shadows = true
+	luz.Enabled = false -- las enciende el generador
 	luz.Parent = p
+	table.insert(Mapa.lamparas, p)
 end
 
 local function ventana(centro: Vector3, fuera: Vector3, h, suelo: number)
@@ -224,6 +231,64 @@ local function cama(centro: Vector3, largo: Vector3, lado: number)
 	CollectionService:AddTag(modelo, "Escondite")
 end
 
+-- Cobertizo pegado a la parte de atrás de la casa (x 3..13, z 22.5..31) con el generador; se entra por el este.
+local function construirCobertizo()
+	local x1, x2, z1, z2, alto = 3, 13, 22.5, 31, 9
+	CollectionService:AddTag(bloque("Piso", Vector3.new(x2 - x1, 1, z2 - z1), CFrame.new((x1 + x2) / 2, 0.5, (z1 + z2) / 2), COLOR.Piso),
+		"EnMapa")
+	bloque("Muro", Vector3.new(x2 - x1 + 1, alto, 1), CFrame.new((x1 + x2) / 2, ABAJO + alto / 2, z2))
+	bloque("Muro", Vector3.new(1, alto, z2 - z1), CFrame.new(x1, ABAJO + alto / 2, (z1 + z2) / 2))
+	bloque("Muro", Vector3.new(1, alto, 2.5), CFrame.new(x2, ABAJO + alto / 2, z1 + 1.25)) -- este, con la entrada (z 25..30)
+	bloque("Muro", Vector3.new(1, alto - 7, 5), CFrame.new(x2, ABAJO + 7 + (alto - 7) / 2, 27.5))
+	bloque("Techo", Vector3.new(x2 - x1 + 2, 0.6, z2 - z1 + 1.5), CFrame.new((x1 + x2) / 2, ABAJO + alto + 0.3, (z1 + z2) / 2 + 0.4),
+		COLOR.Oscuro, Enum.Material.CorrodedMetal)
+	lampara(Vector3.new(8, ABAJO + alto - 0.4, 26.5))
+
+	-- El generador mira al este (a la entrada): la cuerda sale por ese lado.
+	local gen = Instance.new("Model")
+	gen.Name = "Generador"
+	gen.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	local base = CFrame.new(8, ABAJO, 28.4)
+	local function trozo(nombre: string, tamano: Vector3, offset: CFrame, color: Color3, material: Enum.Material?)
+		return bloque(nombre, tamano, base * offset, color, material or Enum.Material.Metal, gen)
+	end
+	trozo("Cuerpo", Vector3.new(4, 2.4, 2.6), CFrame.new(0, 1.5, 0), Color3.fromRGB(96, 40, 32))
+	trozo("Patas", Vector3.new(4.4, 0.3, 2.9), CFrame.new(0, 0.15, 0), COLOR.Oscuro)
+	trozo("Deposito", Vector3.new(2.4, 0.8, 1.9), CFrame.new(-0.5, 3.1, 0), Color3.fromRGB(110, 46, 36))
+	trozo("Tapon", Vector3.new(0.5, 0.3, 0.5), CFrame.new(-1.2, 3.6, 0), COLOR.Oscuro)
+	trozo("Escape", Vector3.new(0.35, 1.6, 0.35), CFrame.new(-1.7, 3.3, -1), COLOR.Oscuro)
+	trozo("Motor", Vector3.new(1.4, 1.6, 1.8), CFrame.new(1.4, 1.6, 0), Color3.fromRGB(60, 60, 62), Enum.Material.DiamondPlate)
+	trozo("Cuerda", Vector3.new(0.25, 0.25, 0.9), CFrame.new(2.3, 2, 0.3), COLOR.Oscuro, Enum.Material.Plastic)
+	-- Indicador de gasolina en el frente: el cliente sube y baja el Nivel.
+	trozo("Indicador", Vector3.new(0.1, 1.6, 0.3), CFrame.new(2.05, 1.5, -1.1), Color3.fromRGB(30, 28, 26))
+	trozo("Nivel", Vector3.new(0.1, 1.4, 0.18), CFrame.new(2.11, 1.5, -1.1), Color3.fromRGB(170, 140, 60), Enum.Material.SmoothPlastic)
+	mando(base * CFrame.new(3.4, 2.4, 0), gen)
+	gen:SetAttribute("Tapon", base * CFrame.new(-1.2, 3.8, 0)) -- donde cae la gasolina
+	CollectionService:AddTag(gen, "Generador")
+	gen.Parent = casa
+end
+
+-- Caballete para serrar troncos, a un lado de la entrada. Lo serrado sale al lado, hacia la casa.
+local function construirCaballete()
+	local modelo = Instance.new("Model")
+	modelo.Name = "Caballete"
+	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	local base = CFrame.new(-22, 0, -32)
+	for _, x in { -2, 2 } do
+		for _, lado in { 1, -1 } do
+			bloque("Pata", Vector3.new(0.4, 3.2, 0.4), base * CFrame.new(x, 1.5, 0.5 * lado) * CFrame.Angles(math.rad(18 * lado), 0, 0),
+				COLOR.Tronco, Enum.Material.Wood, modelo)
+		end
+	end
+	bloque("Viga", Vector3.new(5.6, 0.5, 0.6), base * CFrame.new(0, 3, 0), COLOR.Tronco, Enum.Material.Wood, modelo)
+	mando(base * CFrame.new(0, 3, 0), modelo)
+	modelo:SetAttribute("Encima", base * CFrame.new(0, 4, 0)) -- donde se pone el tronco
+	modelo:SetAttribute("Salida", base * CFrame.new(0, 0.4, 2.4)) -- donde caen los tablones
+	CollectionService:AddTag(modelo, "Caballete")
+	CollectionService:AddTag(modelo:FindFirstChild("Viga") :: BasePart, "EnMapa")
+	modelo.Parent = casa
+end
+
 local function construirCasa(mapa: Folder)
 	casa = Instance.new("Model")
 	casa.Name = "Casa"
@@ -305,6 +370,7 @@ local function construirCasa(mapa: Folder)
 		{ "Pila", Vector3.new(-21, ABAJO + 3.7, 20.5) }, { "Lata", Vector3.new(-16, ABAJO + 3.7, 20.5) }, -- encimera
 		{ "Botella", Vector3.new(-15.5, ABAJO + 3.4, 13) }, { "Carrete", Vector3.new(-13.5, ABAJO + 3.4, 12.5) }, -- mesa
 		{ "Pila", Vector3.new(-17, ARRIBA + 0.2, -12) }, { "Hacha", Vector3.new(21, ABAJO + 0.2, 18) },
+	{ "Hacha", Vector3.new(-19, 0.2, -28.5) }, -- junto al caballete
 	} do
 		table.insert(Mapa.objetos, { tipo = o[1], cf = CFrame.new(o[2]) * CFrame.Angles(0, math.rad(#Mapa.objetos * 37), 0) })
 	end
@@ -312,6 +378,7 @@ local function construirCasa(mapa: Folder)
 	for _, p in {
 		{ "Tronco", CFrame.new(10, 0.7, -32) * CFrame.Angles(0, 0.4, 0) }, { "Tronco", CFrame.new(-10, 0.7, -33) },
 		{ "Tablon", CFrame.new(14, 0.15, -27) * CFrame.Angles(0, -0.3, 0) }, { "Bidon", CFrame.new(-14, 1.2, -28) },
+		{ "Bidon", CFrame.new(5, ABAJO + 1.2, 29.5) }, -- en el cobertizo
 		{ "Motor", CFrame.new(20, 1.1, -38) },
 	} do
 		table.insert(Mapa.pesados, { tipo = p[1], cf = p[2] })
@@ -344,6 +411,23 @@ local function construirCasa(mapa: Folder)
 	aparicion.Duration = 0
 	aparicion.Parent = casa
 
+	construirCobertizo()
+	construirCaballete()
+	-- Enchufe del móvil en el cuarto de la limpieza: placa, repisa donde se deja el móvil y lucecita de carga.
+	local enchufe = Instance.new("Model")
+	enchufe.Name = "Enchufe"
+	enchufe.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	bloque("Placa", Vector3.new(0.15, 0.8, 0.6), CFrame.new(25.45, ABAJO + 2.6, 19.5), Color3.fromRGB(190, 185, 170),
+		Enum.Material.SmoothPlastic, enchufe)
+	bloque("Repisa", Vector3.new(1.1, 0.2, 1.4), CFrame.new(24.95, ABAJO + 1.9, 19.5), COLOR.Mueble, nil, enchufe)
+	bloque("Luz", Vector3.new(0.1, 0.12, 0.12), CFrame.new(25.36, ABAJO + 3.15, 19.5), COLOR.Oscuro, Enum.Material.SmoothPlastic,
+		enchufe)
+	mando(CFrame.new(24.6, ABAJO + 2.4, 19.5), enchufe)
+	enchufe:SetAttribute("Sitio", CFrame.new(24.95, ABAJO + 2.15, 19.5)) -- donde se queda el móvil cargando
+	CollectionService:AddTag(enchufe, "Enchufe")
+	enchufe.Parent = casa
+
+	CollectionService:AddTag(casa:FindFirstChild("Piso") :: BasePart, "EnMapa")
 	casa.Parent = mapa
 end
 
@@ -351,7 +435,8 @@ local function construirBosque(mapa: Folder)
 	local bosque = Instance.new("Folder")
 	bosque.Name = "Bosque"
 	bloque("Suelo", Vector3.new(1600, 2, 1600), CFrame.new(0, -1, 0), COLOR.Suelo, Enum.Material.Grass, bosque)
-	bloque("Camino", Vector3.new(12, 0.2, 400), CFrame.new(0, 0.05, -225), COLOR.Camino, Enum.Material.Ground, bosque)
+	CollectionService:AddTag(bloque("Camino", Vector3.new(12, 0.2, 400), CFrame.new(0, 0.05, -225), COLOR.Camino,
+		Enum.Material.Ground, bosque), "EnMapa")
 	local azar = Random.new(7)
 	local puestos = 0
 	while puestos < 260 do
@@ -365,6 +450,42 @@ local function construirBosque(mapa: Folder)
 			puestos += 1
 		end
 	end
+	-- Árboles finos cerca de la casa: los que se talan (Recursos). Tronco anclado, copa soldada y un mando abajo.
+	local talables = Instance.new("Folder")
+	talables.Name = "Arboles"
+	puestos = 0
+	while puestos < Config.Talar.Arboles do
+		local angulo = azar:NextNumber(0, math.pi * 2)
+		local distancia = azar:NextNumber(42, 170)
+		local x, z = math.cos(angulo) * distancia, math.sin(angulo) * distancia
+		if not (math.abs(x) < 14 and z < -28) and (Vector3.new(x, 0, z) - Vector3.new(-22, 0, -32)).Magnitude > 10 then
+			local modelo = Instance.new("Model")
+			modelo.Name = "Arbol"
+			modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+			local alto, grueso = azar:NextNumber(22, 30), azar:NextNumber(1.6, 2.2)
+			local tronco = bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
+				COLOR.Tronco, Enum.Material.Wood, modelo)
+			tronco.Shape = Enum.PartType.Cylinder
+			for i, copa in { { 9, alto - 4 }, { 6, alto + 1 } } do
+				local hoja = bloque("Copa", Vector3.new(copa[1], copa[1] * 0.8, copa[1]),
+					CFrame.new(x, copa[2], z) * CFrame.Angles(0, azar:NextNumber(0, math.pi) + i, 0), Color3.fromRGB(44, 54, 42),
+					Enum.Material.Grass, modelo)
+				hoja.Anchored = false
+				hoja.CanCollide = false
+				hoja.Massless = true
+				local union = Instance.new("WeldConstraint")
+				union.Part0 = tronco
+				union.Part1 = hoja
+				union.Parent = hoja
+			end
+			mando(CFrame.new(x, 3.5, z), modelo)
+			modelo.PrimaryPart = tronco
+			CollectionService:AddTag(modelo, "Arbol")
+			modelo.Parent = talables
+			puestos += 1
+		end
+	end
+	talables.Parent = bosque
 	bosque.Parent = mapa
 end
 
