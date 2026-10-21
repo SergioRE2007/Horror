@@ -95,7 +95,7 @@ end
 
 -- Título grande que aparece y se va (al anochecer).
 local function titulo(texto: string)
-	local t = Ui.texto(string.upper(texto), {
+	local t = Ui.texto(Ui.mayusculas(texto), {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.4),
 		Size = UDim2.fromScale(0.8, 0.12),
