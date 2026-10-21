@@ -57,6 +57,59 @@ Config.Golpeador = {
 	VioEsconderse = 1.5, -- si te vio hasta este tiempo antes de esconderte, sabe dónde estás
 }
 
+-- El Raspador (juego/servidor/Raspador): se pega a una ventana y raspa despacio. La persiana no le para: hay que
+-- subirla y darle un flashazo. La linterna lo frena. Si termina de raspar, entra y caza como el Golpeador (más lento).
+-- Números a ojo.
+Config.Raspador = {
+	Noche = 3, -- primera noche en la que sale; su primer ataque de esa noche es seguro
+	Probabilidad = 0.35, -- desde entonces, de cada ataque, cuántos son suyos
+	Raspar = { 26, 34 }, -- segundos raspando hasta entrar
+	MenosPorNoche = 1, -- cada noche raspa antes...
+	RasparMin = 16, -- ...hasta este mínimo
+	Frena = 0.25, -- con la linterna encima raspa a esta velocidad
+	Grito = 3,
+	Caza = 25,
+	Andar = 6,
+	Correr = 14,
+	Huir = 26, -- velocidad al escapar del flash
+	Pillar = 4.5,
+	Vista = 60,
+	VioEsconderse = 1.5,
+}
+
+-- Dificultad por número de jugadores (shared/Dificultad), pensada para 2 (pedido por el usuario). Se calcula al
+-- empezar cada noche. AlaVez = {mínimo, máximo} ataques a la vez; Ritmo multiplica el tiempo entre ataques,
+-- Paciencia lo que aguanta golpeando o raspando, Tareas lo que hay que hacer de día (aún sin usar). Números a ojo.
+Config.Dificultad = {
+	{ AlaVez = { 1, 1 }, Ritmo = 1.3, Paciencia = 1.25, Tareas = 0.75 },
+	{ AlaVez = { 2, 2 }, Ritmo = 1, Paciencia = 1, Tareas = 1 },
+	{ AlaVez = { 2, 3 }, Ritmo = 0.9, Paciencia = 1, Tareas = 1.25 },
+	{ AlaVez = { 3, 3 }, Ritmo = 0.8, Paciencia = 0.85, Tareas = 1.25 },
+}
+Config.Separacion = { 12, 20 } -- segundos entre la llegada de un ataque y la del siguiente de la misma noche
+
+-- Linterna con pilas (juego/servidor/Equipo): la F, o el botón en el móvil. Con poca pila parpadea.
+Config.Linterna = {
+	Duracion = 150, -- segundos encendida que dura una pila
+	Poca = 0.2, -- con menos de esto parpadea
+	PilasInicio = 2, -- de repuesto al empezar (luego se encuentran o se cambian)
+	Cambiar = 1.5, -- segundos cambiando la pila
+	Alcance = 55, -- studs que alumbra
+	Angulo = 25, -- grados desde el centro en los que frena a un bicho
+	Brillo = 4, -- de noche la exposición sube (Ambiente): con menos apenas se ve el círculo
+}
+
+-- Cámara con flash (juego/servidor/Equipo): clic, botón en el móvil o R2. Echa al Raspador; al resto lo aturde.
+Config.Flash = {
+	Fotos = 6, -- fotos por carrete
+	CarretesInicio = 1, -- de repuesto al empezar
+	Recarga = 4, -- segundos entre flashazos
+	Cambiar = 2,
+	Alcance = 40,
+	Angulo = 30,
+	Aturde = 2, -- segundos que se queda quieto el bicho que no huye del flash
+}
+
 -- Modo de pruebas: solo actúa en Studio (shared/Prueba). Con él no se lee ni se guarda nada.
 Config.Test = {
 	Activo = true, -- en Studio: partida sin guardar y lo de abajo
@@ -64,6 +117,7 @@ Config.Test = {
 	Lang = nil :: string?, -- "es" o "en" fuerza el idioma en Studio; nil = el del jugador
 	Dia = 40, -- noche rápida: segundos de día y de noche en Studio (nil = los de Config.Ciclo)
 	Noche = 150,
+	Jugadores = nil :: number?, -- fuerza la fila de Config.Dificultad (nil = los que haya)
 }
 
 -- Sonidos. Provisionales de la biblioteca de Roblox para probar la tensión; se cambian por los de ElevenLabs.
@@ -77,6 +131,10 @@ Config.Sonidos = {
 	Puerta = { Id = 9120829478, Volumen = 0.6, Alcance = 40 },
 	Latido = { Id = 9043365842, Volumen = 0.7 },
 	Susto = { Id = 9113985451, Volumen = 2 },
+	Raspado = { Id = 9120078794, Volumen = 1.2, Alcance = 70 }, -- en bucle mientras raspa
+	Chillido = { Id = 9125474863, Volumen = 1.6, Alcance = 150 }, -- el Raspador al recibir el flash
+	Linterna = { Id = 9070807695, Volumen = 0.5 },
+	Flash = { Id = 118206070547709, Volumen = 0.9, Alcance = 50 },
 	-- Sin viento de fondo hasta tener uno de ElevenLabs: el de la biblioteca sonaba saturado (pedido por el usuario).
 	-- Viento = { Id = ..., Volumen = 0.12 },
 }

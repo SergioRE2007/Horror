@@ -142,6 +142,16 @@ function Casa.golpe(el: Model, dano: number): string
 	return resultado
 end
 
+-- El Raspador va agrietando el cristal mientras raspa (`hecho` de 0 a 1); sin llegar a romperlo.
+function Casa.agrietar(el: Model, hecho: number)
+	local e = estados[el]
+	local nivel = math.min(cfg.GolpesCristal - 1, math.floor(hecho * cfg.GolpesCristal))
+	if nivel > e.cristal then
+		e.cristal = nivel
+		publicar(el)
+	end
+end
+
 function Casa.romper(el: Model)
 	Defensa.romper(estados[el], cfg)
 	publicar(el)

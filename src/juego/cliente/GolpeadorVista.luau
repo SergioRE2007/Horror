@@ -13,7 +13,7 @@ type Bicho = { modelo: Model, raiz: BasePart, motores: { [string]: Motor6D }, fa
 local bichos: { [Model]: Bicho } = {}
 
 local function preparar(modelo: Instance)
-	if not modelo:IsA("Model") then
+	if not modelo:IsA("Model") or modelo.Name ~= "Golpeador" then
 		return
 	end
 	local raiz = modelo:WaitForChild("HumanoidRootPart", 5) :: BasePart?
@@ -77,8 +77,8 @@ local function animar(dt: number)
 	end
 end
 
-local function cercano(punto: Vector3): Bicho?
-	local mejor, distancia = nil, math.huge
+local function cercano(punto: Vector3, maximo: number?): Bicho?
+	local mejor, distancia = nil, maximo or math.huge
 	for _, b in bichos do
 		local d = (b.raiz.Position - punto).Magnitude
 		if d < distancia then
@@ -88,9 +88,9 @@ local function cercano(punto: Vector3): Bicho?
 	return mejor
 end
 
--- Abre la boca del todo unos segundos (el susto al morir). Devuelve el bicho más cercano a `punto`, si hay.
+-- Abre la boca del todo unos segundos (el susto al morir). Devuelve el Golpeador con la cabeza cerca de `punto`, si hay.
 function GolpeadorVista.rugir(punto: Vector3): Model?
-	local b = cercano(punto)
+	local b = cercano(punto, 12)
 	if b then
 		b.rugido = os.clock()
 		return b.modelo
