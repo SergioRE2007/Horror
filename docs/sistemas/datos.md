@@ -6,7 +6,8 @@
 - `src/shared` → `ReplicatedStorage.Shared`: `Config`, `Lang` + `LangEs`, `Remotes`, `Prueba`, `Rejilla` (la mochila, ver `mochila.md`).
 - `src/comun/servidor` → `ServerScriptService.Comun` y `src/comun/cliente` → `StarterPlayerScripts.Comun`: lo que vale en los dos lugares (`Datos`, `Candado`, `Formato`, `Idioma`, `Limpieza`, `Viaje`; en el cliente `Ui`, `Avisos`, `Controles`).
 - `src/juego/*` y `src/lobby/*` → `ServerScriptService.Servidor` y `StarterPlayerScripts.Cliente`: el `init` de cada lugar, que arranca sus sistemas con `start()`.
-- `Limpieza` borra al arrancar todo lo suelto del Workspace; con `start(true)` (el juego) deja además un suelo gris provisional con su punto de aparición. El lobby tiene su mapa (`Gasolinera`).
+- `Limpieza` borra al arrancar todo lo suelto del Workspace y deja `workspace.Mapa` vacía; cada lugar pone ahí su mapa y su punto de aparición (`Mapa`, `Gasolinera`).
+- Pedido por el usuario (parpadeos): dos caras de piezas distintas en el mismo plano parpadean al mover la cámara. `Separar.caras(carpeta)` (comun/servidor), al acabar de generar cada mapa, busca esas parejas y agranda 0,03 studs por cara una de las dos hasta que no quede ninguna (avisa con `warn` si quedan). El punto de aparición va encima del suelo, no a ras.
 
 ## Guardado del jugador
 
