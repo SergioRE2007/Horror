@@ -5,7 +5,8 @@
 --   La linterna: encendida sobre un bicho le apunta `iluminado` (el Raspador raspa más lento).
 --   El flash: al bicho que le dé, `alFlash` (el Raspador huye) o se queda aturdido.
 -- La luz no pasa paredes ni la persiana bajada de la ventana a la que está pegado el bicho; sí el cristal.
--- Mientras no haya mochila (paso 4), las pilas y los carretes son solo un número en el jugador.
+-- La linterna, la cámara, las pilas y los carretes son objetos de la mochila (Mochila): sin linterna no hay luz y sin
+-- cámara no hay flash. La pila de la linterna y las fotos de la cámara van en su `carga`; aquí se gastan.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +17,7 @@ local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Casa = require(script.Parent.Casa)
 local Caza = require(script.Parent.Caza)
+local Mochila = require(script.Parent.Mochila)
 local Muerte = require(script.Parent.Muerte)
 
 local Equipo = {}
@@ -61,25 +63,26 @@ end
 
 -- Pone una pila o un carrete nuevo (tarda un poco). false si no le quedan.
 local function cambiar(jugador: Player, que: string): boolean
-	local repuesto = if que == "Pila" then "Pilas" else "Carretes"
 	if jugador:GetAttribute("Cambiando") then
 		return true
 	end
-	if (jugador:GetAttribute(repuesto) or 0) <= 0 then
+	if not Mochila.gastar(jugador, que) then
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, if que == "Pila" then "No batteries left." else "No film left."))
 		return false
 	end
 	jugador:SetAttribute("Cambiando", que)
 	task.delay(if que == "Pila" then L.Cambiar else F.Cambiar, function()
-		if jugador.Parent then
-			jugador:SetAttribute(repuesto, jugador:GetAttribute(repuesto) - 1)
+		if not jugador.Parent then
+			return
+		end
+		jugador:SetAttribute("Cambiando", nil)
+		local cosa = Mochila.primera(jugador, if que == "Pila" then "Linterna" else "Camara")
+		if cosa then -- si la ha tirado mientras cambiaba, la pila o el carrete se pierde
+			cosa.carga = if que == "Pila" then 1 else F.Fotos
+			Mochila.publicar(jugador)
 			if que == "Pila" then
-				jugador:SetAttribute("Pila", 1)
 				jugador:SetAttribute("Linterna", true)
-			else
-				jugador:SetAttribute("Fotos", F.Fotos)
 			end
-			jugador:SetAttribute("Cambiando", nil)
 		end
 	end)
 	return true
@@ -89,9 +92,12 @@ local function alternarLinterna(jugador: Player)
 	if not puedeUsar(jugador) or jugador:GetAttribute("Cambiando") then
 		return
 	end
-	if jugador:GetAttribute("Linterna") then
+	local linterna = Mochila.primera(jugador, "Linterna")
+	if not linterna then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "You don't have a flashlight."))
+	elseif jugador:GetAttribute("Linterna") then
 		jugador:SetAttribute("Linterna", false)
-	elseif (jugador:GetAttribute("Pila") or 0) > 0 then
+	elseif (linterna.carga or 0) > 0 then
 		jugador:SetAttribute("Linterna", true)
 	else
 		cambiar(jugador, "Pila")
@@ -106,16 +112,26 @@ local function flash(jugador: Player, hacia: unknown)
 	if not cabeza or not puedeUsar(jugador) or jugador:GetAttribute("Cambiando") then
 		return
 	end
+	local camara = Mochila.primera(jugador, "Camara")
+	if not camara then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "You don't have a camera."))
+		return
+	end
+	if jugador:GetAttribute("Cargando") or jugador:GetAttribute("MochilaAbierta") then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Your hands are full."))
+		return
+	end
 	local ahora = os.clock()
 	if ahora - (ultimoFlash[jugador] or -math.huge) < F.Recarga then
 		return
 	end
-	if (jugador:GetAttribute("Fotos") or 0) <= 0 then
+	if (camara.carga or 0) <= 0 then
 		cambiar(jugador, "Carrete")
 		return
 	end
 	ultimoFlash[jugador] = ahora
-	jugador:SetAttribute("Fotos", jugador:GetAttribute("Fotos") - 1)
+	camara.carga -= 1
+	jugador:SetAttribute("Fotos", camara.carga)
 	Remotes.Flash:FireAllClients(jugador)
 	for _, b in Caza.todos() do
 		if alcanza(cabeza.Position, hacia, b, F.Alcance, F.Angulo) then
@@ -126,14 +142,6 @@ local function flash(jugador: Player, hacia: unknown)
 			end
 		end
 	end
-end
-
-local function alEntrar(jugador: Player)
-	jugador:SetAttribute("Linterna", false)
-	jugador:SetAttribute("Pila", 1)
-	jugador:SetAttribute("Pilas", L.PilasInicio)
-	jugador:SetAttribute("Fotos", F.Fotos)
-	jugador:SetAttribute("Carretes", F.CarretesInicio)
 end
 
 -- Gasta la pila de las linternas encendidas y apunta a qué bichos les da.
@@ -156,7 +164,13 @@ local function gastar(dt: number)
 			jugador:SetAttribute("Linterna", false)
 			continue
 		end
-		local pila = math.max(0, (jugador:GetAttribute("Pila") or 0) - paso / L.Duracion)
+		local linterna = Mochila.primera(jugador, "Linterna")
+		if not linterna then
+			jugador:SetAttribute("Linterna", false)
+			continue
+		end
+		local pila = math.max(0, (linterna.carga or 0) - paso / L.Duracion)
+		linterna.carga = pila
 		jugador:SetAttribute("Pila", pila)
 		if pila <= 0 then
 			jugador:SetAttribute("Linterna", false)
@@ -180,10 +194,6 @@ function Equipo.start()
 		if cristal then
 			table.insert(cristales, cristal)
 		end
-	end
-	Players.PlayerAdded:Connect(alEntrar)
-	for _, jugador in Players:GetPlayers() do
-		alEntrar(jugador)
 	end
 	Players.PlayerRemoving:Connect(function(jugador)
 		ultimoFlash[jugador] = nil

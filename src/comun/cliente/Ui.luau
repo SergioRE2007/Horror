@@ -46,6 +46,12 @@ function Ui.hud(): ScreenGui
 	return gui
 end
 
+-- Mayúsculas que entienden las tildes (string.upper deja "á" en minúscula).
+local TILDES = { ["á"] = "Á", ["é"] = "É", ["í"] = "Í", ["ó"] = "Ó", ["ú"] = "Ú", ["ñ"] = "Ñ", ["ü"] = "Ü" }
+function Ui.mayusculas(texto: string): string
+	return (string.gsub(string.upper(texto), "\195[\160-\191]", TILDES))
+end
+
 -- Texto con la letra del juego. `props` sobrescribe lo que haga falta.
 function Ui.texto(texto: string, props: { [string]: any }?): TextLabel
 	local t = Instance.new("TextLabel")
@@ -69,7 +75,7 @@ function Ui.boton(texto: string, props: { [string]: any }?): TextButton
 	b.BackgroundColor3 = Ui.Color.Papel
 	b.BackgroundTransparency = 0.15
 	b.FontFace = Ui.Fuente
-	b.Text = string.upper(texto)
+	b.Text = Ui.mayusculas(texto)
 	b.TextColor3 = Ui.Color.Hueso
 	b.TextSize = 26
 	local borde = Instance.new("UIStroke")

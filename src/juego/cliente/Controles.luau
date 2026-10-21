@@ -18,7 +18,7 @@ local pintados: { [ProximityPrompt]: Pintado } = {}
 local botonera: Frame
 
 local function textoDe(prompt: ProximityPrompt): string
-	return string.upper(Lang.t(nil, prompt.ActionText))
+	return Ui.mayusculas(Lang.t(nil, prompt.ActionText))
 end
 
 local function teclaDe(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputType): string
@@ -150,6 +150,14 @@ function Controles.start()
 	lista.SortOrder = Enum.SortOrder.LayoutOrder
 	lista.Parent = botonera
 	botonera.Parent = Ui.hud()
+
+	-- Con las manos ocupadas (llevando algo pesado) o la mochila abierta no se toca nada.
+	local jugador = game:GetService("Players").LocalPlayer
+	local function manosLibres()
+		ProximityPromptService.Enabled = not (jugador:GetAttribute("Cargando") or jugador:GetAttribute("MochilaAbierta"))
+	end
+	jugador:GetAttributeChangedSignal("Cargando"):Connect(manosLibres)
+	jugador:GetAttributeChangedSignal("MochilaAbierta"):Connect(manosLibres)
 
 	ProximityPromptService.PromptShown:Connect(function(prompt, tipo)
 		if prompt.Style == Enum.ProximityPromptStyle.Custom then
