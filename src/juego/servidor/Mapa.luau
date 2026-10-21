@@ -35,6 +35,11 @@ Mapa.lamparas = {} :: { BasePart }
 
 local casa: Model
 
+-- Nombre fijo de lo que se guarda (Partida): sale de dónde está, para que añadir cosas al mapa no lo cambie.
+local function clave(letra: string, punto: Vector3): string
+	return `{letra}{math.round(punto.X)}_{math.round(punto.Y)}_{math.round(punto.Z)}`
+end
+
 local function bloque(nombre: string, tamano: Vector3, cf: CFrame, color: Color3?, material: Enum.Material?, padre: Instance?): Part
 	local p = Instance.new("Part")
 	p.Name = nombre
@@ -85,6 +90,7 @@ local function ventana(centro: Vector3, fuera: Vector3, h, suelo: number)
 	end
 	bloque("Caja", Vector3.new(h.ancho + 0.6, 1, 0.9), mira * CFrame.new(0, h.alto / 2 + 0.5, 0.95), COLOR.Mueble, nil, modelo)
 	mando(mira * CFrame.new(0, 0, 1.4), modelo)
+	modelo:SetAttribute("Clave", clave("V", centro))
 	modelo:SetAttribute("Centro", mira)
 	modelo:SetAttribute("Ancho", h.ancho)
 	modelo:SetAttribute("Alto", h.alto)
@@ -111,6 +117,7 @@ local function puerta(pie: Vector3, eje: Vector3, h, fuera: Vector3?)
 		modificador.Parent = hoja
 	end
 	mando(CFrame.new(pie + Vector3.new(0, 4, 0)), modelo)
+	modelo:SetAttribute("Clave", clave("P", pie))
 	modelo:SetAttribute("Bisagra", bisagra)
 	modelo:SetAttribute("Hacia", h.hacia)
 	modelo:SetAttribute("Ancho", h.ancho)
@@ -480,6 +487,7 @@ local function construirBosque(mapa: Folder)
 			end
 			mando(CFrame.new(x, 3.5, z), modelo)
 			modelo.PrimaryPart = tronco
+			modelo:SetAttribute("Clave", clave("A", Vector3.new(x, 0, z)))
 			CollectionService:AddTag(modelo, "Arbol")
 			modelo.Parent = talables
 			puestos += 1

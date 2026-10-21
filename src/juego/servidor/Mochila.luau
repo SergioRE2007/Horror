@@ -223,12 +223,79 @@ local function espalda(personaje: Model)
 	pieza.Parent = personaje
 end
 
-local function alEntrar(jugador: Player)
+-- La mochila con la que se empieza.
+local function deInicio(): Rejilla.Rejilla
 	local r = Rejilla.nueva(M.Ancho, M.Alto)
 	for _, tipo in M.Inicio do
 		Rejilla.meter(r, CAT, tipo, cargaNueva(tipo))
 	end
-	rejillas[jugador] = r
+	return r
+end
+
+-- Tira al suelo, alrededor de `punto`, una lista de cosas de la rejilla.
+local function desparramar(cosas: { Rejilla.Cosa }, punto: Vector3)
+	for i, cosa in cosas do
+		local angulo = i * 2.4
+		local cf = CFrame.new(punto + Vector3.new(math.cos(angulo) * 1.5, 1 + i * 0.3, math.sin(angulo) * 1.5))
+		Mochila.dejar(cosa.tipo, cosa.carga, cf * CFrame.Angles(0, angulo, 0))
+	end
+end
+
+-- Lo que se guarda de su mochila (Partida): { cosas = las de la rejilla }.
+function Mochila.exportar(jugador: Player)
+	local r = rejillas[jugador]
+	if not r then
+		return nil
+	end
+	local cosas = {}
+	for _, c in r.cosas do
+		table.insert(cosas, { id = c.id, tipo = c.tipo, x = c.x, y = c.y, girada = c.girada, carga = c.carga })
+	end
+	return { cosas = cosas }
+end
+
+-- Le pone la mochila guardada (nil = la de empezar). Lo que ya no cabe cae a sus pies.
+function Mochila.importar(jugador: Player, datos)
+	if not rejillas[jugador] then
+		return
+	end
+	if datos then
+		local r, sobran = Rejilla.desde(datos, CAT, M.Ancho, M.Alto)
+		rejillas[jugador] = r
+		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if raiz then
+			desparramar(sobran, raiz.Position)
+		end
+	else
+		rejillas[jugador] = deInicio()
+	end
+	if jugador:GetAttribute("MochilaAbierta") then
+		abrir(jugador, false)
+	end
+	Mochila.publicar(jugador)
+end
+
+-- Lo suelto por el mapa, para guardarlo: { tipo, carga, cf }. El móvil del enchufe lo guarda Generador.
+function Mochila.sueltos(): { { tipo: string, carga: number?, cf: CFrame } }
+	local lista = {}
+	for _, pieza in carpeta:GetChildren() do
+		if pieza:IsA("BasePart") and not pieza:GetAttribute("Enchufado") then
+			table.insert(lista, { tipo = pieza:GetAttribute("Tipo"), carga = pieza:GetAttribute("Carga"), cf = pieza.CFrame })
+		end
+	end
+	return lista
+end
+
+-- Quita todo lo suelto y pone lo de la lista.
+function Mochila.importarSueltos(lista: { { tipo: string, carga: number?, cf: CFrame } })
+	carpeta:ClearAllChildren()
+	for _, o in lista do
+		Mochila.dejar(o.tipo, o.carga, o.cf)
+	end
+end
+
+local function alEntrar(jugador: Player)
+	rejillas[jugador] = deInicio()
 	jugador.CharacterAdded:Connect(espalda)
 	if jugador.Character then
 		task.spawn(espalda, jugador.Character)
@@ -256,8 +323,14 @@ function Mochila.start()
 	for _, jugador in Players:GetPlayers() do
 		alEntrar(jugador)
 	end
+	-- Lo que lleva el que se va cae donde estaba, para los demás (Partida ya no se lo guarda a él).
 	Players.PlayerRemoving:Connect(function(jugador)
+		local r = rejillas[jugador]
 		rejillas[jugador] = nil
+		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if r and raiz then
+			desparramar(r.cosas, raiz.Position)
+		end
 	end)
 	Remotes.Mochila.OnServerEvent:Connect(pedir)
 end

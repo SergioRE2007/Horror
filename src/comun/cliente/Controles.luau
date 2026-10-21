@@ -3,13 +3,13 @@
 --   se llena.
 --   Móvil: el cartelito sin tecla y un botón grande de acción a la derecha que cambia según lo que tengas delante
 --   (dos como mucho, uno encima de otro).
--- El texto del prompt viene en inglés del servidor y aquí se traduce.
+-- El texto del prompt viene en inglés del servidor y aquí se traduce. Vale en los dos lugares.
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Lang = require(ReplicatedStorage.Shared.Lang)
-local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
+local Ui = require(script.Parent.Ui)
 
 local Controles = {}
 

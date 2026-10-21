@@ -7,7 +7,7 @@ require(ReplicatedStorage.Shared.Remotes) -- crea los RemoteEvents antes de que 
 
 local Comun = ServerScriptService:WaitForChild("Comun")
 
-require(Comun.Limpieza).start() -- lo primero: deja el Workspace solo con lo del código
+require(Comun.Limpieza).start(true) -- lo primero: deja el Workspace solo con lo del código
 require(Comun.Idioma).start()
 require(Comun.Datos).start()
 
@@ -23,4 +23,5 @@ require(Sistemas.Recursos).start()
 require(Sistemas.Generador).start()
 require(Sistemas.Movil).start()
 require(Sistemas.Director).start()
-require(Sistemas.Ciclo).start() -- lo último: el primer día empieza cuando todos están escuchando
+local noche = require(Sistemas.Partida).start() -- espera a cargar la partida y deja el mundo como estaba
+require(Sistemas.Ciclo).start(noche) -- lo último: el primer día empieza cuando todos están escuchando

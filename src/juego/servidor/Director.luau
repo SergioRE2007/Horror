@@ -3,8 +3,8 @@
 --   la vez, cada cuánto y cuánta paciencia tienen. Cada "hueco" lanza ataques uno detrás de otro a ventanas o puertas
 --   libres (nunca la misma dos veces seguidas), cada noche más seguidos; los huecos llegan escalonados.
 --   Desde la noche del Raspador, su primer ataque es seguro y luego sale a veces (uno como mucho a la vez).
---   Amanecer: los bichos se van, los muertos reviven y se hace una foto de la casa.
---   Si mueren todos: a los pocos segundos se vuelve al principio del día, con la casa como estaba al amanecer.
+--   Amanecer: los bichos se van y los muertos reviven (Partida hace la foto de todo y la guarda).
+--   Si mueren todos: a los pocos segundos se vuelve al principio del día, con todo como estaba al amanecer.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -17,6 +17,7 @@ local Casa = require(script.Parent.Casa)
 local Ciclo = require(script.Parent.Ciclo)
 local Golpeador = require(script.Parent.Golpeador)
 local Muerte = require(script.Parent.Muerte)
+local Partida = require(script.Parent.Partida)
 local Raspador = require(script.Parent.Raspador)
 
 local Director = {}
@@ -24,7 +25,6 @@ local Director = {}
 local G, R = Config.Golpeador, Config.Raspador
 local azar = Random.new()
 local turno = 0 -- sube con cada cambio de fase: los bucles de una noche anterior se paran solos
-local foto = nil
 local enUso: { [Model]: boolean } = {} -- ventanas y puertas con un ataque en marcha
 local raspadorSeguro = false -- el primer ataque de la noche del Raspador es suyo
 
@@ -116,7 +116,6 @@ function Director.start()
 			Golpeador.irse()
 			Raspador.irse()
 			Muerte.revivirTodos()
-			foto = Casa.foto()
 		else
 			noche(turno, n)
 		end
@@ -146,7 +145,7 @@ function Director.start()
 				if el then
 					(if que == "Raspador" then Raspador else Golpeador).atacar(el, select(2, Ciclo.fase()))
 				end
-			else
+			elseif que == "Noche" or que == "Dia" then -- las demás órdenes son de otros sistemas (Partida)
 				Ciclo.forzar(que)
 			end
 		end)
@@ -164,9 +163,7 @@ function Director.start()
 		Golpeador.quitar()
 		Raspador.quitar()
 		table.clear(enUso)
-		if foto then
-			Casa.restaurar(foto)
-		end
+		Partida.volverAlAmanecer()
 		Ciclo.reiniciarDia()
 	end)
 end

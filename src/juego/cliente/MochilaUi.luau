@@ -384,19 +384,7 @@ local function crearGui()
 	borde.Color = Ui.Color.Hueso
 	borde.Transparency = 0.75
 	borde.Parent = panel
-	-- Una esquina manchada de sangre.
-	local mancha = Instance.new("Frame")
-	mancha.Size = UDim2.fromOffset(190, 150)
-	mancha.BackgroundColor3 = Ui.Color.Sangre
-	mancha.BorderSizePixel = 0
-	local gradiente = Instance.new("UIGradient")
-	gradiente.Rotation = 40
-	gradiente.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(0.35, 0.75), NumberSequenceKeypoint.new(0.6, 1),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	gradiente.Parent = mancha
-	mancha.Parent = panel
+	Ui.mancha(panel)
 
 	Ui.texto(Ui.mayusculas(Lang.t(nil, "Backpack")), {
 		Position = UDim2.fromOffset(24, 14),

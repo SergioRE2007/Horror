@@ -34,5 +34,4 @@ Con bloques grises y animaciones sencillas. Números a ojo, todos en `Config` (`
 ## Pendiente
 
 - Sin probar: dos jugadores de verdad con el motor, botones del móvil, la mochila con mando (abre y cierra, pero no se mueve por la rejilla).
-- Lo que lleva un jugador que se va se pierde; al morir todos, lo gastado no vuelve (el guardado de la partida es el paso 6).
 - Sin sonidos de coger, tirar ni abrir (llegan con ElevenLabs).

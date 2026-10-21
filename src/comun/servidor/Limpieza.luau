@@ -1,6 +1,6 @@
 -- El mundo lo genera el código: al arrancar se borra todo lo suelto del Workspace que no sea del código (en el primer
 -- juego una placa sin anclar llegó a tapar el cielo). Lo generado va dentro de workspace.Mapa.
--- Con `provisional` deja un suelo gris con su punto de aparición (el lobby, mientras no tenga su mapa).
+-- Con `provisional` deja un suelo gris con su punto de aparición (el juego, que aún aparece en él).
 local Players = game:GetService("Players")
 
 local Limpieza = {}
@@ -35,7 +35,9 @@ function Limpieza.start(provisional: boolean?)
 	end
 	local mapa = Instance.new("Folder")
 	mapa.Name = "Mapa"
-	suelo(mapa)
+	if provisional then
+		suelo(mapa)
+	end
 	mapa.Parent = workspace
 end
 
