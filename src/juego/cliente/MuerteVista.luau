@@ -15,6 +15,7 @@ local UserInputService = game:GetService("UserInputService")
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local GolpeadorVista = require(script.Parent.GolpeadorVista)
+local RaspadorVista = require(script.Parent.RaspadorVista)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -221,7 +222,7 @@ local function meHanPillado(cabeza: Vector3)
 	local hacia = (desde - cabeza)
 	hacia = if hacia.Magnitude > 0.1 then hacia.Unit else Vector3.zAxis
 	-- La cara del bicho de frente, con la boca abierta, echándose encima; una luz para que se le vea en lo oscuro.
-	local bicho = GolpeadorVista.rugir(cabeza)
+	local bicho = GolpeadorVista.rugir(cabeza) or RaspadorVista.rugir(cabeza)
 	local cara = bicho and bicho:FindFirstChild("Cabeza") :: BasePart?
 	local luz: Attachment? = nil
 	if cara then

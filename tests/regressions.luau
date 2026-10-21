@@ -270,6 +270,23 @@ do
 	igual(Defensa.puerta(p, 0, cfg), false, "con llave no se abre")
 end
 
+-- Dificultad: la tabla de Config por jugadores (pensada para 2) y los rangos de ataques a la vez.
+do
+	local Dificultad = cargar("src/shared/Dificultad")
+	local tabla = Config.Dificultad
+	igual(Dificultad.de(1, 0.99, tabla).alaVez, 1, "1 jugador: un ataque a la vez")
+	igual(Dificultad.de(2, 0.5, tabla).ritmo, 1, "2 jugadores: ritmo normal")
+	igual(Dificultad.de(2, 0.5, tabla).paciencia, 1, "2 jugadores: paciencia normal")
+	igual(Dificultad.de(3, 0, tabla).alaVez, 2, "3 jugadores: 2 a la vez como poco")
+	igual(Dificultad.de(3, 0.999, tabla).alaVez, 3, "3 jugadores: 3 a la vez como mucho")
+	igual(Dificultad.de(4, 0.3, tabla).alaVez, 3, "4 jugadores: 3 a la vez")
+	igual(Dificultad.de(8, 0.3, tabla).alaVez, 3, "más de 4: como 4")
+	igual(Dificultad.de(0, 0.3, tabla).alaVez, 1, "0 (Studio vacío): como 1")
+	assert(Dificultad.de(1, 0, tabla).ritmo > Dificultad.de(4, 0, tabla).ritmo, "con más jugadores, ataques más seguidos")
+	assert(Dificultad.de(1, 0, tabla).paciencia > Dificultad.de(4, 0, tabla).paciencia, "con más jugadores, menos paciencia")
+	comprobaciones += 2
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")

@@ -9,6 +9,9 @@ local NOMBRES = {
 	"Golpeador", -- servidor -> todos: ("Golpe", elemento, resultado) o ("Entra", elemento) para animarlo
 	"Muerte", -- servidor -> todos: (jugador, cabeza del bicho) le han pillado
 	"Salir", -- cliente -> servidor: salgo del escondite
+	"Raspador", -- servidor -> todos: ("Chilla", modelo) le ha dado un flash, o ("Entra", ventana)
+	"Linterna", -- cliente -> servidor: enciende o apaga mi linterna (si no tiene pila, la cambia)
+	"Flash", -- cliente -> servidor: (dirección de la cámara) hago una foto; servidor -> todos: (jugador) ha hecho una
 }
 
 local Remotes = {}

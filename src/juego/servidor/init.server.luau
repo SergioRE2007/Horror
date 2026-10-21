@@ -16,5 +16,6 @@ require(Sistemas.Mapa).start() -- la casa y el bosque, antes que lo que los usa
 require(Sistemas.Casa).start()
 require(Sistemas.Muerte).start()
 require(Sistemas.Golpeador).start()
+require(Sistemas.Equipo).start()
 require(Sistemas.Director).start()
 require(Sistemas.Ciclo).start() -- lo último: el primer día empieza cuando todos están escuchando
