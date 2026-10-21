@@ -6,6 +6,7 @@ Ideas de Sergio y propuestas de Claude que aceptó. "Pedido por el usuario" = no
 
 - Terror cooperativo con amigos (1-4, lo normal 2), estilo "99 Nights in the Forest": una partida larga de muchas noches seguidas, cada una más difícil (pedido por el usuario). Sustituye a la idea inicial de "5 noches + modo infinito".
 - De día se farmea y se explora; de noche se defiende la casa. No debe ser solo sobrevivir (pedido por el usuario).
+- Todo muy interactivo y bien animado (pedido por el usuario): casi todo lo de la casa y el mapa se puede tocar (puertas, persianas, cajones, armarios, interruptores, el generador que arranca tirando de la cuerda…), cada acción con su animación del personaje y del objeto (talar con golpes que astillan, clavar tablones martillo a martillo, persianas que bajan con traqueteo, cristales que se agrietan poco a poco) y su sonido. Nada que aparezca o desaparezca de golpe.
 - Estilo realista y oscuro (pedido por el usuario). Tope de contenido: etiqueta Moderate de Roblox, con sangre y algo de gore, sin llegar a Restricted (pedido por el usuario).
 
 ## Historia y finales (pedido por el usuario)

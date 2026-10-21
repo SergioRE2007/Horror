@@ -33,7 +33,7 @@ El servidor manda en todo: los bichos, la mochila, lo que se coge y lo que se co
 
 ## Orden de construcción
 
-Primero que se juegue y dé miedo con bloques grises; el arte, al final.
+Primero que se juegue y dé miedo con bloques grises; el arte, al final. Pero las animaciones de lo que se toca (puertas, persianas, talar, clavar) se hacen ya en cada paso, aunque sea sobre bloques grises: el juego debe sentirse interactivo desde el principio (pedido por el usuario).
 
 1. **Base:** Rojo con los dos lugares, `Config`, `Lang`, `Remotes`, `Datos` con candado, pruebas de Lune, modo de pruebas.
 2. **El corazón:** casa gris, ciclo de día y noche, Golpeador, persianas, esconderse y morir. Probar si da tensión.
