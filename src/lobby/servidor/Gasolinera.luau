@@ -5,8 +5,10 @@
 local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
 
 local Gasolinera = {}
 
@@ -207,6 +209,10 @@ function Gasolinera.start()
 		coche(i, CFrame.new(14, 0.2, -24 + (i - 1) * 16), coches)
 	end
 	coches.Parent = workspace
+	local quedan = Separar.caras(mapa) + Separar.caras(coches) -- que no parpadeen dos caras en el mismo plano
+	if quedan > 0 then
+		warn(`[Gasolinera] quedan {quedan} caras que parpadean`)
+	end
 end
 
 return Gasolinera

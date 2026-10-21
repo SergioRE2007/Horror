@@ -7,7 +7,7 @@ require(ReplicatedStorage.Shared.Remotes) -- crea los RemoteEvents antes de que 
 
 local Comun = ServerScriptService:WaitForChild("Comun")
 
-require(Comun.Limpieza).start(true) -- lo primero: deja el Workspace solo con lo del código
+require(Comun.Limpieza).start() -- lo primero: deja el Workspace solo con lo del código
 require(Comun.Idioma).start()
 require(Comun.Datos).start()
 
