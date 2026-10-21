@@ -1,6 +1,6 @@
 # Juego de terror: lo aprendido con RNG: Sword Breaker
 
-Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE2007/RNG-Sword-Breaker`). Si hace falta ver cómo se resolvió algo, mirar allí su `CLAUDE.md`, `docs/sistemas/` y el código: es la referencia. Lo propio de este juego se irá añadiendo aquí cuando empecemos.
+Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE2007/RNG-Sword-Breaker`). Si hace falta ver cómo se resolvió algo, mirar allí su `CLAUDE.md`, `docs/sistemas/` y el código: es la referencia. Lo propio de este juego: diseño en `docs/diseño.md` y plan técnico con el orden de construcción en `docs/plan-tecnico.md`.
 
 ## Sobre Sergio
 
@@ -8,7 +8,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 - Le preocupa el gasto de tokens: respuestas cortas, leer solo lo necesario, una funcionalidad por conversación. No volcar árboles enteros del juego ni archivos grandes sin necesidad.
 - Le gustan las físicas y los juegos RNG. Quiere una base sólida que se pueda ampliar. No hay modelos propios: piezas, código y modelos de Blender hechos por script; los sonidos, con ElevenLabs.
 - Números de equilibrio de contenido nuevo: a ojo siguiendo a los vecinos, sin preguntarle cuántas horas debe durar; avisar en una línea de que son a ojo.
-- Público: niños. Poca información en pantalla (carteles de pocas líneas, avisos de una sola, sin "monedas/s" ni desgloses), juego "relativamente f2p": pocos pases de juego y nada imprescindible de pago.
+- Público (primer juego): niños. En este juego de terror, pedido por el usuario: que dé miedo de verdad, con sangre y algo de gore, sin pasar de la etiqueta Moderate de Roblox (Restricted es 17+ con DNI y no se quiere). Se mantiene: poca información en pantalla (carteles de pocas líneas, avisos de una sola, sin "monedas/s" ni desgloses), juego "relativamente f2p": pocos pases de juego y nada imprescindible de pago.
 - Cuando algo de Claude no le convence lo dice con frases cortas ("no se nota mucho", "molesta"): rehacerlo más grande y vistoso, no retocar un poco. Los cambios que pide se apuntan en el `CLAUDE.md` o en `docs/sistemas/` con "pedido por el usuario", para no deshacerlos sin querer más adelante.
 
 ## Git
@@ -49,6 +49,8 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 
 ## Estilo visual que le gusta
 
+- En este juego de terror, pedido por el usuario: mundo realista y oscuro, e interfaz oscura y minimalista (casi nada en pantalla, papel viejo o libreta, letras blancas desgastadas, algo de rojo oscuro y alguna esquina con sangre). Manda sobre el estilo "simulador" de abajo, que era del primer juego; de él se mantiene usar helpers comunes (`Ui`) y textos de botones en mayúsculas.
+
 - Estilo "simulador de Roblox": ventanas oscuras con cabecera degradada y borde negro grueso, inventarios en casillas cuadradas con el borde del color de la rareza y cartel al pasar el ratón, botones de color con relieve que se aclaran y se hunden, fuente `FredokaOne` con borde negro. Nada plano: siempre degradado y borde. Todo con helpers comunes (`Ui`), no estilos sueltos.
 - Texto de botones, títulos de ventanas y botones del menú siempre en mayúsculas.
 - Colores vivos sin pasarse: se quejó de neones y saturación alta. Nada de `Neon` en piezas grandes del mapa.
@@ -87,6 +89,8 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 - Las genera Sergio con ChatGPT a partir de un texto que le da Claude por imagen, con el estilo dentro del texto (dibujo 2D de simulador, contorno negro grueso, fondo transparente, sin letras). Se recortan al dibujo y se pasan a 512 px con `System.Drawing` desde PowerShell (no hay Python ni ImageMagick) y se suben con `upload_image` de Studio. Recién subidas tardan unos segundos en verse.
 
 ## Modelos de Blender
+
+- En este juego, pedido por el usuario: los monstruos se prueban con IA de imagen a 3D (Meshy, Tripo…) a partir de dibujos que Sergio hace con ChatGPT; Claude los prepara para Roblox (limpiar, esqueleto, animaciones por código). Mirar antes que la licencia permita uso comercial. Bosque, casa y edificios, con Blender por script. Todo el juego se prueba primero con bloques grises.
 
 - Scripts de Blender en `tools/blender/` que crean las piezas y exportan `.fbx` y vistas `.png` para revisarlas. Se suben como modelo del grupo con Open Cloud (`assets/v1/assets`, Model), se cargan en Studio con `game:GetObjects` y sus MeshParts se vuelcan a un `.rbxmx` en `src/shared`. Mallas con nombre `<Pieza>_<Papel>` (Body, Trim, Gem, Glow…) y el juego les pone color y material según el papel. Para cambiar solo algunas piezas, un archivo "Patch" que manda sobre el original.
 

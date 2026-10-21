@@ -1,0 +1,46 @@
+# Diseño del juego (ideas de Sergio, octubre de 2026)
+
+- Historia: sin trabajo, aceptas un contrato para vigilar una casa. Por las noches vienen bichos a matarte.
+- Cooperativo con amigos (1-4), pedido por el usuario. Lobby + teletransporte a un servidor privado del grupo.
+- Estructura tipo "99 Nights in the Forest" (pedido por el usuario): una partida larga de muchas noches seguidas, cada una más difícil, con nuevos bichos y sucesos al llegar a ciertas noches. Sustituye a la idea de "5 noches + modo infinito".
+- Historia y finales (pedido por el usuario): un rico te contrata para vigilar su casa. Llegas en coche y la primera noche el bicho te lo destroza. Finales:
+  - Huida: en el garaje hay taller y piezas; se repara el coche con recursos del bosque y os vais.
+  - Matar al bicho: más difícil, pide haber desbloqueado casi todo.
+  - Propuesta: el rico sabía lo que pasaba en la casa (se descubre con las pistas). Sin límite de noches: cada noche más difícil empuja a terminar.
+- Guardado: la partida (la casa) es del creador del lobby. Guarda noche, tablones, recursos, mejoras de la casa y pistas. Se guarda al amanecer de cada noche superada; salir o morir todos vuelve al principio de ese día. Cada jugador puede tener 2-3 partidas. Dinero, cosméticos, récords y logros son de cada jugador.
+- No se puede entrar a una partida empezada: el dueño de la partida la inicia desde el lobby con su grupo. Si el dueño se va, la partida acaba para todos y queda guardado el último amanecer (pedido por el usuario). Propuesta: esperar ~60 s por si vuelve tras un corte de conexión.
+- Lo normal será jugar de 2: la dificultad se ajusta a 2 y escala con 1, 3 y 4 jugadores (pedido por el usuario). Ataques a la vez, ritmo, paciencia de los bichos y tareas del día salen de una tabla en `Config` por número de jugadores. Se mira al empezar cada noche; quien muere mira hasta el amanecer y la noche no se facilita.
+- Bichos inspirados en el estilo de Trevor Henderson (gigantes, raros, mezcla de cosas normales con carne) pero propios, nunca los suyos (derechos de autor). Salen por olas, cada vez más difíciles. Su aspecto se decide casi al final (pedido por el usuario); las mecánicas de abajo sirven ya.
+- Bichos, muy bien animados (pedido por el usuario):
+  - Golpeador: aporrea puertas y ventanas. Persianas cerradas hasta que se vaya.
+  - Raspador: araña los cristales. Abrir la persiana y darle un flashazo.
+  - Trepador (propuesta): pasos en el tejado, baja por la chimenea. Encender fuego en la chimenea con madera.
+  - Imitador (propuesta): llama a la puerta como si fuera un amigo. Mirar en el mapa del móvil si ese amigo está fuera de verdad; si se le abre, entra.
+  - Acechador del bosque (propuesta): solo fuera de la casa al anochecer, en el bosque. Te sigue entre los árboles; volver a la luz o enfocarle con la linterna lo frena un momento.
+  - La Bestia (propuesta): el bicho grande del final difícil, solo aparece al final.
+  - Si entra: esconderse unos segundos (armario, cama); si te pilla, susto y muerte.
+- Día: no solo sobrevivir, hay que hacer cosas (pedido por el usuario). Talar árboles para tablones, reparar, generador, carretes, trampas, pistas de la historia. Cuanto más lejos de la casa, mejores recursos y más peligro.
+- Llaves perdidas por el bosque que abren partes cerradas de la casa (sótano…) con cosas que ayudan (pedido por el usuario). Salen en sitios al azar en cada partida; las de las salas mejores, más lejos. Si mueres con una llave, se cae donde mueres.
+- Clases tipo 99 Nights (pedido por el usuario): Leñador, Corredor, Fotógrafo, Mecánico, Carpintero, Explorador… Una ventaja clara cada una, una por jugador y partida. Se compran con monedas.
+- Monedas: se ganan jugando (noches superadas, finales, logros, premio diario) y también se compran con Robux (pedido por el usuario). La primera clase es gratis y una clase se consigue jugando unas pocas partidas.
+- Robux: revivir de noche (~25 R$, también a un amigo, máximo 1 por noche), paquetes de monedas, cosméticos y 3-4 pases (mochila, ranuras de guardado…). Sin servidores privados: ya entras con tus amigos desde el lobby (decidido por el usuario). Nunca vender llaves, piezas ni noches.
+- Estilo realista y oscuro (pedido por el usuario).
+- Bichos de carne y hueso, nada de animatrónicos: sangre, carne abierta y algún órgano a la vista (pedido por el usuario). Para no pasar de Moderate: se ven sobre todo en penumbra y de lejos, sin primeros planos detallados.
+- Casa grande de madera, antigua y medio podrida (pedido por el usuario).
+- Bosque con un pueblo abandonado donde vive una sola persona que vende cosas y avisa ("no salgas de noche", "no te quedes en la casa del rico") (pedido por el usuario).
+- Mapa con sentido, nada puesto "por la cara" (pedido por el usuario): carretera de tierra que une el pueblo abandonado con la casa del rico; aserradero viejo; granja; cabaña del cazador; torre del guardabosques; iglesia con cementerio en el pueblo; lago con embarcadero.
+- Móvil con el mapa que se descarga y se carga en la casa (pedido por el usuario); el enchufe necesita el generador encendido. Linterna con pilas que se compran al vendedor o se encuentran (pedido por el usuario).
+- Vendedor del pueblo: trueque, pide comida y agua a cambio de sus cosas (pedido por el usuario). Al principio los jugadores no tienen hambre (se puede añadir después).
+- Mochila de casillas con objetos de distintas formas, estilo Resident Evil 4, que se abre con la B con animación (pedido por el usuario; tamaños a ojo, decididos por Claude): rejilla de 6×8, girar con R, ampliable a 8×10 con mejora o pase. Ejemplos: pila 1×1, lata 1×1, móvil 1×1, botella 1×2, linterna 1×2, cámara 2×2, hacha 1×3, llave 1×1. Lo grande (troncos, tablones, bidón, piezas del coche) se lleva en las manos con física y frena; las piezas más pesadas se cargan entre dos.
+- Móvil desde el principio (pedido por el usuario): un botón grande de acción que cambia según lo que tengas delante (talar, abrir persiana, flash, coger, esconderse), pocos botones fijos (linterna, mochila, móvil) en zonas cómodas para el pulgar, mochila con toque para coger, toque para soltar y botón de girar, y mapa grande con StreamingEnabled y modo Rendimiento para que vaya fluido.
+- Salas de la casa (propuesta de Claude, octubre de 2026):
+  - Abiertas desde el principio: recibidor, salón con chimenea, cocina con despensa, 2 dormitorios (camas y armarios para esconderse), baño y cuarto de la limpieza con el enchufe del móvil. Generador en un cobertizo pegado a la casa.
+  - Cerradas, de más cerca a más lejos:
+    - Sótano (llave en la granja): banco de carpintero; tablones reforzados, cerrojos y trampas.
+    - Garaje (llave en el aserradero): taller y primeras piezas del coche (final de la huida).
+    - Desván (llave en la torre del guardabosques): cuarto de revelado del rico; mejoras del flash y fotos que cuentan la historia.
+    - Habitación del rico (llave en el cementerio): diario, caja fuerte y cómo matar al bicho (final difícil).
+  - Cada llave sale al azar entre varios sitios de su zona.
+- Sonido (propuesta de Claude): 3D para saber de qué ventana viene cada bicho, apagado al otro lado de las paredes; ambiente por capas (viento en bucle y sonidos sueltos al azar en posiciones 3D: búhos, ramas, aullidos), no ambientes de una pieza; pasos según el suelo; latido y respiración al esconderse; casi sin música, solo zumbidos de tensión; sustos fuertes pero pocos. Para quien juega sin cascos, avisos visuales discretos (persiana que tiembla, polvo que cae). Chat de voz por cercanía activado.
+- Tutorial en los primeros minutos: se diseña casi al final, cuando el juego ya esté hecho (pedido por el usuario).
+- Tope de contenido: etiqueta Moderate (sangre y algo de gore, sin llegar a Restricted).
