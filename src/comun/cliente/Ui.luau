@@ -102,6 +102,24 @@ function Ui.boton(texto: string, props: { [string]: any }?): TextButton
 	return b
 end
 
+-- Una esquina de arriba a la izquierda manchada de sangre, para los paneles.
+function Ui.mancha(padre: GuiObject): Frame
+	local mancha = Instance.new("Frame")
+	mancha.Name = "Mancha"
+	mancha.Size = UDim2.fromOffset(190, 150)
+	mancha.BackgroundColor3 = Ui.Color.Sangre
+	mancha.BorderSizePixel = 0
+	local gradiente = Instance.new("UIGradient")
+	gradiente.Rotation = 40
+	gradiente.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(0.35, 0.75), NumberSequenceKeypoint.new(0.6, 1),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	gradiente.Parent = mancha
+	mancha.Parent = padre
+	return mancha
+end
+
 -- Aviso de una sola línea abajo en el centro que se va solo.
 local avisoActual: TextLabel? = nil
 function Ui.aviso(texto: string, segundos: number?)

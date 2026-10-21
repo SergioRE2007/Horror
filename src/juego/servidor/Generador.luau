@@ -160,6 +160,22 @@ local function bidon()
 	})
 end
 
+-- El móvil en la repisa del enchufe, cargándose. Se coge como cualquier objeto (Mochila); Partida no lo guarda como
+-- suelto (atributo Enchufado) sino aquí.
+local function ponerMovil(carga: number)
+	local pieza = Mochila.dejar("Movil", carga, enchufe:GetAttribute("Sitio") :: CFrame)
+	pieza.Anchored = true
+	pieza:SetAttribute("Enchufado", true)
+	enchufado = pieza
+	promptEnchufe.Enabled = false
+	pieza.AncestryChanged:Connect(function()
+		if not pieza.Parent and enchufado == pieza then -- lo han cogido
+			enchufado = nil
+			promptEnchufe.Enabled = true
+		end
+	end)
+end
+
 local function enchufar(jugador: Player)
 	if enchufado or not puede(jugador, enchufe:FindFirstChild("Mando") :: BasePart) then
 		return
@@ -169,16 +185,32 @@ local function enchufar(jugador: Player)
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "You don't have a phone."))
 		return
 	end
-	local pieza = Mochila.dejar("Movil", cosa.carga or 0, enchufe:GetAttribute("Sitio") :: CFrame)
-	pieza.Anchored = true
-	enchufado = pieza
-	promptEnchufe.Enabled = false
-	pieza.AncestryChanged:Connect(function()
-		if not pieza.Parent and enchufado == pieza then -- lo han cogido
-			enchufado = nil
-			promptEnchufe.Enabled = true
-		end
-	end)
+	ponerMovil(cosa.carga or 0)
+end
+
+-- Lo que se guarda (Partida): gasolina (0..1), si está encendido y la batería del móvil del enchufe.
+function Generador.exportar()
+	local movil = if enchufado and enchufado.Parent then enchufado:GetAttribute("Carga") else nil
+	return { gasolina = gasolina / G.Deposito, encendido = encendido, movil = movil }
+end
+
+-- Lo deja como en `t` (lo de exportar, ya arreglado; lo que falte, como al empezar la partida).
+function Generador.importar(t)
+	gasolina = (t.gasolina or G.Inicio) * G.Deposito
+	encendido = t.encendido == true and gasolina > 0
+	seguidos = 0
+	luces += 1 -- para un parpadeo a medias
+	ponerLuces(encendido)
+	if enchufado then
+		local viejo = enchufado
+		enchufado = nil
+		viejo:Destroy()
+	end
+	promptEnchufe.Enabled = true
+	if t.movil then
+		ponerMovil(t.movil)
+	end
+	publicar()
 end
 
 local cuenta = 0
