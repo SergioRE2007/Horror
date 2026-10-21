@@ -6,8 +6,10 @@
 -- Medidas en studs: suelo de abajo arriba en y = 1, el de arriba en y = 14; paredes de 12 de alto.
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
 
 local Mapa = {}
 
@@ -501,6 +503,20 @@ function Mapa.start()
 	local mapa = workspace:WaitForChild("Mapa")
 	construirBosque(mapa)
 	construirCasa(mapa)
+	local quedan = Separar.caras(mapa) -- que no parpadeen dos caras en el mismo plano
+	if quedan > 0 then
+		warn(`[Mapa] quedan {quedan} caras que parpadean`)
+	end
+	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo).
+	local aparicion = Instance.new("SpawnLocation")
+	aparicion.Anchored = true
+	aparicion.Size = Vector3.new(6, 0.2, 6)
+	aparicion.Position = Vector3.new(0, ABAJO + 0.2, 0)
+	aparicion.Transparency = 1
+	aparicion.CanCollide = false
+	aparicion.Neutral = true
+	aparicion.Duration = 0
+	aparicion.Parent = mapa
 end
 
 return Mapa
