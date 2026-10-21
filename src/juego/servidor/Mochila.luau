@@ -1,0 +1,248 @@
+-- Mochila de casillas (pedido por el usuario, estilo Resident Evil 4) y los objetos sueltos por el mundo.
+-- La lógica de la rejilla está en shared/Rejilla; aquí manda el servidor: el cliente (MochilaUi) solo pide con el
+-- remote Mochila: ("Abrir", abierta), ("Mover", id, x, y, girada) o ("Tirar", id).
+--   Atributos del jugador: Mochila (la rejilla en JSON, para pintarla), MochilaAbierta (no se mueve mientras),
+--   Pilas y Carretes (de repuesto), y los de Equipo: Pila (carga de su linterna) y Fotos (de su cámara).
+--   La linterna y la cámara también son objetos: sin ellas en la mochila no hay luz ni flash. Su carga va con el
+--   objeto, aunque se tire y lo coja otro.
+-- Lo suelto: piezas en workspace.Objetos con atributos Tipo y Carga y un ProximityPrompt "Pick up". Lo tirado sale
+-- de delante del jugador con física.
+local CollectionService = game:GetService("CollectionService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Lang = require(ReplicatedStorage.Shared.Lang)
+local Rejilla = require(ReplicatedStorage.Shared.Rejilla)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Cargar = require(script.Parent.Cargar)
+local Mapa = require(script.Parent.Mapa)
+local Muerte = require(script.Parent.Muerte)
+
+local Mochila = {}
+
+local M, CAT = Config.Mochila, Config.Objetos
+local rejillas: { [Player]: Rejilla.Rejilla } = {}
+local carpeta: Folder
+
+-- Tonos de gris para distinguirlos mientras no haya arte.
+local COLOR = {
+	Pila = Color3.fromRGB(150, 140, 90),
+	Carrete = Color3.fromRGB(70, 70, 75),
+	Lata = Color3.fromRGB(160, 160, 155),
+	Botella = Color3.fromRGB(110, 130, 120),
+	Linterna = Color3.fromRGB(60, 60, 60),
+	Camara = Color3.fromRGB(45, 45, 48),
+	Hacha = Color3.fromRGB(120, 95, 70),
+}
+
+-- La carga con la que sale un objeto nuevo (linterna llena, cámara con el carrete entero).
+local function cargaNueva(tipo: string): number?
+	if tipo == "Linterna" then
+		return 1
+	elseif tipo == "Camara" then
+		return Config.Flash.Fotos
+	end
+	return nil
+end
+
+-- Pasa al jugador lo que el cliente pinta y lo que Equipo usa.
+function Mochila.publicar(jugador: Player)
+	local r = rejillas[jugador]
+	if not r then
+		return
+	end
+	jugador:SetAttribute("Mochila", HttpService:JSONEncode(r))
+	jugador:SetAttribute("Pilas", Rejilla.contar(r, "Pila"))
+	jugador:SetAttribute("Carretes", Rejilla.contar(r, "Carrete"))
+	local linterna = Rejilla.primera(r, "Linterna")
+	jugador:SetAttribute("Pila", if linterna then linterna.carga or 0 else 0)
+	if not linterna then
+		jugador:SetAttribute("Linterna", false)
+	end
+	local camara = Rejilla.primera(r, "Camara")
+	jugador:SetAttribute("Fotos", if camara then camara.carga or 0 else 0)
+end
+
+-- La linterna o la cámara que usa (la primera que metió), o nil si no lleva.
+function Mochila.primera(jugador: Player, tipo: string): Rejilla.Cosa?
+	local r = rejillas[jugador]
+	return r and Rejilla.primera(r, tipo)
+end
+
+-- Gasta una pila o un carrete de repuesto. false si no le quedan.
+function Mochila.gastar(jugador: Player, tipo: string): boolean
+	local r = rejillas[jugador]
+	if not r or not Rejilla.gastar(r, tipo) then
+		return false
+	end
+	Mochila.publicar(jugador)
+	return true
+end
+
+-- Una pieza suelta en el mundo que se puede coger.
+local function soltar(tipo: string, carga: number?, cf: CFrame, velocidad: Vector3?): BasePart
+	local w, h = Rejilla.tamano(CAT, tipo, false)
+	local pieza = Instance.new("Part")
+	pieza.Name = tipo
+	pieza.Size = Vector3.new(w * M.Casilla, 0.3, h * M.Casilla)
+	pieza.CFrame = cf
+	pieza.Color = COLOR[tipo] or Color3.fromRGB(100, 100, 100)
+	pieza.Material = Enum.Material.SmoothPlastic
+	pieza:SetAttribute("Tipo", tipo)
+	if carga then
+		pieza:SetAttribute("Carga", carga)
+	end
+	CollectionService:AddTag(pieza, "Objeto")
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Style = Enum.ProximityPromptStyle.Custom
+	prompt.ActionText = "Pick up"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+	prompt.MaxActivationDistance = Config.Casa.Alcance
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = pieza
+	prompt.Triggered:Connect(function(jugador)
+		Mochila.coger(jugador, pieza)
+	end)
+	pieza.Parent = carpeta
+	if velocidad then
+		pieza.AssemblyLinearVelocity = velocidad
+	end
+	return pieza
+end
+
+local function puede(jugador: Player): boolean
+	return rejillas[jugador] ~= nil and table.find(Muerte.vivos(), jugador) ~= nil and not jugador:GetAttribute("Escondido")
+end
+
+-- Coge un objeto suelto si está cerca y cabe.
+function Mochila.coger(jugador: Player, pieza: BasePart)
+	local r = rejillas[jugador]
+	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not r or not raiz or not puede(jugador) or pieza.Parent ~= carpeta then
+		return
+	end
+	if (pieza.Position - raiz.Position).Magnitude > Config.Casa.Alcance + 2 then
+		return
+	end
+	if jugador:GetAttribute("Cargando") then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Your hands are full."))
+		return
+	end
+	local tipo = pieza:GetAttribute("Tipo")
+	if not Rejilla.meter(r, CAT, tipo, pieza:GetAttribute("Carga")) then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "No room in your backpack."))
+		return
+	end
+	pieza:Destroy()
+	Mochila.publicar(jugador)
+end
+
+-- Tira una cosa de la mochila delante del jugador.
+local function tirar(jugador: Player, id: unknown)
+	local r = rejillas[jugador]
+	local cabeza = jugador.Character and jugador.Character:FindFirstChild("Head") :: BasePart?
+	if not r or not cabeza or not puede(jugador) then
+		return
+	end
+	local cosa = Rejilla.sacar(r, id)
+	if not cosa then
+		return
+	end
+	local cf = cabeza.CFrame * CFrame.new(0, -0.8, -1.6)
+	soltar(cosa.tipo, cosa.carga, cf, cabeza.CFrame.LookVector * 8 + Vector3.new(0, 4, 0))
+	Mochila.publicar(jugador)
+end
+
+local function abrir(jugador: Player, abierta: boolean)
+	if abierta and (not puede(jugador) or jugador:GetAttribute("Cargando")) then
+		abierta = false
+	end
+	jugador:SetAttribute("MochilaAbierta", abierta or nil)
+	Cargar.ajustarVelocidad(jugador)
+end
+
+local function pedir(jugador: Player, que: unknown, id: unknown, x: unknown, y: unknown, girada: unknown)
+	local r = rejillas[jugador]
+	if not r then
+		return
+	end
+	if que == "Abrir" then
+		abrir(jugador, id == true)
+	elseif que == "Mover" then
+		-- Si no vale, se vuelve a publicar igual para que el cliente deshaga lo que adelantó.
+		Rejilla.mover(r, CAT, id, x, y, girada)
+		Mochila.publicar(jugador)
+	elseif que == "Tirar" then
+		tirar(jugador, id)
+	end
+end
+
+-- La mochila de bloques a la espalda (los demás la ven; la propia no se ve en primera persona). MochilaUi la pasa
+-- delante mientras está abierta.
+local function espalda(personaje: Model)
+	local torso = (personaje:WaitForChild("UpperTorso", 5) or personaje:FindFirstChild("Torso")) :: BasePart?
+	if not torso then
+		return
+	end
+	local pieza = Instance.new("Part")
+	pieza.Name = "Mochila"
+	pieza.Size = Vector3.new(1.5, 1.7, 0.7)
+	pieza.Color = Color3.fromRGB(66, 58, 46)
+	pieza.Material = Enum.Material.Fabric
+	pieza.CanCollide = false
+	pieza.CanQuery = false
+	pieza.CanTouch = false
+	pieza.Massless = true
+	local union = Instance.new("Weld")
+	union.Name = "Union"
+	union.Part0 = torso
+	union.Part1 = pieza
+	union.C0 = CFrame.new(0, 0, torso.Size.Z / 2 + 0.4)
+	pieza.CFrame = torso.CFrame * union.C0
+	union.Parent = pieza
+	pieza.Parent = personaje
+end
+
+local function alEntrar(jugador: Player)
+	local r = Rejilla.nueva(M.Ancho, M.Alto)
+	for _, tipo in M.Inicio do
+		Rejilla.meter(r, CAT, tipo, cargaNueva(tipo))
+	end
+	rejillas[jugador] = r
+	jugador.CharacterAdded:Connect(espalda)
+	if jugador.Character then
+		task.spawn(espalda, jugador.Character)
+	end
+	jugador:SetAttribute("Linterna", false)
+	Mochila.publicar(jugador)
+	-- Al esconderse o morir se cierra.
+	for _, atributo in { "Escondido", "Muerto" } do
+		jugador:GetAttributeChangedSignal(atributo):Connect(function()
+			if jugador:GetAttribute(atributo) and jugador:GetAttribute("MochilaAbierta") then
+				abrir(jugador, false)
+			end
+		end)
+	end
+end
+
+function Mochila.start()
+	carpeta = Instance.new("Folder")
+	carpeta.Name = "Objetos"
+	carpeta.Parent = workspace
+	for _, o in Mapa.objetos do
+		soltar(o.tipo, cargaNueva(o.tipo), o.cf)
+	end
+	Players.PlayerAdded:Connect(alEntrar)
+	for _, jugador in Players:GetPlayers() do
+		alEntrar(jugador)
+	end
+	Players.PlayerRemoving:Connect(function(jugador)
+		rejillas[jugador] = nil
+	end)
+	Remotes.Mochila.OnServerEvent:Connect(pedir)
+end
+
+return Mochila

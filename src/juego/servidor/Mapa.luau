@@ -24,6 +24,9 @@ local COLOR = {
 
 -- Puntos de cada sala por los que el Golpeador ronda cuando no ve a nadie.
 Mapa.salas = {} :: { Vector3 }
+-- Dónde empiezan los objetos sueltos (Mochila) y las cosas pesadas (Cargar).
+Mapa.objetos = {} :: { { tipo: string, cf: CFrame } }
+Mapa.pesados = {} :: { { tipo: string, cf: CFrame } }
 
 local casa: Model
 
@@ -296,6 +299,23 @@ local function construirCasa(mapa: Folder)
 	bloque("Mesa", Vector3.new(6, 0.4, 4), CFrame.new(-15, ABAJO + 3, 13), COLOR.Mueble)
 	bloque("Banera", Vector3.new(7, 2.5, 3.5), CFrame.new(21, ABAJO + 1.25, 6), Color3.fromRGB(150, 150, 148), Enum.Material.SmoothPlastic)
 	bloque("Estanteria", Vector3.new(6, 7, 1.5), CFrame.new(12, ABAJO + 3.5, 21), COLOR.Mueble)
+
+	-- Objetos sueltos por la casa (provisional: luego saldrán al azar con la semilla de la partida).
+	for _, o in {
+		{ "Pila", Vector3.new(-21, ABAJO + 3.7, 20.5) }, { "Lata", Vector3.new(-16, ABAJO + 3.7, 20.5) }, -- encimera
+		{ "Botella", Vector3.new(-15.5, ABAJO + 3.4, 13) }, { "Carrete", Vector3.new(-13.5, ABAJO + 3.4, 12.5) }, -- mesa
+		{ "Pila", Vector3.new(-17, ARRIBA + 0.2, -12) }, { "Hacha", Vector3.new(21, ABAJO + 0.2, 18) },
+	} do
+		table.insert(Mapa.objetos, { tipo = o[1], cf = CFrame.new(o[2]) * CFrame.Angles(0, math.rad(#Mapa.objetos * 37), 0) })
+	end
+	-- Lo pesado, delante de la casa.
+	for _, p in {
+		{ "Tronco", CFrame.new(10, 0.7, -32) * CFrame.Angles(0, 0.4, 0) }, { "Tronco", CFrame.new(-10, 0.7, -33) },
+		{ "Tablon", CFrame.new(14, 0.15, -27) * CFrame.Angles(0, -0.3, 0) }, { "Bidon", CFrame.new(-14, 1.2, -28) },
+		{ "Motor", CFrame.new(20, 1.1, -38) },
+	} do
+		table.insert(Mapa.pesados, { tipo = p[1], cf = p[2] })
+	end
 
 	cama(Vector3.new(11, ABAJO, -18.5), OESTE, -1)
 	armario(Vector3.new(20, ABAJO + 4, -6), DELANTE)

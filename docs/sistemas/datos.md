@@ -3,7 +3,7 @@
 ## Estructura
 
 - Dos lugares, cada uno con su proyecto de Rojo: `juego.project.json` (puerto 34872) y `lobby.project.json` (34873). Se sirve uno cada vez: `rojo serve juego.project.json`.
-- `src/shared` → `ReplicatedStorage.Shared`: `Config`, `Lang` + `LangEs`, `Remotes`, `Prueba`.
+- `src/shared` → `ReplicatedStorage.Shared`: `Config`, `Lang` + `LangEs`, `Remotes`, `Prueba`, `Rejilla` (la mochila, ver `mochila.md`).
 - `src/comun/servidor` → `ServerScriptService.Comun` y `src/comun/cliente` → `StarterPlayerScripts.Comun`: lo que vale en los dos lugares (`Datos`, `Candado`, `Formato`, `Idioma`, `Limpieza`).
 - `src/juego/*` y `src/lobby/*` → `ServerScriptService.Servidor` y `StarterPlayerScripts.Cliente`: el `init` de cada lugar, que arranca sus sistemas con `start()`.
 - `Limpieza` borra al arrancar todo lo suelto del Workspace y deja un suelo gris provisional en `workspace.Mapa` hasta que exista el sistema `Mapa`.

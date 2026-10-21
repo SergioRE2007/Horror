@@ -13,4 +13,6 @@ require(Sistemas.CasaVista).start()
 require(Sistemas.GolpeadorVista).start()
 require(Sistemas.RaspadorVista).start()
 require(Sistemas.EquipoVista).start()
+require(Sistemas.MochilaUi).start() -- después de EquipoVista: su botón va en la misma fila
+require(Sistemas.CargarVista).start()
 require(Sistemas.MuerteVista).start()

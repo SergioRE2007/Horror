@@ -99,7 +99,7 @@ local function mostrarCartel()
 	barra.Size = UDim2.fromScale(math.clamp(pila, 0, 1), 1)
 	barra.BackgroundColor3 = if pila < L.Poca then Ui.Color.Sangre else Ui.Color.Hueso
 	repuesto.Text = "+" .. tostring(jugador:GetAttribute("Pilas") or 0)
-	fotos.Text = string.upper(Lang.t(nil, "{n} photos", { n = jugador:GetAttribute("Fotos") or 0 }))
+	fotos.Text = Ui.mayusculas(Lang.t(nil, "{n} photos", { n = jugador:GetAttribute("Fotos") or 0 }))
 		.. "  +" .. tostring(jugador:GetAttribute("Carretes") or 0)
 	TweenService:Create(cartel, TweenInfo.new(0.25), { GroupTransparency = 0 }):Play()
 	task.delay(3.05, function()

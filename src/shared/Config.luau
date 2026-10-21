@@ -92,8 +92,7 @@ Config.Separacion = { 12, 20 } -- segundos entre la llegada de un ataque y la de
 Config.Linterna = {
 	Duracion = 150, -- segundos encendida que dura una pila
 	Poca = 0.2, -- con menos de esto parpadea
-	PilasInicio = 2, -- de repuesto al empezar (luego se encuentran o se cambian)
-	Cambiar = 1.5, -- segundos cambiando la pila
+	Cambiar = 1.5, -- segundos cambiando la pila (las de repuesto son objetos de la mochila)
 	Alcance = 55, -- studs que alumbra
 	Angulo = 25, -- grados desde el centro en los que frena a un bicho
 	Brillo = 4, -- de noche la exposición sube (Ambiente): con menos apenas se ve el círculo
@@ -101,13 +100,52 @@ Config.Linterna = {
 
 -- Cámara con flash (juego/servidor/Equipo): clic, botón en el móvil o R2. Echa al Raspador; al resto lo aturde.
 Config.Flash = {
-	Fotos = 6, -- fotos por carrete
-	CarretesInicio = 1, -- de repuesto al empezar
+	Fotos = 6, -- fotos por carrete (los de repuesto son objetos de la mochila)
 	Recarga = 4, -- segundos entre flashazos
 	Cambiar = 2,
 	Alcance = 40,
 	Angulo = 30,
 	Aturde = 2, -- segundos que se queda quieto el bicho que no huye del flash
+}
+
+-- Lo que cabe en la mochila (shared/Rejilla, juego/servidor/Mochila). Tam = {ancho, alto} en casillas; Nombre, en
+-- inglés para Lang. La clave es lo que se guarda: no renombrar las que existan, lo nuevo al final.
+Config.Objetos = {
+	Pila = { Tam = { 1, 1 }, Nombre = "Battery" },
+	Carrete = { Tam = { 1, 1 }, Nombre = "Film" },
+	Lata = { Tam = { 1, 1 }, Nombre = "Can" },
+	Movil = { Tam = { 1, 1 }, Nombre = "Phone" },
+	Llave = { Tam = { 1, 1 }, Nombre = "Key" },
+	Botella = { Tam = { 1, 2 }, Nombre = "Bottle" },
+	Linterna = { Tam = { 1, 2 }, Nombre = "Flashlight" }, -- sin ella en la mochila no hay luz
+	Camara = { Tam = { 2, 2 }, Nombre = "Camera" }, -- sin ella no hay flash
+	Hacha = { Tam = { 1, 3 }, Nombre = "Axe" },
+}
+
+-- Mochila de casillas (pedido por el usuario): B, botón en el móvil o la cruceta arriba en el mando; R gira y G tira.
+-- Mientras está abierta no te mueves (el mundo sigue). Números a ojo.
+Config.Mochila = {
+	Ancho = 8,
+	Alto = 6,
+	Grande = { 10, 8 }, -- ampliada (pase de juego, más adelante)
+	Inicio = { "Linterna", "Camara", "Pila", "Pila", "Carrete" }, -- lo que llevas al empezar
+	Casilla = 0.42, -- studs que mide una casilla en el mundo (lo tirado)
+}
+
+-- Cosas pesadas que van en las manos con física y frenan (juego/servidor/Cargar). Tam en studs; Peso = cuántos hacen
+-- falta para levantarla (el motor, entre dos: uno solo la arrastra). Números a ojo.
+Config.Pesados = {
+	Tronco = { Tam = { 6, 1.4, 1.4 }, Peso = 1 },
+	Tablon = { Tam = { 6, 0.3, 1 }, Peso = 1 },
+	Bidon = { Tam = { 1.6, 2.4, 1.6 }, Peso = 1 },
+	Motor = { Tam = { 3.2, 2.2, 2.4 }, Peso = 2 },
+}
+Config.Cargar = {
+	Frena = { 0.6, 0.5 }, -- multiplica tu velocidad según el Peso de lo que llevas (con todos los que hacen falta)
+	Arrastrar = 0.25, -- velocidad arrastrando algo que necesita más gente
+	Fuerza = 0.6, -- parte del peso que levanta cada uno: con 2 que la cogen, 1,2 veces el peso del motor
+	Delante = 1.4, -- studs entre tu cuerpo y lo que llevas
+	Suelta = 9, -- si se queda más lejos (atascada), se te cae
 }
 
 -- Modo de pruebas: solo actúa en Studio (shared/Prueba). Con él no se lee ni se guarda nada.
