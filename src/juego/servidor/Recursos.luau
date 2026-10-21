@@ -47,15 +47,14 @@ local function partir(tronco: BasePart)
 	end
 end
 
-local function caer(modelo: Model, jugador: Player)
+-- Marca el árbol como talado esa noche y pone el tocón donde estaba el corte.
+local function ponerToco(modelo: Model, talado: number): Part
 	local tronco = modelo:FindFirstChild("Tronco") :: BasePart
-	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	modelo:SetAttribute("Talado", select(2, Ciclo.fase()))
+	modelo:SetAttribute("Talado", talado)
 	local prompt = modelo:FindFirstChild("Mando") and (modelo.Mando :: BasePart):FindFirstChildOfClass("ProximityPrompt")
 	if prompt then
 		prompt.Enabled = false
 	end
-	-- Tocón donde estaba el corte; el tronco sube un poco para apoyarse encima.
 	local base = tronco.Position - Vector3.new(0, tronco.Size.X / 2, 0)
 	local toco = Instance.new("Part")
 	toco.Name = "Toco"
@@ -66,6 +65,15 @@ local function caer(modelo: Model, jugador: Player)
 	toco.Color = tronco.Color
 	toco.Material = tronco.Material
 	toco.Parent = modelo
+	return toco
+end
+
+local function caer(modelo: Model, jugador: Player)
+	local tronco = modelo:FindFirstChild("Tronco") :: BasePart
+	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local base = tronco.Position - Vector3.new(0, tronco.Size.X / 2, 0)
+	local toco = ponerToco(modelo, select(2, Ciclo.fase()))
+	-- El tronco sube un poco para apoyarse en el tocón.
 	tronco.CFrame += Vector3.new(0, 1.3, 0)
 	tronco.CollisionGroup = "Cargado" -- no choca con los jugadores al caer
 	local sinChocar = Instance.new("NoCollisionConstraint")
@@ -152,17 +160,61 @@ local function preparar(modelo: Model)
 	end)
 end
 
+-- Cambia el árbol por uno entero recién crecido (también corta una caída a medias: su tronco desaparece).
+local function crecer(modelo: Model): Model
+	local original = originales[modelo]
+	local nuevo = original:Clone()
+	originales[nuevo] = original
+	originales[modelo] = nil
+	nuevo.Parent = modelo.Parent
+	modelo:Destroy()
+	preparar(nuevo)
+	return nuevo
+end
+
 -- Al amanecer vuelven a crecer los árboles talados hace Rebrota noches (nadie los ve crecer: es de noche).
 local function rebrotar(noche: number)
-	for modelo, original in originales do
+	for _, modelo in Recursos.arboles() do
 		local talado = modelo:GetAttribute("Talado")
 		if talado and noche - talado >= T.Rebrota then
-			local nuevo = original:Clone()
-			originales[nuevo] = original
-			originales[modelo] = nil
-			nuevo.Parent = modelo.Parent
-			modelo:Destroy()
-			preparar(nuevo)
+			crecer(modelo)
+		end
+	end
+end
+
+-- Los árboles talables de ahora (una lista aparte: crecer cambia la tabla).
+function Recursos.arboles(): { Model }
+	local lista = {}
+	for modelo in originales do
+		table.insert(lista, modelo)
+	end
+	return lista
+end
+
+-- Lo que se guarda (Partida): [clave del árbol] = noche en que se taló.
+function Recursos.exportar()
+	local t = {}
+	for modelo in originales do
+		local talado = modelo:GetAttribute("Talado")
+		if talado then
+			t[modelo:GetAttribute("Clave")] = talado
+		end
+	end
+	return t
+end
+
+-- Deja el bosque como en `t`: todos los árboles enteros menos los talados, que quedan en tocón.
+function Recursos.importar(t)
+	for _, modelo in Recursos.arboles() do
+		local nuevo = crecer(modelo)
+		local talado = t[nuevo:GetAttribute("Clave")]
+		if talado then
+			ponerToco(nuevo, talado)
+			for _, parte in nuevo:GetChildren() do
+				if parte.Name == "Tronco" or parte.Name == "Copa" then
+					parte:Destroy()
+				end
+			end
 		end
 	end
 end

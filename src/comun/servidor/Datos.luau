@@ -1,7 +1,7 @@
 -- Guardado de cada jugador (monedas, clases, cosméticos, logros…), con candado de sesión (Candado) y el formato de
 -- Formato. Vale en los dos lugares. Al entrar se carga, cada Config.Guardado.Intervalo se guarda y al salir se
--- guarda y se suelta el candado. Lo que el cliente necesita ver se publica en atributos del Player ("Monedas"…);
--- "DatosListos" = true cuando ya está cargado.
+-- guarda y se suelta el candado. Lo que el cliente necesita ver se publica en atributos del Player ("Monedas",
+-- "Partidas"…); "DatosListos" = true cuando ya está cargado.
 -- Desde fuera: Datos.leer(jugador) para mirar, Datos.editar(jugador, fn) para cambiar (publica solo) y
 -- Datos.guardar(jugador) para guardar ya. Nunca escribir en ese DataStore por otro lado: se saltaría el candado.
 -- Con el modo de pruebas (shared/Prueba) no se lee ni se guarda nada. Detalle en docs/sistemas/datos.md.
@@ -30,6 +30,7 @@ local almacen = nil
 
 local function publicar(jugador: Player, datos)
 	jugador:SetAttribute("Monedas", datos.monedas)
+	jugador:SetAttribute("Partidas", HttpService:JSONEncode(datos.partidas)) -- resumen de sus ranuras (el lobby)
 end
 
 local function opciones(jugador: Player): Candado.Opciones
@@ -51,6 +52,7 @@ local function datosDePrueba()
 	if Config.Test.Monedas > 0 then
 		datos.monedas = Config.Test.Monedas
 	end
+	datos.partidas = table.clone(Config.Test.Partidas)
 	return datos
 end
 

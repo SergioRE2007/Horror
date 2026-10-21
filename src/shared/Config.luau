@@ -19,6 +19,24 @@ Config.Guardado = {
 	Cierre = 25, -- segundos como mucho esperando a los guardados al cerrar el servidor
 }
 
+-- Partidas (juego/servidor/Partida y comun/servidor/Viaje): la casa es del que la crea y se guarda al amanecer, con el
+-- mismo candado que los jugadores (Config.Guardado). Números a ojo.
+Config.Partida = {
+	Almacen = "Partidas_v1", -- DataStore de las partidas; cambiarlo borra todas, no tocar con jugadores reales
+	Viajes = "Viajes_v1", -- MemoryStore donde el lobby apunta quién va a cada servidor reservado
+	Ranuras = 3, -- partidas por jugador
+	EsperaDueno = 60, -- segundos esperando al dueño que se va (por si es un corte) antes de acabar para todos
+	CaducaViaje = 86400, -- segundos que vive en MemoryStore lo apuntado de un viaje
+	Sueltos = 400, -- como mucho, cosas sueltas guardadas de cada clase (objetos y pesados)
+}
+
+-- Coches del lobby (lobby/servidor/Coches): te subes con tus amigos, el primero que sube elige la partida y arranca.
+Config.Coches = {
+	Cuantos = 4,
+	Plazas = 4,
+	Salida = 5, -- segundos de cuenta atrás al arrancar
+}
+
 -- Día y noche (juego/servidor/Ciclo). Segundos.
 Config.Ciclo = {
 	Dia = 180,
@@ -187,6 +205,12 @@ Config.Test = {
 	Dia = 40, -- noche rápida: segundos de día y de noche en Studio (nil = los de Config.Ciclo)
 	Noche = 150,
 	Jugadores = nil :: number?, -- fuerza la fila de Config.Dificultad (nil = los que haya)
+	-- El teletransporte no funciona en Studio: el lugar Juego arranca con este dueño falso (la partida se guarda en un
+	-- almacén de mentira que dura lo que la prueba).
+	Dueno = nil :: number?, -- UserId del dueño (nil = el primero que entra)
+	Ranura = 1,
+	Nueva = false, -- true = empezar de cero aunque haya algo guardado
+	Partidas = { ["1"] = { noche = 4, hora = 0 } }, -- lo que el lobby enseña como ya guardado (las ranuras)
 }
 
 -- Sonidos. Provisionales de la biblioteca de Roblox para probar la tensión; se cambian por los de ElevenLabs.

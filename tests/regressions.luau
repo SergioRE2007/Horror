@@ -362,6 +362,128 @@ do
 	igual(Rejilla.buscar(r4, 3) ~= nil and #sobran4 == 0, true, "a una mochila más grande, todo en su sitio")
 end
 
+-- Partida guardada: formato, datos rotos y versiones viejas (juego/servidor/FormatoPartida).
+do
+	local FP = cargar("src/juego/servidor/FormatoPartida")
+	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos }
+	igual(FP.arreglar(nil, cat), nil, "partida nueva: nil")
+	igual(FP.arreglar("basura", cat), nil, "lo que no es tabla: nueva")
+
+	-- Una partida bien guardada sale igual tras pasar por el DataStore.
+	local buena = {
+		version = FP.VERSION, noche = 6, semilla = 12345,
+		casa = { V10_20 = { vida = 40, persiana = true, cristal = 2, abierta = false, bloqueada = false },
+			P0_5 = { vida = 160, persiana = false, cristal = 0, abierta = true } },
+		arboles = { A50_60 = 4 },
+		generador = { gasolina = 0.25, encendido = true, movil = 0.5 },
+		objetos = { { tipo = "Pila", sitio = { 1, 2, 3, 0, 1.5, 0 } }, { tipo = "Linterna", carga = 0.4, sitio = { 4, 1, 4, 0, 0, 0 } } },
+		pesados = { { tipo = "Bidon", carga = 0.3, sitio = { 10, 1.2, 10, 0, 0, 0 } } },
+		mochilas = { ["1"] = { cosas = { { id = 1, tipo = "Hacha", x = 1, y = 1, girada = false } } } },
+	}
+	local d = FP.arreglar(guardable(buena, "partida"), cat)
+	igual(d.noche, 6, "noche")
+	igual(d.semilla, 12345, "semilla")
+	igual(d.casa.V10_20.vida, 40, "vida de la persiana")
+	igual(d.casa.V10_20.cristal, 2, "grietas del cristal")
+	igual(d.casa.P0_5.abierta, true, "puerta abierta")
+	igual(d.casa.P0_5.bloqueada, nil, "sin bloqueada: la del mapa")
+	igual(d.arboles.A50_60, 4, "árbol talado la noche 4")
+	igual(d.generador.gasolina, 0.25, "gasolina")
+	igual(d.generador.movil, 0.5, "móvil en el enchufe")
+	igual(#d.objetos, 2, "objetos sueltos")
+	igual(d.objetos[2].carga, 0.4, "con su carga")
+	igual(d.objetos[1].sitio[5], 1.5, "con su giro")
+	igual(d.pesados[1].carga, 0.3, "el bidón con su gasolina")
+	igual(#d.mochilas["1"].cosas, 1, "la mochila del jugador 1")
+	guardable(d, "partida arreglada")
+
+	-- Datos rotos o trucados.
+	local mala = FP.arreglar({
+		noche = 0 / 0, semilla = "x",
+		casa = { V1_1 = { vida = "mucha" }, V2_2 = { vida = -5, cristal = 1e9 }, [3] = { vida = 1 } },
+		arboles = { A1_1 = 0, A2_2 = "ayer", A3_3 = 2.7 },
+		generador = { gasolina = 5, encendido = "si", movil = 0 / 0 },
+		objetos = {
+			{ tipo = "Nada", sitio = { 0, 0, 0, 0, 0, 0 } }, -- tipo que no existe
+			{ tipo = "Pila", sitio = { 0, 0, 0, 0, 0 } }, -- faltan números
+			{ tipo = "Pila", sitio = { 0, -500, 0, 0, 0, 0 } }, -- se cayó del mapa
+			{ tipo = "Pila", sitio = { 0 / 0, 1, 0, 0, 0, 0 } },
+			{ tipo = "Pila", carga = math.huge, sitio = { 0, 1, 0, 0, 0, 0 } },
+			{ tipo = "Tronco", sitio = { 0, 1, 0, 0, 0, 0 } }, -- es pesado, no objeto
+		},
+		mochilas = { ["abc"] = { cosas = {} }, ["2"] = "nada", ["3"] = { cosas = {} } },
+	}, cat)
+	igual(mala.noche, 1, "noche NaN -> 1")
+	igual(mala.semilla, 0, "semilla rota -> 0")
+	igual(mala.casa.V1_1, nil, "vida que no es número: fuera")
+	igual(mala.casa.V2_2.vida, 0, "vida negativa -> 0")
+	igual(mala.casa.V2_2.cristal, 100, "grietas imposibles, acotadas (Casa las deja en GolpesCristal)")
+	igual(mala.casa[3], nil, "clave que no es texto: fuera")
+	igual(mala.arboles.A1_1, nil, "talado la noche 0: fuera")
+	igual(mala.arboles.A2_2, nil, "talado sin número: fuera")
+	igual(mala.arboles.A3_3, 2, "noche con decimales -> entera")
+	igual(mala.generador.gasolina, 1, "gasolina de más -> lleno")
+	igual(mala.generador.encendido, false, "encendido que no es booleano -> apagado")
+	igual(mala.generador.movil, nil, "móvil NaN: no hay")
+	igual(#mala.objetos, 1, "solo vale la pila sana")
+	igual(mala.objetos[1].carga, nil, "carga infinita -> sin carga")
+	igual(mala.mochilas.abc, nil, "mochila de alguien que no es un UserId: fuera")
+	igual(mala.mochilas["2"], nil, "mochila que no es tabla: fuera")
+	igual(type(mala.mochilas["3"]), "table", "mochila vacía: se queda")
+	igual(FP.arreglar({ noche = 3.9 }, cat).noche, 3, "noche con decimales")
+	igual(FP.arreglar({ noche = -2 }, cat).noche, 1, "noche negativa -> 1")
+
+	-- Demasiadas cosas sueltas: solo las primeras Sueltos.
+	local muchas = {}
+	for i = 1, Config.Partida.Sueltos + 50 do
+		muchas[i] = { tipo = "Lata", sitio = { i, 1, 0, 0, 0, 0 } }
+	end
+	igual(#FP.arreglar({ objetos = muchas }, cat).objetos, Config.Partida.Sueltos, "tope de cosas sueltas")
+
+	-- Una versión vieja (sin versión y sin los campos de ahora) se pone al día sin romperse.
+	local vieja = FP.arreglar({ noche = 5 }, cat)
+	igual(vieja.version, FP.VERSION, "vieja: sube la versión")
+	igual(vieja.noche, 5, "vieja: conserva la noche")
+	igual(type(vieja.casa) == "table" and type(vieja.mochilas) == "table" and #vieja.objetos == 0, true, "vieja: gana lo que le faltaba")
+	igual(vieja.generador.gasolina, nil, "vieja: sin gasolina guardada (Generador pone la de empezar)")
+
+	-- La mochila guardada se rehace con la rejilla: lo que ya no existe se tira.
+	local Rejilla = cargar("src/shared/Rejilla")
+	local r = Rejilla.desde({ cosas = { { id = 1, tipo = "Hacha", x = 1, y = 1, girada = false }, { id = 2, tipo = "Espada", x = 3, y = 1 } } },
+		Config.Objetos, Config.Mochila.Ancho, Config.Mochila.Alto)
+	igual(#r.cosas, 1, "mochila guardada: el tipo que no existe se tira")
+
+	-- Candado de la partida: dos servidores con la misma ranura (el grupo vuelve deprisa del lobby).
+	local a = almacen()
+	local A = servidor(a, "A")
+	A.clave = "partida_1_1"
+	igual((Candado.cargar(A)), "ok", "partida nueva: carga")
+	igual(Candado.guardar(A, d, false, 1), "ok", "guarda al amanecer")
+	local B = servidor(a, "B")
+	B.clave = "partida_1_1"
+	local estado = Candado.cargar(B)
+	igual(estado, "ocupado", "otro servidor no la coge mientras está abierta")
+	igual(Candado.guardar(A, d, true, 1), "ok", "al acabar se suelta")
+	local estadoB, guardadoB = Candado.cargar(B)
+	igual(estadoB, "ok", "ya suelta, la coge el otro")
+	igual(FP.arreglar(guardadoB, cat).noche, 6, "y sigue en la noche guardada")
+	igual(Candado.guardar(A, d, false, 1), "perdido", "el viejo ya no puede escribir")
+end
+
+-- Resumen de las ranuras en los datos del jugador (lo que enseña el lobby).
+do
+	local j = Formato.arreglarJugador({ partidas = { ["1"] = { noche = 4, hora = 5 }, ["2"] = { noche = "x" }, ["3"] = 7 } })
+	igual(j.partidas["1"].noche, 4, "ranura guardada")
+	igual(j.partidas["2"], nil, "ranura rota: fuera")
+	igual(j.partidas["3"], nil, "ranura que no es tabla: fuera")
+	assert(Config.Partida.Ranuras >= 1, "al menos una ranura")
+	for ranura in Config.Test.Partidas do
+		local n = tonumber(ranura)
+		assert(n and n >= 1 and n <= Config.Partida.Ranuras, `Config.Test.Partidas: ranura {ranura} fuera de rango`)
+	end
+	comprobaciones += 1
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")

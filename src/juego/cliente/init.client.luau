@@ -8,7 +8,7 @@ require(Comun:WaitForChild("Avisos")).start()
 local Sistemas = script
 require(Sistemas.Sonido).start() -- antes que los que tocan sonidos
 require(Sistemas.Ambiente).start()
-require(Sistemas.Controles).start()
+require(Comun:WaitForChild("Controles")).start()
 require(Sistemas.CasaVista).start()
 require(Sistemas.GolpeadorVista).start()
 require(Sistemas.RaspadorVista).start()

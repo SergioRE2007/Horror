@@ -201,6 +201,29 @@ function Cargar.nuevo(tipo: string, cf: CFrame, carga: number?): BasePart
 	return pieza
 end
 
+-- Lo pesado del mapa, para guardarlo (Partida): { tipo, carga (la gasolina del bidón), cf }.
+function Cargar.sueltos(): { { tipo: string, carga: number?, cf: CFrame } }
+	local lista = {}
+	for _, pieza in carpeta:GetChildren() do
+		if pieza:IsA("BasePart") then
+			table.insert(lista, { tipo = pieza:GetAttribute("Tipo"), carga = pieza:GetAttribute("Carga"), cf = pieza.CFrame })
+		end
+	end
+	return lista
+end
+
+-- Todos sueltan lo que llevan, se quita todo lo pesado y se pone lo de la lista (lo que se trabajaba se deja).
+function Cargar.importar(lista: { { tipo: string, carga: number?, cf: CFrame } })
+	for jugador in agarres do
+		Cargar.soltar(jugador)
+	end
+	carpeta:ClearAllChildren()
+	table.clear(quienes)
+	for _, p in lista do
+		Cargar.nuevo(p.tipo, p.cf, p.carga)
+	end
+end
+
 -- Lo que se hace con lo que llevas en las manos (R o el botón): serrar un tronco en el caballete, clavar un tablón,
 -- echar gasolina. Cada sistema registra el suyo con Cargar.alUsar(tipo, uso):
 --   etiquetas: a qué se le puede hacer (CollectionService; el objetivo tiene un "Mando").
