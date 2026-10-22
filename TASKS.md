@@ -24,7 +24,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
   - Un mismo amanecer no paga dos veces (prueba de Lune).
   - El premio diario solo una vez cada 24 h por jugador, contado en el servidor.
   - Aviso de una línea, sin desgloses.
-- **Estado:** pendiente
+- **Estado:** hecho
 
 ### 10.2 Clases
 - **Descripción:** Leñador, Corredor, Fotógrafo, Mecánico, Carpintero y Explorador; una por jugador y partida; la primera gratis. Sus ventajas pasan por un módulo `Stats` (única fuente de multiplicadores).

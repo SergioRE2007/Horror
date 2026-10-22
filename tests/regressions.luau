@@ -698,6 +698,39 @@ do
 	guardable(d, "partida del paso 8 arreglada")
 end
 
+-- Premio: un amanecer no paga dos veces, logros una vez y el diario cada 24 h.
+do
+	local Premio = cargar("src/comun/servidor/Premio")
+	local R = Config.Recompensas
+	local c = Premio.ciclo()
+	igual(Premio.amanecer(c, "Dia", 4), false, "primer día (partida cargada): no paga")
+	igual(Premio.amanecer(c, "Noche", 4), false, "anochecer: no paga")
+	igual(Premio.amanecer(c, "Dia", 4), false, "mueren todos y vuelve el día: no paga")
+	igual(Premio.amanecer(c, "Noche", 4), false, "anochecer otra vez")
+	igual(Premio.amanecer(c, "Dia", 5), true, "amanecer de verdad: paga")
+	igual(Premio.amanecer(c, "Dia", 5), false, "el mismo amanecer otra vez: no paga")
+	igual(Premio.amanecer(c, "Noche", 5), false, "anochecer")
+	igual(Premio.amanecer(c, "Dia", 5), false, "salto de pruebas al día sin pasar la noche: no paga")
+	c.fase, c.noche = "Noche", 4
+	igual(Premio.amanecer(c, "Dia", 5), false, "un amanecer ya pagado: no paga")
+	igual(Premio.noche(R, 1), R.Noche, "primera noche")
+	igual(Premio.noche(R, 1000), R.Noche + R.PorNoche * R.TopeNoches, "con tope")
+
+	local d = Formato.jugadorNuevo()
+	igual(Premio.logro(d, R, "Noche1"), R.Logros.Noche1.Monedas, "logro: paga")
+	igual(Premio.logro(d, R, "Noche1"), 0, "logro: solo una vez")
+	igual(Premio.logro(d, R, "NoExiste"), 0, "logro que no existe")
+	igual(Premio.diario(d, R, 100000), R.Diario, "diario: el primero")
+	igual(Premio.diario(d, R, 100000 + R.Cada - 1), 0, "diario: antes de 24 h no")
+	igual(Premio.diario(d, R, 100000 + R.Cada), R.Diario, "diario: a las 24 h sí")
+	d.diario = 1e12
+	igual(Premio.diario(d, R, 200000), R.Diario, "diario: hora guardada absurda no bloquea")
+	igual(Formato.arreglarJugador({ monedas = 3 }).diario, 0, "diario en datos viejos")
+	Premio.sumar(d, math.huge)
+	Premio.sumar(d, -5)
+	igual(d.monedas, 0, "sumar: nada infinito ni negativo")
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")
