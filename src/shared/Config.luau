@@ -410,14 +410,31 @@ Config.Ventajas = {
 }
 
 -- Clases (comun/servidor/Clases): una por jugador y partida. Se guarda el Id: no cambiarlo nunca y las nuevas al
--- final. Ventajas = lo que cambia de Config.Ventajas. Números a ojo.
+-- final. Ventajas = lo que cambia de Config.Ventajas. Texto = una línea para la tienda. Precio en monedas (la primera
+-- que compra cada jugador es gratis; una partida de unas 5 noches da unas 375). Números a ojo.
 Config.Clases = {
-	{ Id = "Lenador", Nombre = "Lumberjack", Ventajas = { Hachazo = 1.5, Troncos = 1 } },
-	{ Id = "Corredor", Nombre = "Runner", Ventajas = { Velocidad = 1.2 } },
-	{ Id = "Fotografo", Nombre = "Photographer", Ventajas = { Recarga = 0.6, Aturde = 1.5 } },
-	{ Id = "Mecanico", Nombre = "Mechanic", Ventajas = { Trabajo = 0.6 } },
-	{ Id = "Carpintero", Nombre = "Carpenter", Ventajas = { Refuerzo = 1.5 } },
-	{ Id = "Explorador", Nombre = "Explorer", Ventajas = { VerLlaves = 70 } },
+	{ Id = "Lenador", Nombre = "Lumberjack", Texto = "Chops trees faster and gets more logs.", Precio = 400,
+		Ventajas = { Hachazo = 1.5, Troncos = 1 } },
+	{ Id = "Corredor", Nombre = "Runner", Texto = "Runs faster.", Precio = 400, Ventajas = { Velocidad = 1.2 } },
+	{ Id = "Fotografo", Nombre = "Photographer", Texto = "The flash recharges sooner and stuns for longer.", Precio = 400,
+		Ventajas = { Recarga = 0.6, Aturde = 1.5 } },
+	{ Id = "Mecanico", Nombre = "Mechanic", Texto = "Nails boards and fixes the car faster.", Precio = 400,
+		Ventajas = { Trabajo = 0.6 } },
+	{ Id = "Carpintero", Nombre = "Carpenter", Texto = "Reinforced boards hold much longer.", Precio = 400,
+		Ventajas = { Refuerzo = 1.5 } },
+	{ Id = "Explorador", Nombre = "Explorer", Texto = "Sees nearby keys through walls.", Precio = 400,
+		Ventajas = { VerLlaves = 70 } },
+}
+
+-- Cosméticos sin ventaja (lobby/servidor/Tienda). Se guarda el Id: no cambiarlo nunca y los nuevos al final. Tipo =
+-- dónde se pone (uno de cada tipo a la vez). Linterna: el color de la luz en RGB (juego/cliente/EquipoVista; sin Color3, para que Lune lo cargue); la de serie es
+-- la cálida. Colores flojos, nada de neón. Precios a ojo.
+Config.Cosmeticos = {
+	{ Id = "LuzFria", Tipo = "Linterna", Nombre = "Cold light", Color = { 205, 222, 255 }, Precio = 150 },
+	{ Id = "LuzAmbar", Tipo = "Linterna", Nombre = "Amber light", Color = { 255, 190, 110 }, Precio = 150 },
+	{ Id = "LuzRoja", Tipo = "Linterna", Nombre = "Red light", Color = { 255, 110, 95 }, Precio = 250 },
+	{ Id = "LuzVerde", Tipo = "Linterna", Nombre = "Green light", Color = { 160, 240, 150 }, Precio = 250 },
+	{ Id = "LuzMorada", Tipo = "Linterna", Nombre = "Violet light", Color = { 185, 155, 255 }, Precio = 400 },
 }
 
 return Config

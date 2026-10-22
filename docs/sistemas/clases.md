@@ -18,5 +18,5 @@ Números a ojo, en `Config.Ventajas` y `Config.Clases` (al final de `Config`; se
 
 ## Pendiente
 
-- Comprar clases (la primera gratis) y elegirla en la gasolinera: con la tienda (10.3).
+- Comprar y elegir: hecho en la tienda (`docs/sistemas/tienda.md`).
 - Sin probar en Studio: hachazos del Leñador, flash del Fotógrafo, tiempos del Mecánico y tablón del Carpintero (una línea cada uno con `Stats`).

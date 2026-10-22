@@ -31,6 +31,8 @@ local almacen = nil
 local function publicar(jugador: Player, datos)
 	jugador:SetAttribute("Monedas", datos.monedas)
 	jugador:SetAttribute("Partidas", HttpService:JSONEncode(datos.partidas)) -- resumen de sus ranuras (el lobby)
+	jugador:SetAttribute("Clases", HttpService:JSONEncode(datos.clases)) -- lo comprado (la tienda)
+	jugador:SetAttribute("Cosmeticos", HttpService:JSONEncode(datos.cosmeticos))
 end
 
 local function opciones(jugador: Player): Candado.Opciones
