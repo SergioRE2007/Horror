@@ -731,6 +731,30 @@ do
 	igual(d.monedas, 0, "sumar: nada infinito ni negativo")
 end
 
+-- Clases y Stats: Ids sin repetir, ventajas que existen y valores por clase.
+do
+	local Stats = cargar("src/shared/Stats")
+	local vistos = {}
+	for _, clase in Config.Clases do
+		assert(not vistos[clase.Id], `clase repetida: {clase.Id}`)
+		vistos[clase.Id] = true
+		for ventaja, valor in clase.Ventajas do
+			assert(Config.Ventajas[ventaja] ~= nil, `{clase.Id}: ventaja desconocida {ventaja}`)
+			assert(type(valor) == "number" and valor >= 0, `{clase.Id}: {ventaja} no es un número válido`)
+			comprobaciones += 1
+		end
+	end
+	local function jugador(clase)
+		return { GetAttribute = function(_, nombre) return if nombre == "Clase" then clase else nil end }
+	end
+	igual(Stats.valor(jugador(nil), "Velocidad"), 1, "sin clase: la base")
+	igual(Stats.valor(jugador("NoExiste"), "Velocidad"), 1, "clase que no existe: la base")
+	igual(Stats.valor(jugador("Corredor"), "Velocidad"), Stats.clase("Corredor").Ventajas.Velocidad, "corredor: más rápido")
+	igual(Stats.valor(jugador("Corredor"), "Hachazo"), 1, "corredor: hachazo normal")
+	igual(Stats.valor(nil, "Troncos"), 0, "sin jugador: la base")
+	igual(Formato.arreglarJugador({ monedas = 3 }).clase, "", "clase en datos viejos")
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")

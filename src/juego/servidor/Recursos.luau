@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Cargar = require(script.Parent.Cargar)
@@ -30,14 +31,14 @@ local function plano(v: Vector3): Vector3
 end
 
 -- Al quedarse quieto en el suelo, el tronco caído se parte en troncos que se pueden cargar.
-local function partir(tronco: BasePart)
+local function partir(tronco: BasePart, troncos: number)
 	local eje = plano(tronco.CFrame.RightVector) -- el cilindro va a lo largo de X
 	eje = if eje.Magnitude > 0.1 then eje.Unit else Vector3.xAxis
 	local centro = tronco.Position
 	Remotes.Trabajo:FireAllClients(nil, "Parte", nil, 0, centro, eje, tronco.Size.X)
 	local separacion = Config.Pesados.Tronco.Tam[1] + 0.6
-	for i = 1, T.Troncos do
-		local punto = Vector3.new(centro.X, Config.Pesados.Tronco.Tam[2] / 2 + 0.1, centro.Z) + eje * ((i - (T.Troncos + 1) / 2) * separacion)
+	for i = 1, troncos do
+		local punto = Vector3.new(centro.X, Config.Pesados.Tronco.Tam[2] / 2 + 0.1, centro.Z) + eje * ((i - (troncos + 1) / 2) * separacion)
 		Cargar.nuevo("Tronco", CFrame.fromMatrix(punto, eje, Vector3.yAxis))
 	end
 	for _, parte in (tronco.Parent :: Instance):GetChildren() do
@@ -108,7 +109,7 @@ local function caer(modelo: Model, jugador: Player)
 		until not tronco.Parent or os.clock() - inicio > 9 or (os.clock() - inicio > 2.5 and not bisagra.Parent
 			and tronco.AssemblyAngularVelocity.Magnitude < 0.4 and tronco.AssemblyLinearVelocity.Magnitude < 1.5)
 		if tronco.Parent then
-			partir(tronco)
+			partir(tronco, T.Troncos + Stats.valor(jugador, "Troncos"))
 		end
 	end)
 end
@@ -136,7 +137,7 @@ local function hachazo(jugador: Player, modelo: Model)
 		return
 	end
 	ultimo[jugador] = ahora
-	local golpes = (modelo:GetAttribute("Golpes") or 0) + 1
+	local golpes = (modelo:GetAttribute("Golpes") or 0) + Stats.valor(jugador, "Hachazo")
 	modelo:SetAttribute("Golpes", golpes)
 	Remotes.Trabajo:FireAllClients(jugador, "Hachazo", modelo:FindFirstChild("Tronco"), 0)
 	if golpes >= modelo:GetAttribute("GolpesMax") then

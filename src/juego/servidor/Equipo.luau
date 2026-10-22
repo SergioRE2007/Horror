@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Casa = require(script.Parent.Casa)
@@ -122,7 +123,7 @@ local function flash(jugador: Player, hacia: unknown)
 		return
 	end
 	local ahora = os.clock()
-	if ahora - (ultimoFlash[jugador] or -math.huge) < F.Recarga then
+	if ahora - (ultimoFlash[jugador] or -math.huge) < F.Recarga * Stats.valor(jugador, "Recarga") then
 		return
 	end
 	if (camara.carga or 0) <= 0 then
@@ -138,7 +139,7 @@ local function flash(jugador: Player, hacia: unknown)
 			if b.alFlash then
 				b.alFlash(jugador)
 			else
-				b:aturdir(F.Aturde)
+				b:aturdir(F.Aturde * Stats.valor(jugador, "Aturde"))
 			end
 		end
 	end
