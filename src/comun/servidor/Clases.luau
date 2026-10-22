@@ -1,7 +1,7 @@
 -- Clases (Leñador, Corredor…): una por jugador y partida. La elegida se guarda en sus datos (`clase`) y llega al
 -- juego con ellos (DataStore con candado), nunca con los datos del teletransporte, que pasan por el cliente. Al
 -- cargar, el servidor comprueba que la tiene y la publica en el atributo "Clase" del Player; las ventajas, en
--- shared/Stats. Solo en el lobby se puede cambiar (remote Clase); comprarlas va en la tienda (paso 10.3).
+-- shared/Stats. Solo en el lobby se puede cambiar (remote Clase); comprarlas, en Tienda.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -20,7 +20,8 @@ local function vale(datos, id: string): boolean
 	return id == "" or (Stats.clase(id) ~= nil and datos.clases[id] == true)
 end
 
-local function publicar(jugador: Player)
+-- Pone el atributo "Clase" con la que tiene elegida (también lo llama Tienda al comprar una).
+function Clases.publicar(jugador: Player)
 	local datos = Datos.leer(jugador)
 	if not datos then
 		return
@@ -38,7 +39,7 @@ local function alEntrar(jugador: Player)
 	while jugador.Parent and not jugador:GetAttribute("DatosListos") do
 		task.wait(0.5)
 	end
-	publicar(jugador)
+	Clases.publicar(jugador)
 end
 
 -- Elegir una clase que ya tiene (solo en el lobby).
@@ -56,7 +57,7 @@ local function elegir(jugador: Player, id: unknown)
 			datos.clase = id
 		end
 	end)
-	publicar(jugador)
+	Clases.publicar(jugador)
 end
 
 -- `lobby`: true en el lobby, donde se puede elegir.

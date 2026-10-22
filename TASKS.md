@@ -34,7 +34,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
   - Cada ventaja se nota al probarla en Studio y sale solo de `Stats`.
   - El servidor rechaza una clase que el jugador no tiene.
   - Lista de clases al final de `Config` sin reordenar.
-- **Estado:** en curso (base hecha, ver `docs/sistemas/clases.md`; elegirla en la gasolinera va con la tienda, 10.3)
+- **Estado:** en curso (comprar y elegir, hecho con la tienda; falta probar en Studio las ventajas de Leñador, Fotógrafo, Mecánico y Carpintero, ver `docs/sistemas/clases.md`)
 
 ### 10.3 Tienda en la gasolinera
 - **Descripción:** comprar clases y cosméticos con monedas dentro de la gasolinera del lobby.
@@ -42,7 +42,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Criterios:**
   - El servidor comprueba precio y monedas; pulsar muchas veces seguidas no compra dos veces ni deja monedas en negativo (prueba de Lune).
   - Interfaz oscura de libreta, textos por `Lang`, se usa en móvil.
-- **Estado:** pendiente
+- **Estado:** hecho (ver `docs/sistemas/tienda.md`)
 
 ### 10.4 Revivir y compras con Robux
 - **Descripción:** revivir de noche (~25 R$, también a un amigo, máx. 1 por noche), paquetes de monedas y 3-4 pases (mochila grande, más ranuras, linterna mejor, paquete de inicio) por ventajas (`perks`).

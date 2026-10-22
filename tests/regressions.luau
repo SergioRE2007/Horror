@@ -755,6 +755,56 @@ do
 	igual(Formato.arreglarJugador({ monedas = 3 }).clase, "", "clase en datos viejos")
 end
 
+-- Tienda: precio y monedas, la primera clase gratis, pulsar muchas veces y cosméticos puestos.
+do
+	local Comprar = cargar("src/comun/servidor/Comprar")
+	local vistos = {}
+	for _, cosa in Config.Cosmeticos do
+		assert(not vistos[cosa.Id], `cosmético repetido: {cosa.Id}`)
+		assert(cosa.Precio > 0 and cosa.Tipo and cosa.Nombre, `{cosa.Id}: le falta algo`)
+		vistos[cosa.Id] = true
+		comprobaciones += 1
+	end
+	for _, clase in Config.Clases do
+		assert(type(clase.Precio) == "number" and clase.Precio > 0 and clase.Texto, `{clase.Id}: sin precio o texto`)
+	end
+	local C, K = Config.Clases, Config.Cosmeticos
+	local d = Formato.jugadorNuevo()
+	igual(Comprar.clase(d, C, "Corredor"), "ok", "primera clase sin monedas")
+	igual(d.monedas, 0, "primera clase gratis")
+	igual(d.clase, "Corredor", "la comprada queda elegida")
+	igual(Comprar.clase(d, C, "Corredor"), "tiene", "no se compra dos veces")
+	igual(Comprar.clase(d, C, "Lenador"), "monedas", "segunda clase sin monedas")
+	igual(d.clases.Lenador, nil, "sin monedas no la da")
+	d.monedas = C[1].Precio + 10
+	-- Muchos toques seguidos: una sola compra y nunca en negativo.
+	local compradas = 0
+	for _ = 1, 20 do
+		for _, clase in C do
+			if Comprar.clase(d, C, clase.Id) == "ok" then
+				compradas += 1
+			end
+		end
+	end
+	igual(compradas, 1, "muchos toques: una compra")
+	igual(d.monedas, 10, "muchos toques: cobra una vez")
+	igual(Comprar.clase(d, C, "NoExiste"), "nada", "clase que no existe")
+	igual(Comprar.clase(d, C, 5), "nada", "id que no es texto")
+	d.monedas = 0 / 0
+	igual(Comprar.cosmetico(d, K, K[1].Id), "monedas", "monedas NaN no compran")
+	d.monedas = K[1].Precio
+	igual(Comprar.cosmetico(d, K, K[1].Id), "ok", "cosmético con monedas justas")
+	igual(d.monedas, 0, "cosmético cobrado")
+	igual(Comprar.puesto(d, K, K[1].Tipo).Id, K[1].Id, "el comprado queda puesto")
+	igual(Comprar.poner(d, K, K[1].Tipo, K[2].Id), false, "no se pone uno que no es suyo")
+	igual(Comprar.poner(d, K, "Coche", K[1].Id), false, "no se pone en otro tipo")
+	igual(Comprar.poner(d, K, K[1].Tipo, ""), true, "volver al de serie")
+	igual(Comprar.puesto(d, K, K[1].Tipo), nil, "de serie")
+	d.puestos[K[1].Tipo] = K[2].Id -- guardado a mano sin tenerlo
+	igual(Comprar.puesto(d, K, K[1].Tipo), nil, "puesto que no es suyo no cuenta")
+	igual(type(Formato.arreglarJugador({ monedas = 3 }).puestos), "table", "puestos en datos viejos")
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")
