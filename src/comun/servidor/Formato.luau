@@ -16,6 +16,8 @@ function Formato.jugadorNuevo()
 		records = {},
 		partidas = {}, -- resumen de sus ranuras de partida
 		compras = {}, -- [PurchaseId] = true: compras de Robux ya entregadas, para no dar dos veces
+		diario = 0, -- os.time() del último premio diario
+		clase = "", -- Id de la clase elegida en el lobby ("" = ninguna)
 	}
 end
 

@@ -19,6 +19,23 @@ Config.Guardado = {
 	Cierre = 25, -- segundos como mucho esperando a los guardados al cerrar el servidor
 }
 
+-- Monedas que se ganan (comun/servidor/Recompensas y Premio). Números a ojo.
+Config.Recompensas = {
+	Noche = 25, -- por superar la primera noche
+	PorNoche = 5, -- más por cada noche siguiente
+	TopeNoches = 10, -- a partir de la noche 11 ya no sube
+	Final = 300, -- por escapar en el coche
+	Diario = 50, -- premio diario
+	Cada = 86400, -- segundos entre premios diarios
+	-- Logros: se cobran una sola vez por jugador (se guarda el nombre: no renombrar). Noche = al superar esa noche.
+	Logros = {
+		Noche1 = { Noche = 1, Monedas = 50 },
+		Noche5 = { Noche = 5, Monedas = 150 },
+		Noche10 = { Noche = 10, Monedas = 400 },
+		Huida = { Monedas = 250 },
+	},
+}
+
 -- Partidas (juego/servidor/Partida y comun/servidor/Viaje): la casa es del que la crea y se guarda al amanecer, con el
 -- mismo candado que los jugadores (Config.Guardado). Números a ojo.
 Config.Partida = {
@@ -344,6 +361,7 @@ Config.Test = {
 	-- El teletransporte no funciona en Studio: el lugar Juego arranca con este dueño falso (la partida se guarda en un
 	-- almacén de mentira que dura lo que la prueba).
 	Dueno = nil :: number?, -- UserId del dueño (nil = el primero que entra)
+	Clase = nil :: string?, -- Id de una clase de Config.Clases para probar su ventaja (nil = la elegida en el lobby)
 	Ranura = 1,
 	Nueva = false, -- true = empezar de cero aunque haya algo guardado
 	Partidas = { ["1"] = { noche = 4, hora = 0 } }, -- lo que el lobby enseña como ya guardado (las ranuras)
@@ -377,6 +395,29 @@ Config.Sonidos = {
 	Rama = { Id = 9113582284, Volumen = 1.8, Alcance = 90 }, -- el Acechador en el bosque
 	-- Sin viento de fondo hasta tener uno de ElevenLabs: el de la biblioteca sonaba saturado (pedido por el usuario).
 	-- Viento = { Id = ..., Volumen = 0.12 },
+}
+
+-- Ventajas de los jugadores (shared/Stats): lo de quien no tiene clase. Cada una se usa en un solo sistema.
+Config.Ventajas = {
+	Velocidad = 1, -- multiplica la velocidad al andar (Cargar)
+	Hachazo = 1, -- golpes que cuenta cada hachazo (Recursos)
+	Troncos = 0, -- troncos de más del árbol que tala (Recursos)
+	Recarga = 1, -- multiplica los segundos entre flashazos (Equipo)
+	Aturde = 1, -- multiplica los segundos que aturde el flash (Equipo)
+	Trabajo = 1, -- multiplica los segundos de clavar tablones y montar piezas (Cargar)
+	Refuerzo = 1, -- multiplica la vida de más del tablón reforzado que clava (Casa)
+	VerLlaves = 0, -- studs a los que ve las llaves a través de todo, solo él (ClaseVista)
+}
+
+-- Clases (comun/servidor/Clases): una por jugador y partida. Se guarda el Id: no cambiarlo nunca y las nuevas al
+-- final. Ventajas = lo que cambia de Config.Ventajas. Números a ojo.
+Config.Clases = {
+	{ Id = "Lenador", Nombre = "Lumberjack", Ventajas = { Hachazo = 1.5, Troncos = 1 } },
+	{ Id = "Corredor", Nombre = "Runner", Ventajas = { Velocidad = 1.2 } },
+	{ Id = "Fotografo", Nombre = "Photographer", Ventajas = { Recarga = 0.6, Aturde = 1.5 } },
+	{ Id = "Mecanico", Nombre = "Mechanic", Ventajas = { Trabajo = 0.6 } },
+	{ Id = "Carpintero", Nombre = "Carpenter", Ventajas = { Refuerzo = 1.5 } },
+	{ Id = "Explorador", Nombre = "Explorer", Ventajas = { VerLlaves = 70 } },
 }
 
 return Config
