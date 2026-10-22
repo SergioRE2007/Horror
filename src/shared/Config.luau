@@ -19,6 +19,23 @@ Config.Guardado = {
 	Cierre = 25, -- segundos como mucho esperando a los guardados al cerrar el servidor
 }
 
+-- Monedas que se ganan (comun/servidor/Recompensas y Premio). Números a ojo.
+Config.Recompensas = {
+	Noche = 25, -- por superar la primera noche
+	PorNoche = 5, -- más por cada noche siguiente
+	TopeNoches = 10, -- a partir de la noche 11 ya no sube
+	Final = 300, -- por escapar en el coche
+	Diario = 50, -- premio diario
+	Cada = 86400, -- segundos entre premios diarios
+	-- Logros: se cobran una sola vez por jugador (se guarda el nombre: no renombrar). Noche = al superar esa noche.
+	Logros = {
+		Noche1 = { Noche = 1, Monedas = 50 },
+		Noche5 = { Noche = 5, Monedas = 150 },
+		Noche10 = { Noche = 10, Monedas = 400 },
+		Huida = { Monedas = 250 },
+	},
+}
+
 -- Partidas (juego/servidor/Partida y comun/servidor/Viaje): la casa es del que la crea y se guarda al amanecer, con el
 -- mismo candado que los jugadores (Config.Guardado). Números a ojo.
 Config.Partida = {
