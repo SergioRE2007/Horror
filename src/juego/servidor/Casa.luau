@@ -2,7 +2,8 @@
 -- El servidor guarda el estado de cada una y lo publica en atributos del modelo; el cliente (CasaVista) lo anima.
 -- Las puertas: el servidor nunca mueve la hoja (la gira cada cliente); solo le quita la colisión al abrirse.
 -- Cada cosa tiene un ProximityPrompt principal (persiana o puerta) y otro de reparar que sale solo si hace falta.
--- Se repara clavando un tablón que se lleva en las manos (Cargar.alUsar "Tablon").
+-- Se repara clavando un tablón que se lleva en las manos (Cargar.alUsar "Tablon"). El tablón reforzado (del banco del
+-- sótano, Taller) la deja además con más vida (Config.Taller.Refuerzo) hasta que el bicho la rompa.
 -- Los textos de los prompts van en inglés y el cliente los traduce al pintarlos (Controles).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -29,6 +30,7 @@ local function publicar(el: Model)
 	local e = estados[el]
 	el:SetAttribute("Vida", e.vida)
 	el:SetAttribute("VidaMax", e.vidaMax)
+	el:SetAttribute("Refuerzo", e.refuerzo)
 	local p = prompts[el]
 	if e.tipo == "Ventana" then
 		el:SetAttribute("Persiana", e.persiana)
@@ -218,13 +220,14 @@ function Casa.cerradas(): { string }
 	return lista
 end
 
--- Lo que se guarda de la casa (Partida, al amanecer): [clave] = { vida, persiana, cristal, abierta, bloqueada }.
+-- Lo que se guarda de la casa (Partida, al amanecer): [clave] = { vida, persiana, cristal, abierta, bloqueada, refuerzo }.
 function Casa.exportar()
 	local t = {}
 	for el, e in estados do
 		local clave = el:GetAttribute("Clave")
 		if clave then
-			t[clave] = { vida = e.vida, persiana = e.persiana, cristal = e.cristal, abierta = e.abierta, bloqueada = e.bloqueada }
+			t[clave] = { vida = e.vida, persiana = e.persiana, cristal = e.cristal, abierta = e.abierta, bloqueada = e.bloqueada,
+				refuerzo = e.refuerzo or nil }
 		end
 	end
 	return t
@@ -237,6 +240,9 @@ function Casa.importar(t)
 		e.bloqueada = el:GetAttribute("Bloqueada") == true
 		local g = t[el:GetAttribute("Clave")]
 		if g then
+			if g.refuerzo then
+				Defensa.reforzar(e, cfg, Config.Taller.Refuerzo)
+			end
 			e.vida = math.clamp(g.vida, 0, e.vidaMax)
 			e.persiana = g.persiana
 			e.cristal = math.clamp(g.cristal, 0, cfg.GolpesCristal)
@@ -252,12 +258,18 @@ end
 
 -- Clavar un tablón (llevándolo en las manos, R): deja la persiana y el cristal, o la puerta, como nuevos. Se clava por
 -- dentro en las ventanas y del lado del jugador en las puertas.
-local function prepararClavar(jugador: Player, el: Instance, _pieza: BasePart): (CFrame?, number?)
+-- El tablón reforzado (Taller) también la deja como nueva y además con más vida: vale aunque no esté dañada.
+local function prepararClavar(jugador: Player, el: Instance, pieza: BasePart): (CFrame?, number?)
 	local e = estados[el :: Model]
 	if not e or e.bloqueada or not puede(jugador, el :: Model) then
 		return nil
 	end
-	if not Defensa.necesitaReparar(e) then
+	if pieza:GetAttribute("Tipo") == "TablonReforzado" then
+		if e.refuerzo then
+			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "It's already reinforced."))
+			return nil
+		end
+	elseif not Defensa.necesitaReparar(e) then
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "It doesn't need repairs."))
 		return nil
 	end
@@ -280,6 +292,16 @@ function Casa.start()
 			pieza:Destroy()
 			local e = estados[el :: Model]
 			Defensa.reparar(e)
+			publicar(el :: Model)
+		end,
+	})
+	Cargar.alUsar("TablonReforzado", {
+		etiquetas = { "Ventana", "Puerta" },
+		accion = "Clavar",
+		preparar = prepararClavar,
+		terminar = function(_jugador, el, pieza)
+			pieza:Destroy()
+			Defensa.reforzar(estados[el :: Model], cfg, Config.Taller.Refuerzo)
 			publicar(el :: Model)
 		end,
 	})

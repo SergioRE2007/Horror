@@ -142,6 +142,11 @@ Config.Objetos = {
 	LlaveGaraje = { Tam = { 1, 1 }, Nombre = "Garage key", Llave = true },
 	LlaveDesvan = { Tam = { 1, 1 }, Nombre = "Attic key", Llave = true },
 	LlaveRico = { Tam = { 1, 1 }, Nombre = "Master bedroom key", Llave = true },
+	-- Taller y coche (Config.Taller, Config.Coche).
+	Chatarra = { Tam = { 2, 1 }, Nombre = "Scrap metal" }, -- por los sitios del mapa; se gasta en los bancos
+	Trampa = { Tam = { 2, 2 }, Nombre = "Trap" }, -- tirada al suelo, aturde al bicho que pasa encima
+	Bateria = { Tam = { 2, 1 }, Nombre = "Car battery" },
+	Radiador = { Tam = { 2, 2 }, Nombre = "Radiator" },
 }
 
 -- Salas cerradas con llave (pedido por el usuario), de más cerca a más lejos (juego/servidor/Llaves). Cada llave sale
@@ -162,6 +167,7 @@ Config.Vendedor = {
 		{ Da = { "Carrete", 1 }, Pide = { "Botella", 1 } },
 		{ Da = { "Linterna", 1 }, Pide = { "Lata", 2 } },
 		{ Da = { "Hacha", 1 }, Pide = { "Botella", 2 } },
+		{ Da = { "Chatarra", 2 }, Pide = { "Lata", 1 } },
 	},
 	Alcance = 12, -- studs: más lejos se cierra el trato
 	Frases = { -- lo que dice al hablarle (pedido por el usuario: avisa)
@@ -183,12 +189,15 @@ Config.Mochila = {
 }
 
 -- Cosas pesadas que van en las manos con física y frenan (juego/servidor/Cargar). Tam en studs; Peso = cuántos hacen
--- falta para levantarla (el motor, entre dos: uno solo la arrastra). Números a ojo.
+-- falta para levantarla (el motor, entre dos: uno solo la arrastra). Nombre, en inglés para Lang. La clave se guarda.
+-- Números a ojo.
 Config.Pesados = {
-	Tronco = { Tam = { 6, 1.4, 1.4 }, Peso = 1 },
-	Tablon = { Tam = { 6, 0.3, 1 }, Peso = 1 },
-	Bidon = { Tam = { 1.6, 2.4, 1.6 }, Peso = 1 },
-	Motor = { Tam = { 3.2, 2.2, 2.4 }, Peso = 2 },
+	Tronco = { Tam = { 6, 1.4, 1.4 }, Peso = 1, Nombre = "Log" },
+	Tablon = { Tam = { 6, 0.3, 1 }, Peso = 1, Nombre = "Plank" },
+	Bidon = { Tam = { 1.6, 2.4, 1.6 }, Peso = 1, Nombre = "Fuel can" },
+	Motor = { Tam = { 3.2, 2.2, 2.4 }, Peso = 2, Nombre = "Engine" },
+	Rueda = { Tam = { 1, 2.6, 2.6 }, Peso = 1, Nombre = "Wheel" }, -- cilindro: el eje va a lo largo de X
+	TablonReforzado = { Tam = { 6, 0.45, 1 }, Peso = 1, Nombre = "Reinforced plank" },
 }
 Config.Cargar = {
 	Frena = { 0.6, 0.5 }, -- multiplica tu velocidad según el Peso de lo que llevas (con todos los que hacen falta)
@@ -220,6 +229,36 @@ Config.Generador = {
 	Verter = 3, -- segundos echando gasolina
 	Arranca = 0.4, -- probabilidad de arrancar con cada tirón; al tercero seguido arranca seguro
 	Tiron = 1.1, -- segundos entre tirones
+}
+
+-- Bancos del taller (juego/servidor/Taller, cliente TallerUi): el del sótano (carpintería) y el del garaje (piezas
+-- del coche). Pide = lo que gasta, { tipo, cuántos }: objetos de la mochila o cosas pesadas dejadas junto al banco (a
+-- Radio studs). Da = lo que sale (a la mochila o, si es pesado, junto al banco). Números a ojo.
+Config.Taller = {
+	Radio = 10,
+	Bancos = {
+		Sotano = {
+			{ Da = "TablonReforzado", Pide = { { "Tablon", 2 }, { "Chatarra", 1 } }, Tiempo = 5 },
+			{ Da = "Trampa", Pide = { { "Chatarra", 2 }, { "Tablon", 1 } }, Tiempo = 5 },
+		},
+		Garaje = {
+			{ Da = "Radiador", Pide = { { "Chatarra", 3 }, { "Botella", 1 } }, Tiempo = 6 },
+			{ Da = "Bateria", Pide = { { "Pila", 4 }, { "Chatarra", 1 } }, Tiempo = 6 },
+		},
+	},
+	Refuerzo = 1.75, -- el tablón reforzado multiplica la vida de la persiana o la puerta hasta que la rompan
+	Trampa = { Aturde = 6, Radio = 3.5 }, -- segundos quieto el bicho que la pisa, y a cuánto salta
+}
+
+-- Tu coche (juego/servidor/Coche): destrozado y encerrado en el garaje. Se arregla con estas piezas y un depósito de
+-- gasolina (Gasolina = bidones llenos que hacen falta) y se huye en él: el final fácil. Las piezas pesadas se montan
+-- con R, las de la mochila con E en el capó. No reordenar Piezas: la clave se guarda. Números a ojo.
+Config.Coche = {
+	Piezas = { { "Motor", 1 }, { "Rueda", 2 }, { "Bateria", 1 }, { "Radiador", 1 } },
+	Gasolina = 1,
+	Montar = 4, -- segundos montando una pieza
+	Huir = 2, -- segundos manteniendo la E para huir
+	Cinematica = 17, -- segundos de la escena final
 }
 
 -- Móvil (juego/servidor/Movil, cliente MovilUi): mapa con dónde estáis tú y tus amigos (pedido por el usuario). Gasta

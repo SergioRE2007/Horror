@@ -7,6 +7,7 @@
 --   ser suyo en la siguiente foto.
 --   Si el dueño se va, se espera Config.Partida.EsperaDueno por si es un corte y luego se acaba para todos.
 --   Cada guardado apunta en los datos del dueño el resumen de la ranura (lo que enseña el lobby).
+--   Al huir en el coche (Coche.alHuir) se guarda con `final` y se da por terminada: la ranura queda libre.
 -- Modo de pruebas: un almacén de mentira que dura lo que la prueba. ServerStorage.Prueba:Fire("Guardar") hace la foto
 -- y la guarda ya; ("Cargar") la vuelve a leer del almacén y la pone, como al volver a entrar.
 -- Detalle en docs/sistemas/partida.md.
@@ -20,6 +21,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Prueba = require(ReplicatedStorage.Shared.Prueba)
+local Recetas = require(ReplicatedStorage.Shared.Recetas)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Comun = ServerScriptService:WaitForChild("Comun")
 local Candado = require(Comun.Candado)
@@ -28,6 +30,7 @@ local Viaje = require(Comun.Viaje)
 local Cargar = require(script.Parent.Cargar)
 local Casa = require(script.Parent.Casa)
 local Ciclo = require(script.Parent.Ciclo)
+local Coche = require(script.Parent.Coche)
 local FormatoPartida = require(script.Parent.FormatoPartida)
 local Generador = require(script.Parent.Generador)
 local Llaves = require(script.Parent.Llaves)
@@ -37,7 +40,8 @@ local Recursos = require(script.Parent.Recursos)
 local Partida = {}
 
 local P = Config.Partida
-local CAT = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = P.Sueltos }
+local CAT = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = P.Sueltos, coche = Config.Coche,
+	arreglarCoche = Recetas.arreglarCoche }
 local info: Viaje.Info? = nil
 local op: Candado.Opciones? = nil -- nil = no se guarda (sin cargar, acabada o perdida)
 local crudo = nil -- lo que había guardado al cargar, tal cual (se devuelve si se cierra antes del primer amanecer)
@@ -104,6 +108,7 @@ local function foto()
 		objetos = guardables(Mochila.sueltos()),
 		pesados = guardables(Cargar.sueltos()),
 		mochilas = mochilas,
+		coche = Coche.exportar(),
 	}
 end
 
@@ -119,6 +124,7 @@ local function aplicar(d)
 	Casa.importar(d.casa)
 	Recursos.importar(d.arboles)
 	Generador.importar(d.generador)
+	Coche.importar(d.coche)
 	for _, jugador in Players:GetPlayers() do
 		ponerMochila(jugador)
 	end
@@ -148,13 +154,29 @@ local function guardar(soltar: boolean)
 		acabar("This game was opened in another server.")
 	elseif estado == "ok" and ultima and info then
 		local dueno = Players:GetPlayerByUserId(info.dueno)
-		local ranura, noche = tostring(info.ranura), ultima.noche
+		local ranura, noche, final = tostring(info.ranura), ultima.noche, ultima.final
 		if dueno then
 			Datos.editar(dueno, function(datos)
-				datos.partidas[ranura] = { noche = noche, hora = os.time() }
+				-- Terminada: la ranura queda libre en el lobby (al volver a ella se empieza de cero).
+				datos.partidas[ranura] = if final then nil else { noche = noche, hora = os.time() }
 			end)
 		end
 	end
+end
+
+-- Se ha terminado con un final (Coche, al huir): se guarda así, se suelta y ya no pasa nada más (Director lo mira).
+local function terminar(final: string)
+	if acabada then
+		return
+	end
+	acabada = true
+	ultima = foto()
+	ultima.final = final
+	task.spawn(guardar, true)
+end
+
+function Partida.terminada(): boolean
+	return acabada
 end
 
 -- Se acaba para todos: se queda lo del último amanecer y vuelven al lobby.
@@ -234,6 +256,9 @@ end
 function Partida.start(): number
 	Players.PlayerAdded:Connect(alEntrar)
 	Players.PlayerRemoving:Connect(alSalir)
+	Coche.alHuir(function()
+		terminar("Huida")
+	end)
 	Ciclo.alCambiar(function(fase)
 		if fase == "Dia" and op and not acabada then
 			Llaves.repasar(semilla, if ultima then ultima.mochilas else {}) -- la que se haya perdido, a su sitio
@@ -311,7 +336,7 @@ function Partida.start(): number
 		end
 	end)
 	local d = if viaje.nueva then nil else FormatoPartida.arreglar(guardado, CAT)
-	if d then
+	if d and not d.final then -- una terminada se empieza de cero
 		semilla = d.semilla
 		ultima = d
 		aplicar(d)

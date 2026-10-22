@@ -2,6 +2,7 @@
 --   Ventana: la persiana (lamas locales) baja o sube traqueteando; con poca vida se tuerce y rota se cae.
 --     El cristal se agrieta por golpes y estalla al romperse.
 --   Puerta: la hoja gira en la bisagra (de golpe si la abre el bicho); con llave, el pomo traquetea.
+--   Con un tablón reforzado clavado (atributo Refuerzo): tablones en aspa con flejes (por dentro o en la hoja).
 --   Cada golpe del bicho (atributo Golpes): tiembla, suena, cae polvo y tiembla la cámara si estás cerca.
 -- Animación sencilla a propósito: se mejora más adelante (pedido por el usuario).
 local CollectionService = game:GetService("CollectionService")
@@ -32,6 +33,45 @@ local function pieza(tamano: Vector3, cf: CFrame, color: Color3, padre: Instance
 	p.Material = Enum.Material.Metal
 	p.Parent = padre
 	return p
+end
+
+-- Un tablón reforzado: madera oscura con dos flejes de metal.
+local function tablon(tamano: Vector3, cf: CFrame, padre: Instance): BasePart
+	local p = pieza(tamano, cf, Color3.fromRGB(72, 54, 40), padre)
+	p.Material = Enum.Material.Wood
+	for _, x in { -0.3, 0.3 } do
+		local fleje = pieza(Vector3.new(0.25, tamano.Y + 0.06, tamano.Z + 0.06), cf * CFrame.new(tamano.X * x, 0, 0),
+			Color3.fromRGB(60, 60, 64), p)
+		fleje.Anchored = false
+		local union = Instance.new("WeldConstraint")
+		union.Part0, union.Part1 = p, fleje
+		union.Parent = fleje
+	end
+	return p
+end
+
+-- Ventana con tablones reforzados (atributo Refuerzo): dos en aspa por dentro.
+local function ventanaReforzada(el: Model)
+	local hechos: { BasePart } = {}
+	local function pintar()
+		for _, p in hechos do
+			p:Destroy()
+		end
+		table.clear(hechos)
+		local centro = el:GetAttribute("Centro")
+		if not el:GetAttribute("Refuerzo") or typeof(centro) ~= "CFrame" then
+			return
+		end
+		local ancho, alto = el:GetAttribute("Ancho") or 4, el:GetAttribute("Alto") or 4
+		local largo = math.sqrt(ancho * ancho + alto * alto) * 0.95
+		local angulo = math.atan2(alto, ancho)
+		for _, lado in { -1, 1 } do
+			table.insert(hechos, tablon(Vector3.new(largo, 0.7, 0.22), centro * CFrame.new(0, 0, 1.05 + 0.12 * lado)
+				* CFrame.Angles(0, 0, angulo * lado), el))
+		end
+	end
+	el:GetAttributeChangedSignal("Refuerzo"):Connect(pintar)
+	pintar()
 end
 
 local function sacudirCamara(desde: Vector3, fuerza: number)
@@ -198,17 +238,40 @@ local function puerta(el: Model)
 	-- Hacia qué lado gira: el que deja la hoja apuntando a la sala de `hacia`.
 	local giro = if (bisagra * CFrame.Angles(0, math.rad(90), 0)).RightVector:Dot(hacia) > 0 then 1 else -1
 	local angulo = Instance.new("NumberValue")
+	local tablones: { { parte: BasePart, rel: CFrame } } = {} -- los del refuerzo, que giran con la hoja
 	local function colocar(a: number)
 		local cf = bisagra * CFrame.Angles(0, math.rad(a), 0)
 		hoja.CFrame = cf * hojaRel
 		pomo.CFrame = cf * pomoRel
+		for _, t in tablones do
+			t.parte.CFrame = cf * t.rel
+		end
 	end
+	-- Tablones reforzados (atributo Refuerzo): dos en aspa en cada cara de la hoja.
+	local function reforzar()
+		for _, t in tablones do
+			t.parte:Destroy()
+		end
+		table.clear(tablones)
+		if not el:GetAttribute("Refuerzo") then
+			return
+		end
+		for _, cara in { -1, 1 } do
+			for _, inclinado in { -24, 24 } do
+				local rel = hojaRel * CFrame.new(0, 0, (hoja.Size.Z / 2 + 0.12) * cara) * CFrame.Angles(0, 0, math.rad(inclinado))
+				table.insert(tablones, { parte = tablon(Vector3.new(hoja.Size.X * 1.08, 0.7, 0.22), bisagra * rel, el), rel = rel })
+			end
+		end
+		colocar(angulo.Value)
+	end
+	el:GetAttributeChangedSignal("Refuerzo"):Connect(reforzar)
 	angulo.Changed:Connect(colocar)
 	local function destino(): number
 		return if el:GetAttribute("Abierta") then 100 * giro else 0
 	end
 	angulo.Value = destino()
 	colocar(angulo.Value)
+	reforzar()
 
 	local portazos = el:GetAttribute("Portazo") or 0
 	el:GetAttributeChangedSignal("Abierta"):Connect(function()
@@ -261,6 +324,7 @@ end
 function CasaVista.start()
 	cuando("Ventana", ventana)
 	cuando("Puerta", puerta)
+	cuando("Ventana", ventanaReforzada)
 	RunService:BindToRenderStep("Temblor", Enum.RenderPriority.Camera.Value + 1, function(dt)
 		if temblor > 0.01 then
 			local camara = workspace.CurrentCamera

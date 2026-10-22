@@ -4,7 +4,8 @@
 --   Talar: hachazo con astillas, el árbol tiembla y el corte se ahonda con cada golpe; al caer, golpe contra el suelo
 --   y, al partirse, polvo y astillas a lo largo del tronco.
 --   Serrar: la sierra va y viene con serrín. Clavar: martillazos con un clavo nuevo en cada uno; el tablón se funde al
---   final con lo reparado. Verter: un chorro del bidón al tapón.
+--   final con lo reparado. Verter: un chorro del bidón al tapón (del generador o del coche). Montar: la llave inglesa
+--   aprieta a tirones (piezas del coche). Fabricar: martillazos con chispas en un banco del taller.
 --   Generador: la cuerda se estira con cada tirón; encendido tiembla, echa humo y suena; indicador de gasolina.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -55,7 +56,12 @@ local HERRAMIENTAS = {
 		{ Vector3.new(0.18, 1.5, 0.18), CFrame.new(0, 0.6, 0), MADERA, Enum.Material.Wood },
 		{ Vector3.new(0.34, 0.34, 0.95), CFrame.new(0, 1.35, -0.1), METAL, Enum.Material.Metal },
 	},
+	Montar = { -- llave inglesa
+		{ Vector3.new(0.16, 1.4, 0.3), CFrame.new(0, 0.55, 0), METAL, Enum.Material.Metal },
+		{ Vector3.new(0.16, 0.3, 0.6), CFrame.new(0, 1.3, -0.15), METAL, Enum.Material.Metal },
+	},
 }
+HERRAMIENTAS.Fabricar = HERRAMIENTAS.Clavar
 
 local function herramienta(accion: string): { Pieza }
 	local lista = {}
@@ -222,7 +228,15 @@ local SITIO = {
 	Hachazo = { CFrame.new(1.1, -1.3, -2.1), CFrame.new(0.9, 0.3, -1.4) },
 	Serrar = { CFrame.new(0.35, -1.2, -1.1), CFrame.new(0.5, 0.2, -0.9) },
 	Clavar = { CFrame.new(0.8, -1.2, -1.8), CFrame.new(0.8, 0.4, -1.4) },
+	Montar = { CFrame.new(0.7, -1.1, -1.7), CFrame.new(0.8, 0.2, -1.4) },
 }
+SITIO.Fabricar = SITIO.Clavar
+
+-- La llave inglesa gira a tirones (aprieta, vuelve).
+local function poseLlave(t: number): CFrame
+	local fase = (t % 0.6) / 0.6
+	return CFrame.Angles(0, 0, math.rad(if fase < 0.7 then -50 * (fase / 0.7) else -50 + 50 * ((fase - 0.7) / 0.3)))
+end
 
 local CADA_MARTILLAZO = 0.45
 local function poseMartillo(t: number): CFrame
@@ -250,13 +264,21 @@ local function martillazo(a: Activo, quien: Player)
 	Sonido.en("Martillo", clavo.Position, 1)
 end
 
+-- El chorro del bidón al tapón más cerca (el del generador o el del coche).
 local function chorro(pieza: BasePart, segundos: number)
-	local generador = CollectionService:GetTagged("Generador")[1]
-	if not generador then
+	local tapon: Vector3? = nil
+	for _, etiqueta in { "Generador", "Coche" } do
+		for _, el in CollectionService:GetTagged(etiqueta) do
+			local cf = el:GetAttribute("Tapon")
+			if typeof(cf) == "CFrame" and (not tapon or (cf.Position - pieza.Position).Magnitude < (tapon - pieza.Position).Magnitude) then
+				tapon = cf.Position
+			end
+		end
+	end
+	if not tapon then
 		return
 	end
 	local boca = pieza.Position + pieza.CFrame.UpVector * (pieza.Size.Y / 2)
-	local tapon = (generador:GetAttribute("Tapon") :: CFrame).Position
 	local largo = (boca - tapon).Magnitude
 	local p = parte(Vector3.new(0.2, 0.2, largo), Color3.fromRGB(205, 165, 60), Enum.Material.Glass)
 	p.Transparency = 0.25
@@ -336,9 +358,18 @@ local function mover()
 			base = raiz.CFrame * sitio[2]
 		end
 		local t = ahora - a.inicio
-		local pose = if a.accion == "Hachazo" then poseHacha(t) elseif a.accion == "Serrar" then poseSierra(t) else poseMartillo(t)
+		local pose = if a.accion == "Hachazo" then poseHacha(t) elseif a.accion == "Serrar" then poseSierra(t)
+			elseif a.accion == "Montar" then poseLlave(t) else poseMartillo(t)
 		if a.accion == "Clavar" and math.floor(t / CADA_MARTILLAZO) > a.golpes and t < a.fin - a.inicio - 0.5 then
 			martillazo(a, quien)
+		elseif a.accion == "Fabricar" and math.floor(t / CADA_MARTILLAZO) > a.golpes and a.pieza then
+			-- En el banco: martillazos con chispas de metal y astillas.
+			a.golpes += 1
+			Sonido.en("Martillo", a.pieza.Position, azar:NextNumber(0.9, 1.1))
+			trozos(a.pieza.Position, 2, if a.golpes % 2 == 0 then Color3.fromRGB(196, 168, 120) else Color3.fromRGB(120, 92, 72), 7, 0.12)
+		elseif a.accion == "Montar" and math.floor(t / 0.6) > a.golpes and a.pieza then
+			a.golpes += 1
+			Sonido.en("Martillo", a.pieza.Position, 1.6) -- clic metálico de la llave
 		end
 		for _, p in a.piezas do
 			p.parte.CFrame = base * pose * p.sitio

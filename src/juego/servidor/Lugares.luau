@@ -64,6 +64,11 @@ local function objeto(tipo: string, posicion: Vector3)
 	table.insert(Mapa.objetos, { tipo = tipo, cf = CFrame.new(posicion) * CFrame.Angles(0, math.rad(#Mapa.objetos * 37), 0) })
 end
 
+-- Una cosa pesada (Cargar) que empieza aquí en una partida nueva.
+local function pesado(tipo: string, cf: CFrame)
+	table.insert(Mapa.pesados, { tipo = tipo, cf = cf })
+end
+
 -- Pared recta de 1 de grueso; `centro` a ras del suelo. Con puerta: hueco de 4 x 8 en medio.
 local function pared(centro: Vector3, largo: number, enX: boolean, alto: number, puerta: boolean, padre: Instance)
 	local function trozo(desde: number, hasta: number, y0: number, y1: number)
@@ -125,6 +130,9 @@ local function granja()
 	bloque("Paja", Vector3.new(4, 3, 4), CFrame.new(235, 5.5, 74), Color3.fromRGB(120, 108, 72), Enum.Material.Fabric)
 	bloque("Banco", Vector3.new(6, 3.5, 2), CFrame.new(226, 2.75, 90.5), COLOR.Mueble)
 	objeto("Botella", Vector3.new(228, 4.9, 90.5))
+	objeto("Chatarra", Vector3.new(222, 1.2, 72))
+	objeto("Chatarra", Vector3.new(224, 1.2, 86))
+	pesado("Bidon", CFrame.new(220, 2.2, 89))
 	llave("Granja", Vector3.new(232, 4.2, 88))
 	llave("Granja", Vector3.new(224.5, 4.7, 90.5))
 
@@ -160,6 +168,9 @@ local function aserradero()
 		local tronco = bloque("Tronco", Vector3.new(8, 1.6, 1.6), CFrame.new(cx + 20, 0.8, cz + 15 + i * 1.7), COLOR.Madera, Enum.Material.Wood)
 		tronco.Shape = Enum.PartType.Cylinder
 	end
+	pesado("Rueda", CFrame.new(cx + 6, 1.5, cz + 6) * CFrame.Angles(0, 0, math.pi / 2)) -- la otra rueda del coche
+	objeto("Chatarra", Vector3.new(cx - 8, 1.2, cz + 6))
+	objeto("Chatarra", Vector3.new(cx + 14, 1.2, cz - 2))
 
 	edificio("Oficina", -252, -74, 8, 8, 9, "E", false)
 	bloque("Escritorio", Vector3.new(3, 3, 2), CFrame.new(-254, 2.5, -72), COLOR.Mueble)
@@ -203,6 +214,7 @@ local function torre()
 	edificio("CasetaGuarda", cx, 238, 8, 8, 9, "N", false)
 	bloque("Mesa", Vector3.new(3, 3, 2), CFrame.new(cx + 2, 2.5, 241), COLOR.Mueble)
 	llave("Torre", Vector3.new(cx + 2, 4.2, 241))
+	objeto("Chatarra", Vector3.new(cx - 2, 1.2, 236))
 end
 
 -- El vendedor: un viejo de bloques detrás del mostrador (Vendedor le pone el prompt en su Mando).
@@ -246,6 +258,7 @@ local function pueblo()
 	objeto("Lata", Vector3.new(20, 4.2, -440))
 	objeto("Botella", Vector3.new(22, 4.2, -441))
 	objeto("Botella", Vector3.new(24.5, 1.2, -445))
+	objeto("Chatarra", Vector3.new(17, 1.2, -444))
 	edificio("CasaCerrada", -22, -485, 12, 12, 10, "E", true)
 	edificio("CasaCerrada", -22, -510, 12, 12, 10, "E", true)
 	edificio("CasaCerrada", 22, -462, 12, 12, 10, "O", true)
@@ -279,6 +292,7 @@ local function pueblo()
 	edificio("CasetaEnterrador", 78, -481, 6, 6, 8, "O", false)
 	bloque("Mesa", Vector3.new(2, 3, 2), CFrame.new(79.5, 2.5, -481), COLOR.Mueble)
 	llave("Cementerio", Vector3.new(79.5, 4.2, -481))
+	objeto("Chatarra", Vector3.new(77, 1.2, -479))
 	for x = 48, 76, 7 do
 		for z = -520, -484, 9 do
 			if (x > 66 and z < -506) or (x > 70 and z > -488) then

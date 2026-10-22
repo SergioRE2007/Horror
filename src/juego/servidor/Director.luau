@@ -64,7 +64,7 @@ end
 local function hueco(mio: number, n: number, dif: Dificultad.Noche, retraso: number)
 	esperar(rango(G.PrimerAtaque) + retraso, mio)
 	local ultimo: Model? = nil
-	while turno == mio do
+	while turno == mio and not Partida.terminada() do
 		local raspa = n >= R.Noche and Raspador.cuantos() == 0 and (raspadorSeguro or azar:NextNumber() < R.Probabilidad)
 		local lista = libres(raspa, ultimo)
 		if #lista == 0 then
@@ -152,6 +152,9 @@ function Director.start()
 		orden.Parent = game:GetService("ServerStorage")
 	end
 	Muerte.alMorirTodos(function()
+		if Partida.terminada() then
+			return
+		end
 		local mio = turno
 		for _, jugador in Players:GetPlayers() do
 			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Nobody made it. The day starts again."))

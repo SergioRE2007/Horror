@@ -5,8 +5,8 @@ Con bloques grises. Números a ojo, en `Config` (`Llaves`, `BrilloLlave`, `Vende
 ## Salas cerradas (`Mapa`)
 
 Puertas con `Bloqueada` y `Llave` (el tipo de llave que la abre). De más cerca a más lejos (pedido por el usuario):
-- **Sótano** (llave en la granja): puerta del fondo del pasillo (z = 22) → escalera tapada que baja bajo el patio → sala bajo tierra (x -12..12, z 36.6..54.6, suelo en y = -11). El suelo del bosque va en 4 trozos con un hueco encima de la escalera (`HUECO`). Banco provisional (paso 8).
-- **Garaje** (aserradero): edificio al este de la casa (x 34..52, z -14..6), puerta con llave mirando a la casa y portón cerrado al camino (se abrirá con el coche, paso 8).
+- **Sótano** (llave en la granja): puerta del fondo del pasillo (z = 22) → escalera tapada que baja bajo el patio → sala bajo tierra (x -12..12, z 36.6..54.6, suelo en y = -11). El suelo del bosque va en 4 trozos con un hueco encima de la escalera (`HUECO`). Banco de carpintería (paso 8, `taller.md`).
+- **Garaje** (aserradero): edificio al este de la casa (x 34..52, z -14..6), puerta con llave mirando a la casa y portón al camino; dentro, tu coche y el banco del taller (paso 8, `taller.md`).
 - **Desván** (torre): puerta en el rellano de arriba (x = -6, z ≈ 19) → cuarto con 13 peldaños que suben por un hueco del techo hasta el desván, bajo el tejado (hastiales de cuñas, cuarto de revelado).
 - **Habitación del rico** (cementerio): la que ya estaba arriba, ahora con escritorio y caja fuerte provisionales.
 
@@ -43,5 +43,5 @@ Edificios de una sala con `edificio(...)` (suelo con `EnMapa` para el móvil). E
 
 ## Pendiente
 
-- Comida y agua sin uso aún más que el trueque (hambre más adelante). Contenido de las salas (taller, revelado, diario), pasos 8 y 12.
+- Comida y agua sin uso aún más que el trueque (hambre más adelante). Contenido del desván y la habitación del rico (revelado, diario), paso 12.
 - El bicho no entra en el sótano, el garaje ni el desván (no son salas de `Mapa.salas`).

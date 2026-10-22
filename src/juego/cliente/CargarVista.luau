@@ -2,7 +2,8 @@
 --   la E, X en el mando o el botón SOLTAR del móvil lo suelta; con las manos ocupadas no salen los carteles de coger.
 --   La vista baja un poco y se balancea al andar, más despacio cuanto más pesa.
 --   Usar lo que llevas (R, Y en el mando o el botón del móvil): mirando algo con lo que sirve sale un cartel junto a ello
---   (tronco -> caballete: SERRAR; tablón -> ventana o puerta dañada: CLAVAR; bidón -> generador: ECHAR GASOLINA).
+--   (tronco -> caballete: SERRAR; tablón -> ventana o puerta dañada: CLAVAR; tablón reforzado: REFORZAR; bidón ->
+--   generador o coche: ECHAR GASOLINA; motor o rueda -> coche: MONTAR).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,6 +13,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
+local Recetas = require(ReplicatedStorage.Shared.Recetas)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -21,7 +23,10 @@ local CargarVista = {}
 local USOS = {
 	Tronco = { etiquetas = { "Caballete" }, texto = "Saw" },
 	Tablon = { etiquetas = { "Ventana", "Puerta" }, texto = "Nail" },
-	Bidon = { etiquetas = { "Generador" }, texto = "Refuel" },
+	TablonReforzado = { etiquetas = { "Ventana", "Puerta" }, texto = "Reinforce" },
+	Bidon = { etiquetas = { "Generador", "Coche" }, texto = "Refuel" },
+	Motor = { etiquetas = { "Coche" }, texto = "Install" },
+	Rueda = { etiquetas = { "Coche" }, texto = "Install" },
 }
 
 local jugador = Players.LocalPlayer
@@ -58,13 +63,24 @@ local function cambiar()
 	end
 end
 
--- ¿Sirve lo que llevo con esto? Las ventanas, por dentro y si están dañadas; las puertas, si están dañadas.
-local function sirve(el: Instance, raiz: BasePart): boolean
+-- ¿Sirve lo que llevo con esto? Las ventanas, por dentro y si están dañadas; las puertas, si están dañadas (con el
+-- tablón reforzado, si no lo están ya). El coche, si le falta eso (o gasolina).
+local function sirve(el: Instance, raiz: BasePart, tipo: string): boolean
 	if el:GetAttribute("Bloqueada") then
 		return false
 	end
+	if CollectionService:HasTag(el, "Coche") then
+		local coche = { piezas = {}, gasolina = el:GetAttribute("Gasolina") or 0 }
+		for _, p in Config.Coche.Piezas do
+			coche.piezas[p[1]] = el:GetAttribute(p[1]) or 0
+		end
+		return Recetas.necesita(coche :: any, tipo, Config.Coche)
+	end
 	if CollectionService:HasTag(el, "Ventana") or CollectionService:HasTag(el, "Puerta") then
 		local danada = (el:GetAttribute("Vida") or 0) < (el:GetAttribute("VidaMax") or 0) or (el:GetAttribute("Cristal") or 0) > 0
+		if tipo == "TablonReforzado" then
+			danada = not el:GetAttribute("Refuerzo")
+		end
 		local centro = el:GetAttribute("Centro")
 		if CollectionService:HasTag(el, "Ventana") and typeof(centro) == "CFrame" then
 			return danada and (raiz.Position - centro.Position):Dot(centro.LookVector) < 0
@@ -92,7 +108,7 @@ local function buscar(): Instance?
 			local d = (mando.Position - raiz.Position).Magnitude
 			local hacia = mando.Position - camara.CFrame.Position
 			local delante = hacia.Magnitude > 0.1 and (d < 3.5 or hacia.Unit:Dot(camara.CFrame.LookVector) > 0.55) -- muy cerca, vale de lado
-			if d < distancia and delante and sirve(el, raiz) then
+			if d < distancia and delante and sirve(el, raiz, tipo) then
 				mejor, distancia = el, d
 			end
 		end

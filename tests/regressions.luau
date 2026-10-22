@@ -365,7 +365,8 @@ end
 -- Partida guardada: formato, datos rotos y versiones viejas (juego/servidor/FormatoPartida).
 do
 	local FP = cargar("src/juego/servidor/FormatoPartida")
-	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos }
+	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos, coche = Config.Coche,
+		arreglarCoche = cargar("src/shared/Recetas").arreglarCoche }
 	igual(FP.arreglar(nil, cat), nil, "partida nueva: nil")
 	igual(FP.arreglar("basura", cat), nil, "lo que no es tabla: nueva")
 
@@ -546,7 +547,8 @@ do
 	igual(#Reparto.faltan({ "LlaveRico" }, {}, { ["3"] = { cosas = "x" }, ["4"] = 5 }, {}, esLlave), 1, "mochilas rotas")
 
 	-- Se guardan: la llave suelta pasa por FormatoPartida y la puerta abierta también.
-	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos }
+	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos, coche = Config.Coche,
+		arreglarCoche = cargar("src/shared/Recetas").arreglarCoche }
 	local d = FP.arreglar({
 		noche = 2, semilla = 99,
 		objetos = { { tipo = "LlaveGaraje", sitio = { -225, 4.2, -90, 0, 0, 0 } } },
@@ -578,6 +580,122 @@ do
 		assert(Lang.es[o.Nombre], `objeto sin traducir: {o.Nombre}`)
 		comprobaciones += 1
 	end
+end
+
+-- Taller y coche (paso 8): recetas, piezas del coche, refuerzo de ventanas y puertas, y que todo se guarde.
+do
+	local Recetas = cargar("src/shared/Recetas")
+	local Defensa = cargar("src/shared/Defensa")
+	local FP = cargar("src/juego/servidor/FormatoPartida")
+	local C = Config.Coche
+
+	-- Config con sentido: lo que piden y dan los bancos existe y tiene nombre en español.
+	for banco, recetas in Config.Taller.Bancos do
+		for i, r in recetas do
+			assert(Config.Objetos[r.Da] or Config.Pesados[r.Da], `{banco} {i}: da algo que no existe`)
+			assert(r.Tiempo > 0 and #r.Pide > 0, `{banco} {i}: tiempo o pide`)
+			for _, p in r.Pide do
+				assert((Config.Objetos[p[1]] or Config.Pesados[p[1]]) and p[2] >= 1, `{banco} {i}: pide {p[1]}`)
+				assert(not (Config.Objetos[p[1]] and Config.Objetos[p[1]].Llave), `{banco} {i}: con llaves no se fabrica`)
+			end
+			comprobaciones += 1
+		end
+	end
+	for tipo, p in Config.Pesados do
+		assert(Lang.es[p.Nombre], `pesado sin español: {tipo}`)
+		comprobaciones += 1
+	end
+	for _, p in C.Piezas do
+		assert(Config.Objetos[p[1]] or Config.Pesados[p[1]], `pieza del coche que no existe: {p[1]}`)
+		comprobaciones += 1
+	end
+
+	-- Recetas: qué falta.
+	local pide = { { "Tablon", 2 }, { "Chatarra", 1 } }
+	igual(#Recetas.falta(pide, { Tablon = 2, Chatarra = 3 }), 0, "receta: con todo, no falta nada")
+	local falta = Recetas.falta(pide, { Tablon = 1 })
+	igual(#falta, 2, "receta: faltan dos cosas")
+	igual(falta[1][2], 1, "receta: falta un tablón")
+	igual(falta[2][1], "Chatarra", "receta: y la chatarra")
+
+	-- Coche: piezas en orden, ruedas de dos en dos, nada de más y la gasolina.
+	local coche = Recetas.nuevoCoche()
+	igual(Recetas.queFalta(coche, C), "Motor", "coche nuevo: lo primero, el motor")
+	igual(Recetas.montar(coche, "Motor", C), true, "monta el motor")
+	igual(Recetas.montar(coche, "Motor", C), false, "un segundo motor no")
+	igual(Recetas.queFalta(coche, C), "Rueda", "luego las ruedas")
+	igual(Recetas.montar(coche, "Rueda", C), true, "una rueda")
+	igual(Recetas.necesita(coche, "Rueda", C), true, "aún le falta otra")
+	Recetas.montar(coche, "Rueda", C)
+	igual(Recetas.necesita(coche, "Rueda", C), false, "dos ruedas: ya")
+	igual(Recetas.montar(coche, "Tronco", C), false, "un tronco no es una pieza")
+	Recetas.montar(coche, "Bateria", C)
+	Recetas.montar(coche, "Radiador", C)
+	igual(Recetas.queFalta(coche, C), "Gasolina", "con todo menos gasolina")
+	local ok, cabe = Recetas.montar(coche, "Bidon", C, 0.4)
+	igual(ok and cabe, 0.4, "medio bidón entra entero")
+	ok, cabe = Recetas.montar(coche, "Bidon", C, 1)
+	igual(math.abs(cabe - (C.Gasolina - 0.4)) < 1e-9, true, "el segundo solo echa lo que cabe")
+	igual(Recetas.queFalta(coche, C), nil, "listo para huir")
+	igual(Recetas.montar(coche, "Bidon", C, 1), false, "lleno: no se echa más")
+
+	-- Lo guardado del coche, roto o trucado.
+	local raro = Recetas.arreglarCoche({ piezas = { Motor = 5, Rueda = 0 / 0, Ala = 1, Bateria = 1.7 }, gasolina = -3, porton = "si" }, C)
+	igual(raro.piezas.Motor, 1, "más motores de los que caben -> 1")
+	igual(raro.piezas.Rueda, nil, "rueda NaN: fuera")
+	igual(raro.piezas.Ala, nil, "pieza que no existe: fuera")
+	igual(raro.piezas.Bateria, 1, "decimales -> entero")
+	igual(raro.gasolina, 0, "gasolina negativa -> 0")
+	igual(raro.porton, false, "portón que no es booleano -> cerrado")
+	igual(Recetas.queFalta(Recetas.arreglarCoche(nil, C), C), "Motor", "sin nada guardado: sin arreglar")
+
+	-- Refuerzo: más vida, no dos veces, y se pierde al romperla.
+	local cfgCasa = Config.Casa
+	local e = Defensa.nueva("Ventana", cfgCasa)
+	igual(Defensa.reforzar(e, cfgCasa, Config.Taller.Refuerzo), true, "se refuerza")
+	igual(e.vidaMax, cfgCasa.VidaPersiana * Config.Taller.Refuerzo, "más vida")
+	igual(Defensa.reforzar(e, cfgCasa, Config.Taller.Refuerzo), false, "no dos veces")
+	e.persiana, e.listaEn = true, 0
+	Defensa.golpe(e, 10, e.vidaMax - 1, cfgCasa)
+	igual(e.refuerzo, true, "dañada pero entera: sigue reforzada")
+	Defensa.reparar(e)
+	igual(e.vida, cfgCasa.VidaPersiana * Config.Taller.Refuerzo, "reparada con un tablón: vuelve a la vida reforzada")
+	Defensa.golpe(e, 11, 1e6, cfgCasa)
+	igual(e.refuerzo, false, "rota: pierde el refuerzo")
+	igual(e.vidaMax, cfgCasa.VidaPersiana, "y vuelve a la vida normal")
+	local puerta = Defensa.nueva("Puerta", cfgCasa)
+	Defensa.reforzar(puerta, cfgCasa, Config.Taller.Refuerzo)
+	Defensa.romper(puerta, cfgCasa)
+	igual(puerta.refuerzo, false, "puerta echada abajo: sin refuerzo")
+
+	-- Se guarda con la partida: piezas del coche, gasolina, portón, refuerzo y lo fabricado (suelto o en la mochila).
+	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos, coche = C,
+		arreglarCoche = Recetas.arreglarCoche }
+	local d = FP.arreglar(guardable({
+		noche = 4,
+		casa = { V1_2_3 = { vida = 150, persiana = true, cristal = 0, abierta = false, refuerzo = true },
+			V4_5_6 = { vida = 50, refuerzo = "si" } },
+		coche = { piezas = { Motor = 1, Rueda = 1 }, gasolina = 0.5, porton = true },
+		objetos = { { tipo = "Trampa", sitio = { 1, 1, 1, 0, 0, 0 } }, { tipo = "Radiador", sitio = { 2, 1, 1, 0, 0, 0 } } },
+		pesados = { { tipo = "TablonReforzado", sitio = { 3, 1, 1, 0, 0, 0 } }, { tipo = "Rueda", sitio = { 4, 1, 1, 0, 0, 0 } } },
+		mochilas = { ["9"] = { cosas = { { id = 1, tipo = "Bateria", x = 1, y = 1, girada = false } } } },
+		final = "Huida",
+	}, "partida del paso 8"), cat)
+	igual(d.casa.V1_2_3.refuerzo, true, "ventana reforzada guardada")
+	igual(d.casa.V4_5_6.refuerzo, nil, "refuerzo que no es booleano: fuera")
+	igual(d.coche.piezas.Motor, 1, "motor montado guardado")
+	igual(d.coche.piezas.Rueda, 1, "una rueda guardada")
+	igual(d.coche.gasolina, 0.5, "gasolina del coche guardada")
+	igual(d.coche.porton, true, "portón abierto guardado")
+	igual(#d.objetos, 2, "trampa y radiador sueltos guardados")
+	igual(#d.pesados, 2, "tablón reforzado y rueda sueltos guardados")
+	local Rejilla = cargar("src/shared/Rejilla")
+	igual(Rejilla.contar(Rejilla.desde(d.mochilas["9"], Config.Objetos, Config.Mochila.Ancho, Config.Mochila.Alto), "Bateria"), 1,
+		"batería en la mochila guardada")
+	igual(d.final, "Huida", "partida terminada")
+	igual(FP.arreglar({ final = "Ganar" }, cat).final, nil, "final que no existe: fuera")
+	igual(Recetas.queFalta(FP.arreglar({ noche = 2 }, cat).coche, C), "Motor", "partida vieja sin coche: sin arreglar")
+	guardable(d, "partida del paso 8 arreglada")
 end
 
 -- Remotes: sin nombres repetidos.

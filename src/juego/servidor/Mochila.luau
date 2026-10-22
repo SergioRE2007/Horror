@@ -36,6 +36,10 @@ local COLOR = {
 	Camara = Color3.fromRGB(45, 45, 48),
 	Hacha = Color3.fromRGB(120, 95, 70),
 	Movil = Color3.fromRGB(30, 30, 34),
+	Chatarra = Color3.fromRGB(118, 92, 72), -- óxido
+	Trampa = Color3.fromRGB(85, 82, 78),
+	Bateria = Color3.fromRGB(40, 40, 42),
+	Radiador = Color3.fromRGB(150, 150, 148),
 }
 
 -- La carga con la que sale un objeto nuevo (linterna llena, cámara con el carrete entero).

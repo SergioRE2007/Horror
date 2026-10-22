@@ -15,6 +15,7 @@ export type Estado = {
 	cristal: number, -- ventana: 0 entero ... GolpesCristal roto
 	abierta: boolean, -- puerta
 	bloqueada: boolean, -- puerta cerrada con llave
+	refuerzo: boolean, -- con un tablón reforzado clavado: más vida hasta que la rompan
 	cambio: number, -- última vez que se tocó (para no tocarla a medio mover)
 	atacada: boolean,
 	abiertaEnAtaque: boolean,
@@ -31,6 +32,7 @@ function Defensa.nueva(tipo: string, cfg): Estado
 		cristal = 0,
 		abierta = false,
 		bloqueada = false,
+		refuerzo = false,
 		cambio = -math.huge,
 		atacada = false,
 		abiertaEnAtaque = false,
@@ -45,10 +47,31 @@ function Defensa.protegida(e: Estado, ahora: number): boolean
 	return e.persiana and e.vida > 0 and ahora >= e.listaEn
 end
 
+-- Clava un tablón reforzado (`factor` = Config.Taller.Refuerzo): la deja como nueva y con más vida. false si ya lo está.
+function Defensa.reforzar(e: Estado, cfg, factor: number): boolean
+	if e.refuerzo then
+		return false
+	end
+	e.refuerzo = true
+	e.vidaMax = Defensa.nueva(e.tipo, cfg).vidaMax * factor
+	e.vida = e.vidaMax
+	e.cristal = 0
+	return true
+end
+
+-- Rota del todo, pierde el refuerzo (los tablones saltan).
+local function sinRefuerzo(e: Estado, cfg)
+	if e.vida <= 0 and e.refuerzo then
+		e.refuerzo = false
+		e.vidaMax = Defensa.nueva(e.tipo, cfg).vidaMax
+	end
+end
+
 -- Un golpe del bicho. Devuelve qué ha pasado: "Persiana", "PersianaRota", "Grieta", "Puerta" o "Entra".
 function Defensa.golpe(e: Estado, ahora: number, dano: number, cfg): string
 	if Defensa.protegida(e, ahora) then
 		e.vida = math.max(0, e.vida - dano)
+		sinRefuerzo(e, cfg)
 		if e.tipo == "Puerta" then
 			if e.vida == 0 then
 				e.abierta = true
@@ -107,6 +130,7 @@ end
 -- El bicho entra: rompe del todo lo que haya.
 function Defensa.romper(e: Estado, cfg)
 	e.vida = 0
+	sinRefuerzo(e, cfg)
 	if e.tipo == "Puerta" then
 		e.abierta = true
 	else
