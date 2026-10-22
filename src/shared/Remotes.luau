@@ -24,6 +24,9 @@ local NOMBRES = {
 	"Taller", -- servidor -> cliente: ("Abrir", banco); cliente -> servidor: ("Hacer", n) la receta n del banco que tengo
 	-- cerca; servidor -> todos: ("Trampa", posición) una trampa se ha cerrado
 	"Huida", -- servidor -> todos: (segundos) la escena final de la huida en el coche
+	"Trepador", -- servidor -> todos: ("Baja", modelo) por la chimenea, ("Entra", modelo) sale al salón o ("Quema", modelo)
+	"Imitador", -- servidor -> todos: ("Llama", modelo) a la puerta o ("Entra", modelo) le han abierto
+	"Acechador", -- servidor -> todos: ("Rama", modelo), ("Carga", modelo) se echa encima o ("Luz", modelo) le frena la linterna
 }
 
 local Remotes = {}

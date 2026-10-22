@@ -94,6 +94,70 @@ Config.Raspador = {
 	VioEsconderse = 1.5,
 }
 
+-- El Trepador (juego/servidor/Trepador): trepa por una pared, anda por el tejado (pasos y crujidos) y baja por la
+-- chimenea. Se le echa encendiendo la chimenea con troncos (Config.Chimenea), también mientras baja. Números a ojo.
+Config.Trepador = {
+	Noche = 7, -- primera noche en la que sale; su primer ataque de esa noche es seguro
+	Probabilidad = 0.3, -- desde entonces, de cada ataque, cuántos son suyos
+	Tejado = { 24, 32 }, -- segundos rondando por el tejado antes de bajar por la chimenea
+	MenosPorNoche = 1, -- cada noche baja antes...
+	TejadoMin = 15, -- ...hasta este mínimo
+	Subir = 3, -- segundos trepando por la pared
+	Bajar = 4, -- segundos bajando por dentro de la chimenea (aún se le puede quemar)
+	PorTejado = 7, -- velocidad por el tejado
+	Grito = 3,
+	Caza = 30,
+	Andar = 8,
+	Correr = 16,
+	Huir = 24,
+	Pillar = 4.5,
+	Vista = 60,
+	VioEsconderse = 1.5,
+}
+
+-- La chimenea del salón (juego/servidor/Chimenea): con un tronco en las manos, R lo echa al fuego. Números a ojo.
+Config.Chimenea = {
+	PorTronco = 50, -- segundos que arde cada tronco
+	Max = 2, -- troncos ardiendo a la vez como mucho
+	Echar = 1.2, -- segundos echándolo
+}
+
+-- El Imitador (juego/servidor/Imitador): llama a la puerta principal con la voz de un amigo. Hay que mirar en el móvil
+-- si ese amigo está fuera de verdad: si se le abre, entra. La primera noche que sale se va la luz. Números a ojo.
+Config.Imitador = {
+	Noche = 10,
+	Probabilidad = 0.25,
+	Llamadas = 4, -- veces que llama antes de irse
+	CadaLlamada = { 7, 10 }, -- segundos entre llamadas
+	Oido = 80, -- studs desde la puerta a los que se le oye (los avisos solo les llegan a esos)
+	Grito = 2.5,
+	Caza = 30,
+	Andar = 8,
+	Correr = 18,
+	Pillar = 4.5,
+	Vista = 70,
+	VioEsconderse = 1.5,
+}
+
+-- El Acechador (juego/servidor/Acechador): al anochecer, al que sigue en el bosque le sigue de lejos (ramas que
+-- crujen) y luego se le echa encima. Se rinde si vuelves a la luz de la casa; la linterna lo frena un momento.
+-- Números a ojo.
+Config.Acechador = {
+	Noche = 1, -- desde esta noche (y en los últimos segundos del día de antes: Config.Ciclo.Aviso)
+	Refugio = 48, -- studs desde el centro de la casa: ahí ya hay luz y se rinde
+	Espera = { 6, 12 }, -- segundos fuera hasta que empieza a seguirte
+	Acecho = { 14, 20 }, -- segundos siguiéndote de lejos antes de echarse encima
+	Lejos = 36, -- a cuánto te sigue mientras acecha
+	Rama = { 2.5, 5 }, -- segundos entre ramas que crujen
+	Andar = 18,
+	Correr = 21, -- el jugador anda a 16
+	Persigue = 22, -- segundos como mucho echándose encima; luego se cansa
+	Frena = 2.5, -- segundos quieto al darle la linterna...
+	Inmune = 2.5, -- ...y después, segundos en que no le vuelve a frenar
+	Pillar = 5,
+	Max = 2, -- como mucho, a la vez en el mapa
+}
+
 -- Dificultad por número de jugadores (shared/Dificultad), pensada para 2 (pedido por el usuario). Se calcula al
 -- empezar cada noche. AlaVez = {mínimo, máximo} ataques a la vez; Ritmo multiplica el tiempo entre ataques,
 -- Paciencia lo que aguanta golpeando o raspando, Tareas lo que hay que hacer de día (aún sin usar). Números a ojo.
@@ -306,6 +370,11 @@ Config.Sonidos = {
 	Martillo = { Id = 175233098, Volumen = 1, Alcance = 60 },
 	Motor = { Id = 83031465221433, Volumen = 0.5, Alcance = 70 }, -- el generador encendido, en bucle
 	Verter = { Id = 9117865590, Volumen = 0.8, Alcance = 30 },
+	Crujido = { Id = 9125407239, Volumen = 1.4, Alcance = 80 }, -- madera del tejado bajo el Trepador
+	Hollin = { Id = 9126239755, Volumen = 1.6, Alcance = 90 }, -- algo arrastrándose dentro de la chimenea
+	Fuego = { Id = 108689534998891, Volumen = 0.7, Alcance = 40 }, -- la chimenea encendida, en bucle
+	Llamar = { Id = 9120918417, Volumen = 1.6, Alcance = 90 }, -- el Imitador en la puerta
+	Rama = { Id = 9113582284, Volumen = 1.8, Alcance = 90 }, -- el Acechador en el bosque
 	-- Sin viento de fondo hasta tener uno de ElevenLabs: el de la biblioteca sonaba saturado (pedido por el usuario).
 	-- Viento = { Id = ..., Volumen = 0.12 },
 }

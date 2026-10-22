@@ -19,9 +19,9 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 
 local CargarVista = {}
 
--- Con qué se usa cada cosa y qué pone el cartel.
-local USOS = {
-	Tronco = { etiquetas = { "Caballete" }, texto = "Saw" },
+-- Con qué se usa cada cosa y qué pone el cartel (`textos`: otro cartel según la etiqueta del objetivo).
+local USOS: { [string]: { etiquetas: { string }, texto: string, textos: { [string]: string }? } } = {
+	Tronco = { etiquetas = { "Caballete", "Chimenea" }, texto = "Saw", textos = { Chimenea = "Add to fire" } },
 	Tablon = { etiquetas = { "Ventana", "Puerta" }, texto = "Nail" },
 	TablonReforzado = { etiquetas = { "Ventana", "Puerta" }, texto = "Reinforce" },
 	Bidon = { etiquetas = { "Generador", "Coche" }, texto = "Refuel" },
@@ -123,7 +123,17 @@ local function apuntar()
 	end
 	objetivo = nuevo
 	local tipo = jugador:GetAttribute("Cargando")
-	local texto = if objetivo and tipo then Ui.mayusculas(Lang.t(nil, USOS[tipo].texto)) else ""
+	local texto = ""
+	if objetivo and tipo then
+		local uso = USOS[tipo]
+		local frase = uso.texto
+		for etiqueta, otra in uso.textos or {} do
+			if CollectionService:HasTag(objetivo, etiqueta) then
+				frase = otra
+			end
+		end
+		texto = Ui.mayusculas(Lang.t(nil, frase))
+	end
 	cartel.Adornee = if objetivo then objetivo:FindFirstChild("Mando") :: BasePart else nil
 	cartel.Enabled = objetivo ~= nil
 	textoCartel.Text = if UserInputService.TouchEnabled then texto else "[R]  " .. texto

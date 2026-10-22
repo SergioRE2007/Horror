@@ -143,6 +143,16 @@ function Casa.atacables(): { Model }
 	return lista
 end
 
+-- La puerta principal (a la que llama el Imitador).
+function Casa.principal(): Model?
+	for el in estados do
+		if el.Name == "PuertaPrincipal" then
+			return el
+		end
+	end
+	return nil
+end
+
 function Casa.estado(el: Model): Defensa.Estado
 	return estados[el]
 end
