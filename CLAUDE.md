@@ -21,7 +21,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 ## Calidad y flujo de tareas
 
 - Comprobar: `selene src` (revisa el código sin ejecutarlo; un hook lo pasa solo por cada `.luau` editado) y `lune run tests/regressions.luau`. Falso positivo de Selene: `-- selene: allow(<regla>)` encima de la línea. Sin StyLua ni Wally: decidido por el usuario (el código ya sale uniforme y no usamos librerías de fuera).
-- Las tareas, en orden, en `TASKS.md`. Por tarea: rama → construir → `selene src` y Lune → probar en Studio → agente `reviewer` con `git diff main...HEAD` (solo lo cambiado) → arreglar lo `GRAVE` → marcar `hecho` en `TASKS.md` → commit con mensaje claro → preguntar antes de juntar con `main`.
+- Las tareas, en orden, en `TASKS.md`. Sergio pide un paso entero ("paso 10") y se hacen todas sus tareas seguidas en una rama (pedido por el usuario). Por tarea: construir → `selene src` y Lune → probar en Studio → agente `reviewer` con `git diff HEAD` (solo lo de esa tarea, aún sin commit) → arreglar lo `GRAVE` → marcar `hecho` en `TASKS.md` → commit con mensaje claro. Al acabar el paso: PR y preguntar antes de juntar con `main`.
 - Qué usar en cada momento:
   - Código del servidor con remotes, monedas, compras o guardado: skill `roblox-security-economy` antes de escribirlo.
   - Precios, premios y ritmo de monedas: skill `roblox-economy-balancing`.
