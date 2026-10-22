@@ -83,6 +83,7 @@ local function caer(modelo: Model, jugador: Player)
 	local fuera = if raiz then plano(tronco.Position - raiz.Position) else Vector3.xAxis
 	fuera = if fuera.Magnitude > 0.1 then fuera.Unit else Vector3.xAxis
 	-- Gira sobre el borde del corte (una bisagra con el tocón) hasta estar casi tumbado; luego cae suelto.
+	-- selene: allow(incorrect_standard_library_use)
 	local eje = Vector3.yAxis:Cross(fuera)
 	local pivote = CFrame.fromMatrix(base + Vector3.new(0, 1.25, 0) + fuera * (tronco.Size.Y / 2), eje, Vector3.yAxis)
 	local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
