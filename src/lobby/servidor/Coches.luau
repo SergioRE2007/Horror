@@ -15,6 +15,7 @@ local TeleportService = game:GetService("TeleportService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Viaje = require(ServerScriptService:WaitForChild("Comun").Viaje)
 
 local Coches = {}
@@ -110,7 +111,7 @@ local function pedir(jugador: Player, que: unknown, valor: unknown)
 			continue
 		end
 		if que == "Ranura" and type(valor) == "number" and valor == math.floor(valor) and valor >= 1
-			and valor <= Config.Partida.Ranuras then
+			and valor <= Stats.ranuras(jugador) then
 			c.modelo:SetAttribute("Ranura", valor)
 			c.modelo:SetAttribute("Nueva", false)
 		elseif que == "Nueva" and type(valor) == "boolean" then

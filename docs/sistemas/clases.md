@@ -15,8 +15,7 @@ Números a ojo, en `Config.Ventajas` y `Config.Clases` (al final de `Config`; se
 ## Probado en Studio (22-10-2026)
 
 - Sin clase velocidad 16; Corredor 19,2; Explorador marca una llave a 40 studs y no a 120. Sin errores.
+- Leñador: 1,5 golpes por hachazo y el árbol talado da 3 troncos. Fotógrafo: dos flashes en 2,6 s (sin clase, uno). Mecánico: clava en 2,1 s (3,5 sin clase). Carpintero: ventana reforzada con 212,5 de vida (175 sin clase).
+- Sin probar a mano: el aturdir más largo del Fotógrafo (misma línea que la recarga).
 
-## Pendiente
-
-- Comprar y elegir: hecho en la tienda (`docs/sistemas/tienda.md`).
-- Sin probar en Studio: hachazos del Leñador, flash del Fotógrafo, tiempos del Mecánico y tablón del Carpintero (una línea cada uno con `Stats`).
+Comprar y elegir: en la tienda (`docs/sistemas/tienda.md`). Los pases también pasan por `Stats` (`docs/sistemas/compras.md`).

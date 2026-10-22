@@ -12,6 +12,7 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -48,7 +49,7 @@ local function nuevaLuz(otro: Player): Luz
 	local foco = Instance.new("SpotLight")
 	foco.Color = colorDe(otro)
 	foco.Brightness = L.Brillo
-	foco.Range = L.Alcance
+	foco.Range = L.Alcance * Stats.valor(otro, "Luz")
 	foco.Angle = L.Angulo * 2
 	foco.Shadows = true
 	foco.Face = Enum.NormalId.Front
@@ -96,6 +97,7 @@ local function actualizarLuces()
 		end
 		luz.foco.Brightness = brillo
 		luz.foco.Color = colorDe(otro)
+		luz.foco.Range = L.Alcance * Stats.valor(otro, "Luz")
 	end
 	for otro, luz in luces do
 		if not otro.Parent then

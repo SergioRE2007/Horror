@@ -1,5 +1,6 @@
 -- Esconderse, morir y revivir.
--- Los personajes no reaparecen solos: quien muere mira a los demás hasta el amanecer (MuerteVista) y revive entonces.
+-- Los personajes no reaparecen solos: quien muere mira a los demás hasta el amanecer (MuerteVista) y revive entonces
+-- (o antes, si alguien paga por revivirle: Revivir).
 -- Escondites (armarios y camas, etiqueta "Escondite"): el personaje se queda quieto dentro (anclado) y el cliente pone
 -- la cámara en el atributo "Vista". Atributos del jugador: Escondido (la Vista de su escondite), Muerto.
 -- Si mueren todos avisa a quien se haya apuntado con Muerte.alMorirTodos (Director vuelve al principio del día).
@@ -127,11 +128,16 @@ end
 -- Al amanecer (o al volver a empezar el día) vuelven los que no tienen personaje o están muertos.
 function Muerte.revivirTodos()
 	for _, jugador in Players:GetPlayers() do
-		if not vivo(jugador) then
-			soltarSitio(jugador)
-			jugador:SetAttribute("Muerto", nil)
-			task.spawn(jugador.LoadCharacter, jugador)
-		end
+		Muerte.revivir(jugador)
+	end
+end
+
+-- Vuelve ese, si está muerto (al amanecer, o de noche pagando: Revivir).
+function Muerte.revivir(jugador: Player)
+	if not vivo(jugador) then
+		soltarSitio(jugador)
+		jugador:SetAttribute("Muerto", nil)
+		task.spawn(jugador.LoadCharacter, jugador)
 	end
 end
 

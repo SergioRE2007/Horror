@@ -34,7 +34,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
   - Cada ventaja se nota al probarla en Studio y sale solo de `Stats`.
   - El servidor rechaza una clase que el jugador no tiene.
   - Lista de clases al final de `Config` sin reordenar.
-- **Estado:** en curso (comprar y elegir, hecho con la tienda; falta probar en Studio las ventajas de Leñador, Fotógrafo, Mecánico y Carpintero, ver `docs/sistemas/clases.md`)
+- **Estado:** hecho (ver `docs/sistemas/clases.md`)
 
 ### 10.3 Tienda en la gasolinera
 - **Descripción:** comprar clases y cosméticos con monedas dentro de la gasolinera del lobby.
@@ -52,7 +52,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
   - Revivir solo de noche, solo a un muerto y solo una vez por noche.
   - El código pregunta por la ventaja, nunca por un pase concreto.
   - Lo que solo funciona publicado se apunta como no probado.
-- **Estado:** pendiente
+- **Estado:** hecho (ver `docs/sistemas/compras.md`; faltan los Id de Roblox al publicar, 13.2)
 
 ## 11. Arte
 
@@ -91,6 +91,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Estado:** pendiente — se diseña con Sergio
 
 ### 13.2 Nombre, iconos y lanzamiento en privado
+- **Descripción:** también crear en Roblox los productos y pases de `Config.Compras` (Id = 0 ahora) y probar compras de verdad.
 - **Estado:** pendiente — decide Sergio
 
 ## Sueltas por confirmar

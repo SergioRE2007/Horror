@@ -29,6 +29,7 @@ local NOMBRES = {
 	"Acechador", -- servidor -> todos: ("Rama", modelo), ("Carga", modelo) se echa encima o ("Luz", modelo) le frena la linterna
 	"Clase", -- cliente -> servidor (lobby): (id) elegir una clase que ya tengo ("" = ninguna)
 	"Tienda", -- cliente -> servidor (lobby): ("Clase", id) o ("Cosmetico", id) comprar, ("Poner", tipo, id) ponerme uno
+	"Compra", -- cliente -> servidor: abre una compra con Robux: ("Monedas", n), ("Pase", ventaja) o ("Revivir", jugador)
 }
 
 local Remotes = {}

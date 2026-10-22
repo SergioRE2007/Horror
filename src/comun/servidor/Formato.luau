@@ -15,7 +15,8 @@ function Formato.jugadorNuevo()
 		logros = {},
 		records = {},
 		partidas = {}, -- resumen de sus ranuras de partida
-		compras = {}, -- [PurchaseId] = true: compras de Robux ya entregadas, para no dar dos veces
+		compras = {}, -- [PurchaseId] = os.time() de la entrega: compras de Robux ya entregadas, para no dar dos veces
+		regalos = {}, -- [Ventaja] = true: lo de una vez de ese pase ya entregado (Config.Compras.Pases, Regalo)
 		diario = 0, -- os.time() del último premio diario
 		clase = "", -- Id de la clase elegida en el lobby ("" = ninguna)
 		puestos = {}, -- [Tipo] = Id del cosmético que lleva puesto de cada tipo (sin entrada = el de serie)

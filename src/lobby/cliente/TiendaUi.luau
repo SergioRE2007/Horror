@@ -1,6 +1,7 @@
 -- La tienda del mostrador de la gasolinera (aquí solo se pide y se pinta; compra el servidor en Comun.Tienda).
---   Libreta oscura con dos pestañas: CLASES (comprar; la primera gratis; elegir la que llevas a la partida) y LUCES
---   (el color de la linterna). Comprar pide dos toques ("¿COMPRAR?") para que no se gasten monedas sin querer.
+--   Libreta oscura con tres pestañas: CLASES (comprar; la primera gratis; elegir la que llevas a la partida), LUCES
+--   (el color de la linterna) y ROBUX (pases y paquetes de monedas: abre la compra el servidor, Comun.Compras).
+--   Comprar con monedas pide dos toques ("¿COMPRAR?") para que no se gasten sin querer; con Robux ya pregunta Roblox.
 --   Se cierra con la X o al alejarse del mostrador.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,13 +10,16 @@ local HttpService = game:GetService("HttpService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
+local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
 local TiendaUi = {}
 
 local jugador = Players.LocalPlayer
 local LEJOS = 16 -- studs del mostrador a los que se cierra sola
+local ROBUX = "\u{E002}" -- el símbolo de Robux (lo pintan todas las fuentes)
 
 local panel: Frame
 local escala: UIScale
@@ -164,6 +168,29 @@ function pintar()
 				end)
 			end
 		end
+	elseif pestana == "Robux" then
+		-- Sin Id aún no se puede comprar (salvo probando en Studio): el botón sale apagado.
+		local function boton(producto): (string, boolean)
+			return `{ROBUX}{producto.Robux}`, producto.Id > 0 or Prueba.activa()
+		end
+		for i, pase in Config.Compras.Pases do
+			local nombre, linea = Lang.t(nil, pase.Nombre), Lang.t(nil, pase.Texto)
+			if Stats.pase(jugador, pase.Ventaja) then
+				fila(i, nombre, linea, texto("Owned"), true)
+			else
+				local etiqueta, se = boton(pase)
+				fila(i, nombre, linea, etiqueta, false, nil, if se then function()
+					Remotes.Compra:FireServer("Pase", pase.Ventaja)
+				end else nil)
+			end
+		end
+		for i, paquete in Config.Compras.Monedas do
+			local etiqueta, se = boton(paquete)
+			fila(100 + i, Lang.t(nil, "{n} coins", { n = paquete.Monedas }), Lang.t(nil, "For classes and lights."),
+				etiqueta, false, nil, if se then function()
+					Remotes.Compra:FireServer("Monedas", i)
+				end else nil)
+		end
 	else
 		local tiene = suyas("Cosmeticos")
 		local puesta = jugador:GetAttribute("PuestoLinterna")
@@ -266,7 +293,7 @@ local function construir()
 	raya.BorderSizePixel = 0
 	raya.Parent = panel
 
-	for i, p in { { "Clases", "Classes" }, { "Linterna", "Lights" } } do
+	for i, p in { { "Clases", "Classes" }, { "Linterna", "Lights" }, { "Robux", "Robux" } } do
 		local b = Ui.boton(Lang.t(nil, p[2]), {
 			Position = UDim2.fromOffset(26 + (i - 1) * 182, 86),
 			Size = UDim2.fromOffset(170, 42),
@@ -305,7 +332,11 @@ end
 
 function TiendaUi.start()
 	construir()
-	for _, atributo in { "Monedas", "Clases", "Cosmeticos", "Clase", "PuestoLinterna" } do
+	local atributos = { "Monedas", "Clases", "Cosmeticos", "Clase", "PuestoLinterna" }
+	for _, pase in Config.Compras.Pases do
+		table.insert(atributos, `Pase{pase.Ventaja}`)
+	end
+	for _, atributo in atributos do
 		jugador:GetAttributeChangedSignal(atributo):Connect(function()
 			if panel.Visible then
 				pintar()
