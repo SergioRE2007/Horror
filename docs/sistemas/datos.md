@@ -3,7 +3,8 @@
 ## Estructura
 
 - Dos lugares, cada uno con su proyecto de Rojo: `juego.project.json` (puerto 34872) y `lobby.project.json` (34873). Se sirve uno cada vez: `rojo serve juego.project.json`.
-- `src/shared` → `ReplicatedStorage.Shared`: `Config`, `Lang` + `LangEs`, `Remotes`, `Prueba`, `Rejilla` (la mochila, ver `mochila.md`).
+- El lobby en su propia ventana de Studio (a la vez que el Juego): `rojo build lobby.project.json -o lobby.rbxl`, abrir `lobby.rbxl` en otra ventana de Studio, `rojo serve lobby.project.json` (ya va al puerto 34873) y en esa ventana Rojo → Connect al 34873. El `.rbxl` no se sube.
+- `src/shared` → `ReplicatedStorage.Shared`: `Config`, `Lang` + `LangEs`, `Remotes`, `Prueba`, `Rejilla` (la mochila, ver `mochila.md`), `Azar` (azar con semilla, ver `llaves.md`).
 - `src/comun/servidor` → `ServerScriptService.Comun` y `src/comun/cliente` → `StarterPlayerScripts.Comun`: lo que vale en los dos lugares (`Datos`, `Candado`, `Formato`, `Idioma`, `Limpieza`, `Viaje`; en el cliente `Ui`, `Avisos`, `Controles`).
 - `src/juego/*` y `src/lobby/*` → `ServerScriptService.Servidor` y `StarterPlayerScripts.Cliente`: el `init` de cada lugar, que arranca sus sistemas con `start()`.
 - `Limpieza` borra al arrancar todo lo suelto del Workspace y deja `workspace.Mapa` vacía; cada lugar pone ahí su mapa y su punto de aparición (`Mapa`, `Gasolinera`).

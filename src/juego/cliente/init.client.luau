@@ -18,3 +18,4 @@ require(Sistemas.MovilUi).start() -- después de EquipoVista: su botón va en la
 require(Sistemas.CargarVista).start()
 require(Sistemas.TrabajoVista).start()
 require(Sistemas.MuerteVista).start()
+require(Sistemas.VendedorUi).start()

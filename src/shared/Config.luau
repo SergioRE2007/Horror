@@ -132,11 +132,44 @@ Config.Objetos = {
 	Carrete = { Tam = { 1, 1 }, Nombre = "Film" },
 	Lata = { Tam = { 1, 1 }, Nombre = "Can" },
 	Movil = { Tam = { 1, 1 }, Nombre = "Phone" },
-	Llave = { Tam = { 1, 1 }, Nombre = "Key" },
+	Llave = { Tam = { 1, 1 }, Nombre = "Key" }, -- sin usar: las de las salas cerradas van abajo
 	Botella = { Tam = { 1, 2 }, Nombre = "Bottle" },
 	Linterna = { Tam = { 1, 2 }, Nombre = "Flashlight" }, -- sin ella en la mochila no hay luz
 	Camara = { Tam = { 2, 2 }, Nombre = "Camera" }, -- sin ella no hay flash
 	Hacha = { Tam = { 1, 3 }, Nombre = "Axe" },
+	-- Llaves de las salas cerradas (Config.Llaves): Llave = true.
+	LlaveSotano = { Tam = { 1, 1 }, Nombre = "Basement key", Llave = true },
+	LlaveGaraje = { Tam = { 1, 1 }, Nombre = "Garage key", Llave = true },
+	LlaveDesvan = { Tam = { 1, 1 }, Nombre = "Attic key", Llave = true },
+	LlaveRico = { Tam = { 1, 1 }, Nombre = "Master bedroom key", Llave = true },
+}
+
+-- Salas cerradas con llave (pedido por el usuario), de más cerca a más lejos (juego/servidor/Llaves). Cada llave sale
+-- con la semilla de la partida en uno de los sitios de su zona (Lugares). No reordenar: el orden cambia el sitio.
+Config.Llaves = {
+	{ Sala = "Sotano", Llave = "LlaveSotano", Zona = "Granja" },
+	{ Sala = "Garaje", Llave = "LlaveGaraje", Zona = "Aserradero" },
+	{ Sala = "Desvan", Llave = "LlaveDesvan", Zona = "Torre" },
+	{ Sala = "HabitacionDelRico", Llave = "LlaveRico", Zona = "Cementerio" },
+}
+Config.BrilloLlave = { Brillo = 0.7, Alcance = 7 } -- brillo flojo para verla de lejos (pedido por el usuario)
+
+-- Vendedor del pueblo (juego/servidor/Vendedor): trueque, pide comida y agua (pedido por el usuario). Da = lo que te
+-- da, Pide = lo que quiere; { tipo, cuántos }. Números a ojo.
+Config.Vendedor = {
+	Trueques = {
+		{ Da = { "Pila", 2 }, Pide = { "Lata", 1 } },
+		{ Da = { "Carrete", 1 }, Pide = { "Botella", 1 } },
+		{ Da = { "Linterna", 1 }, Pide = { "Lata", 2 } },
+		{ Da = { "Hacha", 1 }, Pide = { "Botella", 2 } },
+	},
+	Alcance = 12, -- studs: más lejos se cierra el trato
+	Frases = { -- lo que dice al hablarle (pedido por el usuario: avisa)
+		"Don't go out at night.",
+		"Don't stay in the rich man's house.",
+		"Food and water. That's all I take.",
+		"Everyone else left. Or didn't.",
+	},
 }
 
 -- Mochila de casillas (pedido por el usuario): B, botón en el móvil o la cruceta arriba en el mando; R gira y G tira.

@@ -19,6 +19,7 @@ local NOMBRES = {
 	-- "Parar" (lo ha dejado a medias) y "Parte" (un árbol caído se parte en troncos; jugador = nil)
 	"Movil", -- cliente -> servidor: (abierto) miro o guardo el móvil
 	"Coche", -- cliente -> servidor (lobby): ("Ranura", n), ("Nueva", nueva) o ("Arrancar"): solo el dueño del coche
+	"Vendedor", -- servidor -> cliente: ("Abrir", frase) le habla; cliente -> servidor: ("Cambiar", n) hago el trato n
 }
 
 local Remotes = {}

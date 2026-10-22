@@ -484,6 +484,102 @@ do
 	comprobaciones += 1
 end
 
+-- Llaves de las salas cerradas: azar con semilla, Config y qué llaves vuelven a su sitio (juego/servidor/Reparto).
+do
+	local Azar = cargar("src/shared/Azar")
+	local Reparto = cargar("src/juego/servidor/Reparto")
+	local FP = cargar("src/juego/servidor/FormatoPartida")
+
+	-- La misma semilla da siempre el mismo sitio; muchas semillas reparten por todos los sitios.
+	igual(Azar.entero(12345, 2, 1, 4), Azar.entero(12345, 2, 1, 4), "azar: misma semilla, mismo sitio")
+	local vistos, fuera = {}, false
+	for semilla = 1, 400 do
+		local n = Azar.entero(semilla * 7919, 3, 1, 4)
+		vistos[n] = (vistos[n] or 0) + 1
+		fuera = fuera or n < 1 or n > 4
+	end
+	igual(fuera, false, "azar: siempre entre 1 y 4")
+	for i = 1, 4 do
+		assert((vistos[i] or 0) > 60, `azar: el sitio {i} sale muy poco ({vistos[i]})`)
+	end
+	igual(Azar.entero(2 ^ 31 - 2, 1, 1, 1), 1, "azar: semilla enorme, un solo sitio")
+	local distintos = {}
+	for orden = 1, 4 do
+		distintos[Azar.entero(777, orden, 1, 1000)] = true
+	end
+	local cuantos = 0
+	for _ in distintos do cuantos += 1 end
+	igual(cuantos, 4, "azar: cada llave de la misma partida tira distinto")
+
+	-- Config: cada sala con su llave, que es un objeto de mochila marcado como llave.
+	local salas = {}
+	for _, l in Config.Llaves do
+		local o = Config.Objetos[l.Llave]
+		assert(o and o.Llave == true and o.Tam[1] == 1 and o.Tam[2] == 1, `Config.Llaves: {l.Llave} no es una llave de 1x1`)
+		assert(not salas[l.Sala], `Config.Llaves: sala repetida {l.Sala}`)
+		salas[l.Sala] = true
+		comprobaciones += 1
+	end
+
+	local function esLlave(tipo)
+		return type(tipo) == "string" and Config.Objetos[tipo] ~= nil and Config.Objetos[tipo].Llave == true
+	end
+	-- Partida nueva: no hay ninguna, salen todas.
+	local todas = { "LlaveSotano", "LlaveGaraje", "LlaveDesvan", "LlaveRico" }
+	igual(#Reparto.faltan(todas, {}, {}, {}, esLlave), 4, "partida nueva: salen las cuatro")
+	-- Sala abierta: su llave ya no sale aunque no esté.
+	igual(#Reparto.faltan({ "LlaveGaraje" }, {}, {}, {}, esLlave), 1, "solo la de la sala cerrada")
+	-- Suelta o en la mochila de uno que está: no se duplica.
+	igual(#Reparto.faltan({ "LlaveSotano" }, { LlaveSotano = 1 }, {}, {}, esLlave), 0, "si ya está, no sale otra")
+	-- En la mochila guardada de uno que no ha venido: se le quita y vuelve a su sitio.
+	local guardadas = {
+		["1"] = { cosas = { { tipo = "Pila" }, { tipo = "LlaveDesvan" }, { tipo = "LlaveRico" } } },
+		["2"] = { cosas = { { tipo = "LlaveSotano" } } },
+	}
+	local faltan = Reparto.faltan({ "LlaveDesvan", "LlaveSotano" }, { LlaveSotano = 1 }, guardadas, { ["2"] = true }, esLlave)
+	igual(#faltan, 1, "la del que no está vuelve a su sitio")
+	igual(faltan[1], "LlaveDesvan", "y es la suya")
+	igual(#guardadas["1"].cosas, 1, "al que no está se le quitan las llaves (también la de una sala ya abierta)")
+	igual(guardadas["1"].cosas[1].tipo, "Pila", "y se queda lo demás")
+	igual(#guardadas["2"].cosas, 1, "al que está no se le toca")
+	-- Mochilas rotas no rompen nada.
+	igual(#Reparto.faltan({ "LlaveRico" }, {}, { ["3"] = { cosas = "x" }, ["4"] = 5 }, {}, esLlave), 1, "mochilas rotas")
+
+	-- Se guardan: la llave suelta pasa por FormatoPartida y la puerta abierta también.
+	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos }
+	local d = FP.arreglar({
+		noche = 2, semilla = 99,
+		objetos = { { tipo = "LlaveGaraje", sitio = { -225, 4.2, -90, 0, 0, 0 } } },
+		casa = { P0_1_22 = { vida = 160, abierta = true, bloqueada = false }, P6_14_m5 = { vida = 160, bloqueada = true } },
+		mochilas = { ["7"] = { cosas = { { id = 1, tipo = "LlaveRico", x = 1, y = 1, girada = false } } } },
+	}, cat)
+	igual(d.objetos[1].tipo, "LlaveGaraje", "la llave suelta se guarda")
+	igual(d.casa.P0_1_22.bloqueada, false, "la sala abierta se guarda")
+	igual(d.casa.P6_14_m5.bloqueada, true, "la cerrada sigue cerrada")
+	igual(d.semilla, 99, "la semilla se guarda")
+	local Rejilla = cargar("src/shared/Rejilla")
+	local r = Rejilla.desde(d.mochilas["7"], Config.Objetos, Config.Mochila.Ancho, Config.Mochila.Alto)
+	igual(Rejilla.contar(r, "LlaveRico"), 1, "la llave de la mochila se guarda")
+end
+
+-- Vendedor: tratos con objetos que existen y cantidades con sentido.
+do
+	for i, t in Config.Vendedor.Trueques do
+		assert(Config.Objetos[t.Da[1]] and Config.Objetos[t.Pide[1]], `trueque {i}: objeto que no existe`)
+		assert(t.Da[2] >= 1 and t.Pide[2] >= 1, `trueque {i}: cantidades`)
+		assert(not Config.Objetos[t.Da[1]].Llave and not Config.Objetos[t.Pide[1]].Llave, `trueque {i}: con llaves no se comercia`)
+		comprobaciones += 1
+	end
+	for _, frase in Config.Vendedor.Frases do
+		assert(Lang.es[frase], `frase del vendedor sin traducir: {frase}`)
+		comprobaciones += 1
+	end
+	for _, o in Config.Objetos do
+		assert(Lang.es[o.Nombre], `objeto sin traducir: {o.Nombre}`)
+		comprobaciones += 1
+	end
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")
