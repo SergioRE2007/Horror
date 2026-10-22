@@ -755,6 +755,125 @@ do
 	igual(Formato.arreglarJugador({ monedas = 3 }).clase, "", "clase en datos viejos")
 end
 
+-- Tienda: precio y monedas, la primera clase gratis, pulsar muchas veces y cosméticos puestos.
+do
+	local Comprar = cargar("src/comun/servidor/Comprar")
+	local vistos = {}
+	for _, cosa in Config.Cosmeticos do
+		assert(not vistos[cosa.Id], `cosmético repetido: {cosa.Id}`)
+		assert(cosa.Precio > 0 and cosa.Tipo and cosa.Nombre, `{cosa.Id}: le falta algo`)
+		vistos[cosa.Id] = true
+		comprobaciones += 1
+	end
+	for _, clase in Config.Clases do
+		assert(type(clase.Precio) == "number" and clase.Precio > 0 and clase.Texto, `{clase.Id}: sin precio o texto`)
+	end
+	local C, K = Config.Clases, Config.Cosmeticos
+	local d = Formato.jugadorNuevo()
+	igual(Comprar.clase(d, C, "Corredor"), "ok", "primera clase sin monedas")
+	igual(d.monedas, 0, "primera clase gratis")
+	igual(d.clase, "Corredor", "la comprada queda elegida")
+	igual(Comprar.clase(d, C, "Corredor"), "tiene", "no se compra dos veces")
+	igual(Comprar.clase(d, C, "Lenador"), "monedas", "segunda clase sin monedas")
+	igual(d.clases.Lenador, nil, "sin monedas no la da")
+	d.monedas = C[1].Precio + 10
+	-- Muchos toques seguidos: una sola compra y nunca en negativo.
+	local compradas = 0
+	for _ = 1, 20 do
+		for _, clase in C do
+			if Comprar.clase(d, C, clase.Id) == "ok" then
+				compradas += 1
+			end
+		end
+	end
+	igual(compradas, 1, "muchos toques: una compra")
+	igual(d.monedas, 10, "muchos toques: cobra una vez")
+	igual(Comprar.clase(d, C, "NoExiste"), "nada", "clase que no existe")
+	igual(Comprar.clase(d, C, 5), "nada", "id que no es texto")
+	d.monedas = 0 / 0
+	igual(Comprar.cosmetico(d, K, K[1].Id), "monedas", "monedas NaN no compran")
+	d.monedas = K[1].Precio
+	igual(Comprar.cosmetico(d, K, K[1].Id), "ok", "cosmético con monedas justas")
+	igual(d.monedas, 0, "cosmético cobrado")
+	igual(Comprar.puesto(d, K, K[1].Tipo).Id, K[1].Id, "el comprado queda puesto")
+	igual(Comprar.poner(d, K, K[1].Tipo, K[2].Id), false, "no se pone uno que no es suyo")
+	igual(Comprar.poner(d, K, "Coche", K[1].Id), false, "no se pone en otro tipo")
+	igual(Comprar.poner(d, K, K[1].Tipo, ""), true, "volver al de serie")
+	igual(Comprar.puesto(d, K, K[1].Tipo), nil, "de serie")
+	d.puestos[K[1].Tipo] = K[2].Id -- guardado a mano sin tenerlo
+	igual(Comprar.puesto(d, K, K[1].Tipo), nil, "puesto que no es suyo no cuenta")
+	igual(type(Formato.arreglarJugador({ monedas = 3 }).puestos), "table", "puestos en datos viejos")
+end
+
+-- Compras con Robux (Recibos): una compra no se entrega dos veces, el regalo de un pase una sola vez y revivir solo
+-- de noche, a un muerto y una vez por noche.
+do
+	local Recibos = cargar("src/comun/servidor/Recibos")
+	local d = Formato.jugadorNuevo()
+	igual(Recibos.apuntar(d, "A", 100, 3, 300), true, "compra nueva")
+	igual(Recibos.apuntar(d, "A", 101, 3, 300), false, "Roblox pregunta otra vez por la misma")
+	igual(d.monedas, 300, "las monedas, una vez")
+	for i = 1, 5 do
+		Recibos.apuntar(d, `B{i}`, 200 + i, 3, 0)
+	end
+	local cuantas = 0
+	for _ in d.compras do
+		cuantas += 1
+	end
+	igual(cuantas, 3, "solo recuerda las últimas")
+	igual(d.compras.B5, 205, "la más nueva se queda")
+	igual(d.compras.A, nil, "la más vieja se olvida")
+	d.compras.Vieja = true -- de antes de apuntar la hora
+	Recibos.apuntar(d, "C", 300, 3, 0)
+	igual(d.compras.Vieja, nil, "las sin hora son las más viejas")
+	-- Guardar y cargar no la vuelve a dar.
+	local cargado = Formato.arreglarJugador(guardable(d, "datos"))
+	igual(Recibos.apuntar(cargado, "C", 400, 3, 300), false, "tras guardar y cargar no se repite")
+
+	local paquete
+	for _, pase in Config.Compras.Pases do
+		if pase.Regalo then
+			paquete = pase
+		end
+	end
+	local antes = d.monedas
+	igual(Recibos.regalo(d, paquete), true, "regalo del pase")
+	igual(Recibos.regalo(d, paquete), false, "el regalo no se repite")
+	igual(d.monedas, antes + paquete.Regalo.Monedas, "monedas del regalo una vez")
+	for _, id in paquete.Regalo.Cosmeticos do
+		local existe = false
+		for _, cosa in Config.Cosmeticos do
+			existe = existe or cosa.Id == id
+		end
+		igual(existe, true, `cosmético del regalo existe: {id}`)
+		igual(d.cosmeticos[id], true, `cosmético del regalo dado: {id}`)
+	end
+	igual(Recibos.regalo(d, Config.Compras.Pases[1]), false, "pase sin regalo")
+	igual(type(Formato.arreglarJugador({ monedas = 3 }).regalos), "table", "regalos en datos viejos")
+
+	local revividos = {}
+	igual(Recibos.revivible(false, true, revividos, 1, 1), false, "de día no")
+	igual(Recibos.revivible(true, false, revividos, 1, 1), false, "a un vivo no")
+	igual(Recibos.revivible(true, true, revividos, 1, 1), true, "de noche a un muerto sí")
+	revividos[1] = 1
+	igual(Recibos.revivible(true, true, revividos, 1, 1), false, "dos veces la misma noche no")
+	igual(Recibos.revivible(true, true, revividos, 2, 1), true, "a otro sí")
+	igual(Recibos.revivible(true, true, revividos, 1, 2), true, "la noche siguiente sí")
+
+	-- Los pases: ventajas que existen, sin repetir y sin chocar con las de las clases.
+	local vistas = {}
+	for _, pase in Config.Compras.Pases do
+		igual(vistas[pase.Ventaja], nil, `pase repetido: {pase.Ventaja}`)
+		vistas[pase.Ventaja] = true
+		for ventaja in pase.Ventajas or {} do
+			igual(Config.Ventajas[ventaja] ~= nil, true, `ventaja del pase existe: {ventaja}`)
+			for _, clase in Config.Clases do
+				igual(clase.Ventajas[ventaja], nil, `ventaja del pase sin clase que la toque: {ventaja}`)
+			end
+		end
+	end
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")

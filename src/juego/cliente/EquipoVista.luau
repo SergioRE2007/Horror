@@ -12,6 +12,7 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -20,7 +21,18 @@ local EquipoVista = {}
 local L = Config.Linterna
 local jugador = Players.LocalPlayer
 local camara = workspace.CurrentCamera
-local COLOR_LUZ = Color3.fromRGB(255, 236, 205)
+local COLOR_LUZ = Color3.fromRGB(255, 236, 205) -- la de serie
+
+-- Color de la luz de cada uno: el cosmético que lleva puesto (atributo "PuestoLinterna", lo pone Comun.Tienda).
+local COLORES = {}
+for _, cosa in Config.Cosmeticos do
+	if cosa.Tipo == "Linterna" then
+		COLORES[cosa.Id] = Color3.fromRGB(table.unpack(cosa.Color))
+	end
+end
+local function colorDe(otro: Player): Color3
+	return COLORES[otro:GetAttribute("PuestoLinterna")] or COLOR_LUZ
+end
 
 type Luz = { punto: Attachment, foco: SpotLight }
 local luces: { [Player]: Luz } = {}
@@ -35,9 +47,9 @@ local function nuevaLuz(otro: Player): Luz
 	local punto = Instance.new("Attachment")
 	punto.Name = "Linterna"
 	local foco = Instance.new("SpotLight")
-	foco.Color = COLOR_LUZ
+	foco.Color = colorDe(otro)
 	foco.Brightness = L.Brillo
-	foco.Range = L.Alcance
+	foco.Range = L.Alcance * Stats.valor(otro, "Luz")
 	foco.Angle = L.Angulo * 2
 	foco.Shadows = true
 	foco.Face = Enum.NormalId.Front
@@ -84,6 +96,8 @@ local function actualizarLuces()
 			end
 		end
 		luz.foco.Brightness = brillo
+		luz.foco.Color = colorDe(otro)
+		luz.foco.Range = L.Alcance * Stats.valor(otro, "Luz")
 	end
 	for otro, luz in luces do
 		if not otro.Parent then

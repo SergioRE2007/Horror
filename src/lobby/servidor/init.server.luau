@@ -12,6 +12,8 @@ require(Comun.Idioma).start()
 require(Comun.Datos).start()
 require(Comun.Recompensas).start()
 require(Comun.Clases).start(true)
+require(Comun.Tienda).start(true)
+require(Comun.Compras).start()
 
 local Sistemas = script
 require(Sistemas.Gasolinera).start() -- el mapa, antes que los coches

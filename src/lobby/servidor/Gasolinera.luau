@@ -1,5 +1,5 @@
 -- El mapa del lobby por código, con bloques grises (el arte llega al final): una gasolinera vieja de noche junto a la
--- carretera del bosque, con la marquesina, dos surtidores, la tienda (más adelante, la de clases y cosméticos), un
+-- carretera del bosque, con la marquesina, dos surtidores, la tienda (con el mostrador de clases y cosméticos), un
 -- cartel que parpadea y los coches aparcados (Coches). Los coches llevan la etiqueta "Coche" y van en workspace.Coches.
 -- La carretera va a lo largo de Z en x = 0; hacia -Z se entra en el bosque. Lluvia: más adelante.
 local CollectionService = game:GetService("CollectionService")
@@ -177,7 +177,7 @@ function Gasolinera.start()
 	end
 	techo.CastShadow = true
 
-	-- La tienda: una caja con la puerta hacia la carretera (dentro irá la tienda de clases y cosméticos).
+	-- La tienda: una caja con la puerta hacia la carretera y el mostrador dentro.
 	local x0, x1, z0, z1, alto = 52, 70, -14, 14, 11
 	bloque("Muro", Vector3.new(x1 - x0, alto, 1), CFrame.new((x0 + x1) / 2, alto / 2, z0), COLOR.Muro, nil, mapa)
 	bloque("Muro", Vector3.new(x1 - x0, alto, 1), CFrame.new((x0 + x1) / 2, alto / 2, z1), COLOR.Muro, nil, mapa)
@@ -188,6 +188,17 @@ function Gasolinera.start()
 	bloque("Tejado", Vector3.new(x1 - x0 + 2, 1, z1 - z0 + 2), CFrame.new((x0 + x1) / 2, alto + 0.5, 0), COLOR.Oscuro, nil, mapa)
 	luz(bloque("Bombilla", Vector3.new(0.6, 0.6, 0.6), CFrame.new(61, alto - 1, 0), Color3.fromRGB(255, 214, 160),
 		Enum.Material.SmoothPlastic, mapa), 0.9, 20, Color3.fromRGB(255, 200, 150))
+	-- El mostrador del fondo: abre la tienda de clases y cosméticos (lobby/cliente/TiendaUi; comprar, en Comun.Tienda).
+	local mostrador = bloque("Mostrador", Vector3.new(3, 3.6, 12), CFrame.new(65, 1.8, 0), COLOR.Oscuro, Enum.Material.Wood, mapa)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "Tienda"
+	prompt.Style = Enum.ProximityPromptStyle.Custom
+	prompt.ActionText = "Shop"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+	prompt.MaxActivationDistance = 9
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = mostrador
 
 	cartel(mapa)
 	bosque(mapa)

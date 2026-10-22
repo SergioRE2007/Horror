@@ -34,7 +34,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
   - Cada ventaja se nota al probarla en Studio y sale solo de `Stats`.
   - El servidor rechaza una clase que el jugador no tiene.
   - Lista de clases al final de `Config` sin reordenar.
-- **Estado:** en curso (base hecha, ver `docs/sistemas/clases.md`; elegirla en la gasolinera va con la tienda, 10.3)
+- **Estado:** hecho (ver `docs/sistemas/clases.md`)
 
 ### 10.3 Tienda en la gasolinera
 - **Descripción:** comprar clases y cosméticos con monedas dentro de la gasolinera del lobby.
@@ -42,7 +42,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Criterios:**
   - El servidor comprueba precio y monedas; pulsar muchas veces seguidas no compra dos veces ni deja monedas en negativo (prueba de Lune).
   - Interfaz oscura de libreta, textos por `Lang`, se usa en móvil.
-- **Estado:** pendiente
+- **Estado:** hecho (ver `docs/sistemas/tienda.md`)
 
 ### 10.4 Revivir y compras con Robux
 - **Descripción:** revivir de noche (~25 R$, también a un amigo, máx. 1 por noche), paquetes de monedas y 3-4 pases (mochila grande, más ranuras, linterna mejor, paquete de inicio) por ventajas (`perks`).
@@ -52,7 +52,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
   - Revivir solo de noche, solo a un muerto y solo una vez por noche.
   - El código pregunta por la ventaja, nunca por un pase concreto.
   - Lo que solo funciona publicado se apunta como no probado.
-- **Estado:** pendiente
+- **Estado:** hecho (ver `docs/sistemas/compras.md`; faltan los Id de Roblox al publicar, 13.2)
 
 ## 11. Arte
 
@@ -91,6 +91,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Estado:** pendiente — se diseña con Sergio
 
 ### 13.2 Nombre, iconos y lanzamiento en privado
+- **Descripción:** también crear en Roblox los productos y pases de `Config.Compras` (Id = 0 ahora) y probar compras de verdad.
 - **Estado:** pendiente — decide Sergio
 
 ## Sueltas por confirmar
