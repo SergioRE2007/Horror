@@ -30,11 +30,11 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Descripción:** Leñador, Corredor, Fotógrafo, Mecánico, Carpintero y Explorador; una por jugador y partida; la primera gratis. Sus ventajas pasan por un módulo `Stats` (única fuente de multiplicadores).
 - **Archivos probables:** `src/shared/Stats.luau` (nuevo), `Config.luau`, `Recursos.luau`, `Raspador.luau`, `Casa.luau`, `Coche.luau`, `Llaves.luau`, lobby.
 - **Criterios:**
-  - Elegida en el lobby, llega al juego por `MemoryStoreService` (nunca por datos de teletransporte).
+  - Elegida en el lobby, llega al juego con los datos del jugador (DataStore con candado), nunca por datos de teletransporte.
   - Cada ventaja se nota al probarla en Studio y sale solo de `Stats`.
   - El servidor rechaza una clase que el jugador no tiene.
   - Lista de clases al final de `Config` sin reordenar.
-- **Estado:** pendiente
+- **Estado:** en curso (base hecha, ver `docs/sistemas/clases.md`; elegirla en la gasolinera va con la tienda, 10.3)
 
 ### 10.3 Tienda en la gasolinera
 - **Descripción:** comprar clases y cosméticos con monedas dentro de la gasolinera del lobby.
