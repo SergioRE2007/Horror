@@ -264,7 +264,7 @@ Config.Vendedor = {
 Config.Mochila = {
 	Ancho = 8,
 	Alto = 6,
-	Grande = { 10, 8 }, -- ampliada (pase de juego, más adelante)
+	Grande = { 10, 8 }, -- ampliada (pase MochilaGrande, Stats.mochila)
 	Inicio = { "Linterna", "Camara", "Movil", "Pila", "Pila", "Carrete" }, -- lo que llevas al empezar
 	Casilla = 0.42, -- studs que mide una casilla en el mundo (lo tirado)
 }
@@ -362,6 +362,7 @@ Config.Test = {
 	-- almacén de mentira que dura lo que la prueba).
 	Dueno = nil :: number?, -- UserId del dueño (nil = el primero que entra)
 	Clase = nil :: string?, -- Id de una clase de Config.Clases para probar su ventaja (nil = la elegida en el lobby)
+	Pases = false, -- true = todos los pases de Config.Compras (sin pagar)
 	Ranura = 1,
 	Nueva = false, -- true = empezar de cero aunque haya algo guardado
 	Partidas = { ["1"] = { noche = 4, hora = 0 } }, -- lo que el lobby enseña como ya guardado (las ranuras)
@@ -407,6 +408,9 @@ Config.Ventajas = {
 	Trabajo = 1, -- multiplica los segundos de clavar tablones y montar piezas (Cargar)
 	Refuerzo = 1, -- multiplica la vida de más del tablón reforzado que clava (Casa)
 	VerLlaves = 0, -- studs a los que ve las llaves a través de todo, solo él (ClaseVista)
+	-- Las de los pases (Config.Compras.Pases); ninguna clase las toca.
+	Pila = 1, -- multiplica lo que dura la pila de la linterna (Equipo)
+	Luz = 1, -- multiplica el alcance de la linterna: lo que frena a un bicho (Equipo) y lo que se ve (EquipoVista)
 }
 
 -- Clases (comun/servidor/Clases): una por jugador y partida. Se guarda el Id: no cambiarlo nunca y las nuevas al
@@ -435,6 +439,32 @@ Config.Cosmeticos = {
 	{ Id = "LuzRoja", Tipo = "Linterna", Nombre = "Red light", Color = { 255, 110, 95 }, Precio = 250 },
 	{ Id = "LuzVerde", Tipo = "Linterna", Nombre = "Green light", Color = { 160, 240, 150 }, Precio = 250 },
 	{ Id = "LuzMorada", Tipo = "Linterna", Nombre = "Violet light", Color = { 185, 155, 255 }, Precio = 400 },
+}
+
+-- Compras con Robux (comun/servidor/Compras). Id = el de Roblox (0 = aún sin crear: no se puede comprar; en Studio
+-- con el modo de pruebas se hace como si se pagara). Robux = el precio que hay que ponerle al crearlo en el Creator
+-- Hub (aquí solo se enseña). Los pases se piden por su Ventaja (Stats.pase), nunca por el pase concreto: la clave se
+-- guarda en `regalos`, no cambiarla. Números a ojo.
+Config.Compras = {
+	Recordadas = 100, -- compras entregadas que recuerda cada jugador (para no dar la misma dos veces)
+	Revivir = { Id = 0, Robux = 25 }, -- de noche, a ti o a otro muerto; una vez por noche cada uno (juego/servidor/Revivir)
+	Reembolso = 150, -- monedas si un revivir pagado ya no se puede hacer (ha amanecido, ya ha revivido…)
+	Monedas = {
+		{ Id = 0, Robux = 49, Monedas = 300 },
+		{ Id = 0, Robux = 129, Monedas = 900 },
+		{ Id = 0, Robux = 299, Monedas = 2400 },
+	},
+	Pases = {
+		{ Ventaja = "MochilaGrande", Id = 0, Robux = 199, Nombre = "Big backpack",
+			Texto = "A bigger backpack: more room for everything." }, -- Config.Mochila.Grande
+		{ Ventaja = "MasRanuras", Id = 0, Robux = 99, Nombre = "More saves", Texto = "Six saved games instead of three.",
+			Ranuras = 6 },
+		{ Ventaja = "LinternaMejor", Id = 0, Robux = 149, Nombre = "Better flashlight",
+			Texto = "Batteries last longer and the light reaches farther.", Ventajas = { Pila = 1.5, Luz = 1.25 } },
+		-- Lo de Regalo se da una sola vez (al confirmar el pase): monedas y cosméticos de Config.Cosmeticos.
+		{ Ventaja = "PaqueteInicio", Id = 0, Robux = 99, Nombre = "Starter pack", Texto = "1000 coins and the violet light.",
+			Regalo = { Monedas = 1000, Cosmeticos = { "LuzMorada" } } },
+	},
 }
 
 return Config

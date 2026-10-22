@@ -84,23 +84,24 @@ local function cargar(jugador: Player)
 	jugador:SetAttribute("DatosListos", true)
 end
 
--- Guarda y, con `soltar`, suelta el candado y olvida al jugador. Un guardado a la vez por jugador.
-local function guardar(jugador: Player, soltar: boolean)
+-- Guarda y, con `soltar`, suelta el candado y olvida al jugador. Un guardado a la vez por jugador. true si ha quedado
+-- guardado (con el modo de pruebas no se guarda nada y también es true).
+local function guardar(jugador: Player, soltar: boolean): boolean
 	local partida = partidas[jugador]
 	if not partida then
-		return
+		return false
 	end
 	while partida.guardando do
 		task.wait()
 	end
 	if partidas[jugador] ~= partida then
-		return -- otro guardado ya lo soltó
+		return false -- otro guardado ya lo soltó
 	end
 	if not partida.op then
 		if soltar then
 			partidas[jugador] = nil
 		end
-		return
+		return true
 	end
 	partida.guardando = true
 	local intentos = if soltar then Config.Guardado.Intentos else 1
@@ -115,6 +116,7 @@ local function guardar(jugador: Player, soltar: boolean)
 	elseif soltar then
 		partidas[jugador] = nil
 	end
+	return estado == "ok"
 end
 
 -- Los datos del jugador, o nil si aún no están cargados. Solo para mirar: los cambios, con Datos.editar.
@@ -134,8 +136,9 @@ function Datos.editar(jugador: Player, fn: (datos: any) -> ()): boolean
 	return true
 end
 
-function Datos.guardar(jugador: Player)
-	guardar(jugador, false)
+-- Guarda ya. true si ha quedado guardado (una compra de Robux solo se confirma a Roblox entonces).
+function Datos.guardar(jugador: Player): boolean
+	return guardar(jugador, false)
 end
 
 function Datos.start()

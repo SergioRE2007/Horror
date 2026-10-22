@@ -170,7 +170,7 @@ local function gastar(dt: number)
 			jugador:SetAttribute("Linterna", false)
 			continue
 		end
-		local pila = math.max(0, (linterna.carga or 0) - paso / L.Duracion)
+		local pila = math.max(0, (linterna.carga or 0) - paso / (L.Duracion * Stats.valor(jugador, "Pila")))
 		linterna.carga = pila
 		jugador:SetAttribute("Pila", pila)
 		if pila <= 0 then
@@ -182,7 +182,7 @@ local function gastar(dt: number)
 			local hacia = Caza.plano(raiz.CFrame.LookVector)
 			local plano = Caza.plano(b:cabeza() - cabeza.Position)
 			if plano.Magnitude > 0.1 and plano.Unit:Dot(hacia.Unit) > math.cos(math.rad(L.Angulo))
-				and alcanza(cabeza.Position, b:cabeza() - cabeza.Position, b, L.Alcance, 90) then
+				and alcanza(cabeza.Position, b:cabeza() - cabeza.Position, b, L.Alcance * Stats.valor(jugador, "Luz"), 90) then
 				b.iluminado = os.clock()
 			end
 		end
