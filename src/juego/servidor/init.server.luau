@@ -24,6 +24,8 @@ require(Sistemas.Generador).start()
 require(Sistemas.Movil).start()
 require(Sistemas.Llaves).start()
 require(Sistemas.Vendedor).start()
+require(Sistemas.Taller).start()
+require(Sistemas.Coche).start()
 require(Sistemas.Director).start()
 local noche = require(Sistemas.Partida).start() -- espera a cargar la partida y deja el mundo como estaba
 require(Sistemas.Ciclo).start(noche) -- lo último: el primer día empieza cuando todos están escuchando

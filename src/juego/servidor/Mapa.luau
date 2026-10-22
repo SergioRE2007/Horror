@@ -298,6 +298,78 @@ local function construirCaballete()
 	modelo.Parent = casa
 end
 
+-- Banco del taller (Taller): tablero con patas y un tornillo de banco. `cf` = el centro del tablero a ras del suelo,
+-- mirando hacia donde se pone el que trabaja; lo hecho que es pesado sale ahí delante (Salida).
+local function banco(nombre: string, cf: CFrame)
+	local modelo = Instance.new("Model")
+	modelo.Name = "Banco" .. nombre
+	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	bloque("Tablero", Vector3.new(8, 0.5, 2.6), cf * CFrame.new(0, 3.25, 0), COLOR.Mueble, Enum.Material.Wood, modelo)
+	for _, x in { -3.6, 3.6 } do
+		bloque("Pata", Vector3.new(0.5, 3, 2.2), cf * CFrame.new(x, 1.5, 0), COLOR.Oscuro, Enum.Material.Wood, modelo)
+	end
+	bloque("Tornillo", Vector3.new(0.8, 0.6, 1), cf * CFrame.new(3, 3.8, -0.9), Color3.fromRGB(70, 72, 76), Enum.Material.Metal, modelo)
+	bloque("Martillo", Vector3.new(1.4, 0.2, 0.3), cf * CFrame.new(-1.5, 3.6, 0.3) * CFrame.Angles(0, 0.4, 0), COLOR.Oscuro,
+		Enum.Material.Metal, modelo)
+	mando(cf * CFrame.new(0, 3.6, -1.6), modelo)
+	modelo:SetAttribute("Banco", nombre)
+	modelo:SetAttribute("Salida", cf * CFrame.new(0, 0.6, -3.4))
+	CollectionService:AddTag(modelo, "Banco")
+	modelo.Parent = casa
+end
+
+-- Tu coche, destrozado y encerrado en el garaje (Coche lo arregla). Mira hacia -z (al portón); `base` = el centro a ras
+-- del suelo. Las piezas que faltan (motor, ruedas de delante, batería, radiador) están puestas pero invisibles: Coche
+-- las enseña al montarlas. Los huecos de las ruedas de delante, sobre ladrillos.
+local function construirCoche(base: CFrame)
+	local coche = Instance.new("Model")
+	coche.Name = "Coche"
+	coche.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	local PINTURA, CRISTAL = Color3.fromRGB(78, 88, 96), Color3.fromRGB(120, 135, 140)
+	local function trozo(nombre: string, tamano: Vector3, offset: CFrame, color: Color3, material: Enum.Material?): Part
+		return bloque(nombre, tamano, base * offset, color, material or Enum.Material.Metal, coche)
+	end
+	trozo("Chasis", Vector3.new(6.4, 1.6, 12), CFrame.new(0, 1.9, 0), PINTURA)
+	trozo("Cabina", Vector3.new(6, 2.4, 5.6), CFrame.new(0, 3.9, 1.4), PINTURA)
+	local parabrisas = trozo("Parabrisas", Vector3.new(5.6, 2, 0.2), CFrame.new(0, 3.8, -1.45) * CFrame.Angles(math.rad(-20), 0, 0),
+		CRISTAL, Enum.Material.Glass)
+	parabrisas.Transparency = 0.5
+	for _, lado in { -1, 1 } do
+		local ventanilla = trozo("Ventanilla", Vector3.new(0.2, 1.6, 4), CFrame.new(3.02 * lado, 4.1, 1.4), CRISTAL, Enum.Material.Glass)
+		ventanilla.Transparency = 0.5
+		trozo("Faro", Vector3.new(1.2, 0.6, 0.1), CFrame.new(2.2 * lado, 2.2, -6.05), Color3.fromRGB(200, 195, 170),
+			Enum.Material.SmoothPlastic)
+	end
+	-- Arañazos del bicho en el lado del conductor.
+	for i = 1, 3 do
+		trozo("Arañazo", Vector3.new(0.1, 0.15, 3.4), CFrame.new(-3.22, 2.3 + i * 0.35, 1) * CFrame.Angles(math.rad(-14), 0, 0),
+			Color3.fromRGB(70, 20, 18), Enum.Material.SmoothPlastic)
+	end
+	-- Capó abierto (la bisagra junto al parabrisas): deja ver el hueco del motor.
+	trozo("Capo", Vector3.new(6.2, 0.3, 4.2), CFrame.new(0, 2.8, -1.7) * CFrame.Angles(math.rad(65), 0, 0) * CFrame.new(0, 0, -2.1),
+		PINTURA)
+	-- Las piezas: Motor, Rueda1..4 (las 1 y 2, las de atrás, ya están), Bateria y Radiador.
+	trozo("Motor", Vector3.new(3.2, 2.2, 2.4), CFrame.new(0, 2.4, -4), Color3.fromRGB(70, 72, 75), Enum.Material.DiamondPlate)
+	for i, sitio in { { 1, 4 }, { -1, 4 }, { 1, -4 }, { -1, -4 } } do
+		local rueda = trozo("Rueda" .. i, Vector3.new(1, 2.6, 2.6), CFrame.new(3.45 * sitio[1], 1.3, sitio[2]), Color3.fromRGB(32, 32, 34),
+			Enum.Material.Rubber)
+		rueda.Shape = Enum.PartType.Cylinder
+		if i > 2 then
+			trozo("Ladrillos" .. (i - 2), Vector3.new(1.2, 1.1, 1.6), CFrame.new(2.6 * sitio[1], 0.55, sitio[2]), Color3.fromRGB(120, 60, 48),
+				Enum.Material.Brick)
+		end
+	end
+	trozo("Bateria", Vector3.new(1.4, 1, 0.9), CFrame.new(-2.2, 3.2, -5.3), Color3.fromRGB(40, 40, 42), Enum.Material.SmoothPlastic)
+	trozo("Radiador", Vector3.new(3, 1.4, 0.3), CFrame.new(0, 2, -6.2), Color3.fromRGB(150, 150, 148))
+	mando(base * CFrame.new(0, 2.6, -6.6), coche) -- reparar, delante del capó
+	local puerta = mando(base * CFrame.new(-3.8, 3, 0.6), coche) -- huir, en la puerta del conductor
+	puerta.Name = "Conducir"
+	coche:SetAttribute("Tapon", base * CFrame.new(3.25, 2.4, -1.5)) -- donde cae la gasolina (cerca del capó, para el R)
+	coche:SetAttribute("Sitio", base)
+	CollectionService:AddTag(coche, "Coche")
+	coche.Parent = casa
+end
+
 -- Desván bajo el tejado (suelo en y = 27, encima del techo; de alto, 9 en la cumbrera): se sube por la escalera del
 -- cuarto cerrado de arriba. Hastiales en los dos lados y el cuarto de revelado del rico.
 local function construirDesvan()
@@ -348,24 +420,39 @@ local function construirSotano()
 	for _, x in { -12, 12 } do
 		bloque("Muro", Vector3.new(1, alto, z2 - z1), CFrame.new(x, FONDO + alto / 2, (z1 + z2) / 2), nil, Enum.Material.Concrete)
 	end
-	bloque("Banco", Vector3.new(8, 3.5, 2.5), CFrame.new(-6, FONDO + 1.75, 52.5), COLOR.Mueble)
+	banco("Sotano", CFrame.lookAt(Vector3.new(-6, FONDO, 52.6), Vector3.new(-6, FONDO, 40)))
 	bloque("Estanteria", Vector3.new(1.5, 7, 8), CFrame.new(10.5, FONDO + 3.5, 46), COLOR.Mueble)
+	table.insert(Mapa.objetos, { tipo = "Chatarra", cf = CFrame.new(10.5, FONDO + 7.2, 44) })
 	lampara(Vector3.new(0, -2.6, 45))
 end
 
--- Garaje junto a la casa, al este (x 34..52, z -14..6): puerta con llave mirando a la casa y portón cerrado al camino
--- (se abrirá con el coche, paso 8). Ventana sin persiana: es una sala cerrada.
+-- Garaje junto a la casa, al este (x 34..52, z -14..6): puerta con llave mirando a la casa y portón al camino, que se
+-- abre desde que la puerta lo está (Coche). Dentro, tu coche destrozado, el banco del taller, una rueda, un bidón y
+-- chatarra. Ventana sin persiana: es una sala cerrada.
 local function construirGaraje()
 	local OESTE, ESTE = Vector3.new(-1, 0, 0), Vector3.new(1, 0, 0)
 	CollectionService:AddTag(bloque("Piso", Vector3.new(19, 1, 21), CFrame.new(43, 0.5, -4), COLOR.Piso, Enum.Material.Concrete), "EnMapa")
 	muro(34, -14, 34, 6, ABAJO, { p(10, ESTE, { bloqueada = true, nombre = "Garaje", llave = "LlaveGaraje" }) }, OESTE)
 	muro(34, -14, 52, -14, ABAJO, { { tipo = "Hueco", en = 9, ancho = 10, alto = 9 } }, Vector3.new(0, 0, -1))
-	bloque("Porton", Vector3.new(10, 9, 0.4), CFrame.new(43, ABAJO + 4.5, -14), COLOR.Oscuro, Enum.Material.CorrodedMetal)
+	local porton = Instance.new("Model")
+	porton.Name = "Porton"
+	porton.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	bloque("Hoja", Vector3.new(10, 9, 0.4), CFrame.new(43, ABAJO + 4.5, -14), COLOR.Oscuro, Enum.Material.CorrodedMetal, porton)
+	-- El mando, en el borde del hueco (como un interruptor): en medio se pisaba con el del capó del coche.
+	mando(CFrame.new(37.6, ABAJO + 3.5, -14), porton)
+	CollectionService:AddTag(porton, "Porton")
+	porton.Parent = casa
 	muro(52, -14, 52, 6, ABAJO, { v(4, 4, 3, 12, false) }, ESTE)
 	muro(34, 6, 52, 6, ABAJO, {}, Vector3.new(0, 0, 1))
 	bloque("Techo", Vector3.new(20, 1, 22), CFrame.new(43, ABAJO + ALTO + 0.5, -4), COLOR.Oscuro, Enum.Material.CorrodedMetal)
-	bloque("Banco", Vector3.new(8, 3.5, 2.5), CFrame.new(46, ABAJO + 1.75, 4.2), COLOR.Mueble)
 	lampara(Vector3.new(43, ABAJO + ALTO - 0.3, -4))
+	construirCoche(CFrame.new(42, ABAJO, -4))
+	banco("Garaje", CFrame.lookAt(Vector3.new(50.2, ABAJO, -8), Vector3.new(40, ABAJO, -8)))
+	table.insert(Mapa.pesados, { tipo = "Rueda", cf = CFrame.new(49, ABAJO + 0.5, 3.5) * CFrame.Angles(0, 0, math.pi / 2) })
+	table.insert(Mapa.pesados, { tipo = "Bidon", cf = CFrame.new(36.5, ABAJO + 1.2, 4) })
+	for _, z in { -10.5, -5.5 } do
+		table.insert(Mapa.objetos, { tipo = "Chatarra", cf = CFrame.new(50.2, ABAJO + 3.7, z) * CFrame.Angles(0, math.pi / 2, 0) })
+	end
 end
 
 local function construirCasa(mapa: Folder)

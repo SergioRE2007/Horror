@@ -8,6 +8,9 @@
 --   generador: { gasolina (0..1), encendido, movil (batería del móvil del enchufe, o nada) }.
 --   objetos y pesados: listas de { tipo, carga, sitio = { x, y, z, rx, ry, rz } } (lo suelto por el mapa).
 --   mochilas: [UserId en texto] = { cosas = las de shared/Rejilla } (de todos los que han jugado en ella).
+--   coche: { piezas = [tipo] = cuántas montadas, gasolina, porton } (shared/Recetas). Desde el paso 8, sin subir versión:
+--   lo viejo no lo tiene y sale el coche sin arreglar. La casa lleva también `refuerzo` (tablón reforzado).
+--   final: "Huida" si ya se terminó (al volver a esa ranura se empieza de cero).
 local FormatoPartida = {}
 
 FormatoPartida.VERSION = 1
@@ -52,7 +55,8 @@ local function sueltos(lista: unknown, catalogo, maximo: number)
 end
 
 -- Pone al día lo guardado de una partida. nil (o algo que no es una tabla) = partida nueva: devuelve nil y el mundo
--- se queda como lo genera el mapa. `cat` = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Sueltos }.
+-- se queda como lo genera el mapa. `cat` = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Sueltos,
+-- coche = Config.Coche, arreglarCoche = Recetas.arreglarCoche }.
 function FormatoPartida.arreglar(guardado: unknown, cat)
 	if type(guardado) ~= "table" then
 		return nil
@@ -69,6 +73,8 @@ function FormatoPartida.arreglar(guardado: unknown, cat)
 		objetos = sueltos(g.objetos, cat.objetos, cat.maximo),
 		pesados = sueltos(g.pesados, cat.pesados, cat.maximo),
 		mochilas = {},
+		coche = cat.arreglarCoche(g.coche, cat.coche),
+		final = if g.final == "Huida" then "Huida" else nil,
 	}
 	if type(g.casa) == "table" then
 		for clave, e in g.casa do
@@ -79,6 +85,7 @@ function FormatoPartida.arreglar(guardado: unknown, cat)
 					cristal = math.floor(numero(e.cristal, 0, 100, 0)),
 					abierta = e.abierta == true,
 					bloqueada = if type(e.bloqueada) == "boolean" then e.bloqueada else nil,
+					refuerzo = if e.refuerzo == true then true else nil,
 				}
 			end
 		end

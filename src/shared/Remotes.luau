@@ -16,10 +16,14 @@ local NOMBRES = {
 	"Cargar", -- cliente -> servidor: suelto lo pesado que llevo
 	"Usar", -- cliente -> servidor: (objetivo) uso lo que llevo en las manos con esto (serrar, clavar, echar gasolina)
 	"Trabajo", -- servidor -> todos: (jugador, que, pieza, segundos) para animar: "Hachazo", "Serrar", "Clavar", "Verter",
+	-- "Montar" (una pieza del coche), "Fabricar" (en un banco del taller),
 	-- "Parar" (lo ha dejado a medias) y "Parte" (un árbol caído se parte en troncos; jugador = nil)
 	"Movil", -- cliente -> servidor: (abierto) miro o guardo el móvil
 	"Coche", -- cliente -> servidor (lobby): ("Ranura", n), ("Nueva", nueva) o ("Arrancar"): solo el dueño del coche
 	"Vendedor", -- servidor -> cliente: ("Abrir", frase) le habla; cliente -> servidor: ("Cambiar", n) hago el trato n
+	"Taller", -- servidor -> cliente: ("Abrir", banco); cliente -> servidor: ("Hacer", n) la receta n del banco que tengo
+	-- cerca; servidor -> todos: ("Trampa", posición) una trampa se ha cerrado
+	"Huida", -- servidor -> todos: (segundos) la escena final de la huida en el coche
 }
 
 local Remotes = {}
