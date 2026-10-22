@@ -18,6 +18,12 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 - Al terminar y haber probado: commit, `git push`, `gh pr create --fill` y `gh pr merge --squash --delete-branch`, preguntando antes de juntar con `main`.
 - Comentarios del código en español. El `.rbxl` no se sube. No subir valores de `Config` bajados temporalmente para probar.
 
+## Calidad y flujo de tareas
+
+- Comprobar: `selene src` (revisa el código sin ejecutarlo; un hook lo pasa solo por cada `.luau` editado) y `lune run tests/regressions.luau`. Falso positivo de Selene: `-- selene: allow(<regla>)` encima de la línea. Sin StyLua ni Wally: decidido por el usuario (el código ya sale uniforme y no usamos librerías de fuera).
+- Las tareas, en orden, en `TASKS.md`. Por tarea: rama → construir → `selene src` y Lune → probar en Studio → agente `reviewer` con `git diff main...HEAD` (solo lo cambiado) → arreglar lo `GRAVE` → marcar `hecho` en `TASKS.md` → commit con mensaje claro → preguntar antes de juntar con `main`.
+- Parar y preguntar a Sergio si la tarea no está clara, si depende de él (dibujos, sonidos, historia, nombres) o si algo falla dos veces seguidas.
+
 ## Entorno
 
 - Windows, PowerShell. Rojo 7.7.1 y Lune 0.10.5 con Rokit (`rokit.toml`). Git y `gh` instalados. Blender en línea de comandos para modelos. ffmpeg (winget `Gyan.FFmpeg`) para grabar vídeos.
