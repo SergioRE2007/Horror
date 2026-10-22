@@ -12,6 +12,10 @@ require(Comun:WaitForChild("Controles")).start()
 require(Sistemas.CasaVista).start()
 require(Sistemas.GolpeadorVista).start()
 require(Sistemas.RaspadorVista).start()
+require(Sistemas.TrepadorVista).start()
+require(Sistemas.ImitadorVista).start()
+require(Sistemas.AcechadorVista).start()
+require(Sistemas.ChimeneaVista).start()
 require(Sistemas.EquipoVista).start()
 require(Sistemas.MochilaUi).start() -- después de EquipoVista: su botón va en la misma fila
 require(Sistemas.MovilUi).start() -- después de EquipoVista: su botón va en la misma fila

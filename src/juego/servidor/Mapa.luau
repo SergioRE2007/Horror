@@ -538,8 +538,19 @@ local function construirCasa(mapa: Folder)
 	bloque("CajaFuerte", Vector3.new(2.5, 3, 2.5), CFrame.new(24, ARRIBA + 1.5, 19), COLOR.Oscuro, Enum.Material.Metal)
 
 	-- Muebles y escondites.
-	bloque("Chimenea", Vector3.new(3, 10, 8), CFrame.new(-24.5, ABAJO + 5, -1), Color3.fromRGB(85, 82, 80), Enum.Material.Brick)
-	bloque("Hogar", Vector3.new(0.6, 3.5, 4), CFrame.new(-22.8, ABAJO + 1.75, -1), Color3.fromRGB(20, 18, 18), Enum.Material.Slate)
+	-- Chimenea (Chimenea, y por ella baja el Trepador): el tiro sube hasta salir por el tejado.
+	local chimenea = Instance.new("Model")
+	chimenea.Name = "Chimenea"
+	local ladrillo = Color3.fromRGB(85, 82, 80)
+	bloque("Chimenea", Vector3.new(3, 10, 8), CFrame.new(-24.5, ABAJO + 5, -1), ladrillo, Enum.Material.Brick, chimenea)
+	bloque("Hogar", Vector3.new(0.6, 3.5, 4), CFrame.new(-22.8, ABAJO + 1.75, -1), Color3.fromRGB(20, 18, 18), Enum.Material.Slate, chimenea)
+	bloque("Tiro", Vector3.new(3, 31, 4), CFrame.new(-24.5, ABAJO + 10 + 15.5, -1), ladrillo, Enum.Material.Brick, chimenea)
+	mando(CFrame.new(-21.8, ABAJO + 2, -1), chimenea)
+	chimenea:SetAttribute("Hogar", CFrame.new(-21.6, ABAJO + 0.8, -1) * CFrame.Angles(0, math.pi / 2, 0)) -- donde arde el tronco
+	chimenea:SetAttribute("Tiro", Vector3.new(-24.5, ABAJO + 41, -1)) -- la boca de arriba
+	chimenea:SetAttribute("Salida", CFrame.lookAt(Vector3.new(-20, ABAJO, -1), Vector3.new(-10, ABAJO, -1))) -- delante del hogar
+	CollectionService:AddTag(chimenea, "Chimenea")
+	chimenea.Parent = casa
 	bloque("Sofa", Vector3.new(8, 2.5, 3), CFrame.new(-15, ABAJO + 1.25, -12), COLOR.Mueble, Enum.Material.Fabric)
 	bloque("Sofa", Vector3.new(8, 3, 1), CFrame.new(-15, ABAJO + 2.5, -13.5), COLOR.Mueble, Enum.Material.Fabric)
 	bloque("Mesita", Vector3.new(4, 1.5, 3), CFrame.new(-15, ABAJO + 0.75, -7), COLOR.Mueble)

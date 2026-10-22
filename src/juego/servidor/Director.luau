@@ -2,7 +2,9 @@
 --   Noche: la tabla de dificultad (shared/Dificultad, según cuántos jugadores hay) dice cuántos ataques puede haber a
 --   la vez, cada cuánto y cuánta paciencia tienen. Cada "hueco" lanza ataques uno detrás de otro a ventanas o puertas
 --   libres (nunca la misma dos veces seguidas), cada noche más seguidos; los huecos llegan escalonados.
---   Desde la noche del Raspador, su primer ataque es seguro y luego sale a veces (uno como mucho a la vez).
+--   Desde la noche del Raspador, su primer ataque es seguro y luego sale a veces (uno como mucho a la vez). Igual el
+--   Trepador (por la chimenea) y el Imitador (a la puerta principal; su primera noche se va la luz). El Acechador va
+--   aparte: sale solo al que se queda en el bosque al anochecer.
 --   Amanecer: los bichos se van y los muertos reviven (Partida hace la foto de todo y la guarda).
 --   Si mueren todos: a los pocos segundos se vuelve al principio del día, con todo como estaba al amanecer.
 local Players = game:GetService("Players")
@@ -13,20 +15,25 @@ local Dificultad = require(ReplicatedStorage.Shared.Dificultad)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Acechador = require(script.Parent.Acechador)
 local Casa = require(script.Parent.Casa)
+local Chimenea = require(script.Parent.Chimenea)
 local Ciclo = require(script.Parent.Ciclo)
 local Golpeador = require(script.Parent.Golpeador)
+local Imitador = require(script.Parent.Imitador)
 local Muerte = require(script.Parent.Muerte)
 local Partida = require(script.Parent.Partida)
 local Raspador = require(script.Parent.Raspador)
+local Trepador = require(script.Parent.Trepador)
 
 local Director = {}
 
-local G, R = Config.Golpeador, Config.Raspador
+local G, R, T, I = Config.Golpeador, Config.Raspador, Config.Trepador, Config.Imitador
 local azar = Random.new()
 local turno = 0 -- sube con cada cambio de fase: los bucles de una noche anterior se paran solos
 local enUso: { [Model]: boolean } = {} -- ventanas y puertas con un ataque en marcha
-local raspadorSeguro = false -- el primer ataque de la noche del Raspador es suyo
+local seguros: { [string]: boolean } = {} -- el primer ataque de la noche en que sale un bicho nuevo es suyo
+local apagon = false -- ya se ha ido la luz esta noche (la primera del Imitador)
 
 local function rango(r: { number }): number
 	return azar:NextNumber(r[1], r[2])
@@ -65,30 +72,58 @@ local function hueco(mio: number, n: number, dif: Dificultad.Noche, retraso: num
 	esperar(rango(G.PrimerAtaque) + retraso, mio)
 	local ultimo: Model? = nil
 	while turno == mio and not Partida.terminada() do
-		local raspa = n >= R.Noche and Raspador.cuantos() == 0 and (raspadorSeguro or azar:NextNumber() < R.Probabilidad)
-		local lista = libres(raspa, ultimo)
-		if #lista == 0 then
-			esperar(2, mio)
-			continue
+		-- Qué bicho: los especiales, uno como mucho a la vez cada uno; si no, el Golpeador.
+		local function toca(que: string, desde: number, probabilidad: number, cuantos: number): boolean
+			return n >= desde and cuantos == 0 and (seguros[que] or azar:NextNumber() < probabilidad)
 		end
-		if raspa then
-			raspadorSeguro = false
+		local puerta = Casa.principal()
+		local que = "Golpeador"
+		if puerta and not enUso[puerta] and toca("Imitador", I.Noche, I.Probabilidad, Imitador.cuantos()) then
+			que = "Imitador"
+		elseif toca("Trepador", T.Noche, T.Probabilidad, Trepador.cuantos()) then
+			que = "Trepador"
+		elseif toca("Raspador", R.Noche, R.Probabilidad, Raspador.cuantos()) then
+			que = "Raspador"
 		end
-		local el = lista[azar:NextInteger(1, #lista)]
-		ultimo = el
-		enUso[el] = true
-		local sigue = (if raspa then Raspador else Golpeador).atacar(el, n, dif.paciencia)
+		local el: Model? = nil
+		if que == "Imitador" then
+			el = puerta
+		elseif que ~= "Trepador" then
+			local lista = libres(que == "Raspador", ultimo)
+			if #lista == 0 then
+				esperar(2, mio)
+				continue
+			end
+			el = lista[azar:NextInteger(1, #lista)]
+			ultimo = el
+		end
+		seguros[que] = nil
+		local sigue
+		if que == "Trepador" then
+			sigue = Trepador.atacar(n, dif.paciencia)
+		elseif que == "Imitador" then
+			sigue = Imitador.atacar(el :: Model, n, dif.paciencia, n == I.Noche and not apagon)
+			apagon = apagon or n == I.Noche
+		else
+			sigue = (if que == "Raspador" then Raspador else Golpeador).atacar(el :: Model, n, dif.paciencia)
+		end
+		if el then
+			enUso[el] = true
+		end
 		while sigue() and turno == mio do
 			task.wait(0.5)
 		end
-		enUso[el] = nil
+		if el then
+			enUso[el] = nil
+		end
 		esperar(math.max(G.IntervaloMin, rango(G.Intervalo) - G.MenosPorNoche * (n - 1)) * dif.ritmo, mio)
 	end
 end
 
 local function noche(mio: number, n: number)
 	table.clear(enUso)
-	raspadorSeguro = n == R.Noche
+	seguros = { Raspador = n == R.Noche, Trepador = n == T.Noche, Imitador = n == I.Noche }
+	apagon = false
 	local dif = Dificultad.de(jugadores(), azar:NextNumber(), Config.Dificultad)
 	local retraso = 0
 	for i = 1, dif.alaVez do
@@ -115,6 +150,9 @@ function Director.start()
 		if fase == "Dia" then
 			Golpeador.irse()
 			Raspador.irse()
+			Trepador.irse()
+			Imitador.irse()
+			Acechador.irse()
 			Muerte.revivirTodos()
 		else
 			noche(turno, n)
@@ -122,6 +160,8 @@ function Director.start()
 	end)
 	-- Modo de pruebas: ServerStorage.Prueba:Fire(orden, punto). Órdenes: "Noche", "Dia", "Ataque" o "Raspador" (a la
 	-- ventana o puerta más cerca del punto), "Romper" (la rompe) y "Esconder" (el primer jugador, en el escondite más cerca del punto).
+	-- Bichos nuevos: "Trepador", "Imitador" (con apagón), "Acechador" (a por el primer jugador, que debe estar en el
+	-- bosque) y "Fuego" (echa un tronco a la chimenea).
 	if Prueba.activa() then
 		local orden = Instance.new("BindableEvent")
 		orden.Name = "Prueba"
@@ -145,6 +185,17 @@ function Director.start()
 				if el then
 					(if que == "Raspador" then Raspador else Golpeador).atacar(el, select(2, Ciclo.fase()))
 				end
+			elseif que == "Trepador" then
+				Trepador.atacar(select(2, Ciclo.fase()))
+			elseif que == "Imitador" then
+				local puerta = Casa.principal()
+				if puerta then
+					Imitador.atacar(puerta, select(2, Ciclo.fase()), 1, true)
+				end
+			elseif que == "Acechador" then
+				Acechador.atacar(Players:GetPlayers()[1])
+			elseif que == "Fuego" then
+				Chimenea.echar(1)
 			elseif que == "Noche" or que == "Dia" then -- las demás órdenes son de otros sistemas (Partida)
 				Ciclo.forzar(que)
 			end
@@ -165,6 +216,10 @@ function Director.start()
 		end
 		Golpeador.quitar()
 		Raspador.quitar()
+		Trepador.quitar()
+		Imitador.quitar()
+		Acechador.quitar()
+		Chimenea.apagar()
 		table.clear(enUso)
 		Partida.volverAlAmanecer()
 		Ciclo.reiniciarDia()

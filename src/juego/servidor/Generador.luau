@@ -188,6 +188,20 @@ local function enchufar(jugador: Player)
 	ponerMovil(cosa.carga or 0)
 end
 
+-- Se va la luz (la primera noche del Imitador): el motor se para de golpe aunque tenga gasolina y hay que salir al
+-- cobertizo a arrancarlo. false si ya estaba apagado.
+function Generador.apagon(): boolean
+	if not encendido then
+		return false
+	end
+	encendido = false
+	seguidos = 0
+	gen:SetAttribute("Ahogado", (gen:GetAttribute("Ahogado") or 0) + 1)
+	cambiarLuces(false)
+	publicar()
+	return true
+end
+
 -- Lo que se guarda (Partida): gasolina (0..1), si está encendido y la batería del móvil del enchufe.
 function Generador.exportar()
 	local movil = if enchufado and enchufado.Parent then enchufado:GetAttribute("Carga") else nil
