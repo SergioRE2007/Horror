@@ -30,6 +30,7 @@ local Casa = require(script.Parent.Casa)
 local Ciclo = require(script.Parent.Ciclo)
 local FormatoPartida = require(script.Parent.FormatoPartida)
 local Generador = require(script.Parent.Generador)
+local Llaves = require(script.Parent.Llaves)
 local Mochila = require(script.Parent.Mochila)
 local Recursos = require(script.Parent.Recursos)
 
@@ -121,6 +122,7 @@ local function aplicar(d)
 	for _, jugador in Players:GetPlayers() do
 		ponerMochila(jugador)
 	end
+	Llaves.repasar(semilla, d.mochilas) -- la que falte vuelve a su sitio
 end
 
 local acabar: (texto: string) -> ()
@@ -234,6 +236,7 @@ function Partida.start(): number
 	Players.PlayerRemoving:Connect(alSalir)
 	Ciclo.alCambiar(function(fase)
 		if fase == "Dia" and op and not acabada then
+			Llaves.repasar(semilla, if ultima then ultima.mochilas else {}) -- la que se haya perdido, a su sitio
 			ultima = foto()
 			task.spawn(guardar, false) -- sin frenar al resto de los que escuchan el amanecer
 		end
@@ -315,6 +318,7 @@ function Partida.start(): number
 		return d.noche
 	end
 	semilla = Random.new():NextInteger(1, 2 ^ 31 - 2)
+	Llaves.repasar(semilla, {}) -- partida nueva: todas las llaves, en su sitio
 	return 1
 end
 

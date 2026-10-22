@@ -1,6 +1,7 @@
 -- Genera el mapa por código con bloques grises (el arte llega al final): suelo, bosque de troncos, camino y la casa.
 -- La casa: dos plantas. Abajo recibidor y pasillo con la escalera, salón con chimenea, cocina, dormitorio, baño y
--- cuarto de la limpieza; arriba un dormitorio y la habitación del rico (con llave). El sótano, con llave.
+-- cuarto de la limpieza; arriba un dormitorio y la habitación del rico. Salas con llave (Llaves): sótano, garaje,
+-- desván y habitación del rico. La granja, el aserradero, la torre y el pueblo, en Lugares.
 -- Lo que se toca lleva una etiqueta de CollectionService y su estado en atributos (lo maneja Casa o Muerte):
 --   "Ventana": cristal y persiana. "Puerta": hoja que gira en la bisagra. "Escondite": armarios y camas.
 -- Medidas en studs: suelo de abajo arriba en y = 1, el de arriba en y = 14; paredes de 12 de alto.
@@ -10,6 +11,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
+local Lugares = require(script.Parent.Lugares)
 
 local Mapa = {}
 
@@ -34,6 +36,8 @@ Mapa.objetos = {} :: { { tipo: string, cf: CFrame } }
 Mapa.pesados = {} :: { { tipo: string, cf: CFrame } }
 -- Lámparas de la casa (las enciende Generador).
 Mapa.lamparas = {} :: { BasePart }
+-- Sitios donde puede salir cada llave: [zona de Config.Llaves] = { CFrame } (los pone Lugares; los elige Llaves).
+Mapa.llaves = {} :: { [string]: { CFrame } }
 
 local casa: Model
 
@@ -113,17 +117,13 @@ local function puerta(pie: Vector3, eje: Vector3, h, fuera: Vector3?)
 		COLOR.Mueble, nil, modelo)
 	bloque("Pomo", Vector3.new(0.3, 0.3, 0.8), hoja.CFrame * CFrame.new(h.ancho / 2 - 0.6, -0.4, 0), COLOR.Oscuro,
 		Enum.Material.Metal, modelo)
-	if not h.bloqueada then
-		local modificador = Instance.new("PathfindingModifier")
-		modificador.PassThrough = true -- el bicho planea su camino a través de las puertas: las abre a golpes
-		modificador.Parent = hoja
-	end
 	mando(CFrame.new(pie + Vector3.new(0, 4, 0)), modelo)
 	modelo:SetAttribute("Clave", clave("P", pie))
 	modelo:SetAttribute("Bisagra", bisagra)
 	modelo:SetAttribute("Hacia", h.hacia)
 	modelo:SetAttribute("Ancho", h.ancho)
 	modelo:SetAttribute("Bloqueada", h.bloqueada == true)
+	modelo:SetAttribute("Llave", h.llave) -- la que la abre (Config.Llaves), si es de una sala cerrada
 	if h.atacable and fuera then
 		modelo:SetAttribute("Atacable", true)
 		modelo:SetAttribute("Centro", CFrame.lookAt(pie + Vector3.new(0, h.alto / 2, 0), pie + Vector3.new(0, h.alto / 2, 0) + fuera))
@@ -298,6 +298,76 @@ local function construirCaballete()
 	modelo.Parent = casa
 end
 
+-- Desván bajo el tejado (suelo en y = 27, encima del techo; de alto, 9 en la cumbrera): se sube por la escalera del
+-- cuarto cerrado de arriba. Hastiales en los dos lados y el cuarto de revelado del rico.
+local function construirDesvan()
+	for _, x in { -26, 26 } do
+		for _, lado in { -1, 1 } do
+			-- La cuña es alta por +Z: la de -z va tal cual y la de +z, girada.
+			local cuna = Instance.new("WedgePart")
+			cuna.Name = "Hastial"
+			cuna.Anchored = true
+			cuna.Size = Vector3.new(1, 9, 22.5)
+			cuna.CFrame = CFrame.new(x, 31.5, 11.25 * lado) * (if lado > 0 then CFrame.Angles(0, math.pi, 0) else CFrame.identity)
+			cuna.Color = COLOR.Muro
+			cuna.Material = Enum.Material.WoodPlanks
+			cuna.Parent = casa
+		end
+	end
+	bloque("MesaRevelado", Vector3.new(6, 3, 3), CFrame.new(10, 28.5, 0), COLOR.Mueble)
+	bloque("Cubeta", Vector3.new(1.6, 0.3, 1.2), CFrame.new(9, 30.15, 0), COLOR.Oscuro, Enum.Material.SmoothPlastic)
+	bloque("Cuerda", Vector3.new(14, 0.1, 0.1), CFrame.new(10, 32.5, -3), COLOR.Oscuro, Enum.Material.Fabric) -- fotos tendidas
+	lampara(Vector3.new(4, 34.5, 0))
+end
+
+-- Sótano bajo el patio de atrás: de la puerta del fondo del pasillo (z = 22) baja una escalera tapada (x -3..3) hasta
+-- una sala bajo tierra (x -12..12, z 36.6..54.6, suelo en y = -11; encima, el suelo del bosque). El bosque deja un
+-- hueco en el suelo encima de la escalera (HUECO). El banco de carpintero, provisional (paso 8).
+local HUECO = { -3.5, 3.5, 22.5, 36.6 } -- x1, x2, z1, z2
+local function construirSotano()
+	local FONDO = -11
+	bloque("Rellano", Vector3.new(5, 12, 2), CFrame.new(0, FONDO + 6, 23.5), COLOR.Piso)
+	for i = 1, 11 do
+		bloque("Peldano", Vector3.new(5, 12 - i, 1.1), CFrame.new(0, FONDO + (12 - i) / 2, 24.5 + (i - 0.5) * 1.1), COLOR.Piso)
+	end
+	-- Paredes de la escalera: bajo tierra y por fuera (la del este, junto al cobertizo, hasta su suelo).
+	bloque("Muro", Vector3.new(1, 21, 14.6), CFrame.new(-3, FONDO + 10.5, 29.8))
+	bloque("Muro", Vector3.new(1, 12, 9), CFrame.new(3, FONDO + 6, 27))
+	bloque("Muro", Vector3.new(1, 21, 5.6), CFrame.new(3, FONDO + 10.5, 34.3))
+	bloque("Muro", Vector3.new(7, 10, 1), CFrame.new(0, 5, 37.1))
+	bloque("Tejadillo", Vector3.new(7, 0.6, 15.1), CFrame.new(0, 10.3, 29.85), COLOR.Oscuro, Enum.Material.CorrodedMetal)
+	lampara(Vector3.new(0, 9.6, 30))
+	-- La sala.
+	local z1, z2, alto = 36.6, 54.6, 9
+	bloque("Piso", Vector3.new(25, 1, z2 - z1 + 1), CFrame.new(0, FONDO - 0.5, (z1 + z2) / 2), COLOR.Piso, Enum.Material.Concrete)
+	bloque("Techo", Vector3.new(25, 0.4, z2 - z1 + 1), CFrame.new(0, FONDO + alto - 0.2, (z1 + z2) / 2), COLOR.Piso, Enum.Material.Concrete)
+	for _, x in { -7.5, 7.5 } do
+		bloque("Muro", Vector3.new(10, alto, 1), CFrame.new(x, FONDO + alto / 2, z1), nil, Enum.Material.Concrete)
+	end
+	bloque("Muro", Vector3.new(25, alto, 1), CFrame.new(0, FONDO + alto / 2, z2), nil, Enum.Material.Concrete)
+	for _, x in { -12, 12 } do
+		bloque("Muro", Vector3.new(1, alto, z2 - z1), CFrame.new(x, FONDO + alto / 2, (z1 + z2) / 2), nil, Enum.Material.Concrete)
+	end
+	bloque("Banco", Vector3.new(8, 3.5, 2.5), CFrame.new(-6, FONDO + 1.75, 52.5), COLOR.Mueble)
+	bloque("Estanteria", Vector3.new(1.5, 7, 8), CFrame.new(10.5, FONDO + 3.5, 46), COLOR.Mueble)
+	lampara(Vector3.new(0, -2.6, 45))
+end
+
+-- Garaje junto a la casa, al este (x 34..52, z -14..6): puerta con llave mirando a la casa y portón cerrado al camino
+-- (se abrirá con el coche, paso 8). Ventana sin persiana: es una sala cerrada.
+local function construirGaraje()
+	local OESTE, ESTE = Vector3.new(-1, 0, 0), Vector3.new(1, 0, 0)
+	CollectionService:AddTag(bloque("Piso", Vector3.new(19, 1, 21), CFrame.new(43, 0.5, -4), COLOR.Piso, Enum.Material.Concrete), "EnMapa")
+	muro(34, -14, 34, 6, ABAJO, { p(10, ESTE, { bloqueada = true, nombre = "Garaje", llave = "LlaveGaraje" }) }, OESTE)
+	muro(34, -14, 52, -14, ABAJO, { { tipo = "Hueco", en = 9, ancho = 10, alto = 9 } }, Vector3.new(0, 0, -1))
+	bloque("Porton", Vector3.new(10, 9, 0.4), CFrame.new(43, ABAJO + 4.5, -14), COLOR.Oscuro, Enum.Material.CorrodedMetal)
+	muro(52, -14, 52, 6, ABAJO, { v(4, 4, 3, 12, false) }, ESTE)
+	muro(34, 6, 52, 6, ABAJO, {}, Vector3.new(0, 0, 1))
+	bloque("Techo", Vector3.new(20, 1, 22), CFrame.new(43, ABAJO + ALTO + 0.5, -4), COLOR.Oscuro, Enum.Material.CorrodedMetal)
+	bloque("Banco", Vector3.new(8, 3.5, 2.5), CFrame.new(46, ABAJO + 1.75, 4.2), COLOR.Mueble)
+	lampara(Vector3.new(43, ABAJO + ALTO - 0.3, -4))
+end
+
 local function construirCasa(mapa: Folder)
 	casa = Instance.new("Model")
 	casa.Name = "Casa"
@@ -308,12 +378,17 @@ local function construirCasa(mapa: Folder)
 		local x1, x2, z1, z2 = r[1], r[2], r[3], r[4]
 		bloque("Piso", Vector3.new(x2 - x1, 1, z2 - z1), CFrame.new((x1 + x2) / 2, 13.5, (z1 + z2) / 2), COLOR.Piso)
 	end
-	bloque("Techo", Vector3.new(53, 1, 45), CFrame.new(0, 26.5, 0), COLOR.Piso)
+	-- Techo con el hueco de la escalera del desván (x -14..-10, z 5..13).
+	for _, r in { { -26.5, -14, -22.5, 22.5 }, { -10, 26.5, -22.5, 22.5 }, { -14, -10, -22.5, 5 }, { -14, -10, 13, 22.5 } } do
+		local x1, x2, z1, z2 = r[1], r[2], r[3], r[4]
+		bloque("Techo", Vector3.new(x2 - x1, 1, z2 - z1), CFrame.new((x1 + x2) / 2, 26.5, (z1 + z2) / 2), COLOR.Piso)
+	end
 	local inclinacion = math.atan(9 / 24)
 	for _, lado in { 1, -1 } do
 		bloque("Tejado", Vector3.new(56, 1, 25.6), CFrame.new(0, 31.5, 12 * lado) * CFrame.Angles(inclinacion * lado, 0, 0),
 			COLOR.Oscuro, Enum.Material.Slate)
 	end
+	construirDesvan()
 	bloque("Escalon", Vector3.new(8, 0.5, 3), CFrame.new(0, 0.25, -24), COLOR.Piso) -- porche
 
 	-- Escalera: 13 peldaños de 1 de alto subiendo hacia +z, y barandilla arriba.
@@ -336,7 +411,7 @@ local function construirCasa(mapa: Folder)
 	}, DELANTE)
 	muro(-26, 22, 26, 22, ABAJO, {
 		v(5, 3, 5, 10, true, true), -- cocina
-		p(26, DELANTE, { alto = 8, bloqueada = true, nombre = "Sotano" }),
+		p(26, DELANTE, { alto = 8, bloqueada = true, nombre = "Sotano", llave = "LlaveSotano" }), -- baja al sótano
 		v(3, 5, 3, 42, true, true), -- limpieza
 	}, DETRAS)
 	muro(-26, -22, -26, 22, ABAJO, {
@@ -359,9 +434,21 @@ local function construirCasa(mapa: Folder)
 	muro(-26, 22, 26, 22, ARRIBA, { v(5, 3, 5, 42, false) }, DETRAS)
 	muro(-26, -22, -26, 22, ARRIBA, { v(5, 3, 5, 11, true) }, OESTE)
 	muro(26, -22, 26, 22, ARRIBA, { v(5, 3, 5, 11, false), v(5, 3, 5, 33, false) }, ESTE)
-	muro(-6, -22, -6, 22, ARRIBA, { p(11, OESTE) }) -- dormitorio de arriba
-	muro(6, -22, 6, 22, ARRIBA, { p(17, ESTE, { bloqueada = true, nombre = "HabitacionDelRico" }) })
+	muro(-6, -22, -6, 22, ARRIBA, {
+		p(11, OESTE), -- dormitorio de arriba
+		p(41, OESTE, { ancho = 3, alto = 8, bloqueada = true, nombre = "Desvan", llave = "LlaveDesvan" }), -- escalera del desván
+	})
+	muro(6, -22, 6, 22, ARRIBA, { p(17, ESTE, { bloqueada = true, nombre = "HabitacionDelRico", llave = "LlaveRico" }) })
 	muro(-26, 0, -6, 0, ARRIBA, {})
+	-- Cuarto de la escalera del desván (x -26..-6, z 0..22 arriba): al entrar, 13 peldaños subiendo hacia -z hasta el
+	-- techo, con pared al lado para que se coja por abajo.
+	for i = 1, 13 do
+		bloque("Peldano", Vector3.new(4, i, 1), CFrame.new(-12, ARRIBA + i / 2, 18 - (i - 0.5)), COLOR.Piso)
+	end
+	bloque("Muro", Vector3.new(0.6, ALTO, 12), CFrame.new(-9.7, ARRIBA + ALTO / 2, 11))
+	-- Habitación del rico: escritorio y caja fuerte (el diario y cómo matar al bicho, más adelante).
+	bloque("Escritorio", Vector3.new(6, 3, 3), CFrame.new(20, ARRIBA + 1.5, -15), COLOR.Mueble)
+	bloque("CajaFuerte", Vector3.new(2.5, 3, 2.5), CFrame.new(24, ARRIBA + 1.5, 19), COLOR.Oscuro, Enum.Material.Metal)
 
 	-- Muebles y escondites.
 	bloque("Chimenea", Vector3.new(3, 10, 8), CFrame.new(-24.5, ABAJO + 5, -1), Color3.fromRGB(85, 82, 80), Enum.Material.Brick)
@@ -422,6 +509,8 @@ local function construirCasa(mapa: Folder)
 
 	construirCobertizo()
 	construirCaballete()
+	construirSotano()
+	construirGaraje()
 	-- Enchufe del móvil en el cuarto de la limpieza: placa, repisa donde se deja el móvil y lucecita de carga.
 	local enchufe = Instance.new("Model")
 	enchufe.Name = "Enchufe"
@@ -443,8 +532,14 @@ end
 local function construirBosque(mapa: Folder)
 	local bosque = Instance.new("Folder")
 	bosque.Name = "Bosque"
-	bloque("Suelo", Vector3.new(1600, 2, 1600), CFrame.new(0, -1, 0), COLOR.Suelo, Enum.Material.Grass, bosque)
-	CollectionService:AddTag(bloque("Camino", Vector3.new(12, 0.2, 400), CFrame.new(0, 0.05, -225), COLOR.Camino,
+	-- El suelo, en cuatro trozos alrededor del hueco de la escalera del sótano.
+	local x1, x2, z1, z2, L = HUECO[1], HUECO[2], HUECO[3], HUECO[4], 800
+	for _, r in { { -L, x1, -L, L }, { x2, L, -L, L }, { x1, x2, -L, z1 }, { x1, x2, z2, L } } do
+		bloque("Suelo", Vector3.new(r[2] - r[1], 2, r[4] - r[3]), CFrame.new((r[1] + r[2]) / 2, -1, (r[3] + r[4]) / 2), COLOR.Suelo,
+			Enum.Material.Grass, bosque)
+	end
+	-- La carretera de tierra: de la casa al pueblo.
+	CollectionService:AddTag(bloque("Camino", Vector3.new(12, 0.2, 505), CFrame.new(0, 0.05, -277.5), COLOR.Camino,
 		Enum.Material.Ground, bosque), "EnMapa")
 	local azar = Random.new(7)
 	local puestos = 0
@@ -454,9 +549,13 @@ local function construirBosque(mapa: Folder)
 		local x, z = math.cos(angulo) * distancia, math.sin(angulo) * distancia
 		if not (math.abs(x) < 12 and z < -30) then
 			local alto, grueso = azar:NextNumber(50, 85), azar:NextNumber(2, 4.5)
+			puestos += 1
+			-- Dentro de una zona (Lugares) no se pone, pero cuenta igual: los de fuera no se mueven.
+			if not Lugares.libre(x, z) then
+				continue
+			end
 			bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
 				COLOR.Tronco, Enum.Material.Wood, bosque).Shape = Enum.PartType.Cylinder
-			puestos += 1
 		end
 	end
 	-- Árboles finos cerca de la casa: los que se talan (Recursos). Tronco anclado, copa soldada y un mando abajo.
@@ -467,7 +566,8 @@ local function construirBosque(mapa: Folder)
 		local angulo = azar:NextNumber(0, math.pi * 2)
 		local distancia = azar:NextNumber(42, 170)
 		local x, z = math.cos(angulo) * distancia, math.sin(angulo) * distancia
-		if not (math.abs(x) < 14 and z < -28) and (Vector3.new(x, 0, z) - Vector3.new(-22, 0, -32)).Magnitude > 10 then
+		if not (math.abs(x) < 14 and z < -28) and (Vector3.new(x, 0, z) - Vector3.new(-22, 0, -32)).Magnitude > 10
+			and Lugares.libre(x, z) then
 			local modelo = Instance.new("Model")
 			modelo.Name = "Arbol"
 			modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
@@ -503,6 +603,7 @@ function Mapa.start()
 	local mapa = workspace:WaitForChild("Mapa")
 	construirBosque(mapa)
 	construirCasa(mapa)
+	Lugares.construir(mapa, Mapa)
 	local quedan = Separar.caras(mapa) -- que no parpadeen dos caras en el mismo plano
 	if quedan > 0 then
 		warn(`[Mapa] quedan {quedan} caras que parpadean`)

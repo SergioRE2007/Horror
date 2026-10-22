@@ -88,6 +88,23 @@ function Mochila.sacar(jugador: Player, tipo: string): Rejilla.Cosa?
 	return cosa
 end
 
+-- Cuántas cosas de ese tipo lleva.
+function Mochila.contar(jugador: Player, tipo: string): number
+	local r = rejillas[jugador]
+	return if r then Rejilla.contar(r, tipo) else 0
+end
+
+-- Le da una cosa nueva (con la carga de empezar); si no le cabe, cae a sus pies.
+function Mochila.dar(jugador: Player, tipo: string)
+	local r = rejillas[jugador]
+	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if r and Rejilla.meter(r, CAT, tipo, cargaNueva(tipo)) then
+		Mochila.publicar(jugador)
+	elseif raiz then
+		Mochila.dejar(tipo, cargaNueva(tipo), raiz.CFrame * CFrame.new(0, -1, -2))
+	end
+end
+
 -- Gasta una pila o un carrete de repuesto. false si no le quedan.
 function Mochila.gastar(jugador: Player, tipo: string): boolean
 	local r = rejillas[jugador]
@@ -110,6 +127,15 @@ function Mochila.dejar(tipo: string, carga: number?, cf: CFrame, velocidad: Vect
 	pieza:SetAttribute("Tipo", tipo)
 	if carga then
 		pieza:SetAttribute("Carga", carga)
+	end
+	if CAT[tipo] and CAT[tipo].Llave then -- llaves de las salas: latón con un brillo flojo para verlas de lejos
+		pieza.Color = Color3.fromRGB(150, 118, 58)
+		pieza.Material = Enum.Material.Metal
+		local luz = Instance.new("PointLight")
+		luz.Color = Color3.fromRGB(255, 205, 120)
+		luz.Brightness = Config.BrilloLlave.Brillo
+		luz.Range = Config.BrilloLlave.Alcance
+		luz.Parent = pieza
 	end
 	CollectionService:AddTag(pieza, "Objeto")
 	local prompt = Instance.new("ProximityPrompt")

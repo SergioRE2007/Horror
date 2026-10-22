@@ -19,6 +19,7 @@ local Casa = {}
 local cfg = Config.Casa
 local estados: { [Model]: Defensa.Estado } = {}
 local prompts: { [Model]: { principal: ProximityPrompt, reparar: ProximityPrompt } } = {}
+local gastarLlave: ((jugador: Player, llave: string) -> boolean)? = nil -- lo pone Llaves
 
 local function ahora(): number
 	return workspace:GetServerTimeNow()
@@ -38,6 +39,15 @@ local function publicar(el: Model)
 		el:SetAttribute("Abierta", e.abierta)
 		local hoja = el:FindFirstChild("Hoja") :: BasePart
 		hoja.CanCollide = not e.abierta
+		-- El bicho planea su camino a través de las puertas sin llave: las abre a golpes.
+		local modificador = hoja:FindFirstChildOfClass("PathfindingModifier")
+		if not e.bloqueada and not modificador then
+			modificador = Instance.new("PathfindingModifier")
+			modificador.PassThrough = true
+			modificador.Parent = hoja
+		elseif e.bloqueada and modificador then
+			modificador:Destroy()
+		end
 		p.principal.ActionText = if e.abierta then "Close" else "Open"
 		p.principal.Enabled = e.vida > 0
 	end
@@ -96,8 +106,17 @@ local function preparar(el: Model, tipo: string)
 				publicar(el)
 			end
 		elseif e.bloqueada then
-			el:SetAttribute("Intentos", (el:GetAttribute("Intentos") or 0) + 1) -- el cliente sacude el pomo
-			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "It's locked."))
+			-- Con su llave en la mochila (Llaves) se abre y se gasta; si no, el cliente sacude el pomo.
+			local llave = el:GetAttribute("Llave")
+			if type(llave) == "string" and gastarLlave and gastarLlave(jugador, llave) then
+				e.bloqueada = false
+				Defensa.puerta(e, ahora(), cfg)
+				publicar(el)
+				Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Unlocked."))
+			else
+				el:SetAttribute("Intentos", (el:GetAttribute("Intentos") or 0) + 1)
+				Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "It's locked."))
+			end
 		elseif Defensa.puerta(e, ahora(), cfg) then
 			publicar(el)
 		end
@@ -177,6 +196,23 @@ function Casa.puertas(): { Model }
 	for el, e in estados do
 		if e.tipo == "Puerta" and not e.bloqueada then
 			table.insert(lista, el)
+		end
+	end
+	return lista
+end
+
+-- Llaves: cómo se gasta la llave de una puerta cerrada (true si el jugador la llevaba).
+function Casa.conLlave(fn: (jugador: Player, llave: string) -> boolean)
+	gastarLlave = fn
+end
+
+-- Las llaves de las salas que siguen cerradas.
+function Casa.cerradas(): { string }
+	local lista = {}
+	for el, e in estados do
+		local llave = el:GetAttribute("Llave")
+		if e.bloqueada and type(llave) == "string" then
+			table.insert(lista, llave)
 		end
 	end
 	return lista
