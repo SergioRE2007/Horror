@@ -18,6 +18,19 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 - Al terminar y haber probado: commit, `git push`, `gh pr create --fill` y `gh pr merge --squash --delete-branch`, preguntando antes de juntar con `main`.
 - Comentarios del código en español. El `.rbxl` no se sube. No subir valores de `Config` bajados temporalmente para probar.
 
+## Calidad y flujo de tareas
+
+- Comprobar: `selene src` (revisa el código sin ejecutarlo; un hook lo pasa solo por cada `.luau` editado) y `lune run tests/regressions.luau`. Falso positivo de Selene: `-- selene: allow(<regla>)` encima de la línea. Sin StyLua ni Wally: decidido por el usuario (el código ya sale uniforme y no usamos librerías de fuera).
+- Las tareas, en orden, en `TASKS.md`. Por tarea: rama → construir → `selene src` y Lune → probar en Studio → agente `reviewer` con `git diff main...HEAD` (solo lo cambiado) → arreglar lo `GRAVE` → marcar `hecho` en `TASKS.md` → commit con mensaje claro → preguntar antes de juntar con `main`.
+- Qué usar en cada momento:
+  - Código del servidor con remotes, monedas, compras o guardado: skill `roblox-security-economy` antes de escribirlo.
+  - Precios, premios y ritmo de monedas: skill `roblox-economy-balancing`.
+  - Interfaz: skills `roblox-ui-designer` y `roblox-ui-engineer`.
+  - Un fallo que no se entiende: skill `roblox-debugging-bugfix`. Probar una tarea entera en Studio: `roblox-playtest-qa`.
+  - Revisar el código al acabar: agente `reviewer` (Sonnet; Haiku se deja fallos de seguridad). Revisar capturas: un agente con Haiku y el `.jpg`.
+  - No lanzar agentes para construir: se construye en la conversación principal, que ya tiene el contexto.
+- Parar y preguntar a Sergio si la tarea no está clara, si depende de él (dibujos, sonidos, historia, nombres) o si algo falla dos veces seguidas.
+
 ## Entorno
 
 - Windows, PowerShell. Rojo 7.7.1 y Lune 0.10.5 con Rokit (`rokit.toml`). Git y `gh` instalados. Blender en línea de comandos para modelos. ffmpeg (winget `Gyan.FFmpeg`) para grabar vídeos.
@@ -67,7 +80,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 - Simular al jugador desde el datamodel `Client`: `PivotTo` del personaje (esperar un momento: el servidor ve los saltos grandes con retraso) y disparar los remotes.
 - Errores: `LogService:GetLogHistory()` filtrando lo que no sea `MessageOutput`; `get_console_output` trae mucho ruido.
 - `screen_capture` no pinta los `BillboardGui` con `AlwaysOnTop` (ponerlo a `false` para capturar). Mundo negro con el HUD bien = la ventana de Studio está tapada. Capturas de una en una. Para fijar la cámara en modo juego: `RunService:BindToRenderStep` con prioridad `Camera + 10`.
-- Revisores: Haiku para lo visual (pasarle el `.jpg` de la captura), Sonnet para el código.
+- Revisores: Haiku para lo visual (pasarle el `.jpg` de la captura), agente `reviewer` (Sonnet) para el código.
 - `WorldPivot` de un Model no llega bien al cliente: animar pieza a pieza. `EditableMesh`: unas 8 vivas a la vez y necesita permiso en la experiencia.
 - Lo que solo funciona publicado (compras, pases, DataStores entre servidores, idioma real): decirlo como no probado.
 

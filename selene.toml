@@ -1,0 +1,8 @@
+﻿std = "roblox"
+# Las pruebas son de Lune, no de Roblox
+exclude = ["tests/*"]
+
+[lints]
+# Solo estilo: no encuentran fallos
+roblox_manual_fromscale_or_fromoffset = "allow"
+multiple_statements = "allow"
