@@ -43,6 +43,11 @@ function Ciclo.forzar(nuevaFase: string)
 	poner(nuevaFase, noche)
 end
 
+-- Acaba ya la fase de ahora como si se hubiera acabado el tiempo (solo el modo de pruebas: amanecer de verdad).
+function Ciclo.saltar()
+	fin = workspace:GetServerTimeNow()
+end
+
 -- Vuelve al principio del día de esta noche (cuando mueren todos).
 function Ciclo.reiniciarDia()
 	poner("Dia", noche)

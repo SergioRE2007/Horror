@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Defensa = require(ReplicatedStorage.Shared.Defensa)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -309,9 +310,11 @@ function Casa.start()
 		etiquetas = { "Ventana", "Puerta" },
 		accion = "Clavar",
 		preparar = prepararClavar,
-		terminar = function(_jugador, el, pieza)
+		terminar = function(jugador, el, pieza)
 			pieza:Destroy()
-			Defensa.reforzar(estados[el :: Model], cfg, Config.Taller.Refuerzo)
+			-- El Carpintero le da más vida de más (sin guardarse: al cargar la partida vuelve a la normal).
+			local factor = 1 + (Config.Taller.Refuerzo - 1) * Stats.valor(jugador, "Refuerzo")
+			Defensa.reforzar(estados[el :: Model], cfg, factor)
 			publicar(el :: Model)
 		end,
 	})

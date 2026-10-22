@@ -20,6 +20,7 @@ local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Recetas = require(ReplicatedStorage.Shared.Recetas)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Viaje = require(ServerScriptService:WaitForChild("Comun").Viaje)
+local Recompensas = require(ServerScriptService:WaitForChild("Comun").Recompensas)
 local Cargar = require(script.Parent.Cargar)
 local Casa = require(script.Parent.Casa)
 local Golpeador = require(script.Parent.Golpeador)
@@ -199,6 +200,7 @@ local function huir(jugador: Player)
 	if alHuir then
 		alHuir()
 	end
+	Recompensas.final(C.Cinematica)
 	for _, j in Players:GetPlayers() do
 		Cargar.soltar(j)
 		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?

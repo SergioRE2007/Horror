@@ -15,6 +15,7 @@ local RunService = game:GetService("RunService")
 local StarterPlayer = game:GetService("StarterPlayer")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Mapa = require(script.Parent.Mapa)
@@ -65,7 +66,7 @@ function Cargar.ajustarVelocidad(jugador: Player)
 		factor = math.min(factor, if cuantos >= peso then C.Frena[peso] else C.Arrastrar)
 		salto = false
 	end
-	humanoide.WalkSpeed = StarterPlayer.CharacterWalkSpeed * factor
+	humanoide.WalkSpeed = StarterPlayer.CharacterWalkSpeed * factor * Stats.valor(jugador, "Velocidad")
 	humanoide.JumpHeight = if salto then StarterPlayer.CharacterJumpHeight else 0
 	humanoide.JumpPower = if salto then StarterPlayer.CharacterJumpPower else 0
 end
@@ -339,6 +340,7 @@ local function usar(jugador: Player, objetivo: unknown)
 		return
 	end
 	local cf, segundos = uso.preparar(jugador, objetivo, pieza)
+	segundos = segundos and segundos * Stats.valor(jugador, "Trabajo")
 	if not cf or not segundos then
 		return
 	end
@@ -425,6 +427,13 @@ function Cargar.start()
 	end
 	local function alEntrar(jugador: Player)
 		jugador.CharacterAdded:Connect(grupoPersonaje)
+		-- La velocidad de su clase (Stats), al aparecer y si la clase llega después.
+		jugador.CharacterAdded:Connect(function()
+			task.defer(Cargar.ajustarVelocidad, jugador)
+		end)
+		jugador:GetAttributeChangedSignal("Clase"):Connect(function()
+			Cargar.ajustarVelocidad(jugador)
+		end)
 		if jugador.Character then
 			grupoPersonaje(jugador.Character)
 		end

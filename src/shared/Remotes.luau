@@ -27,6 +27,7 @@ local NOMBRES = {
 	"Trepador", -- servidor -> todos: ("Baja", modelo) por la chimenea, ("Entra", modelo) sale al salón o ("Quema", modelo)
 	"Imitador", -- servidor -> todos: ("Llama", modelo) a la puerta o ("Entra", modelo) le han abierto
 	"Acechador", -- servidor -> todos: ("Rama", modelo), ("Carga", modelo) se echa encima o ("Luz", modelo) le frena la linterna
+	"Clase", -- cliente -> servidor (lobby): (id) elegir una clase que ya tengo ("" = ninguna)
 }
 
 local Remotes = {}

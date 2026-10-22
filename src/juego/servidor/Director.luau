@@ -23,6 +23,7 @@ local Golpeador = require(script.Parent.Golpeador)
 local Imitador = require(script.Parent.Imitador)
 local Muerte = require(script.Parent.Muerte)
 local Partida = require(script.Parent.Partida)
+local Recompensas = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Recompensas)
 local Raspador = require(script.Parent.Raspador)
 local Trepador = require(script.Parent.Trepador)
 
@@ -146,6 +147,7 @@ end
 
 function Director.start()
 	Ciclo.alCambiar(function(fase, n)
+		Recompensas.fase(fase, n)
 		turno += 1
 		if fase == "Dia" then
 			Golpeador.irse()
@@ -198,6 +200,8 @@ function Director.start()
 				Chimenea.echar(1)
 			elseif que == "Noche" or que == "Dia" then -- las demás órdenes son de otros sistemas (Partida)
 				Ciclo.forzar(que)
+			elseif que == "Saltar" then -- acaba la fase de ahora (de noche, un amanecer que paga)
+				Ciclo.saltar()
 			end
 		end)
 		orden.Parent = game:GetService("ServerStorage")
