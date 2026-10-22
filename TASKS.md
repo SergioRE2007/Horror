@@ -1,6 +1,6 @@
 # Tareas
 
-Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Se hacen en orden, una por rama y conversación. Estados: `hecho`, `en curso`, `pendiente`. Al acabar una tarea se marca aquí en el mismo commit.
+Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Sergio pide pasos enteros ("paso 10"): se hacen todas sus tareas seguidas, en orden, en una sola rama, con un commit por tarea (pedido por el usuario). Estados: `hecho`, `en curso`, `pendiente`. Al acabar una tarea se marca aquí en el mismo commit.
 
 ## Hechas (pasos 1-9)
 
