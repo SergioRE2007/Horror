@@ -9,9 +9,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
 local CochesUi = {}
@@ -92,9 +92,15 @@ local function pintar()
 	titulo.Text = texto("Choose a game")
 	local p = partidas()
 	local elegida = c:GetAttribute("Ranura") or 1
+	-- Las suyas (más con el pase MasRanuras): con muchas, el número encima para que quepa.
+	local cuantas = Stats.ranuras(jugador)
 	for i, boton in ranuras do
 		local guardada = p[tostring(i)]
-		boton.Text = `{i}   ` .. if guardada then texto("Night {n}", { n = guardada.noche }) else texto("Empty")
+		boton.Visible = i <= cuantas
+		boton.Size = UDim2.new(1 / cuantas, -8, 1, 0)
+		boton.TextSize = if cuantas > 3 then 16 else 22
+		boton.Text = `{i}` .. (if cuantas > 3 then "\n" else "   ")
+			.. if guardada then texto("Night {n}", { n = guardada.noche }) else texto("Empty")
 		local borde = boton:FindFirstChildOfClass("UIStroke") :: UIStroke
 		borde.Color = if i == elegida then Ui.Color.Hueso else Ui.Color.Sangre
 		borde.Thickness = if i == elegida then 3 else 2
@@ -160,10 +166,9 @@ local function construir()
 	lista.Padding = UDim.new(0, 12)
 	lista.SortOrder = Enum.SortOrder.LayoutOrder
 	lista.Parent = fila
-	for i = 1, Config.Partida.Ranuras do
+	for i = 1, Stats.RANURAS_MAX do
 		local boton = Ui.boton("", {
 			LayoutOrder = i,
-			Size = UDim2.new(1 / Config.Partida.Ranuras, -8, 1, 0),
 			TextSize = 22,
 		})
 		boton.Activated:Connect(function()
@@ -232,6 +237,7 @@ function CochesUi.start()
 	construir()
 	jugador:GetAttributeChangedSignal("Coche"):Connect(pintar)
 	jugador:GetAttributeChangedSignal("Partidas"):Connect(pintar)
+	jugador:GetAttributeChangedSignal("PaseMasRanuras"):Connect(pintar)
 	-- Un solo bucle lento para la cuenta atrás y lo que cambie en el coche (dueño, ranura…).
 	task.spawn(function()
 		while true do

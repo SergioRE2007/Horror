@@ -8,3 +8,4 @@ require(Comun:WaitForChild("Controles")).start()
 
 local Sistemas = script
 require(Sistemas.CochesUi).start()
+require(Sistemas.TiendaUi).start()

@@ -12,6 +12,8 @@ require(Comun.Idioma).start()
 require(Comun.Datos).start()
 require(Comun.Recompensas).start()
 require(Comun.Clases).start(false)
+require(Comun.Tienda).start(false)
+require(Comun.Compras).start()
 
 local Sistemas = script
 require(Sistemas.Mapa).start() -- la casa y el bosque, antes que lo que los usa
@@ -31,5 +33,6 @@ require(Sistemas.Taller).start()
 require(Sistemas.Coche).start()
 require(Sistemas.Director).start()
 require(Sistemas.Acechador).start()
+require(Sistemas.Revivir).start()
 local noche = require(Sistemas.Partida).start() -- espera a cargar la partida y deja el mundo como estaba
 require(Sistemas.Ciclo).start(noche) -- lo último: el primer día empieza cuando todos están escuchando

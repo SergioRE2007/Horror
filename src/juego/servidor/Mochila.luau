@@ -16,6 +16,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Rejilla = require(ReplicatedStorage.Shared.Rejilla)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Cargar = require(script.Parent.Cargar)
 local Mapa = require(script.Parent.Mapa)
 local Muerte = require(script.Parent.Muerte)
@@ -253,23 +254,28 @@ local function espalda(personaje: Model)
 	pieza.Parent = personaje
 end
 
--- La mochila con la que se empieza.
-local function deInicio(): Rejilla.Rejilla
-	local r = Rejilla.nueva(M.Ancho, M.Alto)
+-- La mochila con la que se empieza (del tamaño de la suya: Stats.mochila).
+local function deInicio(jugador: Player): Rejilla.Rejilla
+	local r = Rejilla.nueva(Stats.mochila(jugador))
 	for _, tipo in M.Inicio do
 		Rejilla.meter(r, CAT, tipo, cargaNueva(tipo))
 	end
 	return r
 end
 
--- Tira al suelo, alrededor de `punto`, una lista de cosas de la rejilla.
-local function desparramar(cosas: { Rejilla.Cosa }, punto: Vector3)
+-- Tira al suelo, alrededor de `punto`, una lista de cosas de la rejilla. Devuelve las piezas.
+local function desparramar(cosas: { Rejilla.Cosa }, punto: Vector3): { BasePart }
+	local piezas = {}
 	for i, cosa in cosas do
 		local angulo = i * 2.4
 		local cf = CFrame.new(punto + Vector3.new(math.cos(angulo) * 1.5, 1 + i * 0.3, math.sin(angulo) * 1.5))
-		Mochila.dejar(cosa.tipo, cosa.carga, cf * CFrame.Angles(0, angulo, 0))
+		table.insert(piezas, Mochila.dejar(cosa.tipo, cosa.carga, cf * CFrame.Angles(0, angulo, 0)))
 	end
+	return piezas
 end
+
+-- Lo que no le cupo al cargar su mochila guardada: si luego llega el pase MochilaGrande, vuelve a la mochila.
+local caidos: { [Player]: { BasePart } } = setmetatable({}, { __mode = "k" }) :: any
 
 -- Lo que se guarda de su mochila (Partida): { cosas = las de la rejilla }.
 function Mochila.exportar(jugador: Player)
@@ -290,14 +296,15 @@ function Mochila.importar(jugador: Player, datos)
 		return
 	end
 	if datos then
-		local r, sobran = Rejilla.desde(datos, CAT, M.Ancho, M.Alto)
+		local ancho, alto = Stats.mochila(jugador)
+		local r, sobran = Rejilla.desde(datos, CAT, ancho, alto)
 		rejillas[jugador] = r
 		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz then
-			desparramar(sobran, raiz.Position)
+			caidos[jugador] = desparramar(sobran, raiz.Position)
 		end
 	else
-		rejillas[jugador] = deInicio()
+		rejillas[jugador] = deInicio(jugador)
 	end
 	if jugador:GetAttribute("MochilaAbierta") then
 		abrir(jugador, false)
@@ -324,8 +331,34 @@ function Mochila.importarSueltos(lista: { { tipo: string, carga: number?, cf: CF
 	end
 end
 
+-- Si su mochila ya no es de su tamaño (el pase MochilaGrande llega al rato de entrar), la rehace con lo que lleva.
+local function ajustarTamano(jugador: Player)
+	local r = rejillas[jugador]
+	local ancho, alto = Stats.mochila(jugador)
+	if not r or (r.ancho == ancho and r.alto == alto) then
+		return
+	end
+	local nueva, sobran = Rejilla.desde(Mochila.exportar(jugador), CAT, ancho, alto)
+	rejillas[jugador] = nueva
+	-- Lo que se le cayó al cargar y sigue en el suelo (nadie lo ha cogido) vuelve si ahora cabe.
+	for _, pieza in caidos[jugador] or {} do
+		if pieza.Parent == carpeta and Rejilla.meter(nueva, CAT, pieza:GetAttribute("Tipo"), pieza:GetAttribute("Carga")) then
+			pieza:Destroy()
+		end
+	end
+	caidos[jugador] = nil
+	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if raiz then
+		desparramar(sobran, raiz.Position)
+	end
+	Mochila.publicar(jugador)
+end
+
 local function alEntrar(jugador: Player)
-	rejillas[jugador] = deInicio()
+	rejillas[jugador] = deInicio(jugador)
+	jugador:GetAttributeChangedSignal("PaseMochilaGrande"):Connect(function()
+		ajustarTamano(jugador)
+	end)
 	jugador.CharacterAdded:Connect(espalda)
 	if jugador.Character then
 		task.spawn(espalda, jugador.Character)
