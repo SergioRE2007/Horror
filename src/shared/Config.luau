@@ -66,6 +66,8 @@ Config.Ciclo = {
 Config.Casa = {
 	MedioX = 39.5, -- la casa va de -MedioX a MedioX en x y de -MedioZ a MedioZ en z, paredes incluidas (Mapa)
 	MedioZ = 33.5,
+	-- Lo que sobresale y también es casa: { x1, x2, z1, z2 } de la torre, el mirador del comedor y el lavadero (Mapa).
+	Anexos = { { 30.5, 47.5, -41.5, -24.5 }, { -43.5, -39, -17.5, -2.5 }, { -26.5, -11.5, 33, 45.5 } },
 	TiempoPersiana = 1.4, -- lo que tarda en bajar o subir; a medio bajar no protege
 	TiempoPuerta = 0.5,
 	VidaPersiana = 100,
