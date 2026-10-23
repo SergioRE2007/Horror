@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Piezas = require(ReplicatedStorage.Shared.Piezas)
 local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
 local Lugares = require(script.Parent.Lugares)
 
@@ -18,12 +19,14 @@ local Mapa = {}
 local ABAJO, ARRIBA, ALTO = 1, 14, 12
 
 local COLOR = {
-	Suelo = Color3.fromRGB(58, 62, 55),
+	Suelo = Color3.fromRGB(70, 64, 44), -- suelo de bosque con hojarasca (LeafyGrass)
 	Camino = Color3.fromRGB(78, 72, 64),
-	Tronco = Color3.fromRGB(62, 58, 54),
-	Muro = Color3.fromRGB(128, 125, 118),
-	Piso = Color3.fromRGB(92, 88, 82),
-	Mueble = Color3.fromRGB(105, 100, 95),
+	Tronco = Color3.fromRGB(62, 50, 42), -- corteza, como la de los pinos (shared/Piezas)
+	Muro = Color3.fromRGB(116, 106, 90), -- yeso sucio de las paredes de dentro
+	Fachada = Color3.fromRGB(84, 68, 54), -- tablas viejas de las paredes de fuera
+	Marco = Color3.fromRGB(58, 44, 34), -- marcos de puertas y ventanas, porche
+	Piso = Color3.fromRGB(78, 60, 46),
+	Mueble = Color3.fromRGB(74, 54, 40),
 	Oscuro = Color3.fromRGB(45, 43, 42),
 	Cristal = Color3.fromRGB(140, 160, 170),
 	Lampara = Color3.fromRGB(255, 214, 160),
@@ -72,6 +75,18 @@ end
 
 local function lampara(posicion: Vector3)
 	local p = bloque("Lampara", Vector3.new(1.2, 0.4, 1.2), CFrame.new(posicion), COLOR.Lampara, Enum.Material.SmoothPlastic)
+	-- Con la lámpara de Blender (el techo está 0,3 más arriba), el bloque es la bombilla dentro de la pantalla:
+	-- Generador le cambia el color al encenderla.
+	local techo = posicion + Vector3.new(0, 0.3, 0)
+	local partes = Piezas.poner(casa, "Lampara", CFrame.new(techo))
+	for _, parte in partes do
+		parte.CastShadow = false -- que la pantalla no tape la luz
+	end
+	if #partes > 0 then
+		p.Shape = Enum.PartType.Ball
+		p.Size = Vector3.new(0.45, 0.45, 0.45)
+		p.Position = techo - Vector3.new(0, 0.62, 0)
+	end
 	local luz = Instance.new("PointLight")
 	luz.Color = COLOR.Lampara
 	luz.Brightness = 1.1
@@ -82,19 +97,65 @@ local function lampara(posicion: Vector3)
 	table.insert(Mapa.lamparas, p)
 end
 
+-- Adorno de madera que no choca ni tapa rayos (marcos, porche): solo se ve.
+local function adorno(tamano: Vector3, cf: CFrame, material: Enum.Material?): Part
+	local p = bloque("Adorno", tamano, cf, COLOR.Marco, material or Enum.Material.Wood)
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	return p
+end
+
+-- Marco de madera alrededor de un hueco de `ancho` x `alto` centrado en `cf` (Z = a través de la pared). Sobresale un
+-- poco por las dos caras; `sinBajo` = sin travesaño abajo (puertas).
+local function marco(cf: CFrame, ancho: number, alto: number, sinBajo: boolean?)
+	local g, fondo = 0.35, 1.3
+	for _, lado in { -1, 1 } do
+		-- Un poco más hondos que los travesaños: si sus caras coincidieran en las esquinas, parpadearían.
+		adorno(Vector3.new(g, alto + g * 2, fondo + 0.06), cf * CFrame.new(lado * (ancho / 2 + g / 2 - 0.05), 0, 0))
+	end
+	adorno(Vector3.new(ancho + g * 2, g, fondo), cf * CFrame.new(0, alto / 2 + g / 2 - 0.05, 0))
+	if not sinBajo then
+		adorno(Vector3.new(ancho + g * 2, g, fondo), cf * CFrame.new(0, -alto / 2 - g / 2 + 0.05, 0))
+	end
+end
+
+-- Pone el mueble de Blender `nombre` (shared/Piezas) en `cf` y esconde los bloques que tapa, que siguen chocando.
+-- Sin las mallas no hace nada: se ven los bloques.
+local function mueble(nombre: string, cf: CFrame, tapa: { BasePart }?, padre: Instance?): { MeshPart }
+	local partes = Piezas.poner(padre or casa, nombre, cf)
+	if #partes > 0 and tapa then
+		for _, b in tapa do
+			b.Transparency = 1
+		end
+	end
+	return partes
+end
+
 local function ventana(centro: Vector3, fuera: Vector3, h, suelo: number)
 	local modelo = Instance.new("Model")
 	modelo.Name = "Ventana"
 	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- el cliente lo necesita entero
 	local mira = CFrame.lookAt(centro, centro + fuera)
-	local cristal = bloque("Cristal", Vector3.new(h.ancho, h.alto, 0.2), mira, COLOR.Cristal, Enum.Material.Glass, modelo)
-	cristal.Transparency = 0.55
+	local cristal = bloque("Cristal", Vector3.new(h.ancho, h.alto, 0.2), mira, COLOR.Cristal, Enum.Material.SmoothPlastic, modelo)
+	-- Plástico y no Glass: detrás de Glass Roblox no pinta lo transparente (las ramas de los pinos desaparecían).
+	marco(mira, h.ancho, h.alto)
+	-- Cruceta de madera en el cristal, por fuera.
+	adorno(Vector3.new(0.18, h.alto, 0.12), mira * CFrame.new(0, 0, -0.16))
+	adorno(Vector3.new(h.ancho, 0.18, 0.08), mira * CFrame.new(0, 0, -0.16))
+	cristal.Transparency = 0.75
+	cristal.Reflectance = 0.05
 	bloque("Repisa", Vector3.new(h.ancho + 0.6, 0.3, 1.6), mira * CFrame.new(0, -h.alto / 2 - 0.15, 0), COLOR.Mueble, nil, modelo)
 	modelo.Parent = casa
 	if not h.persiana then
 		return -- ventana de una sala cerrada: solo cristal
 	end
-	bloque("Caja", Vector3.new(h.ancho + 0.6, 1, 0.9), mira * CFrame.new(0, h.alto / 2 + 0.5, 0.95), COLOR.Mueble, nil, modelo)
+	-- La barra de las cortinas (las cortinas las pinta CasaVista; pedido por el usuario: cortinas, no persianas).
+	local barra = bloque("Barra", Vector3.new(h.ancho + 1.8, 0.22, 0.22), mira * CFrame.new(0, h.alto / 2 + 0.55, 0.75),
+		COLOR.Marco, Enum.Material.Wood, modelo)
+	barra.Shape = Enum.PartType.Cylinder
+	barra.CanCollide = false
+	barra.CanQuery = false
 	mando(mira * CFrame.new(0, 0, 1.4), modelo)
 	modelo:SetAttribute("Clave", clave("V", centro))
 	modelo:SetAttribute("Centro", mira)
@@ -113,6 +174,7 @@ local function puerta(pie: Vector3, eje: Vector3, h, fuera: Vector3?)
 	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	-- La bisagra en el borde izquierdo de abajo; la hoja se extiende hacia `eje`.
 	local bisagra = CFrame.fromMatrix(pie - eje * (h.ancho / 2), eje, Vector3.yAxis)
+	marco(CFrame.fromMatrix(pie + Vector3.new(0, h.alto / 2, 0), eje, Vector3.yAxis), h.ancho, h.alto, true)
 	local hoja = bloque("Hoja", Vector3.new(h.ancho - 0.2, h.alto - 0.1, 0.35), bisagra * CFrame.new(h.ancho / 2, h.alto / 2, 0),
 		COLOR.Mueble, nil, modelo)
 	bloque("Pomo", Vector3.new(0.3, 0.3, 0.8), hoja.CFrame * CFrame.new(h.ancho / 2 - 0.6, -0.4, 0), COLOR.Oscuro,
@@ -147,12 +209,15 @@ local function muro(x1: number, z1: number, x2: number, z2: number, y0: number, 
 		end
 		local centro = inicio + eje * ((a + b) / 2) + Vector3.new(0, (ya + yb) / 2, 0)
 		local tamano = if enX then Vector3.new(b - a, yb - ya, 1) else Vector3.new(1, yb - ya, b - a)
-		bloque("Muro", tamano, CFrame.new(centro))
+		bloque("Muro", tamano, CFrame.new(centro), if fuera then COLOR.Fachada else nil)
 	end
 	table.sort(huecos, function(a, b)
 		return a.en < b.en
 	end)
-	local cursor = -0.5 -- las paredes se alargan medio stud para cerrar las esquinas
+	-- Las de fuera se alargan medio stud para cerrar las esquinas; las de dentro acaban en el centro de la que tocan (si
+	-- llegaran a su cara de fuera, asomarían en la fachada).
+	local extra = if fuera then 0.5 else 0
+	local cursor = -extra
 	for _, h in huecos do
 		local a, b = h.en - h.ancho / 2, h.en + h.ancho / 2
 		pieza(cursor, a, 0, ALTO)
@@ -166,7 +231,7 @@ local function muro(x1: number, z1: number, x2: number, z2: number, y0: number, 
 			puerta(pie, eje, h, fuera)
 		end
 	end
-	pieza(cursor, largo + 0.5, 0, ALTO)
+	pieza(cursor, largo + extra, 0, ALTO)
 end
 
 local function v(ancho, bajo, alto, en, persiana, atacable)
@@ -198,6 +263,7 @@ local function armario(centro: Vector3, frente: Vector3)
 	for i = 0, 18 do -- puertas de lamas con rendijas estrechas: se ve fuera a rayas
 		trozo(Vector3.new(4.0, 0.25, 0.12), Vector3.new(0, -3.6 + i * 0.4, -1.35))
 	end	local suelo = centro.Y - 4
+	mueble("ArmarioMarco", cf * CFrame.new(0, -4, 0), nil, modelo)
 	modelo:SetAttribute("Tipo", "Armario")
 	modelo:SetAttribute("Dentro", CFrame.lookAt(Vector3.new(centro.X, suelo + 3, centro.Z), Vector3.new(centro.X, suelo + 3, centro.Z) + frente))
 	modelo:SetAttribute("Vista", cf * CFrame.new(0, 1.6, 0.4)) -- al fondo: las lamas no tapan media pantalla
@@ -215,8 +281,9 @@ local function cama(centro: Vector3, largo: Vector3, lado: number)
 	modelo.Name = "Cama"
 	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- el cliente lo necesita entero
 	local cf = CFrame.lookAt(centro, centro + largo) -- -Z = hacia la cabecera
+	local trozos = {}
 	local function trozo(nombre: string, tamano: Vector3, offset: Vector3, color: Color3?)
-		bloque(nombre, tamano, cf * CFrame.new(offset), color or COLOR.Mueble, nil, modelo)
+		table.insert(trozos, bloque(nombre, tamano, cf * CFrame.new(offset), color or COLOR.Mueble, nil, modelo))
 	end
 	trozo("Colchon", Vector3.new(5, 1, 8), Vector3.new(0, 2.9, 0), Color3.fromRGB(120, 116, 110))
 	trozo("Somier", Vector3.new(5.2, 0.4, 8.2), Vector3.new(0, 2.2, 0))
@@ -227,6 +294,7 @@ local function cama(centro: Vector3, largo: Vector3, lado: number)
 		end
 	end
 	trozo("Almohada", Vector3.new(4, 0.6, 1.4), Vector3.new(0, 3.7, -3.2), Color3.fromRGB(140, 136, 130))
+	mueble("Cama", cf, trozos, modelo)
 	-- Tumbado boca abajo debajo de la cama, la cabeza hacia los pies de la cama, mirando fuera.
 	local dentro = cf * CFrame.new(0, 0.7, -0.5) * CFrame.Angles(0, math.pi, 0) * CFrame.Angles(-math.pi / 2, 0, 0)
 	modelo:SetAttribute("Tipo", "Cama")
@@ -534,7 +602,8 @@ local function construirCasa(mapa: Folder)
 	end
 	bloque("Muro", Vector3.new(0.6, ALTO, 12), CFrame.new(-9.7, ARRIBA + ALTO / 2, 11))
 	-- Habitación del rico: escritorio y caja fuerte (el diario y cómo matar al bicho, más adelante).
-	bloque("Escritorio", Vector3.new(6, 3, 3), CFrame.new(20, ARRIBA + 1.5, -15), COLOR.Mueble)
+	mueble("Escritorio", CFrame.new(20, ARRIBA, -15),
+		{ bloque("Escritorio", Vector3.new(6, 3, 3), CFrame.new(20, ARRIBA + 1.5, -15), COLOR.Mueble) })
 	bloque("CajaFuerte", Vector3.new(2.5, 3, 2.5), CFrame.new(24, ARRIBA + 1.5, 19), COLOR.Oscuro, Enum.Material.Metal)
 
 	-- Muebles y escondites.
@@ -551,13 +620,46 @@ local function construirCasa(mapa: Folder)
 	chimenea:SetAttribute("Salida", CFrame.lookAt(Vector3.new(-20, ABAJO, -1), Vector3.new(-10, ABAJO, -1))) -- delante del hogar
 	CollectionService:AddTag(chimenea, "Chimenea")
 	chimenea.Parent = casa
-	bloque("Sofa", Vector3.new(8, 2.5, 3), CFrame.new(-15, ABAJO + 1.25, -12), COLOR.Mueble, Enum.Material.Fabric)
-	bloque("Sofa", Vector3.new(8, 3, 1), CFrame.new(-15, ABAJO + 2.5, -13.5), COLOR.Mueble, Enum.Material.Fabric)
-	bloque("Mesita", Vector3.new(4, 1.5, 3), CFrame.new(-15, ABAJO + 0.75, -7), COLOR.Mueble)
-	bloque("Encimera", Vector3.new(14, 3.5, 2), CFrame.new(-18, ABAJO + 1.75, 20.5), COLOR.Mueble)
-	bloque("Mesa", Vector3.new(6, 0.4, 4), CFrame.new(-15, ABAJO + 3, 13), COLOR.Mueble)
-	bloque("Banera", Vector3.new(7, 2.5, 3.5), CFrame.new(21, ABAJO + 1.25, 6), Color3.fromRGB(150, 150, 148), Enum.Material.SmoothPlastic)
-	bloque("Estanteria", Vector3.new(6, 7, 1.5), CFrame.new(12, ABAJO + 3.5, 21), COLOR.Mueble)
+	local sofa = {
+		bloque("Sofa", Vector3.new(8, 2.5, 3), CFrame.new(-15, ABAJO + 1.25, -12), COLOR.Mueble, Enum.Material.Fabric),
+		bloque("Sofa", Vector3.new(8, 3, 1), CFrame.new(-15, ABAJO + 2.5, -13.5), COLOR.Mueble, Enum.Material.Fabric),
+	}
+	mueble("Sofa", CFrame.lookAt(Vector3.new(-15, ABAJO, -12), Vector3.new(-15, ABAJO, -11)), sofa)
+	mueble("Mesita", CFrame.new(-15, ABAJO, -7), { bloque("Mesita", Vector3.new(4, 1.5, 3), CFrame.new(-15, ABAJO + 0.75, -7), COLOR.Mueble) })
+	mueble("Alfombra", CFrame.new(-15, ABAJO, -8.5))
+	mueble("Cocina", CFrame.new(-18, ABAJO, 20.5),
+		{ bloque("Encimera", Vector3.new(14, 3.5, 2), CFrame.new(-18, ABAJO + 1.75, 20.5), COLOR.Mueble) })
+	mueble("Mesa", CFrame.new(-15, ABAJO, 13), { bloque("Mesa", Vector3.new(6, 0.4, 4), CFrame.new(-15, ABAJO + 3, 13), COLOR.Mueble) })
+	mueble("Banera", CFrame.new(21, ABAJO, 6), {
+		bloque("Banera", Vector3.new(7, 2.5, 3.5), CFrame.new(21, ABAJO + 1.25, 6), Color3.fromRGB(150, 150, 148), Enum.Material.SmoothPlastic),
+	})
+	mueble("Estanteria", CFrame.new(12, ABAJO, 21),
+		{ bloque("Estanteria", Vector3.new(6, 7, 1.5), CFrame.new(12, ABAJO + 3.5, 21), COLOR.Mueble) })
+	-- Lo que solo hay con las mallas de Blender: sillas, váter y lavabo (con una caja invisible para chocar) y cuadros.
+	local function conChoque(nombre: string, cf: CFrame, tamano: Vector3)
+		if #mueble(nombre, cf) > 0 then
+			local choque = bloque("Choque", tamano, cf * CFrame.new(0, tamano.Y / 2, 0))
+			choque.Transparency = 1
+			choque.CanQuery = false -- chocan, pero no tapan la vista de los bichos (antes no estaban)
+		end
+	end
+	for _, silla in { { -16.5, 10.3, 1 }, { -13.5, 10.3, 1 }, { -16.5, 15.7, -1 }, { -13.5, 15.7, -1 } } do
+		local pos = Vector3.new(silla[1], ABAJO, silla[2])
+		conChoque("Silla", CFrame.lookAt(pos, pos + Vector3.new(0, 0, silla[3])), Vector3.new(1.8, 1.9, 1.8))
+	end
+	conChoque("Vater", CFrame.lookAt(Vector3.new(23.8, ABAJO, -1.5), Vector3.new(22.8, ABAJO, -1.5)), Vector3.new(1.8, 2.4, 2.6))
+	conChoque("Lavabo", CFrame.lookAt(Vector3.new(14, ABAJO, -2.3), Vector3.new(14, ABAJO, -1.3)), Vector3.new(2.4, 3, 1.6))
+	for _, cuadro in { { -6.6, ABAJO, -18 }, { 5.4, ABAJO, -6 }, { 5.4, ARRIBA, -14 } } do
+		local pos = Vector3.new(cuadro[1], cuadro[2] + 4.5, cuadro[3])
+		mueble("Cuadro", CFrame.lookAt(pos, pos - Vector3.xAxis))
+	end
+	-- Porche: dos postes y un tejadillo sobre la puerta de entrada.
+	for _, x in { -4.5, 4.5 } do
+		adorno(Vector3.new(0.6, 10.6, 0.6), CFrame.new(x, 5.3, -25.6))
+	end
+	adorno(Vector3.new(10, 0.5, 0.5), CFrame.new(0, 10.4, -25.6))
+	adorno(Vector3.new(11, 0.4, 4.8), CFrame.new(0, 10.9, -24.3) * CFrame.Angles(math.rad(-12), 0, 0), Enum.Material.Slate).Color =
+		COLOR.Oscuro
 
 	-- Objetos sueltos por la casa (provisional: luego saldrán al azar con la semilla de la partida).
 	for _, o in {
@@ -627,6 +729,57 @@ local function construirCasa(mapa: Folder)
 	casa.Parent = mapa
 end
 
+-- El pino de Blender sobre un tronco del bosque: el tronco (un cilindro) se queda para chocar, invisible. Sin las
+-- mallas, el tronco gris de siempre. La variedad sale de su sitio, no del azar del bosque (que movería los árboles).
+local function pino(tronco: BasePart, x: number, z: number, alto: number, grueso: number)
+	local suerte = Random.new(math.floor(x * 31 + z * 17))
+	local cual = suerte:NextNumber()
+	local nombre = if cual < 0.15 then "PinoSeco" elseif cual < 0.5 then "PinoB" else "Pino"
+	local h = alto / 60
+	local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, suerte:NextNumber(0, math.pi * 2), 0)
+	if #Piezas.poner(tronco, nombre, cf, Vector3.one * h, { Bark = Vector3.new(grueso / 2, h, grueso / 2) }) > 0 then
+		tronco.Transparency = 1
+		tronco.CastShadow = false
+	end
+end
+
+-- Lo que hay por el suelo del bosque: rocas y troncos caídos (chocan) y arbustos y helechos (no). Lejos de la casa,
+-- del camino y de los sitios (Lugares), con su propio azar: no mueve nada de lo que ya había.
+local function sotobosque(bosque: Folder)
+	local suelo = Instance.new("Folder")
+	suelo.Name = "Sotobosque"
+	local azar = Random.new(31)
+	for _, cosa in { { "Helecho", 260 }, { "Arbusto", 140 }, { "RocaA", 40 }, { "RocaB", 22 }, { "TroncoCaido", 18 } } do
+		local nombre, cuantas = cosa[1], cosa[2]
+		if not Piezas.hay(nombre) then
+			continue
+		end
+		local puestas, intentos = 0, 0
+		while puestas < cuantas and intentos < cuantas * 20 do
+			intentos += 1
+			local angulo, distancia = azar:NextNumber(0, math.pi * 2), azar:NextNumber(22, 330)
+			local x, z = math.cos(angulo) * distancia, math.sin(angulo) * distancia
+			if (math.abs(x) < 10 and z < -24) or (x > -42 and x < 62 and z > -32 and z < 64) or not Lugares.libre(x, z) then
+				continue
+			end
+			local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, azar:NextNumber(0, math.pi * 2), 0)
+			local partes = Piezas.poner(suelo, nombre, cf, Vector3.one * azar:NextNumber(0.75, 1.3))
+			for _, parte in partes do
+				if nombre == "Helecho" or nombre == "Arbusto" then
+					parte.CastShadow = false
+				elseif parte.Name == "StoneDark" or parte.Name == "Bark" then
+					-- Una caja invisible por lo grueso (la roca oscura, el tronco caído), para no atravesarlo.
+					local choque = bloque("Choque", parte.Size * Vector3.new(0.85, 0.9, 0.85), parte.CFrame, nil, nil, suelo)
+					choque.Transparency = 1
+					choque.CastShadow = false
+				end
+			end
+			puestas += 1
+		end
+	end
+	suelo.Parent = bosque
+end
+
 local function construirBosque(mapa: Folder)
 	local bosque = Instance.new("Folder")
 	bosque.Name = "Bosque"
@@ -634,7 +787,7 @@ local function construirBosque(mapa: Folder)
 	local x1, x2, z1, z2, L = HUECO[1], HUECO[2], HUECO[3], HUECO[4], 800
 	for _, r in { { -L, x1, -L, L }, { x2, L, -L, L }, { x1, x2, -L, z1 }, { x1, x2, z2, L } } do
 		bloque("Suelo", Vector3.new(r[2] - r[1], 2, r[4] - r[3]), CFrame.new((r[1] + r[2]) / 2, -1, (r[3] + r[4]) / 2), COLOR.Suelo,
-			Enum.Material.Grass, bosque)
+			Enum.Material.LeafyGrass, bosque)
 	end
 	-- La carretera de tierra: de la casa al pueblo.
 	CollectionService:AddTag(bloque("Camino", Vector3.new(12, 0.2, 505), CFrame.new(0, 0.05, -277.5), COLOR.Camino,
@@ -652,8 +805,10 @@ local function construirBosque(mapa: Folder)
 			if not Lugares.libre(x, z) then
 				continue
 			end
-			bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
-				COLOR.Tronco, Enum.Material.Wood, bosque).Shape = Enum.PartType.Cylinder
+			local tronco = bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
+				COLOR.Tronco, Enum.Material.Wood, bosque)
+			tronco.Shape = Enum.PartType.Cylinder
+			pino(tronco, x, z, alto, grueso)
 		end
 	end
 	-- Árboles finos cerca de la casa: los que se talan (Recursos). Tronco anclado, copa soldada y un mando abajo.
@@ -673,10 +828,19 @@ local function construirBosque(mapa: Folder)
 			local tronco = bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
 				COLOR.Tronco, Enum.Material.Wood, modelo)
 			tronco.Shape = Enum.PartType.Cylinder
-			for i, copa in { { 9, alto - 4 }, { 6, alto + 1 } } do
-				local hoja = bloque("Copa", Vector3.new(copa[1], copa[1] * 0.8, copa[1]),
-					CFrame.new(x, copa[2], z) * CFrame.Angles(0, azar:NextNumber(0, math.pi) + i, 0), Color3.fromRGB(44, 54, 42),
-					Enum.Material.Grass, modelo)
+			-- Dos números del azar por árbol, como siempre (pedir otros tantos movería los árboles guardados).
+			local giro = azar:NextNumber(0, math.pi)
+			azar:NextNumber(0, math.pi)
+			local hojas = Piezas.poner(modelo, "CopaTalable", CFrame.new(x, 0, z) * CFrame.Angles(0, giro * 2, 0),
+				Vector3.one * (alto / 26))
+			if #hojas == 0 then -- sin las mallas de Blender, la copa de bloques
+				for i, copa in { { 9, alto - 4 }, { 6, alto + 1 } } do
+					table.insert(hojas, bloque("Copa", Vector3.new(copa[1], copa[1] * 0.8, copa[1]),
+						CFrame.new(x, copa[2], z) * CFrame.Angles(0, giro + i, 0), Color3.fromRGB(44, 54, 42), Enum.Material.Grass, modelo))
+				end
+			end
+			for _, hoja in hojas do
+				hoja.Name = "Copa" -- Recursos la quita al partir el tronco
 				hoja.Anchored = false
 				hoja.CanCollide = false
 				hoja.Massless = true
@@ -694,6 +858,7 @@ local function construirBosque(mapa: Folder)
 		end
 	end
 	talables.Parent = bosque
+	sotobosque(bosque)
 	bosque.Parent = mapa
 end
 

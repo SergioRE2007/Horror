@@ -170,6 +170,49 @@ function Ambiente.start()
 			lejano.PlaybackSpeed = 0.8
 		end
 	end)
+	-- Sonidos sueltos del bosque, al azar y cada uno desde un sitio (pedido por el usuario: el fondo es solo viento y
+	-- hojas, para que no se oiga siempre lo mismo). De noche lobos lejos, búhos en lo alto, ramas y grillos; de día,
+	-- alguna rama. Números a ojo.
+	task.spawn(function()
+		local azar = Random.new()
+		local SUELTOS_NOCHE = { { "Lobo", 2, 110, 160 }, { "Buho", 3, 40, 80 }, { "Ramita", 3, 25, 60 }, { "Grillo", 3, 15, 35 } }
+		local SUELTOS_DIA = { { "Ramita", 1, 25, 60 } }
+		while true do
+			local noche = workspace:GetAttribute("Fase") == "Noche"
+			task.wait(if noche then azar:NextNumber(10, 28) else azar:NextNumber(30, 70))
+			local lista = if workspace:GetAttribute("Fase") == "Noche" then SUELTOS_NOCHE else SUELTOS_DIA
+			local total = 0
+			for _, s in lista do
+				total += s[2]
+			end
+			local tirada = azar:NextNumber(0, total)
+			for _, s in lista do
+				tirada -= s[2]
+				if tirada <= 0 then
+					local angulo = azar:NextNumber(0, math.pi * 2)
+					local lejos = azar:NextNumber(s[3], s[4])
+					local alto = if s[1] == "Buho" then azar:NextNumber(20, 35) else 1
+					local p = workspace.CurrentCamera.CFrame.Position
+					Sonido.en(s[1], Vector3.new(p.X + math.cos(angulo) * lejos, alto, p.Z + math.sin(angulo) * lejos),
+						azar:NextNumber(0.9, 1.08))
+					break
+				end
+			end
+		end
+	end)
+	-- De noche, con la cámara dentro de la casa (x -26..26, z -22..22), la madera cruje sola de vez en cuando en algún
+	-- sitio cerca: no es nada, pero no se sabe.
+	task.spawn(function()
+		local azar = Random.new()
+		while true do
+			task.wait(azar:NextNumber(18, 45))
+			local p = workspace.CurrentCamera.CFrame.Position
+			if workspace:GetAttribute("Fase") == "Noche" and math.abs(p.X) < 26 and math.abs(p.Z) < 22 and p.Y < 28 then
+				local donde = p + Vector3.new(azar:NextNumber(-12, 12), azar:NextNumber(-3, 6), azar:NextNumber(-12, 12))
+				Sonido.en("Cruje", donde, azar:NextNumber(0.85, 1.1))
+			end
+		end
+	end)
 end
 
 return Ambiente

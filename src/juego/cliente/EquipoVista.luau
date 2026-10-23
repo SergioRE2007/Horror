@@ -124,7 +124,9 @@ local function mostrarCartel()
 end
 
 local function pedirLinterna()
-	Sonido.tocar("Linterna")
+	-- Si tiene pila y está apagada, se enciende; si no, el clic de apagar (pedido por el usuario: dos sonidos).
+	local enciende = not jugador:GetAttribute("Linterna") and (jugador:GetAttribute("Pila") or 0) > 0
+	Sonido.tocar(if enciende then "Linterna" else "LinternaApaga")
 	Remotes.Linterna:FireServer()
 end
 

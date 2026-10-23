@@ -7,7 +7,7 @@ local Separar = {}
 local CRECE = 0.03 -- studs que crece cada cara de la pieza que se separa
 local IGUAL = 0.02 -- caras más cerca que esto cuentan como el mismo plano
 local CAJON = 0.1 -- studs de plano por cajón (para no comparar todas con todas)
-local VUELTAS = 8
+local VUELTAS = 20 -- con los marcos de puertas y ventanas hacen falta más de 8
 
 type Cara = { pieza: BasePart, plano: number, a0: number, a1: number, b0: number, b1: number }
 

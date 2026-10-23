@@ -1,0 +1,17 @@
+{
+	"seconds": 40,
+	"cutoff": 8000,
+	"bed": { "level": 0.025, "cutoff": 380, "depth": 0.7, "seed": 13 },
+	"events": [
+		{ "file": "viento_1.mp3", "at": 0.5, "gain": 0.22, "pan": -0.4, "cutoff": 3000 },
+		{ "file": "hojas_1.mp3", "at": 3.0, "gain": 0.12, "pan": 0.5, "cutoff": 5000 },
+		{ "file": "viento_2.mp3", "at": 7.5, "gain": 0.2, "pan": 0.4, "cutoff": 2800 },
+		{ "file": "hojas_2.mp3", "at": 11.5, "gain": 0.11, "pan": -0.3, "cutoff": 5000 },
+		{ "file": "viento_3.mp3", "at": 15.0, "gain": 0.24, "pan": 0.0, "cutoff": 2600 },
+		{ "file": "hojas_1.mp3", "at": 20.0, "gain": 0.1, "pan": 0.2, "cutoff": 5000 },
+		{ "file": "viento_1.mp3", "at": 23.0, "gain": 0.18, "pan": 0.5, "cutoff": 3000 },
+		{ "file": "hojas_2.mp3", "at": 27.5, "gain": 0.12, "pan": -0.6, "cutoff": 5000 },
+		{ "file": "viento_2.mp3", "at": 30.5, "gain": 0.2, "pan": -0.3, "cutoff": 2800 },
+		{ "file": "hojas_1.mp3", "at": 35.5, "gain": 0.1, "pan": 0.4, "cutoff": 5000 }
+	]
+}

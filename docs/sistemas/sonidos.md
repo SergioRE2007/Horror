@@ -1,0 +1,13 @@
+# Sonidos (paso 11.3)
+
+- Hechos con ElevenLabs (`tools/sonidos/generar.mjs <carpeta> [tanda]`, tandas `bichos`, `casa`, `pasos`, `ambiente`, `rehacer`) y elegidos por el usuario de oído en `escuchar.html`. Los mp3 están fuera del repo, en `Documents\Roblox\sonidos-terror`, con los ids de Roblox en `ids.json` de cada tanda. Se suben al grupo (`node tools/sonidos/subir.mjs <carpeta> g1002188803 <clave> "<expresión>"`).
+- Elegidos (pedido por el usuario): Golpe 3, Grieta 3, Cristal las tres, Rugido 1, Paso 3, Raspado 2, Chillido 3, Crujido 1, Hollín 3, Llamar 3, Rama 1, Susto 1, Latido 1, Puerta 1 al abrir y 2 al cerrar, Linterna 1 al encender y 2 al apagar, Hachazo 1, Caída 3, Serrar 2, Martillo 1, Motor 2, Verter 2, Fuego 1, Cruje 1, PasoMadera 4, PasoTierra 4, PasoHierba 2. Cortina 1 al abrir y 2 al cerrar (11.4). El flash de ElevenLabs no gustó (ni los primeros ni el chasquido con pitido). Elegido por el usuario: uno de YouTube libre de derechos ("Camera Flash Sound Effect - Free Download & No Copyright", canal Sound Effects - No Copyright & Free Download, youtu.be/-ALLgicLRAs, "royalty-free"), recortado a 1,9 s.
+- `Config.Sonidos`: `Id` uno o lista (`Sonido` los alterna sin repetir). Volumen compensado con el pico de cada grabación (`node tools/sonidos/picos.mjs <carpeta>`): casi todas salen a tope y solo se suben las flojas (1 / pico).
+- `juego/cliente/Pasos`: los pasos de cada jugador cerca de la cámara según `Humanoid.FloorMaterial` (madera, hojarasca/hierba o tierra), uno cada 7 studs andados, en 3D desde los pies. Calla el `Running` de serie de Roblox.
+- `Ambiente`: el fondo del bosque (`Viento`) es un bucle de 40 s de solo viento y hojas (`tools/sonidos/componer.mjs tools/sonidos/bosque.json <piezas> BosqueBase.wav`; pedidos de una vez a ElevenLabs los ambientes salen mudos y con siseo). Lo demás suena suelto y al azar desde un sitio del bosque (pedido por el usuario: que no se oiga siempre lo mismo): de noche lobos lejos, búhos en lo alto, ramas y grillos cada 10-28 s; de día alguna rama. De noche, con la cámara dentro de la casa, un crujido suelto cada 18-45 s.
+- Flash (pedido por el usuario): foto con un fogonazo fuerte y después un pitido agudo que se va apagando, como el oído que vuelve a la normalidad. El chasquido es de ElevenLabs (`FlashPop`) y el pitido lo añade `tools/sonidos/pitido.mjs` (dos tonos de unos 7200 Hz que se apagan en 3 s).
+- Claude no puede oír: el volumen y el gusto los decide el usuario.
+
+## Probado en Studio (23-10-2026)
+
+- Las 33 grabaciones cargan; los pasos suenan en madera al andar y el sonido de correr de serie queda a 0.

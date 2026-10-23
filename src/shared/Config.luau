@@ -368,34 +368,52 @@ Config.Test = {
 	Partidas = { ["1"] = { noche = 4, hora = 0 } }, -- lo que el lobby enseña como ya guardado (las ranuras)
 }
 
--- Sonidos. Provisionales de la biblioteca de Roblox para probar la tensión; se cambian por los de ElevenLabs.
+-- Sonidos (juego/cliente/Sonido): de ElevenLabs, elegidos por el usuario de oído (tools/sonidos, docs/sistemas/sonidos.md).
+-- Id = uno o una lista (suenan alternados). Volumen ya compensado: casi todos salen a tope; los flojos van subidos
+-- (1 / su pico). Alcance = studs hasta los que se oye desde donde pasa. Los dos que aún son de la biblioteca de
+-- Roblox están marcados.
 Config.Sonidos = {
-	Golpe = { Id = 9126254743, Volumen = 2, Alcance = 120 },
-	Grieta = { Id = 9114588728, Volumen = 0.8, Alcance = 80 },
-	Cristal = { Id = 543280386, Volumen = 1.5, Alcance = 120 },
-	Rugido = { Id = 9113980319, Volumen = 1.5, Alcance = 150 },
-	Paso = { Id = 9126253532, Volumen = 0.5, Alcance = 60 },
-	Persiana = { Id = 9112889534, Volumen = 0.6, Alcance = 40 },
-	Puerta = { Id = 9120829478, Volumen = 0.6, Alcance = 40 },
-	Latido = { Id = 9043365842, Volumen = 0.7 },
-	Susto = { Id = 9113985451, Volumen = 2 },
-	Raspado = { Id = 9120078794, Volumen = 1.2, Alcance = 70 }, -- en bucle mientras raspa
-	Chillido = { Id = 9125474863, Volumen = 1.6, Alcance = 150 }, -- el Raspador al recibir el flash
-	Linterna = { Id = 9070807695, Volumen = 0.5 },
-	Flash = { Id = 118206070547709, Volumen = 0.9, Alcance = 50 },
-	Hachazo = { Id = 9120950231, Volumen = 1.2, Alcance = 90 },
-	Caida = { Id = 9120796401, Volumen = 2, Alcance = 150 }, -- el árbol al dar contra el suelo
-	Serrar = { Id = 100885263044327, Volumen = 0.8, Alcance = 50 }, -- en bucle
-	Martillo = { Id = 175233098, Volumen = 1, Alcance = 60 },
-	Motor = { Id = 83031465221433, Volumen = 0.5, Alcance = 70 }, -- el generador encendido, en bucle
-	Verter = { Id = 9117865590, Volumen = 0.8, Alcance = 30 },
-	Crujido = { Id = 9125407239, Volumen = 1.4, Alcance = 80 }, -- madera del tejado bajo el Trepador
-	Hollin = { Id = 9126239755, Volumen = 1.6, Alcance = 90 }, -- algo arrastrándose dentro de la chimenea
-	Fuego = { Id = 108689534998891, Volumen = 0.7, Alcance = 40 }, -- la chimenea encendida, en bucle
-	Llamar = { Id = 9120918417, Volumen = 1.6, Alcance = 90 }, -- el Imitador en la puerta
-	Rama = { Id = 9113582284, Volumen = 1.8, Alcance = 90 }, -- el Acechador en el bosque
-	-- Sin viento de fondo hasta tener uno de ElevenLabs: el de la biblioteca sonaba saturado (pedido por el usuario).
-	-- Viento = { Id = ..., Volumen = 0.12 },
+	Golpe = { Id = 90763366072682, Volumen = 3, Alcance = 120 },
+	Grieta = { Id = 100084710095294, Volumen = 0.8, Alcance = 80 },
+	Cristal = { Id = { 109453489344482, 97637753283588, 128730961489069 }, Volumen = 1.3, Alcance = 120 },
+	Rugido = { Id = 127253467505898, Volumen = 1.5, Alcance = 150 },
+	Paso = { Id = 136017086076556, Volumen = 0.6, Alcance = 60 }, -- de los bichos
+	Cortina = { Id = 79954556495838, Volumen = 0.6, Alcance = 40 }, -- al abrirla
+	CortinaCierra = { Id = 116375610138100, Volumen = 0.6, Alcance = 40 },
+	Tiron = { Id = 9112889534, Volumen = 0.6, Alcance = 40 }, -- la cuerda del generador (biblioteca, sin cambiar)
+	Puerta = { Id = 126413574108197, Volumen = 0.6, Alcance = 40 }, -- al abrirse
+	PuertaCierra = { Id = 77366400653400, Volumen = 0.6, Alcance = 40 },
+	Latido = { Id = 114745522513692, Volumen = 0.8 },
+	Susto = { Id = 76385773029835, Volumen = 1.8 },
+	Raspado = { Id = 73284823449392, Volumen = 1.8, Alcance = 70 }, -- en bucle mientras raspa
+	Chillido = { Id = 81928223946678, Volumen = 1.5, Alcance = 150 }, -- el Raspador al recibir el flash
+	Linterna = { Id = 83923860147180, Volumen = 0.5 }, -- al encenderla
+	LinternaApaga = { Id = 125142713337345, Volumen = 0.5 },
+	Flash = { Id = 118206070547709, Volumen = 0.9, Alcance = 50 }, -- biblioteca: los de ElevenLabs no gustaron, se rehacen
+	Hachazo = { Id = 100140958893599, Volumen = 1.2, Alcance = 90 },
+	Caida = { Id = 90088146547108, Volumen = 2, Alcance = 150 }, -- el árbol al dar contra el suelo
+	Serrar = { Id = 127179113277901, Volumen = 0.8, Alcance = 50 }, -- en bucle
+	Martillo = { Id = 97902434243999, Volumen = 1, Alcance = 60 },
+	Motor = { Id = 118749656286088, Volumen = 0.5, Alcance = 70 }, -- el generador encendido, en bucle
+	Verter = { Id = 73665182403100, Volumen = 1, Alcance = 30 },
+	Crujido = { Id = 101323772432262, Volumen = 1.4, Alcance = 80 }, -- madera del tejado bajo el Trepador
+	Hollin = { Id = 133574014508797, Volumen = 1.6, Alcance = 90 }, -- algo arrastrándose dentro de la chimenea
+	Fuego = { Id = 120345409600923, Volumen = 1.2, Alcance = 40 }, -- la chimenea encendida, en bucle
+	Llamar = { Id = 85091064305699, Volumen = 1.2, Alcance = 90 }, -- el Imitador en la puerta
+	Rama = { Id = 130950746994310, Volumen = 1.8, Alcance = 90 }, -- el Acechador en el bosque
+	Cruje = { Id = 90016245337834, Volumen = 0.9, Alcance = 50 }, -- la casa cruje sola de noche (Ambiente)
+	-- Tus pasos según el suelo (juego/cliente/Pasos).
+	PasoMadera = { Id = 120688859292249, Volumen = 0.35, Alcance = 40 },
+	PasoTierra = { Id = 134774038857358, Volumen = 0.6, Alcance = 40 },
+	PasoHierba = { Id = 139972541989405, Volumen = 2, Alcance = 40 },
+	-- Fondo del bosque en bucle: solo viento y hojas, compuesto con tools/sonidos/componer.mjs y bosque.json. Sube de
+	-- noche (Ambiente). Lo demás suena suelto y al azar desde algún sitio del bosque (pedido por el usuario: que no se
+	-- oiga siempre lo mismo).
+	Viento = { Id = 135916874292391, Volumen = 0.6 },
+	Lobo = { Id = { 94567506276238, 123890651978034 }, Volumen = 1.2, Alcance = 400 },
+	Buho = { Id = { 128579231147340, 99006707518885 }, Volumen = 0.9, Alcance = 250 },
+	Ramita = { Id = { 81824412925307, 91333969182246 }, Volumen = 3, Alcance = 150 },
+	Grillo = { Id = { 106921997334500, 94261260619240 }, Volumen = 0.8, Alcance = 120 },
 }
 
 -- Ventajas de los jugadores (shared/Stats): lo de quien no tiene clase. Cada una se usa en un solo sistema.
