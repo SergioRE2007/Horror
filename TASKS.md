@@ -93,9 +93,16 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Estado:** pendiente — el texto de la historia lo aprueba Sergio
 
 ### 12.2 La Bestia
-- **Descripción:** final de matar al bicho, con la preparación que dicen las pistas (trampa del sótano, arma del desván…). Pide casi toda la casa abierta.
-- **Criterios:** se puede completar de principio a fin en `Config.Test`; recompensa e insignia propias, entregadas una vez.
-- **Estado:** pendiente — la mecánica concreta se decide con Sergio
+- **Descripción (pedido por el usuario):** la Bestia es el origen de todos los bichos (partes o crías suyas que cazan para ella; el rico la alimenta con gente y por eso te contrató). Se la mata dentro de la casa: herirla, atraerla al sótano, encerrarla y quemar la casa empapada de gasolina. Al morir ella caen todos.
+- **Preparación** (días y noches normales, lo explican las pistas):
+  1. Gasolina: un bidón en cada uno de 6 puntos marcados de la casa (salón, cocina, pasillo, escalera, los dos dormitorios); se ve el charco, suena `Verter`. El último deja un rastro hasta el porche.
+  2. Trampa del sótano: reja de hierro armada en el banco del taller con piezas (cadenas, barrotes); cae con una palanca y encierra lo que haya dentro.
+  3. Pistola de bengalas del rico en el desván, con 3 bengalas (luz y fuego: lo que la daña).
+  4. Cerillas para prender el rastro.
+- **Noche final:** empieza con "Esperarla" en la casa cuando todo está listo. Esa noche no sale ningún otro bicho. Es más rápida que el jugador; cada bengala la deja cojeando ~8 s y más lenta. Se la atrae al sótano, se pasa la reja y se tira de la palanca; se sale por una trampilla nueva al patio. Desde el porche, la cerilla al rastro: el fuego recorre la casa sala por sala, cinemática de la casa ardiendo con su rugido, amanece; recompensa e insignia. Sin bengalas o con la reja fallada, te pilla y mueres.
+- **Números a ojo:** 6 puntos de gasolina, 3 bengalas, ~8 s cojeando (en `Config`).
+- **Criterios:** se puede completar de principio a fin en `Config.Test`; recompensa e insignia propias, entregadas una vez; lo preparado se guarda en la partida (guardado viejo sigue cargando, prueba de Lune); cinemática que esconde la interfaz y la devuelve siempre.
+- **Estado:** pendiente — mecánica decidida con Sergio; hacer después de 12.1 (las pistas la explican)
 
 ## 13. Lanzamiento
 

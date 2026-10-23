@@ -14,7 +14,7 @@ Ideas de Sergio y propuestas de Claude que aceptó. "Pedido por el usuario" = no
 - Un rico te contrata para vigilar su casa en el bosque, muy bien pagado. Llegas en tu coche (cinemática al empezar) y la primera noche un bicho te lo destroza: no hay forma de irse.
 - Giro (propuesta aceptada): con las pistas se descubre que el rico sabía lo que pasaba en la casa y te mandó a propósito.
 - Final de la huida (el fácil): reparar el coche en el taller del garaje con piezas y recursos del bosque. Escena final con el bicho persiguiendo el coche.
-- Final de matar al bicho (el difícil): descubrir cómo con las pistas y preparar algo grande (trampa del sótano, arma del desván…). Pide haber abierto casi toda la casa.
+- Final de matar al bicho (el difícil, pedido por el usuario): la Bestia es el origen de todos los bichos; muere en la casa quemándola, y con ella caen todos. Pide haber abierto casi toda la casa. Detalle en la tarea 12.2 de `TASKS.md`.
 - Sin límite de noches: cada noche más difícil empuja a terminar. Cada final da recompensa e insignia propias.
 
 ## Ritmo
