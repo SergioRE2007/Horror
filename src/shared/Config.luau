@@ -391,7 +391,7 @@ Config.Sonidos = {
 	Chillido = { Id = 81928223946678, Volumen = 1.5, Alcance = 150 }, -- el Raspador al recibir el flash
 	Linterna = { Id = 83923860147180, Volumen = 0.5 }, -- al encenderla
 	LinternaApaga = { Id = 125142713337345, Volumen = 0.5 },
-	Flash = { Id = 118206070547709, Volumen = 0.9, Alcance = 50 }, -- biblioteca: los de ElevenLabs no gustaron, se rehacen
+	Flash = { Id = 132658894276493, Volumen = 0.9, Alcance = 50 }, -- de YouTube, libre de derechos (elegido por el usuario)
 	Hachazo = { Id = 100140958893599, Volumen = 1.2, Alcance = 90 },
 	Caida = { Id = 90088146547108, Volumen = 2, Alcance = 150 }, -- el árbol al dar contra el suelo
 	Serrar = { Id = 127179113277901, Volumen = 0.8, Alcance = 50 }, -- en bucle

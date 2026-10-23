@@ -69,7 +69,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 ### 11.3 Sonidos con ElevenLabs
 - **Descripción:** golpes, chirridos, pasos por suelo, casa que cruje, latido, ambiente por capas.
 - **Criterios:** Sergio los elige en `escuchar.html`; volumen igualado con `medir.mjs`; precargados en `SoundService`; sonidos 3D desde su ventana.
-- **Estado:** en curso — elegidos (ver `docs/sistemas/sonidos.md`); falta el flash. PENDIENTE AL VOLVER A CASA: subir `tools/sonidos/pendiente/FlashYT.mp3` al grupo con `subir.mjs` (este PC no tiene la clave), poner su id en `Config.Sonidos.Flash`, probar en Studio y borrar la carpeta `pendiente`.
+- **Estado:** en curso — elegidos (ver `docs/sistemas/sonidos.md`); falta probar el flash: `FlashYT` ya está subido al grupo (132658894276493, en `Config.Sonidos.Flash`); al comprobarlo en Studio, borrar `tools/sonidos/pendiente`.
 
 ### 11.4 Cortinas en vez de persianas (pedido por el usuario)
 - **Descripción:** en todo el juego las ventanas tienen cortinas, no persianas: modelo, textos, sonido y nombres que ve el jugador. La mecánica de cerrar y abrir la ventana se queda igual.
