@@ -36,7 +36,8 @@ local function publicar(el: Model)
 	if e.tipo == "Ventana" then
 		el:SetAttribute("Persiana", e.persiana)
 		el:SetAttribute("Cristal", e.cristal)
-		p.principal.ActionText = if e.persiana then "Raise shutter" else "Lower shutter"
+		-- Cortinas (pedido por el usuario: cortinas en vez de persianas); dentro sigue llamándose persiana.
+		p.principal.ActionText = if e.persiana then "Open curtains" else "Close curtains"
 		p.principal.Enabled = e.vida > 0
 	else
 		el:SetAttribute("Abierta", e.abierta)

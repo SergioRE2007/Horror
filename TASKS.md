@@ -59,17 +59,22 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 ### 11.1 Casa y bosque con Blender
 - **Descripción:** sustituir los bloques grises por modelos por script (`tools/blender/`), con mallas `<Pieza>_<Papel>`.
 - **Criterios:** la jugabilidad no cambia (mismas colisiones y sitios); vistas `.png` revisadas; rendimiento aceptable en móvil.
-- **Estado:** pendiente
+- **Estado:** hecho (ver `docs/sistemas/arte.md`)
 
 ### 11.2 Monstruos con IA
 - **Descripción:** Golpeador, Raspador, Trepador, Imitador y Acechador desde dibujos de Sergio, pasados por IA de imagen a 3D, con esqueleto y animaciones por código.
 - **Criterios:** licencia comercial comprobada; no pasa de Moderate (se ven en penumbra o un instante); animados.
-- **Estado:** pendiente — necesita los dibujos de Sergio
+- **Estado:** pendiente — necesita los dibujos de Sergio; se deja para casi el final (pedido por el usuario)
 
 ### 11.3 Sonidos con ElevenLabs
 - **Descripción:** golpes, chirridos, pasos por suelo, casa que cruje, latido, ambiente por capas.
 - **Criterios:** Sergio los elige en `escuchar.html`; volumen igualado con `medir.mjs`; precargados en `SoundService`; sonidos 3D desde su ventana.
-- **Estado:** pendiente — Sergio elige
+- **Estado:** en curso — elegidos (ver `docs/sistemas/sonidos.md`); falta el flash. PENDIENTE AL VOLVER A CASA: subir `tools/sonidos/pendiente/FlashYT.mp3` al grupo con `subir.mjs` (este PC no tiene la clave), poner su id en `Config.Sonidos.Flash`, probar en Studio y borrar la carpeta `pendiente`.
+
+### 11.4 Cortinas en vez de persianas (pedido por el usuario)
+- **Descripción:** en todo el juego las ventanas tienen cortinas, no persianas: modelo, textos, sonido y nombres que ve el jugador. La mecánica de cerrar y abrir la ventana se queda igual.
+- **Criterios:** ningún texto del jugador dice persiana; el Golpeador y el Raspador se juegan igual; partidas guardadas de antes siguen cargando.
+- **Estado:** hecho (ver `docs/sistemas/corazon.md`)
 
 ## 12. Final difícil e historia
 

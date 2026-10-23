@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Piezas = require(ReplicatedStorage.Shared.Piezas)
 local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
 
 local Gasolinera = {}
@@ -63,8 +64,8 @@ local function coche(n: number, cf: CFrame, padre: Instance)
 		end
 	end
 	local luna = bloque("Luna", Vector3.new(5.4, 3.3, 0.15), cf * CFrame.new(0, 4.5, -2.4) * CFrame.Angles(math.rad(-20), 0, 0),
-		COLOR.Cristal, Enum.Material.Glass, modelo)
-	luna.Transparency = 0.6
+		COLOR.Cristal, Enum.Material.SmoothPlastic, modelo) -- no Glass: tapa lo transparente de detrás (pinos)
+	luna.Transparency = 0.7
 	for _, x in { -3.1, 3.1 } do
 		for _, z in { -3.8, 3.8 } do
 			local rueda = bloque("Rueda", Vector3.new(0.9, 2.4, 2.4), cf * CFrame.new(x, 1.2, z), COLOR.Rueda, Enum.Material.Rubber, modelo)
@@ -101,8 +102,18 @@ local function bosque(mapa: Folder)
 		local enGasolinera = x > -14 and x < 80 and math.abs(z) < 50
 		if math.abs(x) > 12 and not enGasolinera then
 			local alto, grueso = azar:NextNumber(40, 70), azar:NextNumber(2, 4)
-			bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
-				COLOR.Tronco, Enum.Material.Wood, mapa).Shape = Enum.PartType.Cylinder
+			local tronco = bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
+				COLOR.Tronco, Enum.Material.Wood, mapa)
+			tronco.Shape = Enum.PartType.Cylinder
+			-- El pino de Blender encima; el tronco se queda para chocar, invisible (variedad por su sitio, no del azar).
+			local suerte = Random.new(math.floor(x * 31 + z * 17))
+			local nombre = if suerte:NextNumber() < 0.5 then "PinoB" else "Pino"
+			local h = alto / 60
+			local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, suerte:NextNumber(0, math.pi * 2), 0)
+			if #Piezas.poner(tronco, nombre, cf, Vector3.one * h, { Bark = Vector3.new(grueso / 2, h, grueso / 2) }) > 0 then
+				tronco.Transparency = 1
+				tronco.CastShadow = false
+			end
 			puestos += 1
 		end
 	end

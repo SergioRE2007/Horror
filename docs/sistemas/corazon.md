@@ -15,7 +15,7 @@ Todo con bloques grises. Animaciones sencillas a propósito: se mejoran más ade
 
 - `Ui` (común): estilo oscuro, fuente SpecialElite, letras hueso, rojo oscuro; un solo `UIScale`. `Avisos` (común): avisos de una línea del servidor.
 - `Controles`: pinta los prompts Custom; en móvil, botón grande de acción a la derecha.
-- `CasaVista`: lamas de la persiana (locales), grietas y cristal que estalla, puertas, temblor y polvo con cada golpe.
+- `CasaVista`: cortinas (locales; pedido por el usuario, octubre de 2026: cortinas en vez de persianas en todo el juego, la mecánica es la misma y dentro el estado sigue llamándose `Persiana`; cerradas = la antigua persiana bajada), grietas y cristal que estalla, puertas, temblor y polvo con cada golpe. Los cristales son de plástico transparente y no `Glass`: detrás de `Glass` Roblox no pinta lo transparente (las ramas de los pinos).
 - `GolpeadorVista`: balanceo de piernas y brazos, golpe con los dos brazos, cabeza ladeada, pasos.
 - `Ambiente`: luz y niebla de día y de noche, viento, aviso al atardecer con rugido lejano, "NOCHE n".
 - `MuerteVista`: cámara del escondite con latido según lo cerca que esté el bicho, susto al morir (cara del bicho, rojo, sangre en pantalla), charco de sangre, mirar a los vivos en tercera persona.

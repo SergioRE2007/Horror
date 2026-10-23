@@ -439,7 +439,7 @@ local function generador(gen: Instance)
 		task.delay(0.15, function()
 			TweenService:Create(cuerda, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { CFrame = origenCuerda }):Play()
 		end)
-		Sonido.en("Persiana", cuerda.Position, 1.4)
+		Sonido.en("Tiron", cuerda.Position, 1.4)
 		for p in temblar do
 			sacudir(p, 0.01)
 		end

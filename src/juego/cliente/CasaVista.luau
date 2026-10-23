@@ -1,5 +1,5 @@
 -- Anima en el cliente lo que el servidor cambia en la casa (atributos de cada modelo, ver juego/servidor/Casa):
---   Ventana: la persiana (lamas locales) baja o sube traqueteando; con poca vida se tuerce y rota se cae.
+--   Ventana: las cortinas (pliegues locales) se corren o se recogen; con poca vida se rasgan y rota se caen.
 --     El cristal se agrieta por golpes y estalla al romperse.
 --   Puerta: la hoja gira en la bisagra (de golpe si la abre el bicho); con llave, el pomo traquetea.
 --   Con un tablón reforzado clavado (atributo Refuerzo): tablones en aspa con flejes (por dentro o en la hoja).
@@ -17,7 +17,9 @@ local CasaVista = {}
 
 local cfg = Config.Casa
 local azar = Random.new()
-local LAMA = 0.5 -- alto de cada lama de la persiana
+local PLIEGUES = 6 -- pliegues de cada paño de cortina
+local TELA = Color3.fromRGB(86, 40, 36) -- terciopelo granate viejo
+local TELA_OSCURA = Color3.fromRGB(62, 28, 26)
 local temblor = 0 -- fuerza del temblor de la cámara, baja sola
 
 local function pieza(tamano: Vector3, cf: CFrame, color: Color3, padre: Instance): Part
@@ -104,34 +106,46 @@ local function ventana(el: Model)
 	local cristal = el:WaitForChild("Cristal") :: BasePart
 	local dentro = -centro.LookVector -- hacia la sala
 	local local_ = Instance.new("Folder")
-	local_.Name = "Persiana"
+	local_.Name = "Cortinas"
 	local_.Parent = el
 
-	-- Lamas: posición i (1 arriba) cuando la persiana está bajada del todo.
-	local cuantas = math.ceil(alto / LAMA)
-	local lamas: { Part } = {}
+	-- Cortinas (pedido por el usuario: cortinas en vez de persianas; el atributo sigue llamándose Persiana): dos paños
+	-- de pliegues de tela colgados de la barra, por dentro. Cerradas (bajado = 1) se juntan en el medio; abiertas, se
+	-- recogen a los lados del marco.
+	local caida = alto + 0.9 -- de la barra a un poco por debajo de la repisa
+	local pliegues: { Part } = {}
 	local tuerce: { number } = {}
-	local function crearLamas()
+	local function crearCortinas()
 		local_:ClearAllChildren()
-		table.clear(lamas)
-		for i = 1, cuantas do
-			lamas[i] = pieza(Vector3.new(ancho + 0.2, LAMA * 0.9, 0.12), centro, Color3.fromRGB(96, 94, 90), local_)
+		table.clear(pliegues)
+		for i = 1, PLIEGUES * 2 do
+			local p = pieza(Vector3.new(0.5, caida, 0.08), centro, if i % 2 == 0 then TELA else TELA_OSCURA, local_)
+			p.Material = Enum.Material.Fabric
+			pliegues[i] = p
 			tuerce[i] = azar:NextNumber(-1, 1)
 		end
 	end
-	crearLamas()
+	crearCortinas()
 
-	local bajado = if el:GetAttribute("Persiana") then 1 else 0 -- 0 subida, 1 bajada
+	local bajado = if el:GetAttribute("Persiana") then 1 else 0 -- 0 abiertas, 1 cerradas
 	local rota = false
 
 	local function colocar(meneo: number)
 		local danio = 1 - (el:GetAttribute("Vida") or 1) / (el:GetAttribute("VidaMax") or 1)
-		for i, lama in lamas do
-			local y = alto / 2 - LAMA * (i - 0.5) + (1 - bajado) * alto
-			local oculta = y > alto / 2
-			lama.Transparency = if oculta then 1 else 0
-			local giro = if danio > 0.4 then tuerce[i] * danio * 0.25 else 0
-			lama.CFrame = centro * CFrame.new(azar:NextNumber(-meneo, meneo), y, 0.7) * CFrame.Angles(0, 0, giro)
+		local fuera = ancho / 2 + 0.6 -- el borde de fuera de cada paño, tras el marco
+		local dentro_ = fuera - (0.9 + (fuera - 0.9) * bajado) -- el de dentro: recogido o en el medio
+		local ancho_ = fuera - dentro_
+		for i, p in pliegues do
+			local lado = if i <= PLIEGUES then -1 else 1
+			local k = (i - 1) % PLIEGUES -- de fuera hacia el medio
+			local x = lado * (fuera - ancho_ * (k + 0.5) / PLIEGUES)
+			local zigzag = if k % 2 == 0 then 1 else -1
+			-- Rasgada con poca vida: los pliegues se caen hacia un lado y se acortan.
+			local giro = if danio > 0.4 then tuerce[i] * danio * 0.3 else 0
+			local corto = if danio > 0.6 then math.abs(tuerce[i]) * danio * 1.5 else 0
+			p.Size = Vector3.new(ancho_ / PLIEGUES * 1.25, caida - corto, 0.08)
+			p.CFrame = centro * CFrame.new(x + azar:NextNumber(-meneo, meneo), alto / 2 + 0.55 - (caida + corto) / 2,
+				0.75 + zigzag * 0.06) * CFrame.Angles(0, zigzag * math.rad(28) * (0.4 + 0.6 * bajado), giro)
 		end
 	end
 	colocar(0)
@@ -142,7 +156,7 @@ local function ventana(el: Model)
 			return
 		end
 		moviendo = true
-		Sonido.en("Persiana", centro.Position)
+		Sonido.en(if hacia > 0.5 then "CortinaCierra" else "Cortina", centro.Position) -- 1 cerradas, 0 abiertas
 		local desde, t0 = bajado, os.clock()
 		while true do
 			local p = math.min(1, (os.clock() - t0) / cfg.TiempoPersiana)
@@ -157,13 +171,12 @@ local function ventana(el: Model)
 		moviendo = false
 	end
 
-	local function romperPersiana()
+	-- Rota la ventana: las cortinas se arrancan y caen hacia dentro.
+	local function romperCortinas()
 		rota = true
-		for _, lama in lamas do
-			if lama.Transparency < 1 then
-				lama.Anchored = false
-				lama.AssemblyLinearVelocity = dentro * azar:NextNumber(4, 10)
-			end
+		for _, p in pliegues do
+			p.Anchored = false
+			p.AssemblyLinearVelocity = dentro * azar:NextNumber(4, 10)
 		end
 	end
 
@@ -205,10 +218,10 @@ local function ventana(el: Model)
 	el:GetAttributeChangedSignal("Vida"):Connect(function()
 		local vida = el:GetAttribute("Vida") or 0
 		if vida <= 0 and not rota then
-			romperPersiana()
-		elseif vida > 0 and rota then -- reparada: lamas nuevas, subidas
+			romperCortinas()
+		elseif vida > 0 and rota then -- reparada: cortinas nuevas
 			rota = false
-			crearLamas()
+			crearCortinas()
 			bajado = if el:GetAttribute("Persiana") then 1 else 0
 		end
 		colocar(0)
@@ -281,7 +294,7 @@ local function puerta(el: Model)
 			Sonido.en("Golpe", hoja.Position, 0.9)
 			sacudirCamara(hoja.Position, 0.6)
 		else
-			Sonido.en("Puerta", hoja.Position)
+			Sonido.en(if el:GetAttribute("Abierta") then "Puerta" else "PuertaCierra", hoja.Position)
 		end
 		TweenService:Create(angulo, TweenInfo.new(if deGolpe then 0.18 else cfg.TiempoPuerta, Enum.EasingStyle.Quad),
 			{ Value = destino() }):Play()
