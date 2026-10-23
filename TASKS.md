@@ -98,6 +98,24 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Criterios:** ventanas, puertas, Trepador (tejado y chimenea) y bichos siguen funcionando; nada nuevo que estorbe al correr alrededor de la casa; se ve bien de día y de noche, y en móvil.
 - **Estado:** pendiente — plan hecho; se hace en otro chat (pedido por el usuario, para gastar menos)
 
+### 11.7 Repasar los muebles de la casa (pedido por el usuario: "algunos muebles están mal orientados")
+- **Qué:** que cada mueble mire hacia la sala, esté apoyado en el suelo o la pared y tenga un tamaño creíble. Sin cambiar el plano ni las reglas de la 11.5: nada delante de las ventanas y el centro de las salas libre.
+- **Cómo:**
+  1. Recorrer la casa sala por sala con capturas a cámara fija, con las luces encendidas, y apuntar qué falla en cada mueble. Sergio dice cuáles ve mal.
+  2. Si un mueble está mal en el archivo (el frente no mira a -Z, la escala o el pivote mal), se arregla en `ServerStorage.Muebles` y se vuelve a guardar `src/muebles/Muebles.rbxm` (pasos en `docs/sistemas/casa-grande.md`).
+  3. Si solo está mal en un sitio, se arregla su `tienda`/`contraPared` en `Mapa`.
+- **Sospechosos:**
+  - El sofá del salón.
+  - Las sillas de la cocina y la volcada.
+  - La bañera y el váter.
+  - La cocina de hierro.
+  - La tele (encogida al 70 % sobre el aparador).
+  - Las lámparas de mesa (la del escritorio del rico).
+  - Las telarañas: las que flotan o se meten en la pared.
+  - La cama y los armarios de Blender junto a los muebles nuevos.
+- **Criterios:** escondites, ventanas y objetos siguen funcionando; ningún mueble atraviesa una pared ni sale por fuera de la casa.
+- **Estado:** pendiente — se hace en otro chat (pedido por el usuario)
+
 ## 12. Final difícil e historia
 
 ### 12.1 Pistas de la historia
