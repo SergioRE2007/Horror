@@ -95,8 +95,10 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
   5. Abandono fuera: hiedra subiendo por una esquina, tablas clavadas en una ventana de arriba, manchas de humedad, un buzón torcido y un trozo de valla caída.
   6. Garaje y cobertizo con el mismo estilo (chapa oxidada y tablas).
 - **Estilo (referencias en `docs/referencias/casa-fuera/`, pedido por el usuario):** casa victoriana encantada: tejado abuhardillado oscuro de tejas con crestería, torreta con tejado de aguja, ventanas altas en arco, ventanuco redondo, tablas grises o pardas gastadas, porche con escalones, árbol muerto delante y verja de hierro.
+- **Movimiento libre (pedido por el usuario: "que sea grande para tener un movimiento libre bueno", luego se va a correr por dentro):** vanos anchos (10-16 studs), vestíbulo de 24 de ancho con la escalera hacia el fondo (sitio libre al entrar y paso ancho a los lados), nada que obligue a esquivar.
+- **Revisión (pedido por el usuario):** "cámaras de vigilancia": una captura por sala desde una esquina alta en la que se vea la sala y su salida, y un agente Haiku las revisa (sitio para moverse, salidas, muebles mal puestos).
 - **Criterios:** ventanas, puertas, Trepador (tejado y chimenea) y bichos siguen funcionando; nada nuevo que estorbe al correr alrededor de la casa; se ve bien de día y de noche, y en móvil.
-- **Estado:** pendiente — plan hecho; se hace en otro chat (pedido por el usuario, para gastar menos)
+- **Estado:** en curso — planta baja hecha con bloques (Mapa.construirCasa); toca ensanchar, la planta de arriba y la fachada
 
 ### 11.7 Repasar los muebles de la casa (pedido por el usuario: "algunos muebles están mal orientados")
 - **Qué:** que cada mueble mire hacia la sala, esté apoyado en el suelo o la pared y tenga un tamaño creíble. Sin cambiar el plano ni las reglas de la 11.5: nada delante de las ventanas y el centro de las salas libre.
