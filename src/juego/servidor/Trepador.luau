@@ -21,9 +21,10 @@ local T = Config.Trepador
 local ALTURA = 2.2 -- a cuatro patas: de los pies al centro de la raíz
 local azar = Random.new()
 
--- El tejado (Mapa): dos faldones con la cumbrera a lo largo de x en z = 0; la cara de arriba a 36,53 en la cumbrera y
--- bajando 9/24 por stud hasta el alero (|z| = 24). La pared de delante está en z = -22,5 y la de detrás en 22,5.
-local CUMBRE, PENDIENTE, PARED = 36.53, 9 / 24, 22.5
+-- El tejado (Mapa): dos faldones con la cumbrera a lo largo de x en z = 0; la cara de arriba a 40,47 en la cumbrera y
+-- bajando 9/24 por stud hasta el alero (|z| = 34,5). La pared de delante está en z = -33,5 y la de detrás en 33,5; la
+-- casa va de x = -39 a 39 y la chimenea está en x = -37,5.
+local CUMBRE, PENDIENTE, PARED = 40.47, 9 / 24, 33.5
 local COS, SIN = math.cos(math.atan(PENDIENTE)), math.sin(math.atan(PENDIENTE))
 
 type Ataque = { bicho: Caza.Bicho?, hilo: thread?, prisa: boolean }
@@ -156,8 +157,8 @@ end
 local function ataque(a: Ataque, noche: number, paciencia: number)
 	local lado = if azar:NextNumber() < 0.5 then 1 else -1
 	local fuera = Vector3.new(0, 0, lado)
-	-- Detrás, el cobertizo del generador ocupa de x = 3 a 13: por ahí no.
-	local x = if lado > 0 then azar:NextNumber(-20, -1) else azar:NextNumber(-18, 18)
+	-- Detrás, el cobertizo del generador (x 3..13) y la escalera del sótano (x -3.5..3.5): por ahí no.
+	local x = if lado > 0 then azar:NextNumber(-34, -5) else azar:NextNumber(-30, 30)
 	local pie = Vector3.new(x, 0, lado * (PARED + 4))
 	local inicio = pie + fuera * 70 + Vector3.xAxis * azar:NextNumber(-25, 25)
 	local lejos = pie + fuera * 110 + Vector3.xAxis * azar:NextNumber(-40, 40)
@@ -190,7 +191,7 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 
 	-- Al tejado: rodea el alero y ronda un rato por su faldón, a veces quieto (el silencio también asusta).
 	if seguir then
-		local p, arriba = sobreTejado(x, lado * 21.5)
+		local p, arriba = sobreTejado(x, lado * (PARED - 1))
 		seguir = deslizar(b, CFrame.lookAt(p, p - fuera * 2, arriba), 0.6)
 	end
 	if seguir then
@@ -198,13 +199,13 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 		avisarDentro("Something is walking on the roof.")
 		local hasta = os.clock() + math.max(T.TejadoMin, rango(T.Tejado) - T.MenosPorNoche * math.max(0, noche - T.Noche)) * paciencia
 		while seguir and os.clock() < hasta do
-			seguir = andarTejado(b, azar:NextNumber(-22, 22), lado * azar:NextNumber(5, 20))
+			seguir = andarTejado(b, azar:NextNumber(-35, 35), lado * azar:NextNumber(5, 30))
 			if seguir and azar:NextNumber() < 0.45 then
 				seguir = esperarTejado(b, azar:NextNumber(1, 3))
 			end
 		end
 		-- Hasta la chimenea, se sube al tiro y se mete dentro.
-		seguir = seguir and andarTejado(b, -20.5, lado * 3.5)
+		seguir = seguir and andarTejado(b, -33.5, lado * 3.5)
 		local tiro = Chimenea.tiro()
 		if seguir then
 			seguir = deslizar(b, CFrame.lookAt(tiro + Vector3.new(0, 1.5, 0), tiro + Vector3.new(0, -5, 0), Vector3.xAxis), 0.7, true)
@@ -232,7 +233,7 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 		end
 		if b.raiz.Position.Y > 6 then
 			task.wait(0.8)
-			local p, arriba = sobreTejado(b.raiz.Position.X, lado * 23)
+			local p, arriba = sobreTejado(b.raiz.Position.X, lado * (PARED + 0.5))
 			b.raiz.CFrame = CFrame.lookAt(p, p + fuera, arriba)
 			task.wait(0.25)
 		end

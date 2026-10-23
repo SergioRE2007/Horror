@@ -64,6 +64,8 @@ Config.Ciclo = {
 
 -- Puertas, persianas y cristales (juego/servidor/Casa y shared/Defensa).
 Config.Casa = {
+	MedioX = 39.5, -- la casa va de -MedioX a MedioX en x y de -MedioZ a MedioZ en z, paredes incluidas (Mapa)
+	MedioZ = 33.5,
 	TiempoPersiana = 1.4, -- lo que tarda en bajar o subir; a medio bajar no protege
 	TiempoPuerta = 0.5,
 	VidaPersiana = 100,

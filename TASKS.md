@@ -82,7 +82,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Estilo (referencias en `docs/referencias/casa/`, pedido por el usuario: "así más o menos, pero más vieja y abandonada"):** salas grandes y despejadas, con los muebles contra las paredes y el centro libre; papel pintado (damasco dorado o marrón en el salón, rayas en la cocina) con moldura blanca en el techo y zócalo oscuro; vanos anchos con marco de madera oscura y cortinas oscuras a los lados; cocina con suelo de damas blanco y negro y azulejo blanco a media pared; suelo de madera oscura en el resto; lámparas de globo colgando y lámparas de mesa; muebles de los años 50-60 (butacas, sofá, tele de tubo, piano, aparadores). Lo abandonado: papel despegado y manchado, polvo, telarañas, muebles rotos o volcados, tablas, basura por el suelo y algo de sangre (sin pasar de Moderate), sin estorbar el paso.
 - **Modelos:** borrar todo script y lo que no sea pieza, malla o textura (en la prueba, 2 de 6 traían virus, uno cifrado en la mesa). Descartar los sacados de otros juegos (Fallout, Garry's Mod, DOORS…). Elegidos en la prueba: nevera 14662571622, fregadero 88887125500659, cocina de hierro 4693256798, cocina oxidada 251322323, mesa 127957098225412, silla 16041491017.
 - **Criterios:** colisiones, escondites, ventanas de los bichos y sitios de objetos siguen funcionando (revisar `Config` y bichos si cambian distancias); se ve bien en móvil.
-- **Estado:** pendiente — prueba de la cocina aprobada; hacerlo en casa (en el PC de fuera Windows bloquea Rojo)
+- **Estado:** en curso — casa hecha (ver `docs/sistemas/casa-grande.md`); falta el pueblo
 
 ## 12. Final difícil e historia
 
