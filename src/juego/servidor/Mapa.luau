@@ -130,7 +130,14 @@ end
 -- Pone el mueble de Blender `nombre` (shared/Piezas) en `cf` y esconde los bloques que tapa, que siguen chocando.
 -- Sin las mallas no hace nada: se ven los bloques.
 local function mueble(nombre: string, cf: CFrame, tapa: { BasePart }?, padre: Instance?): { MeshPart }
-	local partes = Piezas.poner(padre or casa, nombre, cf)
+	-- Suelto en la casa, cada mueble en su modelo: así se coge entero en el plugin VistaMapa (pedido por el usuario).
+	if not padre then
+		local modelo = Instance.new("Model")
+		modelo.Name = nombre
+		modelo.Parent = casa
+		padre = modelo
+	end
+	local partes = Piezas.poner(padre :: Instance, nombre, cf)
 	if #partes > 0 and tapa then
 		for _, b in tapa do
 			b.Transparency = 1

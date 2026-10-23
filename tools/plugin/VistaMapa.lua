@@ -54,7 +54,44 @@ local function generar()
 				d:SetAttribute("Origen", d:GetPivot())
 			end
 		end
-		print(`[VistaMapa] Mapa generado ({n} piezas). Mueve lo que quieras y pulsa CAMBIOS.`)
+		-- Para poder coger los muebles con un clic: la casa pasa de modelo a carpeta (si no, cualquier clic coge la casa
+		-- entera) y lo que no se mueve (paredes, suelos, papel, fachada, suelo del bosque) se bloquea. Desde el
+		-- Explorador se puede coger igual.
+		local casa = mapa:FindFirstChild("Casa")
+		if casa and casa:IsA("Model") then
+			local carpeta = Instance.new("Folder")
+			carpeta.Name = "Casa"
+			for _, hijo in casa:GetChildren() do
+				hijo.Parent = carpeta
+			end
+			carpeta.Parent = mapa
+			casa:Destroy()
+			casa = carpeta
+		end
+		if casa then
+			for _, hijo in casa:GetChildren() do
+				if hijo:IsA("BasePart") then
+					hijo.Locked = true
+				end
+			end
+			local fachada = casa:FindFirstChild("Fachada")
+			if fachada then
+				for _, d in fachada:GetDescendants() do
+					if d:IsA("BasePart") then
+						d.Locked = true
+					end
+				end
+			end
+		end
+		local bosque = mapa:FindFirstChild("Bosque")
+		if bosque then
+			for _, d in bosque:GetChildren() do
+				if d:IsA("BasePart") and (d.Name == "Suelo" or d.Name == "Camino") then
+					d.Locked = true
+				end
+			end
+		end
+		print(`[VistaMapa] Mapa generado ({n} piezas). Haz clic en un mueble para cogerlo; al acabar, pulsa CAMBIOS.`)
 	else
 		warn("[VistaMapa] Falló al generar: " .. tostring(err))
 	end
