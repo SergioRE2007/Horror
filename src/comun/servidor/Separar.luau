@@ -65,10 +65,12 @@ local function chocan(A: Cara, B: Cara): boolean
 end
 
 -- Separa las caras que coinciden entre las piezas de `carpeta`. Devuelve cuántas parejas quedan (0 si todo bien).
+-- Las que llevan el atributo SinSeparar (láminas de papel, zócalos y suelos, ya puestas un poco apartadas) no cuentan:
+-- al tocar de canto las paredes, las engordaban y tapaban el papel.
 function Separar.caras(carpeta: Instance): number
 	local piezas = {}
 	for _, p in carpeta:GetDescendants() do
-		if p:IsA("Part") and p.Shape == Enum.PartType.Block and p.Anchored and p.Transparency < 1 then
+		if p:IsA("Part") and p.Shape == Enum.PartType.Block and p.Anchored and p.Transparency < 1 and not p:GetAttribute("SinSeparar") then
 			table.insert(piezas, p)
 		end
 	end

@@ -10,6 +10,12 @@
       }
     },
 
+    "ServerStorage": {
+      "Muebles": {
+        "$path": "src/muebles/Muebles.rbxm"
+      }
+    },
+
     "ServerScriptService": {
       "Comun": {
         "$path": "src/comun/servidor"

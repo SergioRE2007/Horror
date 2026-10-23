@@ -207,7 +207,7 @@ function Ambiente.start()
 		while true do
 			task.wait(azar:NextNumber(18, 45))
 			local p = workspace.CurrentCamera.CFrame.Position
-			if workspace:GetAttribute("Fase") == "Noche" and math.abs(p.X) < 26 and math.abs(p.Z) < 22 and p.Y < 28 then
+			if workspace:GetAttribute("Fase") == "Noche" and math.abs(p.X) < Config.Casa.MedioX and math.abs(p.Z) < Config.Casa.MedioZ and p.Y < 28 then
 				local donde = p + Vector3.new(azar:NextNumber(-12, 12), azar:NextNumber(-3, 6), azar:NextNumber(-12, 12))
 				Sonido.en("Cruje", donde, azar:NextNumber(0.85, 1.1))
 			end

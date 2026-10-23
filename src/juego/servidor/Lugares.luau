@@ -24,7 +24,7 @@ local ZONAS = {
 	Aserradero = { -232, -86, 45 },
 	Torre = { 90, 285, 70 },
 	Pueblo = { 28, -480, 75 },
-	Garaje = { 43, -4, 18 }, -- el de la casa (Mapa)
+	Garaje = { 56, -4, 18 }, -- el de la casa (Mapa)
 }
 
 function Lugares.libre(x: number, z: number): boolean

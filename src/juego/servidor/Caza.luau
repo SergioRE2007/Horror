@@ -6,7 +6,9 @@
 --   Caza.todos(): los que hay ahora en el mapa (para el flash y la linterna).
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Casa = require(script.Parent.Casa)
 local Mapa = require(script.Parent.Mapa)
 local Muerte = require(script.Parent.Muerte)
@@ -67,7 +69,7 @@ end
 Caza.plano = plano
 
 function Caza.dentroDeCasa(p: Vector3): boolean
-	return math.abs(p.X) < 27 and math.abs(p.Z) < 23
+	return math.abs(p.X) < Config.Casa.MedioX and math.abs(p.Z) < Config.Casa.MedioZ
 end
 
 -- La carpeta del mapa donde van todos los bichos (el cliente los busca ahí).
