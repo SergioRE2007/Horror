@@ -76,6 +76,13 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Criterios:** ningún texto del jugador dice persiana; el Golpeador y el Raspador se juegan igual; partidas guardadas de antes siguen cargando.
 - **Estado:** hecho (ver `docs/sistemas/corazon.md`)
 
+### 11.5 Casa más grande, amueblada con modelos del Creator Store (pedido por el usuario)
+- **Descripción:** habitaciones más grandes y realistas (la cocina de prueba pasó de 20×16 a 30×24) para moverse rápido y con fluidez dentro de la casa. Muebles del Creator Store; lo que no haya (encimeras viejas), con piezas. Después, igual con el pueblo.
+- **Reglas (pedido por el usuario):** ninguna ventana tapada por muebles ni nada (los muebles van en las paredes sin ventana); pasillos anchos alrededor de mesas y muebles; nada que estorbe al correr.
+- **Modelos:** borrar todo script y lo que no sea pieza, malla o textura (en la prueba, 2 de 6 traían virus, uno cifrado en la mesa). Descartar los sacados de otros juegos (Fallout, Garry's Mod, DOORS…). Elegidos en la prueba: nevera 14662571622, fregadero 88887125500659, cocina de hierro 4693256798, cocina oxidada 251322323, mesa 127957098225412, silla 16041491017.
+- **Criterios:** colisiones, escondites, ventanas de los bichos y sitios de objetos siguen funcionando (revisar `Config` y bichos si cambian distancias); se ve bien en móvil.
+- **Estado:** pendiente — prueba de la cocina aprobada; hacerlo en casa (en el PC de fuera Windows bloquea Rojo)
+
 ## 12. Final difícil e historia
 
 ### 12.1 Pistas de la historia
