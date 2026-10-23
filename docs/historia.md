@@ -1,6 +1,6 @@
-# Historia: pistas (borrador de la tarea 12.1, por aprobar)
+# Historia: pistas (tarea 12.1)
 
-En español para que Sergio lo apruebe; en el juego van en inglés por `Lang` con esta traducción. Cada pista, como mucho tres líneas cortas. Los nombres son propuesta (el rico: Arthur Vance; el antiguo dueño: el viejo Harlan, del aserradero).
+Aprobado por el usuario (se puede retocar más adelante). En español; en el juego van en inglés por `Lang` con esta traducción. Cada pista, como mucho tres líneas cortas. Los nombres son propuesta (el rico: Arthur Vance; el antiguo dueño: el viejo Harlan, del aserradero).
 
 Orden de más cerca a más lejos, como las llaves. Las de la casa del rico solo se leen con su llave: ahí está el plan del final (tarea 12.2).
 
