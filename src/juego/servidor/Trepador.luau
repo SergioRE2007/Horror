@@ -23,7 +23,7 @@ local azar = Random.new()
 
 -- El tejado (Mapa): dos faldones con la cumbrera a lo largo de x en z = 0; la cara de arriba a 40,47 en la cumbrera y
 -- bajando 9/24 por stud hasta el alero (|z| = 34,5). La pared de delante está en z = -33,5 y la de detrás en 33,5; la
--- casa va de x = -39 a 39 y la chimenea está en x = -37,5.
+-- casa va de x = -39 a 39 y la chimenea está en x = 37,5.
 local CUMBRE, PENDIENTE, PARED = 40.47, 9 / 24, 33.5
 local COS, SIN = math.cos(math.atan(PENDIENTE)), math.sin(math.atan(PENDIENTE))
 
@@ -157,8 +157,9 @@ end
 local function ataque(a: Ataque, noche: number, paciencia: number)
 	local lado = if azar:NextNumber() < 0.5 then 1 else -1
 	local fuera = Vector3.new(0, 0, lado)
-	-- Detrás, el cobertizo del generador (x 3..13) y la escalera del sótano (x -3.5..3.5): por ahí no.
-	local x = if lado > 0 then azar:NextNumber(-34, -5) else azar:NextNumber(-30, 30)
+	-- Detrás, la escalera del sótano (x -3.5..3.5) y el lavadero (x -26..-12); delante, la torre y el porche (x -31..47):
+	-- por ahí no.
+	local x = if lado > 0 then azar:NextNumber(5, 34) else azar:NextNumber(-37, -33)
 	local pie = Vector3.new(x, 0, lado * (PARED + 4))
 	local inicio = pie + fuera * 70 + Vector3.xAxis * azar:NextNumber(-25, 25)
 	local lejos = pie + fuera * 110 + Vector3.xAxis * azar:NextNumber(-40, 40)
@@ -205,10 +206,10 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 			end
 		end
 		-- Hasta la chimenea, se sube al tiro y se mete dentro.
-		seguir = seguir and andarTejado(b, -33.5, lado * 3.5)
+		seguir = seguir and andarTejado(b, 33.5, lado * 3.5)
 		local tiro = Chimenea.tiro()
 		if seguir then
-			seguir = deslizar(b, CFrame.lookAt(tiro + Vector3.new(0, 1.5, 0), tiro + Vector3.new(0, -5, 0), Vector3.xAxis), 0.7, true)
+			seguir = deslizar(b, CFrame.lookAt(tiro + Vector3.new(0, 1.5, 0), tiro + Vector3.new(0, -5, 0), -Vector3.xAxis), 0.7, true)
 		end
 		modelo:SetAttribute("EnTejado", nil)
 		if seguir then
@@ -216,7 +217,7 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 			Remotes.Trepador:FireAllClients("Baja", modelo)
 			avisarDentro("Something is coming down the chimney!")
 			local abajo = Vector3.new(tiro.X, 4, tiro.Z)
-			seguir = deslizar(b, CFrame.lookAt(abajo, abajo - Vector3.yAxis * 5, Vector3.xAxis), T.Bajar, true)
+			seguir = deslizar(b, CFrame.lookAt(abajo, abajo - Vector3.yAxis * 5, -Vector3.xAxis), T.Bajar, true)
 			modelo:SetAttribute("Bajando", nil)
 		end
 		quemado = not seguir and not b.prisa and b.modelo ~= nil and Chimenea.encendida()
@@ -229,7 +230,7 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 		end
 		local tiro = Chimenea.tiro()
 		if b.raiz.Position.Y < tiro.Y - 1 and math.abs(b.raiz.Position.X - tiro.X) < 2 then
-			b.raiz.CFrame = CFrame.lookAt(tiro + Vector3.new(0, 1.5, 0), tiro + Vector3.new(0, 6, 0), Vector3.xAxis)
+			b.raiz.CFrame = CFrame.lookAt(tiro + Vector3.new(0, 1.5, 0), tiro + Vector3.new(0, 6, 0), -Vector3.xAxis)
 		end
 		if b.raiz.Position.Y > 6 then
 			task.wait(0.8)

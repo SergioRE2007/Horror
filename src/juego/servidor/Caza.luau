@@ -69,7 +69,15 @@ end
 Caza.plano = plano
 
 function Caza.dentroDeCasa(p: Vector3): boolean
-	return math.abs(p.X) < Config.Casa.MedioX and math.abs(p.Z) < Config.Casa.MedioZ
+	if math.abs(p.X) < Config.Casa.MedioX and math.abs(p.Z) < Config.Casa.MedioZ then
+		return true
+	end
+	for _, a in Config.Casa.Anexos do
+		if p.X > a[1] and p.X < a[2] and p.Z > a[3] and p.Z < a[4] then
+			return true
+		end
+	end
+	return false
 end
 
 -- La carpeta del mapa donde van todos los bichos (el cliente los busca ahí).
