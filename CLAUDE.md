@@ -47,6 +47,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 
 - El código vive en `src/` y Rojo lo sincroniza. Editar siempre los archivos, nunca los scripts dentro de Studio. El MCP de Studio solo para probar (play, consola, captura).
 - El mapa y la iluminación se generan por código; borrar al arrancar las piezas sueltas que no sean del código (una placa sin anclar llegó a tapar el cielo).
+- Ver el mapa sin Play (pedido por el usuario, para mover cosas a mano): plugin `tools/plugin/VistaMapa.lua` (se instala con `instalar.ps1`), barra "Juego de terror": VER MAPA, CAMBIOS (escribe en la Salida lo movido) y QUITAR MAPA. Lo que mueva Sergio se pasa luego al código: leer los cambios con `execute_luau` (atributo `Origen` de cada pieza o modelo).
 - Arquitectura que funcionó:
   - Un sistema nuevo = un módulo con `start()`, registrado en el `init` del servidor o del cliente. Librerías sin `start()` para lo compartido.
   - `Config` con todos los números (el equilibrio se toca solo ahí). Un módulo `Stats` como única fuente de daño, suertes y multiplicadores, válido en servidor y cliente. Un módulo `Remotes` con todos los RemoteEvents.
