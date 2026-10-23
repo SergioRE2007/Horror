@@ -200,7 +200,8 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 		avisarDentro("Something is walking on the roof.")
 		local hasta = os.clock() + math.max(T.TejadoMin, rango(T.Tejado) - T.MenosPorNoche * math.max(0, noche - T.Noche)) * paciencia
 		while seguir and os.clock() < hasta do
-			seguir = andarTejado(b, azar:NextNumber(-35, 35), lado * azar:NextNumber(5, 30))
+			-- Delante, sin llegar a la aguja de la torre (Fachada), que no choca y la atravesaría.
+			seguir = andarTejado(b, azar:NextNumber(-35, if lado < 0 then 26 else 35), lado * azar:NextNumber(5, 30))
 			if seguir and azar:NextNumber() < 0.45 then
 				seguir = esperarTejado(b, azar:NextNumber(1, 3))
 			end

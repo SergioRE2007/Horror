@@ -12,6 +12,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Piezas = require(ReplicatedStorage.Shared.Piezas)
 local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
+local Fachada = require(script.Parent.Fachada)
 local Lugares = require(script.Parent.Lugares)
 
 -- Muebles del Creator Store (src/muebles/Muebles.rbxm).
@@ -190,6 +191,7 @@ local function ventana(centro: Vector3, fuera: Vector3, h, suelo: number)
 	cristal.Transparency = 0.75
 	cristal.Reflectance = 0.05
 	bloque("Repisa", Vector3.new(h.ancho + 0.6, 0.3, 1.6), mira * CFrame.new(0, -h.alto / 2 - 0.15, 0), COLOR.Mueble, nil, modelo)
+	Fachada.ventana(mira, h, h.torre)
 	modelo.Parent = casa
 	if not h.persiana then
 		return -- ventana de una sala cerrada: solo cristal
@@ -271,12 +273,13 @@ local function muro(x1: number, z1: number, x2: number, z2: number, y0: number, 
 		end
 		local centro = inicio + eje * ((a + b) / 2) + Vector3.new(0, (ya + yb) / 2, 0)
 		local color = if fuera then COLOR.Fachada else nil
-		if nombre then
-			bloque(nombre, Vector3.new(b - a, yb - ya, 1), CFrame.fromMatrix(centro, eje, Vector3.yAxis), color)
-			return
-		end
 		local tamano = if enX then Vector3.new(b - a, yb - ya, 1) else Vector3.new(1, yb - ya, b - a)
-		bloque("Muro", tamano, CFrame.new(centro), color)
+		local trozo = if nombre
+			then bloque(nombre, Vector3.new(b - a, yb - ya, 1), CFrame.fromMatrix(centro, eje, Vector3.yAxis), color)
+			else bloque("Muro", tamano, CFrame.new(centro), color)
+		if fuera then
+			Fachada.pared(trozo, fuera)
+		end
 	end
 	table.sort(huecos, function(a, b)
 		return a.en < b.en
@@ -285,20 +288,26 @@ local function muro(x1: number, z1: number, x2: number, z2: number, y0: number, 
 	-- llegaran a su cara de fuera, asomarían en la fachada).
 	local extra = if fuera then 0.5 else 0
 	local cursor = -extra
-	for _, h in huecos do
+	for i, h in huecos do
 		local a, b = h.en - h.ancho / 2, h.en + h.ancho / 2
 		pieza(cursor, a, 0, ALTO)
 		pieza(a, b, 0, h.bajo or 0)
 		pieza(a, b, (h.bajo or 0) + h.alto, ALTO)
-		cursor = b
 		local pie = inicio + eje * h.en
 		if h.tipo == "Ventana" then
+			-- Pared libre a cada lado, para las contraventanas (Fachada): en los ejes de la ventana, X = fuera × arriba.
+			local siguiente = if huecos[i + 1] then huecos[i + 1].en - huecos[i + 1].ancho / 2 else largo + extra
+			local antes, despues = a - cursor, siguiente - b
+			local derecha = (fuera :: Vector3):Cross(Vector3.yAxis):Dot(eje) > 0
+			h.libreDer, h.libreIzq = if derecha then despues else antes, if derecha then antes else despues
+			h.torre = nombre ~= nil
 			ventana(pie + Vector3.new(0, h.bajo + h.alto / 2, 0), fuera :: Vector3, h, y0)
 		elseif h.tipo == "Puerta" then
 			puerta(pie, eje, h, fuera)
 		elseif h.tipo == "Vano" then
 			vanoAbierto(pie, eje, h)
 		end
+		cursor = b
 	end
 	pieza(cursor, largo + extra, 0, ALTO)
 end
@@ -306,6 +315,12 @@ end
 local function v(ancho, bajo, alto, en, persiana, atacable, fueraY)
 	return { tipo = "Ventana", en = en, ancho = ancho, bajo = bajo, alto = alto, persiana = persiana, atacable = atacable,
 		fueraY = fueraY }
+end
+
+-- Ventana de fuera con tablas clavadas (Fachada).
+local function tapiada(h)
+	h.tapiada = true
+	return h
 end
 
 local function vano(en, ancho)
@@ -388,14 +403,19 @@ local function construirCobertizo()
 	CollectionService:AddTag(bloque("Piso", Vector3.new(x2 - x1, 1, z2 - z1), CFrame.new((x1 + x2) / 2, 0.5, (z1 + z2) / 2), COLOR.Piso),
 		"EnMapa")
 	for _, z in { z1, z2 } do
-		bloque("Muro", Vector3.new(x2 - x1 + 1, alto, 1), CFrame.new((x1 + x2) / 2, ABAJO + alto / 2, z))
+		Fachada.pared(bloque("Muro", Vector3.new(x2 - x1 + 1, alto, 1), CFrame.new((x1 + x2) / 2, ABAJO + alto / 2, z)),
+			Vector3.new(0, 0, if z == z1 then -1 else 1))
 	end
-	bloque("Muro", Vector3.new(1, alto, z2 - z1), CFrame.new(x1, ABAJO + alto / 2, (z1 + z2) / 2))
-	bloque("Muro", Vector3.new(1, alto, 39 - z1), CFrame.new(x2, ABAJO + alto / 2, (z1 + 39) / 2)) -- este, con la entrada
-	bloque("Muro", Vector3.new(1, alto, z2 - 44), CFrame.new(x2, ABAJO + alto / 2, (44 + z2) / 2))
-	bloque("Muro", Vector3.new(1, alto - 7, 5), CFrame.new(x2, ABAJO + 7 + (alto - 7) / 2, 41.5))
-	bloque("Techo", Vector3.new(x2 - x1 + 2, 0.6, z2 - z1 + 1.5), CFrame.new((x1 + x2) / 2, ABAJO + alto + 0.3, (z1 + z2) / 2),
-		COLOR.Oscuro, Enum.Material.CorrodedMetal)
+	Fachada.pared(bloque("Muro", Vector3.new(1, alto, z2 - z1), CFrame.new(x1, ABAJO + alto / 2, (z1 + z2) / 2)), Vector3.new(-1, 0, 0))
+	for _, pared in {
+		bloque("Muro", Vector3.new(1, alto, 39 - z1), CFrame.new(x2, ABAJO + alto / 2, (z1 + 39) / 2)), -- este, con la entrada
+		bloque("Muro", Vector3.new(1, alto, z2 - 44), CFrame.new(x2, ABAJO + alto / 2, (44 + z2) / 2)),
+		bloque("Muro", Vector3.new(1, alto - 7, 5), CFrame.new(x2, ABAJO + 7 + (alto - 7) / 2, 41.5)),
+	} do
+		Fachada.pared(pared, Vector3.new(1, 0, 0))
+	end
+	Fachada.chapa(bloque("Techo", Vector3.new(x2 - x1 + 2, 0.6, z2 - z1 + 1.5), CFrame.new((x1 + x2) / 2, ABAJO + alto + 0.3, (z1 + z2) / 2),
+		COLOR.Oscuro, Enum.Material.CorrodedMetal))
 	lampara(Vector3.new(-49, ABAJO + alto - 0.4, 41))
 
 	-- El generador mira al este (a la entrada): la cuerda sale por ese lado.
@@ -549,11 +569,11 @@ local function construirSotano()
 		bloque("Peldano", Vector3.new(5, 12 - i, 1.1), CFrame.new(0, FONDO + (12 - i) / 2, 35.5 + (i - 0.5) * 1.1), COLOR.Piso)
 	end
 	-- Paredes de la escalera: bajo tierra y por fuera (la del este, junto al cobertizo, hasta su suelo).
-	bloque("Muro", Vector3.new(1, 21, 14.6), CFrame.new(-3, FONDO + 10.5, 40.8))
+	Fachada.pared(bloque("Muro", Vector3.new(1, 21, 14.6), CFrame.new(-3, FONDO + 10.5, 40.8)), Vector3.new(-1, 0, 0))
 	bloque("Muro", Vector3.new(1, 12, 9), CFrame.new(3, FONDO + 6, 38))
-	bloque("Muro", Vector3.new(1, 21, 5.6), CFrame.new(3, FONDO + 10.5, 45.3))
-	bloque("Muro", Vector3.new(7, 10, 1), CFrame.new(0, 5, 48.1))
-	bloque("Tejadillo", Vector3.new(7, 0.6, 15.1), CFrame.new(0, 10.3, 40.85), COLOR.Oscuro, Enum.Material.CorrodedMetal)
+	Fachada.pared(bloque("Muro", Vector3.new(1, 21, 5.6), CFrame.new(3, FONDO + 10.5, 45.3)), Vector3.new(1, 0, 0))
+	Fachada.pared(bloque("Muro", Vector3.new(7, 10, 1), CFrame.new(0, 5, 48.1)), Vector3.new(0, 0, 1))
+	Fachada.chapa(bloque("Tejadillo", Vector3.new(7, 0.6, 15.1), CFrame.new(0, 10.3, 40.85), COLOR.Oscuro, Enum.Material.CorrodedMetal))
 	lampara(Vector3.new(0, 9.6, 41))
 	-- La sala.
 	local z1, z2, alto = 47.6, 65.6, 9
@@ -590,7 +610,7 @@ local function construirGaraje()
 	porton.Parent = casa
 	muro(-59, 3, -59, 33, ABAJO, { v(4, 4, 3, 9, false) }, OESTE)
 	muro(-59, 33, -39, 33, ABAJO, {}, Vector3.new(0, 0, 1))
-	bloque("Techo", Vector3.new(21, 1, 31), CFrame.new(-49.5, ABAJO + ALTO + 0.5, 18), COLOR.Oscuro, Enum.Material.CorrodedMetal)
+	Fachada.chapa(bloque("Techo", Vector3.new(21, 1, 31), CFrame.new(-49.5, ABAJO + ALTO + 0.5, 18), COLOR.Oscuro, Enum.Material.CorrodedMetal))
 	lampara(Vector3.new(-49, ABAJO + ALTO - 0.3, 18))
 	construirCoche(CFrame.new(-49, ABAJO, 18))
 	banco("Garaje", CFrame.lookAt(Vector3.new(-57.2, ABAJO, 27), Vector3.new(-47, ABAJO, 27)))
@@ -884,6 +904,7 @@ end
 local function construirCasa(mapa: Folder)
 	casa = Instance.new("Model")
 	casa.Name = "Casa"
+	Fachada.empezar(casa)
 	local DELANTE, DETRAS = Vector3.new(0, 0, -1), Vector3.new(0, 0, 1)
 	local OESTE, ESTE = Vector3.new(-1, 0, 0), Vector3.new(1, 0, 0)
 
@@ -922,12 +943,15 @@ local function construirCasa(mapa: Folder)
 		bloque("Escalon", Vector3.new(1.5, 0.5, 8), CFrame.new(x, 0.25, -37), COLOR.Piso)
 	end
 	for _, x in { 26.4, 15, 4, -4, -15, -29.4 } do
-		adorno(Vector3.new(0.8, 12, 0.8), CFrame.new(x, ABAJO + 6, -40.4))
+		Fachada.columna(x, -40.4, ABAJO, ABAJO + ALTO - 1.2)
 	end
 	bloque("Porche", Vector3.new(58, 1, 8.5), CFrame.new(-1.5, 13.5, -37.25), COLOR.Piso)
-	bloque("Barandilla", Vector3.new(58, 3.2, 0.4), CFrame.new(-1.5, ARRIBA + 1.6, -41.3), COLOR.Mueble)
+	-- La barandilla del balcón choca con una pared invisible; lo que se ve es la balaustrada (Fachada).
+	bloque("Barandilla", Vector3.new(58, 3.2, 0.4), CFrame.new(-1.5, ARRIBA + 1.6, -41.3)).Transparency = 1
+	Fachada.balaustrada(Vector3.new(-30.3, ARRIBA, -41.3), Vector3.new(27.3, ARRIBA, -41.3), 3.2, false)
 	for _, x in { -30.3, 27.3 } do
-		bloque("Barandilla", Vector3.new(0.4, 3.2, 8.1), CFrame.new(x, ARRIBA + 1.6, -37.3), COLOR.Mueble)
+		bloque("Barandilla", Vector3.new(0.4, 3.2, 8.1), CFrame.new(x, ARRIBA + 1.6, -37.3)).Transparency = 1
+		Fachada.balaustrada(Vector3.new(x, ARRIBA, -41.1), Vector3.new(x, ARRIBA, -33.6), 3.2, false)
 	end
 
 	-- Escalera grande al fondo del vestíbulo (pedido por el usuario: grande y que no se tope uno con ella al entrar):
@@ -1005,7 +1029,7 @@ local function construirCasa(mapa: Folder)
 		p(57, DETRAS, { nombre = "Balcon" }), -- salida al balcón
 		v(5, 3, 5, 66.5, true), -- dormitorio grande
 	}, DELANTE)
-	muro(-39, 33, 39, 33, ARRIBA, { v(5, 3, 5, 13, false), v(5, 3, 5, 39, false), v(5, 3, 5, 65, false) }, DETRAS)
+	muro(-39, 33, 39, 33, ARRIBA, { v(5, 3, 5, 13, false), tapiada(v(5, 3, 5, 39, false)), v(5, 3, 5, 65, false) }, DETRAS)
 	muro(-39, -33, -39, 33, ARRIBA, { v(5, 3, 5, 18, false), v(5, 3, 5, 54, false) }, OESTE)
 	muro(39, -25, 39, 33, ARRIBA, { v(5, 3, 5, 18, false), v(5, 3, 5, 45, false) }, ESTE)
 	construirTorre(ARRIBA, { [7] = v(5, 3, 5, 0, true), [6] = v(3, 3, 5, 0, false), [0] = v(3, 3, 5, 0, false) }, true)
@@ -1039,7 +1063,7 @@ local function construirCasa(mapa: Folder)
 	-- el tejado. Está en x = 37,5 y z = -1: el Trepador va a ella por el tejado.
 	local chimenea = Instance.new("Model")
 	chimenea.Name = "Chimenea"
-	local ladrillo = Color3.fromRGB(85, 82, 80)
+	local ladrillo = Color3.fromRGB(80, 60, 52) -- ladrillo viejo, oscuro
 	bloque("Chimenea", Vector3.new(3, 10, 8), CFrame.new(37.5, ABAJO + 5, -1), ladrillo, Enum.Material.Brick, chimenea)
 	bloque("Hogar", Vector3.new(0.6, 3.5, 4), CFrame.new(35.8, ABAJO + 1.75, -1), Color3.fromRGB(20, 18, 18), Enum.Material.Slate, chimenea)
 	bloque("Tiro", Vector3.new(3, 34, 4), CFrame.new(37.5, ABAJO + 10 + 17, -1), ladrillo, Enum.Material.Brick, chimenea)
@@ -1218,6 +1242,7 @@ local function construirCasa(mapa: Folder)
 	construirCaballete()
 	construirSotano()
 	construirGaraje()
+	Fachada.vestir({ ABAJO = ABAJO, ARRIBA = ARRIBA, ALTO = ALTO, TEJADO = TEJADO, TORRE = TORRE })
 	-- Enchufe del móvil en el lavadero: placa, repisa donde se deja el móvil y lucecita de carga.
 	local enchufe = Instance.new("Model")
 	enchufe.Name = "Enchufe"

@@ -22,3 +22,11 @@ Mirando la casa desde el camino (delante = -z), **+x es la izquierda**. En una v
 ## Revisión
 
 Pedido por el usuario: "cámaras de vigilancia", una captura por sala desde una esquina alta que enseñe la sala y su salida (`RunService:BindToRenderStep` con prioridad Camera + 10 y la CFrame en un atributo de `workspace`), y un agente Haiku revisa los `.jpg`.
+
+## Fachada (pedido por el usuario: victoriana encantada, referencias en `docs/referencias/casa-fuera/`)
+
+- Todo en `Fachada.luau`, que llama `Mapa`: `pared` (cada trozo de pared de fuera de `muro`, la escalera del sótano y el cobertizo: tablas con textura y zócalo de piedra si llega al suelo y da al aire libre), `ventana` (molduras, dintel, alféizar, arco rebajado en las de arriba, contraventanas si caben y tablas en las `tapiada`), `columna` y `balaustrada` (porche y balcón), `chapa` (techos de garaje, cobertizo y sótano) y `vestir` (tejas, alero con canalón torcido y bajantes, hastiales con ventanuco redondo, crestería, remate de la chimenea, aguja de la torre, franja entre plantas, esquineras, farol, mecedora, hiedra, humedad, buzón y valla caída).
+- Todo es adorno: no choca ni tapa rayos. La barandilla del balcón sigue chocando, invisible, y se ve la balaustrada. Abajo el porche no lleva barandilla delante (por ahí llegan los bichos a las ventanas): solo en los costados, rota.
+- Texturas propias de `tools/texturas/fachada.ps1` (tablas y tejas, claras para teñirlas con `Color3`), subidas con `upload_image` de Studio desde un servidor http local (no acepta rutas de disco).
+- El Trepador no pasa de x 26 en el faldón de delante: la aguja de la torre no choca y la atravesaría.
+- Azar con semilla fija: la casa sale igual en todos los servidores.
