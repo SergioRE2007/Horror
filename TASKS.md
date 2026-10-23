@@ -84,6 +84,20 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Criterios:** colisiones, escondites, ventanas de los bichos y sitios de objetos siguen funcionando (revisar `Config` y bichos si cambian distancias); se ve bien en móvil.
 - **Estado:** en curso — casa hecha (ver `docs/sistemas/casa-grande.md`); falta el pueblo
 
+### 11.6 La casa por fuera (pedido por el usuario: "arreglar el modelo de la casa en sí")
+- **Cómo está ahora:** una caja de tablas oscuras con ventanas pequeñas, un tejado tan bajo que casi no se ve y un porche de dos palos. Por dentro gusta ("está guay la casa, mola"): no tocar el interior.
+- **Idea:** casa de campo vieja de madera, de los años 50, abandonada en el bosque, que se reconozca de lejos y dé miedo antes de entrar.
+- **Plan, por orden (en `Mapa`, con piezas y texturas; Blender solo si hace falta algún adorno):**
+  1. Tejado: aleros que sobresalgan con canalones torcidos, tejas oscuras con textura, hastiales de tablas con un ventanuco redondo del desván y la chimenea de ladrillo asomando por fuera. Misma pendiente o, si se cambia, actualizar `TEJADO` y el Trepador (`CUMBRE`, `PARED`).
+  2. Fachada: tablas horizontales con textura de madera vieja y pintura desconchada, esquineras, zócalo de piedra abajo y una franja entre las dos plantas.
+  3. Ventanas: marcos gruesos con dintel y alféizar, contraventanas (alguna rota o colgando) y algún cristal roto. Mismas ventanas y sitios: no cambiar las 11 que ataca el Golpeador.
+  4. Porche ancho a lo largo de la fachada: suelo de tablas, columnas, barandilla rota, escalones y tejadillo; un farol apagado y una mecedora.
+  5. Abandono fuera: hiedra subiendo por una esquina, tablas clavadas en una ventana de arriba, manchas de humedad, un buzón torcido y un trozo de valla caída.
+  6. Garaje y cobertizo con el mismo estilo (chapa oxidada y tablas).
+- **Antes de empezar, de Sergio:** 2-4 capturas de referencia de casas por fuera que le gusten (como las de dentro en `docs/referencias/casa/`).
+- **Criterios:** ventanas, puertas, Trepador (tejado y chimenea) y bichos siguen funcionando; nada nuevo que estorbe al correr alrededor de la casa; se ve bien de día y de noche, y en móvil.
+- **Estado:** pendiente — plan hecho; se hace en otro chat (pedido por el usuario, para gastar menos)
+
 ## 12. Final difícil e historia
 
 ### 12.1 Pistas de la historia
