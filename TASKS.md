@@ -84,17 +84,17 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Criterios:** colisiones, escondites, ventanas de los bichos y sitios de objetos siguen funcionando (revisar `Config` y bichos si cambian distancias); se ve bien en móvil.
 - **Estado:** en curso — casa hecha (ver `docs/sistemas/casa-grande.md`); falta el pueblo
 
-### 11.6 La casa por fuera (pedido por el usuario: "arreglar el modelo de la casa en sí")
-- **Cómo está ahora:** una caja de tablas oscuras con ventanas pequeñas, un tejado tan bajo que casi no se ve y un porche de dos palos. Por dentro gusta ("está guay la casa, mola"): no tocar el interior.
-- **Idea:** casa de campo vieja de madera, de los años 50, abandonada en el bosque, que se reconozca de lejos y dé miedo antes de entrar.
-- **Plan, por orden (en `Mapa`, con piezas y texturas; Blender solo si hace falta algún adorno):**
+### 11.6 Casa nueva entera (pedido por el usuario: "la casa hay que cambiarla entera, hasta la distribución")
+- **Por qué:** se siente plana, "cuatro paredes como Minecraft", escaleras feas y salas sin sentido (entras y hay un dormitorio). Quiere dos plantas importantes, volumen (cosas hacia dentro y hacia fuera, portón) y una distribución realista.
+- **Plano aprobado por el usuario:** `docs/referencias/casa-fuera/plano-nuevo.png`. Abajo: porche, vestíbulo a doble altura con escalera grande, salón con chimenea y torre a la izquierda, comedor con mirador a la derecha, cocina detrás, lavadero (enchufe) saliendo por detrás, pasillo al sótano, dormitorio con baño y trastero, y garaje pegado a la cocina con portón (pedido por el usuario). Arriba: galería con barandilla al hueco, dormitorio grande con la torre, habitación del rico, cuarto de niños, cuarto de la escalera del desván y balcón sobre el porche. Lo que tenía cada sala vieja: `docs/sistemas/casa-vieja.md`.
+- **Fachada, por orden (en `Mapa`, con piezas y texturas; Blender solo si hace falta algún adorno):**
   1. Tejado: aleros que sobresalgan con canalones torcidos, tejas oscuras con textura, hastiales de tablas con un ventanuco redondo del desván y la chimenea de ladrillo asomando por fuera. Misma pendiente o, si se cambia, actualizar `TEJADO` y el Trepador (`CUMBRE`, `PARED`).
   2. Fachada: tablas horizontales con textura de madera vieja y pintura desconchada, esquineras, zócalo de piedra abajo y una franja entre las dos plantas.
   3. Ventanas: marcos gruesos con dintel y alféizar, contraventanas (alguna rota o colgando) y algún cristal roto. Mismas ventanas y sitios: no cambiar las 11 que ataca el Golpeador.
   4. Porche ancho a lo largo de la fachada: suelo de tablas, columnas, barandilla rota, escalones y tejadillo; un farol apagado y una mecedora.
   5. Abandono fuera: hiedra subiendo por una esquina, tablas clavadas en una ventana de arriba, manchas de humedad, un buzón torcido y un trozo de valla caída.
   6. Garaje y cobertizo con el mismo estilo (chapa oxidada y tablas).
-- **Antes de empezar, de Sergio:** 2-4 capturas de referencia de casas por fuera que le gusten (como las de dentro en `docs/referencias/casa/`).
+- **Estilo (referencias en `docs/referencias/casa-fuera/`, pedido por el usuario):** casa victoriana encantada: tejado abuhardillado oscuro de tejas con crestería, torreta con tejado de aguja, ventanas altas en arco, ventanuco redondo, tablas grises o pardas gastadas, porche con escalones, árbol muerto delante y verja de hierro.
 - **Criterios:** ventanas, puertas, Trepador (tejado y chimenea) y bichos siguen funcionando; nada nuevo que estorbe al correr alrededor de la casa; se ve bien de día y de noche, y en móvil.
 - **Estado:** pendiente — plan hecho; se hace en otro chat (pedido por el usuario, para gastar menos)
 
