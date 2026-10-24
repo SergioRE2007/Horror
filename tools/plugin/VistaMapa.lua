@@ -8,10 +8,12 @@
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
+-- Sin icono, la barra nueva de Studio esconde el botón.
+local ICONO = "rbxassetid://4458901886"
 local barra = plugin:CreateToolbar("Juego de terror")
-local botonVer = barra:CreateButton("VER MAPA", "Genera el mapa sin darle a Play", "")
-local botonCambios = barra:CreateButton("CAMBIOS", "Escribe en la Salida lo que has movido", "")
-local botonQuitar = barra:CreateButton("QUITAR MAPA", "Borra el mapa generado", "")
+local botonVer = barra:CreateButton("VER MAPA", "Genera el mapa sin darle a Play", ICONO)
+local botonCambios = barra:CreateButton("CAMBIOS", "Escribe en la Salida lo que has movido", ICONO)
+local botonQuitar = barra:CreateButton("QUITAR MAPA", "Borra el mapa generado", ICONO)
 for _, b in { botonVer, botonCambios, botonQuitar } do
 	b.ClickableWhenViewportHidden = true
 end
