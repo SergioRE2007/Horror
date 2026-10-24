@@ -4,11 +4,10 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
-1. 11.8.0: tubería Poly Haven → Roblox con un mueble de prueba.
-2. 11.8.1 a 11.8.13: el interior, una sala por chat.
-3. 11.6: que Sergio vea la fachada (se puede meter en cualquier chat de sala).
-4. 12.1 Pistas → 12.2 La Bestia.
-5. 11.5 Pueblo amueblado, 11.2 Monstruos (casi al final), 13 Lanzamiento.
+1. 11.8.1 a 11.8.13: el interior, una sala por chat (empieza por el vestíbulo).
+2. 11.6: que Sergio vea la fachada (se puede meter en cualquier chat de sala).
+3. 12.1 Pistas → 12.2 La Bestia.
+4. 11.5 Pueblo amueblado, 11.2 Monstruos (casi al final), 13 Lanzamiento.
 
 ## Hechas
 
@@ -46,7 +45,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 | Tarea | Sala | Además revisar | Estado |
 |---|---|---|---|
-| 11.8.0 | Tubería Poly Haven → Roblox con `ArmChair_01` en el salón | — | pendiente |
+| 11.8.0 | Tubería Poly Haven → Roblox (`docs/sistemas/polyhaven.md`), probada con la butaca | — | hecho |
 | 11.8.1 | Vestíbulo | dónde aparece el jugador | pendiente |
 | 11.8.2 | Salón | sofá, tele encogida al 70 %; chimenea del Trepador sin tocar | pendiente |
 | 11.8.3 | Comedor | — | pendiente |

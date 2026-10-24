@@ -14,12 +14,9 @@ Pedido por el usuario: "mejor hacer un plan bien elaborado para cada habitación
 
 Reglas que no cambian (pedido por el usuario): ninguna ventana tapada, el centro de las salas libre, vanos anchos, nada que estorbe al correr; Moderate como máximo.
 
-## Tubería Poly Haven → Roblox (chat 0, antes de la primera sala)
+## Tubería Poly Haven → Roblox
 
-- Poly Haven: modelos CC0 (uso comercial libre, sin tener que citar). Se bajan desde Blender (addon MCP, `search_assets` / `import_asset`) o de `api.polyhaven.com`.
-- En Blender, por script (`tools/blender/polyhaven.py`): escala a studs; `Decimate` hasta unos 5.000 triángulos por mueble (límite de Roblox: 20.000 por malla); texturas de 1024 px (512 en lo pequeño); envejecer si hace falta (más oscuro, más polvo en el color); pivote abajo en el centro y el frente hacia -Z. Exporta `.fbx` + texturas + una vista `.png` para revisarla.
-- Subida: la malla con Open Cloud (`tools/blender/subir_modelo.mjs`, como modelo del grupo) y las texturas como imágenes. En Studio se monta el `MeshPart` con su `SurfaceAppearance` (color, normal, rugosidad, metal) y se guarda en `src/muebles/Muebles.rbxm` con `Tam` e `Id`, como los muebles de ahora (`docs/sistemas/casa-grande.md`).
-- Prueba del chat 0: un solo mueble de punta a punta (el `ArmChair_01`), puesto en el salón y visto de día y de noche, también en móvil (rendimiento).
+Hecha y probada con la butaca (11.8.0): pasos y lo aprendido en `docs/sistemas/polyhaven.md`.
 
 ## Orden y lista de salas
 
