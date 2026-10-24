@@ -104,9 +104,37 @@ def desconchon(azar):
     guardar("Desconchon", alfa, azar, yeso * (1 - filo * 0.6))
 
 
+HOLLIN = np.array([0.05, 0.045, 0.04], dtype=np.float32)
+
+
+def hollin(azar):
+    # Hollín esparcido delante del hogar (salón, 11.8.2): abanico negro que sale de un lado y se va aclarando.
+    y, x = np.mgrid[0:W, 0:W].astype(np.float32)
+    d = np.sqrt(((x - 256) / 230) ** 2 + ((y - 40) / 420) ** 2)
+    alfa = np.clip((1 - d) * 2.2, 0, 1) * (0.35 + 0.65 * ruido(azar, 10)) * np.clip(1.3 - y / W, 0, 1)
+    guardar("Hollin", alfa, azar, HOLLIN[None, None, :] * (0.8 + 0.4 * ruido(azar, 20)[:, :, None]))
+
+
+def huellas(azar):
+    # Huellas de hollín de algo que salió de la chimenea: planta alargada y tres uñas delante, alternando los pies y
+    # cada vez más flojas (la imagen se recorre de arriba abajo).
+    alfa = np.zeros((W, W), dtype=np.float32)
+    for k in range(4):
+        cx, cy = 256 + (60 if k % 2 else -60), 60 + k * 125
+        fuerza = 0.95 - 0.2 * k
+        for t in range(14):
+            disco(alfa, cx + azar.uniform(-3, 3), cy + t * 3, 22 - abs(t - 6) * 1.5, fuerza)
+        for dx in (-22, 0, 22):
+            for t in range(18):
+                disco(alfa, cx + dx * (1 + t / 30), cy + 44 + t * 2.4, 5 - t * 0.2, fuerza)
+    guardar("Huellas", alfa, azar, HOLLIN[None, None, :] * (0.8 + 0.4 * ruido(azar, 20)[:, :, None]))
+
+
 os.makedirs(SALIDA, exist_ok=True)
 azar = np.random.default_rng(13)
 gotas(azar)
 arrastre(azar)
 salpicadura(azar)
 desconchon(azar)
+hollin(azar)
+huellas(azar)

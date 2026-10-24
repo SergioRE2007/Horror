@@ -20,6 +20,13 @@ local azar = Random.new()
 local PLIEGUES = 6 -- pliegues de cada paño de cortina
 local TELA = Color3.fromRGB(86, 40, 36) -- terciopelo granate viejo
 local TELA_OSCURA = Color3.fromRGB(62, 28, 26)
+-- Terciopelo de verdad (MaterialVariant de Poly Haven, 11.8.2): con el Fabric de serie en un color tan oscuro las
+-- cortinas se veían como ruido negro con brillos. Sin él (lugar sin Rojo), Fabric con los colores de arriba.
+-- Se mira al hacer cada cortina, no al cargar: la carpeta puede llegar después.
+local function hayTerciopelo(): boolean
+	local materiales = game:GetService("MaterialService"):FindFirstChild("Materiales")
+	return materiales ~= nil and materiales:FindFirstChild("Terciopelo") ~= nil
+end
 local temblor = 0 -- fuerza del temblor de la cámara, baja sola
 
 local function pieza(tamano: Vector3, cf: CFrame, color: Color3, padre: Instance): Part
@@ -121,6 +128,10 @@ local function ventana(el: Model)
 		for i = 1, PLIEGUES * 2 do
 			local p = pieza(Vector3.new(0.5, caida, 0.08), centro, if i % 2 == 0 then TELA else TELA_OSCURA, local_)
 			p.Material = Enum.Material.Fabric
+			if hayTerciopelo() then
+				p.MaterialVariant = "Terciopelo"
+				p.Color = Color3.new(1, 1, 1) -- el color va en la textura
+			end
 			pliegues[i] = p
 			tuerce[i] = azar:NextNumber(-1, 1)
 		end

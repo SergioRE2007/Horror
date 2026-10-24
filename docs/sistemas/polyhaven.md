@@ -22,6 +22,14 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - **Texturas recién subidas**: durante un rato salen en blanco ("*Asset content representation is being generated*"), y si falla un solo mapa, el `SurfaceAppearance` o el `MaterialVariant` entero sale blanco (pasó con el relieve de los paneles del vestíbulo y con dos mapas de un cuadro). Esperar y volver a mirar antes de tocar nada; si uno no carga nunca, quitar ese mapa.
 - Las texturas iguales (la madera oscura del perchero, los barrotes y el poste) se suben una vez: Roblox da el mismo id.
 
+## Salón (11.8.2)
+
+- `a_mano.py`: color liso (`("liso", rgb)`) o imagen hecha por una función (teclas del piano, alfombra persa) en vez de una textura de Poly Haven; `tela()` hace telas con grueso que se ven por las dos caras (cortinas); el sofá tapado sale de cajas fundidas con un remallado en vóxeles y pliegues hacia abajo. `LIMPIOS`: telas claras sin las manchas grandes del envejecido (la sábana parecía piedra).
+- `textura_ph.py --rayas`: papel de rayas verticales encima de un papel de Poly Haven.
+- Marcos de fotos y cuadros de Poly Haven: la pieza de delante (`_3`) es el cristal y trae la textura del marco: tapa la foto (sale negra). Se le quita el `SurfaceAppearance` y queda de cristal transparente.
+- Guardar `Muebles.rbxm`: `EncodingService:Base64Encode` devuelve un `buffer`: pasarlo por `buffer.tostring` antes de `PostAsync` (sin eso se guardó un archivo de 7 bytes).
+- Los que tienen la pared en diagonal (torre) no los viste `vestirParedes`: papel, rodapié, suelo y techo de la torre van aparte (`vestirSalon`).
+
 ## Lo aprendido
 
 - El frente: lo que en Blender mira a -Y (así vienen los de Poly Haven) sale en Roblox mirando a -Z, el frente del juego. Por eso `--girar` es 0 por defecto. La vista `.png` se hace desde ese lado.
