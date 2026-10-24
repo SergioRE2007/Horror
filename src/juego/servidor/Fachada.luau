@@ -1,9 +1,10 @@
 -- La fachada de la casa (11.6, pedido por el usuario: "casa victoriana encantada", referencias en
 -- docs/referencias/casa-fuera/): tablas viejas con textura, zócalo de piedra, esquineras y franja entre plantas;
 -- ventanas con dintel, alféizar, arco arriba y contraventanas (alguna colgando); tejas, canalones torcidos, crestería,
--- hastiales con ventanuco redondo y la torre con tejado de aguja; columnas y balaustradas del porche, farol y
--- mecedora; hiedra, una ventana tapiada, manchas de humedad, buzón torcido y valla caída. Todo es adorno: no choca ni
--- tapa rayos, así que la jugabilidad no cambia. Lo llama Mapa mientras construye la casa.
+-- hastiales con ventanuco redondo y la torre con tejado de aguja; columnas y balaustradas del porche y farol (la
+-- mecedora es un mueble de la tienda, en Mapa); hiedra, una ventana tapiada, manchas de humedad, buzón torcido y
+-- valla caída. Todo es adorno: no choca ni tapa rayos, así que la jugabilidad no cambia. Lo llama Mapa mientras
+-- construye la casa.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -474,20 +475,6 @@ function Fachada.vestir(m)
 	pieza("Farol", Vector3.new(0.9, 1.2, 0.9), farol, Color3.fromRGB(70, 64, 48), Enum.Material.Glass).Transparency = 0.2
 	pieza("Tapa", Vector3.new(1.2, 0.3, 1.2), farol * CFrame.new(0, 0.75, 0), COLOR.Hierro, Enum.Material.Metal)
 	pieza("Base", Vector3.new(1, 0.2, 1), farol * CFrame.new(0, -0.7, 0), COLOR.Hierro, Enum.Material.Metal)
-	-- Mecedora mirando al camino.
-	local silla = CFrame.new(9, m.ABAJO, -37.5) * CFrame.Angles(0, math.rad(200), 0)
-	pieza("Asiento", Vector3.new(2, 0.25, 2), silla * CFrame.new(0, 1.6, 0), Color3.fromRGB(48, 38, 30))
-	pieza("Respaldo", Vector3.new(2, 2.8, 0.25), silla * CFrame.new(0, 3, 1.05) * CFrame.Angles(math.rad(-12), 0, 0), Color3.fromRGB(48, 38, 30))
-	for _, x in { -0.95, 0.95 } do
-		pieza("Brazo", Vector3.new(0.2, 0.2, 2), silla * CFrame.new(x, 2.6, 0), Color3.fromRGB(42, 33, 26))
-		for _, z in { -0.8, 0.8 } do
-			pieza("Pata", Vector3.new(0.2, 1.4, 0.2), silla * CFrame.new(x, 0.9, z), Color3.fromRGB(42, 33, 26))
-		end
-		for i = -1, 1 do -- el balancín, en tres trozos curvados
-			pieza("Balancin", Vector3.new(0.2, 0.2, 1.3), silla * CFrame.new(x, 0.18 + math.abs(i) * 0.12, i * 1.1) * CFrame.Angles(i * 0.22, 0, 0),
-				Color3.fromRGB(42, 33, 26))
-		end
-	end
 
 	-- Abandono: hiedra por la esquina del comedor, manchas de humedad bajo el alero y junto al suelo.
 	hiedra(Vector3.new(-39.5, 0, -33.5), { { -Vector3.zAxis, Vector3.xAxis }, { -Vector3.xAxis, Vector3.zAxis } }, 22)
