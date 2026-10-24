@@ -20,6 +20,7 @@ parser.add_argument("--nombre", required=True)
 parser.add_argument("--tinte", default="1,1,1")
 parser.add_argument("--oscurecer", type=float, default=0.85)
 parser.add_argument("--limpia", action="store_true", help="sin manchas (en suelos se ven en cuadrícula)")
+parser.add_argument("--rayas", action="store_true", help="papel de rayas verticales (salón)")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
 
 salida = os.path.join(OUT_DIR, "polyhaven", "texturas")
@@ -28,3 +29,22 @@ tinte = np.array([float(c) for c in args.tinte.split(",")], dtype=np.float32) * 
 polyhaven.sacar_texturas(a_mano.material_ph(args.nombre, args.id), os.path.join(salida, args.nombre), tinte,
                          not args.limpia)
 print("HECHA", args.nombre)
+
+# --rayas: papel pintado de rayas verticales de los años 50 (salón, 11.8.2), encima del papel viejo de Poly Haven: banda
+# verde salvia y banda crema con un hilo rojo oscuro; 8 rayas por baldosa (con StudsPerTile 8, una cada stud).
+if args.rayas:
+    import bpy
+
+    ruta = os.path.join(salida, args.nombre) + "_color.png"
+    imagen = bpy.data.images.load(ruta)
+    w, h = imagen.size
+    pixeles = np.empty(w * h * 4, dtype=np.float32)
+    imagen.pixels.foreach_get(pixeles)
+    rgb = pixeles.reshape(h, w, 4)[:, :, :3]
+    luz = rgb.mean(axis=2, keepdims=True) / max(rgb.mean(), 1e-3)
+    columna = np.arange(w) % (w // 8) / (w // 8)
+    raya = np.where(columna[:, None] < 0.5, [0.5, 0.56, 0.44], [0.8, 0.74, 0.6]).astype(np.float32)
+    raya[(columna > 0.73) & (columna < 0.77)] = [0.42, 0.14, 0.12]
+    rgb = rgb * 0.4 + luz * raya[None, :, :] * rgb.mean() * 1.1
+    polyhaven.guardar("rayas", rgb, w, h, ruta)
+    print("RAYAS", args.nombre)

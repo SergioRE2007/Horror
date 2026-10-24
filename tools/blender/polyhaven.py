@@ -136,12 +136,12 @@ def sacar_texturas(material, base, oscurecer, sucia=True):
         guardar(nombre, np.repeat(valores[:, :, None], 3, axis=2), w, h, base + "_%s.png" % nombre)
 
 
-def pieza(obj, base, oscurecer):
+def pieza(obj, base, oscurecer, sucia=True):
     """Saca las texturas del material de `obj`; si no tiene imagen de color, apunta su color liso."""
     material = obj.active_material
     imagen, _ = textura(material, "Base Color")
     if imagen:
-        sacar_texturas(material, base, oscurecer)
+        sacar_texturas(material, base, oscurecer, sucia)
         return {"malla": obj.name, "texturas": True}
     bsdf = next(n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
     color = bsdf.inputs["Base Color"].default_value

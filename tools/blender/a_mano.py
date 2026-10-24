@@ -1,7 +1,8 @@
 # Muebles que no hay en Poly Haven, hechos por script con texturas de Poly Haven (CC0): mismo resultado que
 # polyhaven.py (una malla por material, texturas envejecidas, <nombre>_piezas.json, .fbx y vista .png).
 # Uso: blender -b --factory-startup --python tools/blender/a_mano.py -- --nombre Perchero
-# Muebles: Perchero (con abrigo y paraguas), Cartas (sobres tirados), AlfombraLarga (la del vestíbulo).
+# Muebles: Perchero (con abrigo y paraguas), Cartas (sobres tirados), AlfombraLarga (la del vestíbulo); del salón,
+# SofaTapado, Piano, Banqueta, Repisa, LamparaPie, AlfombraSalon y CortinaVano (la de los vanos de toda la casa).
 import argparse
 import json
 import math
@@ -21,6 +22,7 @@ from geometria import OUT_DIR, R, S, T, box, cyl, lathe, limb, render, sphere  #
 
 BAJADOS = os.path.join(OUT_DIR, "polyhaven", "_bajados")
 ARRIBA = {"Alfombra", "Papel"}  # papeles hechos de láminas de una sola cara
+LIMPIOS = {"Sabana"}  # telas claras: las manchas grandes del envejecido las hacían parecer piedra
 
 
 def a_blender(v):
@@ -246,6 +248,236 @@ def papel_viejo(w=256):
     return bpy.data.images.load(ruta)
 
 
+def imagen_lisa(nombre, rgb, w=64):
+    """Color liso con algo de grano (latón, teclas negras, flecos)."""
+    azar = np.random.default_rng(5)
+    color = np.ones((w, w, 3), dtype=np.float32) * np.array(rgb, dtype=np.float32)
+    color *= (1 - azar.random((w, w, 1)).astype(np.float32) * 0.1)
+    ruta = os.path.join(BAJADOS, "liso_%s.png" % nombre)
+    polyhaven.guardar(nombre, color, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def teclas_piano(w=64):
+    """Una tecla blanca (marfil) con su raya oscura al borde: se repite cada 0,15 studs a lo largo del teclado."""
+    color = np.ones((w, w, 3), dtype=np.float32) * np.array([0.86, 0.82, 0.7], dtype=np.float32)
+    color[:, :4] = 0.12
+    ruta = os.path.join(BAJADOS, "teclas_piano.png")
+    polyhaven.guardar("teclas", color, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def alfombra_persa(w=1024, tesela=10.0, mitad=(5.0, 4.3)):
+    """Alfombra persa de una pieza (cenefa con motivos, campo rojo, medallón y esquinas azules), en studs: la UV de
+    caja pone el centro de la alfombra en la esquina de la imagen, por eso cada píxel se pasa a (x, z) con módulo."""
+    t = (np.arange(w, dtype=np.float32) / w + 0.5) % 1 - 0.5
+    x = np.abs(t[None, :] * tesela)
+    z = np.abs(t[:, None] * tesela)
+    d = np.minimum(mitad[0] - x, mitad[1] - z)  # distancia al borde
+    rojo, azul, crema = np.array([0.42, 0.08, 0.07]), np.array([0.09, 0.11, 0.2]), np.array([0.78, 0.7, 0.55])
+    rgb = np.ones((w, w, 3), dtype=np.float32) * rojo
+    cenefa = (d > 0.15) & (d < 0.75)
+    a_lo_largo = np.where(mitad[0] - x < mitad[1] - z, z, x)
+    zigzag = 0.3 + 0.3 * np.abs((a_lo_largo * 1.6) % 1 - 0.5)  # greca en zigzag a lo largo de la cenefa
+    motivo = (np.abs(d - zigzag) < 0.05) & cenefa
+    rgb[d <= 0.15] = azul
+    rgb[cenefa] = azul * 1.3
+    rgb[motivo] = crema * 0.75
+    rgb[(d >= 0.75) & (d < 0.85)] = crema
+    rombo = x / 2.4 + z / 1.9
+    rgb[(rombo < 1) & (d >= 0.85)] = azul
+    rgb[(rombo < 0.8) & (rombo > 0.7)] = crema
+    rgb[rombo < 0.45] = rojo * 0.8
+    rgb[(rombo < 0.2)] = crema
+    esquina = (mitad[0] - 0.85 - x) / 1.6 + (mitad[1] - 0.85 - z) / 1.3
+    rgb[(esquina < 1) & (d >= 0.85)] = azul
+    # Florecillas por el campo rojo y desgaste.
+    flor = (np.sin(x * 6) * np.sin(z * 6) > 0.85) & (rombo >= 1) & (esquina >= 1) & (d >= 0.85)
+    rgb[flor] = rojo * 0.55  # florecillas oscuras (claras parecían lunares)
+    azar = np.random.default_rng(9)
+    rgb *= (1 - azar.random((w, w, 1)).astype(np.float32) * 0.18)
+    ruta = os.path.join(BAJADOS, "alfombra_persa.png")
+    polyhaven.guardar("alfombra", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def tela(m, papel, f, nu, nv, grosor):
+    """Tela con grueso (cerrada, para que se vea por las dos caras): f(u, v) -> punto, con u y v de 0 a 1."""
+    P = [[Vector(f(i / nu, j / nv)) for i in range(nu + 1)] for j in range(nv + 1)]
+    delante, detras = [], []
+    for j in range(nv + 1):
+        for i in range(nu + 1):
+            du = P[j][min(i + 1, nu)] - P[j][max(i - 1, 0)]
+            dv = P[min(j + 1, nv)][i] - P[max(j - 1, 0)][i]
+            n = du.cross(dv).normalized() * grosor / 2
+            delante.append(tuple(P[j][i] + n))
+            detras.append(tuple(P[j][i] - n))
+    N = len(delante)
+
+    def k(i, j):
+        return j * (nu + 1) + i
+
+    caras = []
+    for j in range(nv):
+        for i in range(nu):
+            q = (k(i, j), k(i + 1, j), k(i + 1, j + 1), k(i, j + 1))
+            caras += [q, tuple(N + c for c in reversed(q))]
+    borde = [(i, 0) for i in range(nu)] + [(nu, j) for j in range(nv)] + [(i, nv) for i in range(nu, 0, -1)] + \
+        [(0, j) for j in range(nv, 0, -1)]
+    for a, b in zip(borde, borde[1:] + borde[:1]):
+        caras.append((k(*a), k(*b), N + k(*b), N + k(*a)))
+    m.add(papel, (delante + detras, caras))
+
+
+def sofa_tapado(m, rng):
+    # Sofá de tres plazas tapado con una sábana hasta el suelo (casa cerrada): las formas del sofá con cajas, un remallado
+    # en vóxeles las funde y redondea, y luego la tela cae en pliegues hacia abajo y se abre un poco en el suelo.
+    largo, fondo = 8.8, 3.6
+    cajas = [((0, 0.9, 0), (largo - 1.4, 1.8, fondo)), ((0, 2.2, 1.2), (largo - 1.2, 2.3, 1.2)),
+             ((-largo / 2 + 0.45, 1.25, 0), (0.9, 2.5, fondo)), ((largo / 2 - 0.45, 1.25, 0), (0.9, 2.5, fondo)),
+             ((-1.8, 1.95, -0.3), (3.4, 0.4, 2.7)), ((1.8, 1.9, -0.3), (3.4, 0.35, 2.7))]
+    bm = bmesh.new()
+    for centro, tam in cajas:
+        hecho = bmesh.ops.create_cube(bm, size=1.0)
+        bmesh.ops.transform(bm, matrix=T(*centro) @ S(*tam), verts=hecho["verts"])
+    malla = bpy.data.meshes.new("nucleo")
+    bm.to_mesh(malla)
+    bm.free()
+    obj = bpy.data.objects.new("nucleo", malla)
+    bpy.context.scene.collection.objects.link(obj)
+    bpy.context.view_layer.objects.active = obj
+    remallar = obj.modifiers.new("remallar", "REMESH")
+    remallar.mode = "VOXEL"
+    remallar.voxel_size = 0.1
+    bpy.ops.object.modifier_apply(modifier="remallar")
+    suave = obj.modifiers.new("suave", "SMOOTH")
+    suave.factor, suave.iterations = 0.6, 5
+    bpy.ops.object.modifier_apply(modifier="suave")
+    malla.update()
+    for v in malla.vertices:
+        x, y, z = v.co
+        n = Vector((v.normal.x, 0, v.normal.z))
+        if n.length > 0.3:
+            n.normalize()
+            a_lo_largo = x if abs(n.z) > abs(n.x) else z
+            pliegue = 0.2 * max(0.0, 1 - y / 2.0) ** 1.5 + 0.03
+            onda = math.sin(a_lo_largo * 2.6 + 0.8 * math.sin(a_lo_largo * 0.9 + z))
+            abierto = 0.2 * max(0.0, 1 - y / 0.45) ** 2
+            v.co += n * (pliegue * onda + abierto)
+        v.co.y = max(v.co.y + 0.03 * math.sin(x * 3.1) * math.sin(z * 2.7) * (y > 1.5), 0.01)
+    bm = bmesh.new()
+    bm.from_mesh(malla)
+    bmesh.ops.delete(bm, geom=[c for c in bm.faces if all(v.co.y < 0.05 for v in c.verts)], context="FACES")
+    bm.to_mesh(malla)
+    bm.free()
+    menos = obj.modifiers.new("menos", "DECIMATE")
+    menos.ratio = min(1.0, 3500 / max(1, sum(len(p.vertices) - 2 for p in malla.polygons)))
+    bpy.ops.object.modifier_apply(modifier="menos")
+    m.add("Sabana", ([tuple(v.co) for v in malla.vertices], [tuple(p.vertices) for p in malla.polygons]))
+    bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def piano(m, rng):
+    # Piano vertical de los años 50 (1,5 m de ancho): caja, tapa, teclado abierto con partituras en el atril,
+    # patas torneadas delante y dos pedales.
+    m.add("Madera", box(6, 5.0, 1.3), T(0, 2.5, 0.55))
+    m.add("Madera", box(6.2, 0.15, 1.45), T(0, 5.07, 0.55))
+    m.add("Madera", box(5.2, 1.6, 0.08), T(0, 3.95, -0.13))
+    m.add("Madera", box(5.0, 2.1, 0.08), T(0, 1.2, -0.13))
+    m.add("Madera", box(5.7, 0.35, 1.1), T(0, 2.55, -0.6))
+    for lado in (-1, 1):
+        m.add("Madera", box(0.25, 0.55, 1.1), T(lado * 2.85, 2.95, -0.6))
+        m.add("Madera", box(0.35, 0.2, 1.1), T(lado * 2.6, 0.1, -0.55))
+        m.add("Madera", lathe([(0.14, 0.2), (0.18, 0.3), (0.12, 0.6), (0.16, 1.3), (0.1, 1.95), (0.17, 2.2), (0.17, 2.38)], 10),
+              T(lado * 2.6, 0, -0.95))
+    m.add("Teclas", box(5.4, 0.12, 0.85), T(0, 2.79, -0.62))
+    for i in range(35):
+        if i % 7 in (0, 1, 3, 4, 5):
+            m.add("Negras", box(0.09, 0.1, 0.5), T(-2.7 + (i + 1) * 0.15, 2.9, -0.45))
+    m.add("Madera", box(5.4, 0.5, 0.06), T(0, 3.05, -0.15))
+    atril = T(0, 3.55, -0.25) @ R("X", -12)
+    m.add("Madera", box(3, 0.9, 0.06), atril)
+    for k, x in enumerate((-0.72, 0.72)):
+        m.add("Papel", box(1.4, 0.95, 0.01), atril @ T(x, 0.1, -0.04) @ R("Z", (k - 0.5) * 3))
+    for x in (-0.3, 0.3):
+        m.add("Laton", box(0.12, 0.05, 0.4), T(x, 0.3, -0.3))
+
+
+def banqueta(m, rng):
+    # Banqueta del piano: asiento de cuero sobre cuatro patas torneadas.
+    m.add("Madera", box(2.6, 0.25, 1.1), T(0, 1.75, 0))
+    m.add("Cuero", box(2.4, 0.18, 0.95), T(0, 1.96, 0))
+    for x in (-1.1, 1.1):
+        for z in (-0.4, 0.4):
+            m.add("Madera", lathe([(0.1, 0), (0.08, 0.3), (0.11, 0.8), (0.07, 1.4), (0.1, 1.63)], 8), T(x, 0, z))
+
+
+def repisa(m, rng):
+    # Frente tallado de la chimenea del salón (8 de ancho, contra el ladrillo): pilastras con basa y capitel a los lados
+    # del hogar, friso con tablilla y rosetas, molduras y la repisa encima.
+    for lado in (-1, 1):
+        m.add("Madera", box(0.9, 4.0, 0.6), T(lado * 2.6, 2.0, -0.3))
+        m.add("Madera", box(1.1, 0.4, 0.75), T(lado * 2.6, 0.2, -0.37))
+        m.add("Madera", box(1.1, 0.3, 0.75), T(lado * 2.6, 4.1, -0.37))
+        m.add("Madera", box(0.5, 0.4, 0.5), T(lado * 3.55, 4.3, -0.7))
+        m.add("Madera", sphere(0.22, 8, 5), T(lado * 1.6, 3.85, -0.47) @ S(1, 1, 0.4))
+    m.add("Madera", box(6.3, 0.75, 0.45), T(0, 3.85, -0.22))
+    m.add("Madera", box(1.6, 0.5, 0.12), T(0, 3.85, -0.5))
+    m.add("Madera", box(6.8, 0.12, 0.6), T(0, 4.31, -0.3))
+    m.add("Madera", box(7.6, 0.1, 1.1), T(0, 4.45, -0.55))
+    m.add("Madera", box(7.8, 0.22, 1.2), T(0, 4.6, -0.6))
+
+
+def lampara_pie(m, rng):
+    # Lámpara de pie: base y palo de latón, pantalla de tela amarillenta (hueca, para que la bombilla se vea debajo).
+    m.add("Laton", lathe([(0.6, 0), (0.6, 0.1), (0.35, 0.25), (0.12, 0.4)], 14))
+    m.add("Laton", cyl(0.06, 5.6, 8), T(0, 0.35, 0))
+    m.add("Pantalla", lathe([(0.95, 5.25), (0.55, 6.45), (0.52, 6.43), (0.91, 5.27), (0.95, 5.25)], 18, caps=False))
+
+
+def alfombra_salon(m, rng):
+    # Alfombra persa de 10 x 8,6 delante de la tele, con arrugas suaves, una esquina levantada y flecos en las puntas.
+    ancho, largo, alto = 10.0, 8.6, 0.06
+    nx, nz = 30, 26
+
+    def punto(i, j):
+        x, z = -ancho / 2 + ancho * i / nx, -largo / 2 + largo * j / nz
+        y = alto + 0.1 * max(0, math.sin(x * 0.8 + 0.6)) ** 8 + 0.05 * max(0, math.sin(z * 0.5 + x * 0.2)) ** 6
+        y += 0.25 * max(0, 1 - Vector((x - ancho / 2, z + largo / 2)).length / 1.5) ** 2  # esquina levantada
+        return (x, y, z)
+
+    verts = [punto(i, j) for j in range(nz + 1) for i in range(nx + 1)]
+    caras = [(j * (nx + 1) + i, j * (nx + 1) + i + 1, (j + 1) * (nx + 1) + i + 1, (j + 1) * (nx + 1) + i)
+             for j in range(nz) for i in range(nx)]
+    m.add("Alfombra", (verts, caras))
+    for punta in (-1, 1):
+        for k in range(30):
+            z = -largo / 2 + 0.2 + (largo - 0.4) * k / 29
+            x = punta * ancho / 2
+            m.rama("Borde", (x, 0.02, z), (x + punta * rng.uniform(0.25, 0.4), 0.01, z + rng.uniform(-0.08, 0.08)), 0.03, 0.02, 3)
+
+
+def cortina_vano(m, rng):
+    # Cortina de terciopelo de los vanos abiertos (10,6 de alto): fruncida arriba, recogida con un cordón a media altura
+    # y algo abierta abajo. Simétrica: sirve a los dos lados del vano.
+    alto, atada = 10.6, 3.8
+
+    def mitad(y):
+        if y > atada:
+            return 0.32 + 0.53 * ((y - atada) / (alto - atada)) ** 0.8
+        return 0.32 + 0.3 * ((atada - y) / atada) ** 0.8
+
+    def f(u, v):
+        y = v * alto
+        w = mitad(y)
+        hondo = 0.03 + 0.15 * w / 0.85
+        return ((u - 0.5) * 2 * w, y, hondo * math.sin(u * 2 * math.pi * 4.5) + 0.04 * math.sin(v * 7))
+
+    tela(m, "Tela", f, 24, 16, 0.06)
+    m.add("Cordon", lathe([(0.36, -0.1), (0.42, 0), (0.36, 0.1)], 10), T(0, atada, 0) @ S(1, 1, 0.55))
+    m.rama("Cordon", (0.3, atada, -0.1), (0.38, atada - 1.1, -0.18), 0.06, 0.09, 6)
+
+
 MUEBLES = {
     # nombre: (función, {papel: textura de Poly Haven o None = papel_viejo}, {papel: studs por baldosa},
     #          {papel: tinte}, papeles suaves)
@@ -258,7 +490,30 @@ MUEBLES = {
     "Roseton": (roseton, {"Yeso": "worn_cracked_plaster"}, {"Yeso": 3}, {"Yeso": (0.8, 0.78, 0.72)}, ("Yeso",)),
     "AlfombraLarga": (alfombra_larga, {"Alfombra": "quatrefoil_jacquard_fabric", "Borde": "dirty_carpet"},
                       {"Alfombra": 3, "Borde": 2}, {"Alfombra": (0.75, 0.6, 0.55)}, ()),
+    # Salón (11.8.2). Una tupla ("liso", rgb) = color liso; una función = imagen hecha aquí.
+    "SofaTapado": (sofa_tapado, {"Sabana": "rough_linen"}, {"Sabana": 2}, {"Sabana": (0.86, 0.84, 0.79)}, ("Sabana",)),
+    "Piano": (piano, {"Madera": "rosewood_veneer1", "Teclas": teclas_piano, "Negras": ("liso", (0.04, 0.04, 0.04)),
+                      "Laton": ("liso", (0.5, 0.38, 0.18)), "Papel": None},
+              {"Madera": 3, "Teclas": 0.15, "Negras": 1, "Laton": 1, "Papel": 1.4}, {"Madera": (0.5, 0.38, 0.34)}, ()),
+    "Banqueta": (banqueta, {"Madera": "rosewood_veneer1", "Cuero": "brown_leather"}, {"Madera": 3, "Cuero": 2},
+                 {"Madera": (0.5, 0.38, 0.34)}, ()),
+    "Repisa": (repisa, {"Madera": "dark_wood"}, {"Madera": 2}, {}, ()),
+    "LamparaPie": (lampara_pie, {"Laton": ("liso", (0.42, 0.33, 0.18)), "Pantalla": "rough_linen"},
+                   {"Laton": 1, "Pantalla": 1.5}, {"Pantalla": (0.95, 0.8, 0.55)}, ("Laton", "Pantalla")),
+    "AlfombraSalon": (alfombra_salon, {"Alfombra": alfombra_persa, "Borde": ("liso", (0.75, 0.7, 0.6))},
+                      {"Alfombra": 10, "Borde": 1}, {}, ()),
+    "CortinaVano": (cortina_vano, {"Tela": "velour_velvet", "Cordon": ("liso", (0.45, 0.34, 0.16))},
+                    {"Tela": 2.5, "Cordon": 1}, {"Tela": (0.6, 0.3, 0.3)}, ("Tela", "Cordon")),
 }
+
+
+def imagen(papel, t):
+    """La imagen de color de un papel sin textura de Poly Haven (ver MUEBLES)."""
+    if t is None:
+        return papel_viejo()
+    if callable(t):
+        return t()
+    return imagen_lisa(papel, t[1])
 
 
 def main():
@@ -272,7 +527,8 @@ def main():
         bpy.data.objects.remove(obj, do_unlink=True)
     m = Mueble()
     funcion(m, random.Random(11))
-    materiales = {p: material_ph(p, t, None if t else papel_viejo()) for p, t in texturas.items()}
+    materiales = {p: material_ph(p, t) if isinstance(t, str) else material_ph(p, None, imagen(p, t))
+                  for p, t in texturas.items()}
     objetos = m.crear(args.nombre, materiales, teselas, suaves)
 
     salida = os.path.join(OUT_DIR, "polyhaven", args.nombre)
@@ -283,7 +539,7 @@ def main():
         papel = obj.name
         obj.name = obj.data.name = "%s_%d" % (args.nombre, k) if len(objetos) > 1 else args.nombre
         tinte = np.array(tintes.get(papel, (1, 1, 1)), dtype=np.float32) * args.oscurecer
-        piezas.append(polyhaven.pieza(obj, base + ("_%d" % k if len(objetos) > 1 else ""), tinte))
+        piezas.append(polyhaven.pieza(obj, base + ("_%d" % k if len(objetos) > 1 else ""), tinte, papel not in LIMPIOS))
     with open(base + "_piezas.json", "w", encoding="utf-8") as archivo:
         json.dump(piezas, archivo, indent=1)
     bpy.ops.export_scene.fbx(filepath=base + ".fbx", object_types={"MESH"}, axis_forward="-Z", axis_up="Y",
