@@ -39,7 +39,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 ## Al empezar una sesión (proyecto con Rojo)
 
 0. `git switch main` y `git pull`.
-1. `rojo serve juego.project.json` en segundo plano (o `lobby.project.json`, puerto 34873) y comprobar `http://localhost:34872/api/rojo`. Estructura en `docs/sistemas/datos.md`.
+1. Rojo ya corre solo: tarea de Windows "Rojo Horror" (`tools/rojo/instalar.ps1`, al iniciar sesión). Solo comprobar `http://localhost:34872/api/rojo`; si no responde, `Start-ScheduledTask "Rojo Horror"`. **Nunca pararlo ni lanzar otro** (pedido por el usuario: cada reinicio desconecta Studio). El lobby (`lobby.project.json`, puerto 34873) sí se sirve a mano. Cambiar `juego.project.json` obliga a reiniciarla: evitarlo, meter lo nuevo en carpetas que ya estén en el proyecto. Estructura en `docs/sistemas/datos.md`.
 2. `list_roblox_studios` para el `studio_id` (sale con el nombre del lugar abierto, no del proyecto; reconocerlo por algún módulo propio).
 3. Si Studio no está conectado al puerto, pedir a Sergio que pulse Rojo → Connect.
 

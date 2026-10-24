@@ -34,11 +34,11 @@ def bajar(url, destino):
     os.replace(destino + ".part", destino)
 
 
-def bajar_modelo(asset, res, carpeta):
+def bajar_modelo(asset, res, carpeta, formato):
     peticion = urllib.request.Request(API + asset, headers={"User-Agent": "JuegoTerror/1.0"})
     with urllib.request.urlopen(peticion, timeout=60) as respuesta:
         datos = json.loads(respuesta.read())
-    gltf = datos["gltf"][res]["gltf"]
+    gltf = datos[formato][res][formato]
     ruta = os.path.join(carpeta, os.path.basename(gltf["url"]))
     bajar(gltf["url"], ruta)
     for nombre, archivo in gltf.get("include", {}).items():
@@ -97,7 +97,7 @@ def manchas(w, h, semilla=7):
     return 1 - mancha * 0.45 - grano
 
 
-def sacar_texturas(material, base, oscurecer):
+def sacar_texturas(material, base, oscurecer, sucia=True):
     color, _ = textura(material, "Base Color")
     if color:
         color.colorspace_settings.name = "sRGB"
@@ -108,7 +108,8 @@ def sacar_texturas(material, base, oscurecer):
         # Envejecer (casa abandonada): menos saturado, amarillento de polvo, más oscuro y con manchas sueltas.
         gris = rgb.mean(axis=2, keepdims=True)
         rgb = (rgb * 0.7 + gris * 0.3) * np.array([1.0, 0.93, 0.8], dtype=np.float32) * oscurecer
-        rgb *= manchas(w, h)[:, :, None]
+        if sucia:  # en suelos y paredes que se repiten, las manchas forman cuadrícula: sin ellas
+            rgb *= manchas(w, h)[:, :, None]
         guardar("color", rgb, w, h, base + "_color.png")
         color.filepath = base + "_color.png"  # la vista .png enseña ya la textura envejecida
         color.reload()
@@ -135,6 +136,25 @@ def sacar_texturas(material, base, oscurecer):
         guardar(nombre, np.repeat(valores[:, :, None], 3, axis=2), w, h, base + "_%s.png" % nombre)
 
 
+def pieza(obj, base, oscurecer):
+    """Saca las texturas del material de `obj`; si no tiene imagen de color, apunta su color liso."""
+    material = obj.active_material
+    imagen, _ = textura(material, "Base Color")
+    if imagen:
+        sacar_texturas(material, base, oscurecer)
+        return {"malla": obj.name, "texturas": True}
+    bsdf = next(n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    color = bsdf.inputs["Base Color"].default_value
+    return {
+        "malla": obj.name,
+        "texturas": False,
+        "color": [round(c ** (1 / 2.2) * oscurecer, 3) for c in color[:3]],  # lineal -> sRGB, envejecido
+        "rugosidad": round(bsdf.inputs["Roughness"].default_value, 3),
+        "metal": round(bsdf.inputs["Metallic"].default_value, 3),
+        "alfa": round(bsdf.inputs["Alpha"].default_value * (1 - bsdf.inputs["Transmission Weight"].default_value), 3),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--id", required=True)
@@ -145,19 +165,28 @@ def main():
     parser.add_argument("--tris", type=int, default=5000)
     parser.add_argument("--res", default="1k")
     parser.add_argument("--oscurecer", type=float, default=0.85)
+    # El importador de glTF de Blender 5.2 falla con algunos (el reloj de pie): entonces, el .blend.
+    parser.add_argument("--formato", default="gltf", choices=("gltf", "blend"))
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
 
     salida = os.path.join(OUT_DIR, "polyhaven", args.nombre)
     os.makedirs(salida, exist_ok=True)
-    ruta = bajar_modelo(args.id, args.res, os.path.join(OUT_DIR, "polyhaven", "_bajados", args.id))
+    ruta = bajar_modelo(args.id, args.res, os.path.join(OUT_DIR, "polyhaven", "_bajados", args.id), args.formato)
 
-    for obj in list(bpy.data.objects):
-        bpy.data.objects.remove(obj, do_unlink=True)
-    bpy.ops.import_scene.gltf(filepath=ruta)
+    if args.formato == "blend":
+        bpy.ops.wm.open_mainfile(filepath=ruta)
+        for o in list(bpy.data.objects):
+            # Fuera el esqueleto y sus mandos (mallas wdg_ sin material).
+            if o.type != "MESH" or not any(s.material for s in o.material_slots):
+                bpy.data.objects.remove(o, do_unlink=True)
+    else:
+        for obj in list(bpy.data.objects):
+            bpy.data.objects.remove(obj, do_unlink=True)
+        bpy.ops.import_scene.gltf(filepath=ruta)
     mallas = [o for o in bpy.data.objects if o.type == "MESH"]
-    materiales = {s.material for o in mallas for s in o.material_slots if s.material}
-    if len(materiales) > 1:
-        print("AVISO: %d materiales; solo se sacan las texturas del primero" % len(materiales))
+    for o in mallas:
+        if o.name not in bpy.context.view_layer.objects:
+            bpy.context.scene.collection.objects.link(o)
 
     bpy.ops.object.select_all(action="DESELECT")
     for o in mallas:
@@ -197,12 +226,36 @@ def main():
     final = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     obj.name = args.nombre
     obj.data.name = args.nombre
+    bpy.context.view_layer.update()  # si no, dimensions sigue con la medida de antes de escalar
+    d = obj.dimensions.copy()  # obj pasa a ser solo una pieza al separar
 
+    # Un SurfaceAppearance por MeshPart: con varios materiales (araña, cuadros), una malla por material,
+    # <nombre>_1, _2... con sus texturas, o con su color liso si el material no tiene imagen (piezas.json).
     base = os.path.join(salida, args.nombre)
-    if materiales:
-        sacar_texturas(next(iter(materiales)), base, args.oscurecer)
+    materiales = {s.material for s in obj.material_slots if s.material}
+    piezas = []
+    if len(materiales) > 1:
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.mesh.separate(type="MATERIAL")
+        bpy.ops.object.mode_set(mode="OBJECT")
+        # Cada parte guarda todas las ranuras: la buena es la que usan sus caras.
+        partes = []
+        for o in bpy.data.objects:
+            if o.type == "MESH" and o.data.polygons:
+                o.active_material_index = o.data.polygons[0].material_index
+                if o.active_material:
+                    partes.append(o)
+        partes.sort(key=lambda o: o.active_material.name)
+        for k, parte in enumerate(partes, 1):
+            parte.name = parte.data.name = "%s_%d" % (args.nombre, k)
+            piezas.append(pieza(parte, base + "_%d" % k, args.oscurecer))
+    elif materiales:
+        piezas.append(pieza(obj, base, args.oscurecer))
     else:
         print("AVISO: sin material, no hay texturas")
+    with open(base + "_piezas.json", "w", encoding="utf-8") as archivo:
+        json.dump(piezas, archivo, indent=1)
     bpy.ops.export_scene.fbx(
         filepath=base + ".fbx",
         object_types={"MESH"},
@@ -212,11 +265,12 @@ def main():
         path_mode="STRIP",
         embed_textures=False,
     )
-    d = obj.dimensions
+    print("PIEZAS %s" % ", ".join("%s%s" % (p["malla"], "" if p["texturas"] else " (liso)") for p in piezas))
     print("TAM %.3f %.3f %.3f (studs: ancho, alto, fondo)  triangulos %d -> %d" % (d.x, d.z, d.y, triangulos, final))
     lado = max(d.x, d.z) * 1.4
     bpy.context.scene.render.resolution_percentage = 50
     render(base + ".png", 0, lado, lado, d.z / 2, angle=210, pitch=15)
 
 
-main()
+if __name__ == "__main__":  # a_mano.py la importa por sus funciones
+    main()

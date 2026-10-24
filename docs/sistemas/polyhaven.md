@@ -12,6 +12,16 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 6. **Guardar** `src/muebles/Muebles.rbxm`: `node tools/receptor.mjs src/muebles/Muebles.rbxm --base64` en segundo plano y en Studio serializar una copia de la carpeta con un solo mueble por nombre (en Studio a veces salen copias repetidas, como tres `Mecedora`), `EncodingService:Base64Encode` y `HttpService:PostAsync("http://localhost:8766", ...)` con `HttpEnabled` encendido solo ese momento. Comprobar con Lune que la carpeta trae todos (Lune no lee `MeshId` ni los mapas: eso se mira en Play).
 7. **Ponerlo** en `Mapa` con `tienda(nombre, cf)` o `contraPared(...)`, como los demás.
 
+## Varios materiales, hechos a mano y texturas de sala (11.8.1)
+
+- **Varios materiales** (araña, cuadros, reloj): `polyhaven.py` saca una malla por material, `<nombre>_1`, `_2`…, cada una con sus texturas (`<nombre>_1_color.png`…) o con su color liso si el material no tiene imagen; lo dice `<nombre>_piezas.json`. En Studio, un `SurfaceAppearance` por MeshPart, o color liso para las `liso`.
+- **`--formato blend`**: el importador de glTF de Blender 5.2 falla con algunos (el reloj de pie: `IndexError`). El `.blend` trae el esqueleto y sus mandos (`wdg_*`): se quitan las mallas sin material.
+- **Lo que no hay en Poly Haven** (perchero con abrigo y sombrero, cartas, alfombra larga, barrotes y poste de la escalera, rosetón): `tools/blender/a_mano.py --nombre <X>`, geometría por script con texturas de Poly Haven y el mismo envejecido. Un papel = un material = una MeshPart. Las láminas de una cara (alfombra, sobres) van con la cara hacia arriba (`ARRIBA`); si no, no se ven.
+- **Paredes, suelos y techos propios de cada sala**: `MaterialVariant` en `src/materiales/<Nombre>.model.json` (Rojo, `MaterialService.Materiales`), con texturas de `tools/blender/textura_ph.py --id <textura> --nombre <X> [--tinte r,g,b] [--limpia]`. El color de la pieza no tiñe un MaterialVariant: el tinte va en la textura. En suelos, `--limpia` (las manchas del envejecido se veían en cuadrícula). En el código, `variante(pieza, "<X>")`.
+- **Sangre seca y desconchones**: `tools/blender/sangre.py` hace las imágenes con transparencia (gotas, arrastre, salpicadura, papel arrancado) y se ponen con `mancha()` de `Mapa`.
+- **Texturas recién subidas**: durante un rato salen en blanco ("*Asset content representation is being generated*"), y si falla un solo mapa, el `SurfaceAppearance` o el `MaterialVariant` entero sale blanco (pasó con el relieve de los paneles del vestíbulo y con dos mapas de un cuadro). Esperar y volver a mirar antes de tocar nada; si uno no carga nunca, quitar ese mapa.
+- Las texturas iguales (la madera oscura del perchero, los barrotes y el poste) se suben una vez: Roblox da el mismo id.
+
 ## Lo aprendido
 
 - El frente: lo que en Blender mira a -Y (así vienen los de Poly Haven) sale en Roblox mirando a -Z, el frente del juego. Por eso `--girar` es 0 por defecto. La vista `.png` se hace desde ese lado.
