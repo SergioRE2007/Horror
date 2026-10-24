@@ -119,6 +119,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 - **Estado:** pendiente — se hace en otro chat (pedido por el usuario)
 
 ### 11.8 Interior realista con Poly Haven (pedido por el usuario: "la casa por dentro es un ñordo gordo", muebles "demasiado simples")
+- **Plan sala por sala (pedido por el usuario: una sala por chat y bien hecha):** `docs/plan-salas.md`. Siguiente chat: chat 0 (tubería Poly Haven → Roblox con un mueble de prueba), luego la sala 1 (vestíbulo).
 - **Qué:** cambiar los muebles de la tienda de Roblox y los hechos con bloques (mesillas, baúles, caja fuerte, encimeras, mesa del comedor, cuna, juguetes, estanterías…) por modelos realistas de Poly Haven (CC0, uso comercial libre), pasados por Blender a Roblox con sus texturas (`SurfaceAppearance`). Varios chats; Blender abierto.
 - **Hecho ya (paso previo):** papel, molduras, techos y muebles más apagados y sucios; techos rotos con listones; mecedora nueva (tienda, 303336108) y burro de serrar en X; la mesa de la cocina y la silla volcada, quitadas por el usuario; sillas del comedor bien orientadas.
 - **Criterios:** se ve realista y abandonado de día y de noche; rendimiento aceptable en móvil (pocos triángulos, texturas de 512-1024); escondites, ventanas y objetos siguen funcionando.
