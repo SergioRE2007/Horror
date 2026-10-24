@@ -16,6 +16,12 @@
       }
     },
 
+    "MaterialService": {
+      "Materiales": {
+        "$path": "src/materiales"
+      }
+    },
+
     "ServerScriptService": {
       "Comun": {
         "$path": "src/comun/servidor"

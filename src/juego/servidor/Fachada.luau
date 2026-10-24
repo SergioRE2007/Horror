@@ -470,7 +470,7 @@ function Fachada.vestir(m)
 		Fachada.balaustrada(Vector3.new(x, m.ABAJO, -39.8), Vector3.new(x, m.ABAJO, -34.2), 3.2, true)
 	end
 	-- Farol apagado junto a la puerta.
-	local farol = CFrame.new(4.6, m.ABAJO + 7.2, -34.3)
+	local farol = CFrame.new(5.3, m.ABAJO + 7.8, -34.3) -- al lado del marco de la puerta (de 7)
 	pieza("Brazo", Vector3.new(0.2, 0.2, 1.4), farol * CFrame.new(0, 1.1, 0.5), COLOR.Hierro, Enum.Material.Metal)
 	pieza("Farol", Vector3.new(0.9, 1.2, 0.9), farol, Color3.fromRGB(70, 64, 48), Enum.Material.Glass).Transparency = 0.2
 	pieza("Tapa", Vector3.new(1.2, 0.3, 1.2), farol * CFrame.new(0, 0.75, 0), COLOR.Hierro, Enum.Material.Metal)
