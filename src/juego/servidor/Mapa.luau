@@ -155,8 +155,32 @@ local function tienda(nombre: string, cf: CFrame, sinChoque: boolean?): Model?
 		return nil
 	end
 	local modelo = molde:Clone() :: Model
+	-- Viejos y desteñidos (pedido por el usuario: los colores vivos de la tienda parecían de dibujos animados).
+	-- Las telarañas no, y la mecedora ya viene envejecida.
+	local envejecer = not (string.find(nombre, "^Telarana") or nombre == "Mecedora")
+	local function apagar(c: Color3): Color3
+		local h, s, v = c:ToHSV()
+		return Color3.fromHSV(h, s * 0.6, v * 0.7)
+	end
 	for _, d in modelo:GetDescendants() do
+		if envejecer and (d:IsA("Texture") or d:IsA("Decal")) then
+			d.Color3 = apagar(d.Color3)
+		end
 		if d:IsA("BasePart") then
+			if envejecer then
+				if nombre == "Libreria" and d:IsA("MeshPart") then
+					-- Su textura es naranja chillón y con textura el color no cuenta: se quita y queda de madera oscura (las
+					-- texturas de la cocina y el fregadero sí son buenas y se quedan).
+					d.TextureID = ""
+					d.Color = Color3.fromRGB(70, 52, 40)
+					d.Material = Enum.Material.Wood
+				else
+					d.Color = apagar(d.Color)
+				end
+				if d:IsA("UnionOperation") then
+					d.UsePartColor = true -- si no, la unión pinta los colores de sus piezas y no cambia
+				end
+			end
 			d.Anchored = true
 			d.CanCollide = false
 			d.CanQuery = false
@@ -336,8 +360,8 @@ end
 
 local function p(en, hacia: Vector3, extra)
 	local h = { tipo = "Puerta", en = en, ancho = 4, bajo = 0, alto = 9, hacia = hacia }
-	for clave, valor in extra or {} do
-		h[clave] = valor
+	for campo, valor in extra or {} do
+		h[campo] = valor
 	end
 	return h
 end
@@ -455,13 +479,42 @@ local function construirCaballete()
 	modelo.Name = "Caballete"
 	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	local base = CFrame.new(-35, 0, -43)
-	for _, x in { -2, 2 } do
+	-- Burro de serrar troncos (pedido por el usuario: antes eran "3 palos"): dos aspas en X que arriba hacen de cuna
+	-- para el tronco, unidas por la viga en el cruce, con un tirante en diagonal, pernos y serrín alrededor.
+	local madera = Color3.fromRGB(92, 72, 54)
+	for _, x in { -2.2, 2.2 } do
 		for _, lado in { 1, -1 } do
-			bloque("Pata", Vector3.new(0.4, 3.2, 0.4), base * CFrame.new(x, 1.5, 0.5 * lado) * CFrame.Angles(math.rad(18 * lado), 0, 0),
-				COLOR.Tronco, Enum.Material.Wood, modelo)
+			bloque("Pata", Vector3.new(0.45, 5.4, 0.45), base * CFrame.new(x, 2.5, 0) * CFrame.Angles(math.rad(30 * lado), 0, 0), madera,
+				Enum.Material.Wood, modelo)
 		end
+		local perno = adorno(Vector3.new(1.1, 0.25, 0.25), base * CFrame.new(x, 2.5, 0), Enum.Material.Metal)
+		perno.Shape = Enum.PartType.Cylinder
+		perno.Color = COLOR.Oscuro
 	end
-	bloque("Viga", Vector3.new(5.6, 0.5, 0.6), base * CFrame.new(0, 3, 0), COLOR.Tronco, Enum.Material.Wood, modelo)
+	bloque("Viga", Vector3.new(5.4, 0.45, 0.45), base * CFrame.new(0, 2.5, 0), madera, Enum.Material.Wood, modelo)
+	adorno(Vector3.new(0.3, 0.3, 5.2), base * CFrame.new(0, 1.4, 0.55) * CFrame.Angles(0, math.rad(90), math.rad(-22)), Enum.Material.Wood).Color =
+		madera
+	-- Serrín y rodajas cortadas en el suelo, al lado de donde caen los tablones.
+	for i, s in { { 0.6, 1.8, 1.6 }, { -1.5, 2.6, 1.1 }, { 1.8, -1.2, 0.9 } } do
+		local serrin = adorno(Vector3.new(0.05, s[3], s[3] * 1.3), base * CFrame.new(s[1], 0.03, s[2]) * CFrame.Angles(0, i, math.pi / 2),
+			Enum.Material.Sand)
+		serrin.Shape = Enum.PartType.Cylinder
+		serrin.Color = Color3.fromRGB(104, 84, 62)
+		serrin.CastShadow = false
+	end
+	for _, r in { { -2.8, 1.6, 0.4 }, { 3.1, 0.9, -0.3 } } do
+		local rodaja = adorno(Vector3.new(0.5, 1.3, 1.3), base * CFrame.new(r[1], 0.25, r[2]) * CFrame.Angles(0, r[3], math.pi / 2),
+			Enum.Material.Wood)
+		rodaja.Shape = Enum.PartType.Cylinder
+		rodaja.Color = Color3.fromRGB(120, 96, 70)
+	end
+	-- Sierra de arco apoyada en una pata: arco de madera, hoja de metal y los dos brazos.
+	local sierra = base * CFrame.new(-2.75, 1.6, -1.4) * CFrame.Angles(math.rad(-20), math.rad(90), 0)
+	adorno(Vector3.new(3.2, 0.12, 0.05), sierra, Enum.Material.Metal).Color = Color3.fromRGB(110, 108, 104)
+	adorno(Vector3.new(3.2, 0.18, 0.18), sierra * CFrame.new(0, 1.3, 0), Enum.Material.Wood).Color = madera
+	for _, x in { -1.5, 1.5 } do
+		adorno(Vector3.new(0.18, 1.5, 0.18), sierra * CFrame.new(x, 0.65, 0), Enum.Material.Wood).Color = madera
+	end
 	mando(base * CFrame.new(0, 3, 0), modelo)
 	modelo:SetAttribute("Encima", base * CFrame.new(0, 4, 0)) -- donde se pone el tronco
 	modelo:SetAttribute("Salida", base * CFrame.new(0, 0.4, 2.4)) -- donde caen los tablones
@@ -534,8 +587,8 @@ local function construirCoche(base: CFrame)
 	trozo("Bateria", Vector3.new(1.4, 1, 0.9), CFrame.new(-2.2, 3.2, -5.3), Color3.fromRGB(40, 40, 42), Enum.Material.SmoothPlastic)
 	trozo("Radiador", Vector3.new(3, 1.4, 0.3), CFrame.new(0, 2, -6.2), Color3.fromRGB(150, 150, 148))
 	mando(base * CFrame.new(0, 2.6, -6.6), coche) -- reparar, delante del capó
-	local puerta = mando(base * CFrame.new(-3.8, 3, 0.6), coche) -- huir, en la puerta del conductor
-	puerta.Name = "Conducir"
+	local conducir = mando(base * CFrame.new(-3.8, 3, 0.6), coche) -- huir, en la puerta del conductor
+	conducir.Name = "Conducir"
 	coche:SetAttribute("Tapon", base * CFrame.new(3.25, 2.4, -1.5)) -- donde cae la gasolina (cerca del capó, para el R)
 	coche:SetAttribute("Sitio", base)
 	CollectionService:AddTag(coche, "Coche")
@@ -650,21 +703,23 @@ local SALAS = {
 	{ x1 = -39, x2 = -12, z1 = 9, z2 = 33, y = ARRIBA, papel = "Claro", suelo = "Madera", techo = true }, -- cuarto de los niños
 }
 -- Papel pintado (imágenes del Creator Store, teñidas): damasco mostaza en el salón, rayas en la cocina.
+-- Colores apagados y sucios (pedido por el usuario: el mostaza chillón parecía un juego de niños, no una casa
+-- abandonada).
 local PAPEL = {
-	Salon = { id = "rbxassetid://1587307732", color = Color3.fromRGB(170, 124, 52), tam = 7 },
-	Pasillo = { id = "rbxassetid://1587307732", color = Color3.fromRGB(130, 96, 46), tam = 7 },
-	Cocina = { id = "rbxassetid://7518481506", color = Color3.fromRGB(205, 185, 135), tam = 6 },
-	Rojo = { id = "rbxassetid://18672898655", color = Color3.fromRGB(150, 118, 105), tam = 7 },
-	Claro = { id = "rbxassetid://1587307732", color = Color3.fromRGB(175, 165, 125), tam = 6 },
+	Salon = { id = "rbxassetid://1587307732", color = Color3.fromRGB(104, 84, 54), tam = 7 },
+	Pasillo = { id = "rbxassetid://1587307732", color = Color3.fromRGB(88, 70, 50), tam = 7 },
+	Cocina = { id = "rbxassetid://7518481506", color = Color3.fromRGB(132, 122, 98), tam = 6 },
+	Rojo = { id = "rbxassetid://18672898655", color = Color3.fromRGB(98, 66, 60), tam = 7 },
+	Claro = { id = "rbxassetid://1587307732", color = Color3.fromRGB(116, 110, 92), tam = 6 },
 }
 
 -- Lámina que se ve pero no choca ni tapa rayos (papel, suelos, techos, zócalos, molduras).
 local function lamina(tamano: Vector3, cf: CFrame, color: Color3, material: Enum.Material): Part
-	local p = adorno(tamano, cf, material)
-	p.Color = color
-	p.CastShadow = false
-	p:SetAttribute("SinSeparar", true) -- ya va apartada de la pared (Separar)
-	return p
+	local hoja = adorno(tamano, cf, material)
+	hoja.Color = color
+	hoja.CastShadow = false
+	hoja:SetAttribute("SinSeparar", true) -- ya va apartada de la pared (Separar)
+	return hoja
 end
 
 -- Viste cada cara de pared que da a una sala, trozo a trozo (una pared de fuera pasa por varias salas): papel pintado,
@@ -722,7 +777,7 @@ local function vestirParedes()
 					end
 				end
 				if math.abs(alto - (sala.y + ALTO)) < 0.5 then
-					tira(0.5, alto - 0.25, 0.3, Color3.fromRGB(190, 184, 170), Enum.Material.SmoothPlastic)
+					tira(0.5, alto - 0.25, 0.3, Color3.fromRGB(122, 114, 100), Enum.Material.Plaster)
 				end
 			end
 		end
@@ -731,6 +786,7 @@ end
 
 -- Suelos y techos de cada sala: madera oscura, damas blancas y negras en la cocina, azulejo en el baño, techo de yeso.
 local function vestirSuelos()
+	local azar = Random.new(41) -- siempre igual en todos los servidores
 	for _, s in SALAS do
 		local ancho, fondo = s.x2 - s.x1 - 1, s.z2 - s.z1 - 1
 		local centro = Vector3.new((s.x1 + s.x2) / 2, s.y, (s.z1 + s.z2) / 2)
@@ -753,8 +809,22 @@ local function vestirSuelos()
 			end
 		end
 		if s.techo then
-			lamina(Vector3.new(ancho, 0.06, fondo), CFrame.new(centro + Vector3.new(0, ALTO - 0.03, 0)), Color3.fromRGB(78, 74, 70),
+			lamina(Vector3.new(ancho, 0.06, fondo), CFrame.new(centro + Vector3.new(0, ALTO - 0.03, 0)), Color3.fromRGB(62, 58, 52),
 				Enum.Material.Plaster)
+			-- Techo roto (pedido por el usuario: más abandonado): un trozo de yeso caído con los listones a la vista y los
+			-- cascotes en el suelo, debajo. No choca.
+			local agujero = centro + Vector3.new(azar:NextNumber(-ancho / 4, ancho / 4), ALTO - 0.08, azar:NextNumber(-fondo / 4, fondo / 4))
+			local giro = CFrame.Angles(0, azar:NextNumber(0, math.pi), 0)
+			lamina(Vector3.new(3.4, 0.04, 2.6), CFrame.new(agujero) * giro, Color3.fromRGB(24, 20, 18), Enum.Material.Wood)
+			for k = -1, 1 do
+				lamina(Vector3.new(0.35, 0.1, 3), CFrame.new(agujero - Vector3.new(0, 0.08, 0)) * giro * CFrame.new(k * 0.9, 0, 0),
+					Color3.fromRGB(72, 58, 44), Enum.Material.Wood)
+			end
+			for k = 1, 4 do
+				local suelo = Vector3.new(agujero.X + azar:NextNumber(-1.5, 1.5), s.y + 0.1, agujero.Z + azar:NextNumber(-1.5, 1.5))
+				lamina(Vector3.new(azar:NextNumber(0.5, 1.4), 0.14, azar:NextNumber(0.4, 1)), CFrame.new(suelo) * CFrame.Angles(0, k, 0),
+					Color3.fromRGB(96, 90, 80), Enum.Material.Plaster)
+			end
 		end
 	end
 end
@@ -766,14 +836,14 @@ local SANGRE = { "rbxassetid://85700610438600", "rbxassetid://78490976398688", "
 -- Calcomanía en una lámina invisible: en el suelo (`normal` = arriba) o en una pared (`normal` = hacia la sala).
 local function mancha(pos: Vector3, normal: Vector3, tam: number, imagen: string, color: Color3, giro: number)
 	local cf = CFrame.lookAt(pos, pos + normal) * CFrame.Angles(0, 0, giro)
-	local p = adorno(Vector3.new(tam, tam, 0.04), cf)
-	p.Transparency = 1
-	p.CastShadow = false
+	local soporte = adorno(Vector3.new(tam, tam, 0.04), cf)
+	soporte.Transparency = 1
+	soporte.CastShadow = false
 	local d = Instance.new("Decal")
 	d.Texture = imagen
 	d.Color3 = color
 	d.Face = Enum.NormalId.Front
-	d.Parent = p
+	d.Parent = soporte
 end
 
 -- La casa abandonada (pedido por el usuario: "más vieja y abandonada"): telarañas en las esquinas del techo, manchas de
@@ -843,8 +913,6 @@ local function abandonar()
 			papel.Color = Color3.fromRGB(150, 140, 118)
 		end
 	end
-	-- Una silla volcada en la cocina, contra la pared.
-	tienda("SillaCocina", CFrame.new(-36, ABAJO + 1.2, 10) * CFrame.Angles(0, math.rad(150), math.rad(90)), true)
 end
 
 -- Torre de la esquina de delante a la izquierda, mirando la casa desde el camino (pedido por el usuario): un octógono
@@ -1089,7 +1157,7 @@ local function construirCasa(mapa: Folder)
 		{ bloque("Mesita", Vector3.new(3, 1.5, 4), CFrame.new(20, ABAJO + 0.75, -2), COLOR.Mueble) })
 	mueble("Alfombra", CFrame.new(22, ABAJO, -2))
 	tienda("Butaca", CFrame.lookAt(Vector3.new(35.6, ABAJO, -8.5), Vector3.new(28, ABAJO, -2)))
-	tienda("Butaca", CFrame.lookAt(Vector3.new(36, ABAJO, -29.5), Vector3.new(25, ABAJO, -15)))
+	tienda("Butaca", CFrame.new(40.7, ABAJO, -34.6) * CFrame.Angles(0, math.rad(-44), 0)) -- en la torre (la puso ahí el usuario)
 	contraPared("Aparador", 17, ABAJO, 4.5, DELANTE)
 	local tele = contraPared("Tele", 18.5, ABAJO + 3.4, 4.3, DELANTE, true)
 	if tele then
@@ -1108,8 +1176,9 @@ local function construirCasa(mapa: Folder)
 	end
 	for _, z in { -20, -15, -10 } do
 		for _, lado in { -1, 1 } do
-			local pos = Vector3.new(-25.5 + lado * 3.7, ABAJO, z)
-			tienda("SillaCocina", CFrame.lookAt(pos, pos - Vector3.new(lado, 0, 0)))
+			-- Pegadas a la mesa y mirándola (las colocó el usuario: el modelo de la silla mira hacia +X, no hacia -Z).
+			local pos = Vector3.new(-25.5 + lado * 2.7, ABAJO, z)
+			tienda("SillaCocina", CFrame.lookAt(pos, pos - Vector3.new(lado, 0, 0)) * CFrame.Angles(0, math.pi / 2, 0))
 		end
 	end
 	contraPared("Aparador", -12.5, ABAJO, -6, OESTE)
@@ -1117,8 +1186,8 @@ local function construirCasa(mapa: Folder)
 	contraPared("Reloj", -12.5, ABAJO, -30, OESTE)
 	contraPared("Libreria", -18, ABAJO, 2.5, DELANTE)
 	-- Cocina (como la prueba aprobada por el usuario): encimeras viejas hechas con piezas y el fregadero en medio contra
-	-- la pared de atrás, la nevera contra la del garaje, las dos cocinas contra la del comedor y la mesa con cuatro sillas
-	-- en medio con sitio alrededor.
+	-- la pared de atrás, la nevera contra la del garaje, las dos cocinas contra la del comedor. Sin mesa en medio (la
+	-- quitó el usuario): libre para correr.
 	contraPared("Nevera", -38.5, ABAJO, 25, ESTE)
 	for _, tramo in { { -31, -28 }, { -25, -21.5 } } do
 		local x1, x2 = tramo[1], tramo[2]
@@ -1135,11 +1204,6 @@ local function construirCasa(mapa: Folder)
 	contraPared("Fregadero", -26.5, ABAJO + 1.3, 32.5, DELANTE, true)
 	contraPared("CocinaHierro", -15, ABAJO, 3.5, DETRAS)
 	contraPared("CocinaOxidada", -20, ABAJO, 3.5, DETRAS)
-	tienda("MesaCocina", CFrame.new(-25.5, ABAJO, 18))
-	for _, silla in { { -2.4, -1.2, 1 }, { -2.4, 1.2, 1 }, { 2.4, -1.2, -1 }, { 2.4, 1.2, -1 } } do
-		local pos = Vector3.new(-25.5 + silla[1], ABAJO, 18 + silla[2])
-		tienda("SillaCocina", CFrame.lookAt(pos, pos + Vector3.new(silla[3], 0, 0)))
-	end
 	-- Dormitorio: cama con el cabecero contra la pared de atrás, mesilla con lámpara y armario.
 	bloque("Mesilla", Vector3.new(2, 2.4, 2), CFrame.new(30.6, ABAJO + 1.2, 31.4), COLOR.Mueble)
 	contraPared("LamparaMesa", 30.6, ABAJO + 2.4, 32.5, DELANTE, true)
@@ -1191,20 +1255,20 @@ local function construirCasa(mapa: Folder)
 	-- Objetos sueltos por la casa (provisional: luego saldrán al azar con la semilla de la partida).
 	for _, o in {
 		{ "Pila", Vector3.new(-29.5, ABAJO + 3.7, 31.3) }, { "Lata", Vector3.new(-23, ABAJO + 3.7, 31.3) }, -- encimeras
-		{ "Botella", Vector3.new(-25.2, ABAJO + 3.3, 17.2) }, { "Carrete", Vector3.new(-25.8, ABAJO + 3.3, 19) }, -- mesa
+		{ "Botella", Vector3.new(-22, ABAJO + 3.7, 31.3) }, { "Carrete", Vector3.new(-30.5, ABAJO + 3.7, 31.3) }, -- encimeras
 		{ "Pila", Vector3.new(25, ARRIBA + 0.2, -18) }, { "Hacha", Vector3.new(-19, ABAJO + 0.2, 39.5) }, -- en el lavadero
 		{ "Hacha", Vector3.new(-33, 0.2, -39.8) }, -- junto al caballete
 	} do
 		table.insert(Mapa.objetos, { tipo = o[1], cf = CFrame.new(o[2]) * CFrame.Angles(0, math.rad(#Mapa.objetos * 37), 0) })
 	end
 	-- Lo pesado, delante de la casa.
-	for _, p in {
+	for _, pesado in {
 		{ "Tronco", CFrame.new(10, 0.7, -47) * CFrame.Angles(0, 0.4, 0) }, { "Tronco", CFrame.new(-10, 0.7, -48) },
 		{ "Tablon", CFrame.new(14, 0.15, -45) * CFrame.Angles(0, -0.3, 0) }, { "Bidon", CFrame.new(-14, 1.2, -46) },
 		{ "Bidon", CFrame.new(-52, ABAJO + 1.2, 44) }, -- en el cobertizo
 		{ "Motor", CFrame.new(20, 1.1, -52) },
 	} do
-		table.insert(Mapa.pesados, { tipo = p[1], cf = p[2] })
+		table.insert(Mapa.pesados, { tipo = pesado[1], cf = pesado[2] })
 	end
 
 	-- Escondites: las camas de los dos dormitorios y los armarios (dormitorios, trastero y lavadero).
@@ -1250,6 +1314,8 @@ local function construirCasa(mapa: Folder)
 	construirSotano()
 	construirGaraje()
 	Fachada.vestir({ ABAJO = ABAJO, ARRIBA = ARRIBA, ALTO = ALTO, TEJADO = TEJADO, TORRE = TORRE })
+	-- Mecedora en el porche, mirando al camino (no choca: el porche es para correr).
+	tienda("Mecedora", CFrame.new(9, ABAJO, -37.5) * CFrame.Angles(0, math.rad(20), 0), true)
 	-- Enchufe del móvil en el lavadero: placa, repisa donde se deja el móvil y lucecita de carga.
 	local enchufe = Instance.new("Model")
 	enchufe.Name = "Enchufe"
