@@ -1156,8 +1156,8 @@ local function construirCasa(mapa: Folder)
 	mueble("Mesita", CFrame.new(20, ABAJO, -2) * CFrame.Angles(0, math.pi / 2, 0),
 		{ bloque("Mesita", Vector3.new(3, 1.5, 4), CFrame.new(20, ABAJO + 0.75, -2), COLOR.Mueble) })
 	mueble("Alfombra", CFrame.new(22, ABAJO, -2))
-	tienda("Butaca", CFrame.lookAt(Vector3.new(35.6, ABAJO, -8.5), Vector3.new(28, ABAJO, -2)))
-	tienda("Butaca", CFrame.new(40.7, ABAJO, -34.6) * CFrame.Angles(0, math.rad(-44), 0)) -- en la torre (la puso ahí el usuario)
+	tienda("ButacaPH", CFrame.lookAt(Vector3.new(35.6, ABAJO, -8.5), Vector3.new(28, ABAJO, -2)))
+	tienda("ButacaPH", CFrame.new(40.7, ABAJO, -34.6) * CFrame.Angles(0, math.rad(-44), 0)) -- en la torre (la puso ahí el usuario)
 	contraPared("Aparador", 17, ABAJO, 4.5, DELANTE)
 	local tele = contraPared("Tele", 18.5, ABAJO + 3.4, 4.3, DELANTE, true)
 	if tele then
@@ -1230,7 +1230,7 @@ local function construirCasa(mapa: Folder)
 	mueble("Escritorio", CFrame.new(-26, ARRIBA, -24),
 		{ bloque("Escritorio", Vector3.new(6, 3, 3), CFrame.new(-26, ARRIBA + 1.5, -24), COLOR.Mueble) })
 	tienda("LamparaMesa", CFrame.new(-28, ARRIBA + 3, -24) * CFrame.Angles(0, math.pi, 0), true) -- en el escritorio
-	tienda("Butaca", CFrame.lookAt(Vector3.new(-19, ARRIBA, -28), Vector3.new(-26, ARRIBA, -24)))
+	tienda("ButacaPH", CFrame.lookAt(Vector3.new(-19, ARRIBA, -28), Vector3.new(-26, ARRIBA, -24)))
 	bloque("CajaFuerte", Vector3.new(2.5, 3, 2.5), CFrame.new(-36, ARRIBA + 1.5, 6.5), COLOR.Oscuro, Enum.Material.Metal)
 	contraPared("Libreria", -38.5, ARRIBA, -27, ESTE)
 	contraPared("Libreria", -38.5, ARRIBA, -4, ESTE)
