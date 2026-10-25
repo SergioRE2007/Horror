@@ -76,3 +76,14 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - `textura_ph.py --flores`: papel de florecillas encima de `decrepit_wallpaper`, con `--limpia` (con las manchas del envejecido parecía camuflaje, como en la cocina).
 - `old_bed_frame` es de hospital: 0,9 × 2 m, somier de malla a 2,25 del suelo (a `--escala 4.6`) y la cabecera a +Z. `cama()` de `Mapa` acepta un mueble (`aspecto`) y su colcha (`ropa`) con su ancho y largo: los bloques que chocan se hacen a esa medida y quedan invisibles.
 - El suelo de las salas (la lámina del `MaterialVariant`) tiene la cara de arriba a `ABAJO + 0,06`: una alfombra fina a `ABAJO + 0,02` parpadeaba con él (va a `+ 0,075`).
+
+## Habitación del rico (11.8.9)
+
+- `a_mano.py`: `EscritorioRico`, `LamparaBanquero` (media caña gruesa de cristal verde; la bombilla va en `Mapa`, a 1,08), `CosasEscritorio` (mismo CFrame que el escritorio), `GloboTerraqueo`, `TableroHilos`, `CuernosCiervo`, `CajaFuerte` y `Licores`. `escritura()` hace papel con letra a mano, `mapamundi()` el globo y `corcho()` el tablero.
+- **Atlas con UV propia:** `Mueble.uv[papel] = f(x, y, z) -> (u, v)` (ejes del juego) cambia la UV de caja de ese papel. El tablero pone el mapa, cinco fotos y tres recortes en una sola imagen (`atlas_tablero`, `TABLERO` dice dónde va cada uno): una subida en vez de una por foto. De frente la derecha es -x: `u = (x0 + ancho - x) / ancho`.
+- Lo que cuelga con la espalda en el pivote (cuernos, caja fuerte) no va con `contraPared` (que supone el pivote en medio del fondo): `enPared` de `vestirHabitacionRico`.
+- **Texturas que fallan al subirlas:** si un mapa falla la primera vez (`NetFail`), Studio deja ese `SurfaceAppearance` en blanco toda la sesión, aunque luego cargue, y volver a subir la misma imagen (con `?v=2`) devuelve el mismo id. Cambiar un píxel (`ffmpeg ... drawbox=x=0:y=0:w=1:h=1`) y subir esa copia (`_b.png`) da un id nuevo; poner un `SurfaceAppearance` nuevo con él.
+- `SurfaceAppearance.Color` tiñe un mueble de Poly Haven: las librerías pálidas del salón, aquí más oscuras, sin otro molde.
+- `Model:ScaleTo` sirve para dejar un molde a otro tamaño (ajedrez a 0,75 para que quepa en la mesita; el retrato, el marco de `CuadroPH2` a 1,4), con su `Tam` al día.
+- Arriba, el suelo de la sala está a `ARRIBA + 0,18` (el `Piso` engordado por `Separar`; el chat de la galería hizo `sueloArriba`), y la moldura del zócalo sale 0,25 de la pared: las caras útiles de esta sala son z 8,15 y -32,25 y x -38,05 y -12,85.
+- `GothicCabinet_01` a `--alto 4.2` (a la escala normal es un armario de 9,4); `GreenChair_01` sirve de sillón de despacho tal cual; `bull_head` y `lion_head` son bustos de bronce con peana, no cabezas de pared.
