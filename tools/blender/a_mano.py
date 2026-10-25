@@ -25,7 +25,8 @@ BAJADOS = os.path.join(OUT_DIR, "polyhaven", "_bajados")
 ARRIBA = {"Alfombra", "Papel"}  # papeles hechos de láminas de una sola cara
 LIMPIOS = {"Sabana"}  # telas claras: las manchas grandes del envejecido las hacían parecer piedra
 # Muebles enteros sin esas manchas: en la madera pintada clara de la cocina parecían camuflaje (la textura ya trae óxido).
-MUEBLES_LIMPIOS = {"EncimeraCocina", "EncimeraAbierta", "FregaderoCocina", "AlacenaCocina", "AlacenaAbierta"}
+MUEBLES_LIMPIOS = {"EncimeraCocina", "EncimeraAbierta", "FregaderoCocina", "AlacenaCocina", "AlacenaAbierta",
+                   "NeveraVieja"}
 
 
 def a_blender(v):
@@ -612,6 +613,81 @@ def alacena_abierta(m, rng):
     alacena_cocina(m, rng, 110)
 
 
+def esmalte_nevera(w=512):
+    """Esmalte crema de nevera vieja: grano, mugre abajo, picaduras de óxido (más cerca del suelo) y chorretones. Una
+    baldosa cubre la nevera entera de alto (la fila 0 es el suelo)."""
+    azar = np.random.default_rng(7)
+    v, u = np.mgrid[0:w, 0:w].astype(np.float32) / w
+    rgb = np.ones((w, w, 3), dtype=np.float32) * np.array([0.8, 0.76, 0.64], dtype=np.float32)
+    rgb *= (1 - azar.random((w, w, 1)).astype(np.float32) * 0.06)
+    rgb *= (0.72 + 0.28 * np.clip(v / 0.18, 0, 1))[..., None]  # mugre junto al suelo
+    oxido = np.array([0.4, 0.21, 0.1], dtype=np.float32)
+    # Picaduras de borde irregular (radio que cambia con el ángulo), más junto a los cantos y abajo, y polvo de óxido.
+    for _ in range(30):
+        cu = azar.choice([azar.uniform(0, 0.12), azar.uniform(0.88, 1), azar.random()])
+        cv = azar.random() ** 2.5
+        r = azar.uniform(0.005, 0.02)
+        ang = np.arctan2(v - cv, u - cu)
+        borde = 1 + 0.22 * np.sin(2 * ang + azar.uniform(0, 6)) + 0.1 * np.sin(5 * ang + azar.uniform(0, 6))
+        d = np.sqrt((u - cu) ** 2 + (v - cv) ** 2) / (r * borde)
+        a = np.clip(1.2 - d, 0, 1)[..., None]
+        rgb = rgb * (1 - a) + oxido * (0.6 + 0.4 * np.clip(1 - d, 0, 1))[..., None] * a
+    polvo = (azar.random((w, w)) < 0.004 * (1 - v) ** 3)[..., None] * 0.7
+    rgb = rgb * (1 - polvo) + oxido * polvo
+    # Canto de abajo comido por el óxido, con el borde roto.
+    corte = 0.035 + 0.025 * np.sin(u * 40) * np.sin(u * 13 + 1) + azar.random((1, w)) * 0.015
+    a = np.clip((corte - v) / 0.01, 0, 1)[..., None] * 0.8
+    rgb = rgb * (1 - a) + oxido * 0.8 * a
+    for _ in range(14):  # chorretones de óxido hacia abajo
+        cu, cv = azar.random(), azar.uniform(0.2, 0.9)
+        largo, ancho = azar.uniform(0.05, 0.25), azar.uniform(0.002, 0.005)
+        dentro = (np.abs(u - cu) < ancho) & (v < cv) & (v > cv - largo)
+        a = (dentro * 0.45 * np.clip((v - (cv - largo)) / largo, 0, 1))[..., None]
+        rgb = rgb * (1 - a) + oxido * a
+    ruta = os.path.join(BAJADOS, "esmalte_nevera.png")
+    polyhaven.guardar("esmalte", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def perfil_redondo(ancho, alto, r, n=6):
+    """Contorno de frente (x, y) con las esquinas de arriba redondeadas, desde abajo a la izquierda."""
+    pts = [(-ancho / 2, 0), (ancho / 2, 0)]
+    for k in range(n + 1):
+        a = math.pi / 2 * k / n
+        pts.append((ancho / 2 - r + r * math.cos(a), alto - r + r * math.sin(a)))
+    for k in range(n + 1):
+        a = math.pi / 2 + math.pi / 2 * k / n
+        pts.append((-ancho / 2 + r + r * math.cos(a), alto - r + r * math.sin(a)))
+    return pts
+
+
+def extruir(pts, z0, z1, y0=0.0):
+    """Pieza de canto recto a partir de un contorno de frente, de z0 (delante) a z1 (detrás)."""
+    n = len(pts)
+    verts = [(x, y + y0, z0) for x, y in pts] + [(x, y + y0, z1) for x, y in pts]
+    caras = [tuple(range(n)), tuple(range(2 * n - 1, n - 1, -1))]
+    caras += [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)]
+    return verts, caras
+
+
+def nevera_vieja(m, rng):
+    # Nevera de los 50 (3 de ancho, 6,2 de alto): cuerpo y puerta de esquinas redondas, tirador de palanca cromado,
+    # placa con la marca, bisagras y rejilla abajo.
+    m.add("Esmalte", extruir(perfil_redondo(3.0, 6.0, 0.7), -1.0, 1.3, 0.2))
+    m.add("Interior", box(2.9, 0.2, 2.2), T(0, 0.1, 0.15))
+    m.add("Esmalte", extruir(perfil_redondo(2.84, 5.3, 0.62), -1.2, -1.0, 0.75))
+    m.add("Interior", box(2.6, 0.45, 0.04), T(0, 0.45, -1.0))
+    for k in range(4):
+        m.add("Cromo", box(2.5, 0.05, 0.05), T(0, 0.28 + k * 0.1, -1.04))
+    for y in (1.2, 5.4):
+        m.add("Cromo", box(0.12, 0.5, 0.12), T(-1.44, y, -1.12))
+    m.add("Cromo", box(0.9, 0.2, 0.04), T(0, 5.45, -1.21))
+    for y in (3.4, 4.6):
+        m.rama("Cromo", (1.12, y, -1.2), (1.12, y, -1.42), 0.06, 0.05)
+    m.rama("Cromo", (1.12, 3.32, -1.42), (1.12, 4.68, -1.42), 0.07, 0.07)
+    m.add("Cromo", box(0.3, 1.5, 0.04), T(1.12, 4.0, -1.21))
+
+
 COCINA = {"Madera": "distressed_painted_planks", "Encimera": "kitchen_wood", "Interior": ("liso", (0.07, 0.055, 0.045)),
           "Metal": ("liso", (0.36, 0.34, 0.31)), "Esmalte": ("liso", (0.72, 0.7, 0.64)),
           "Cristal": ("liso", (0.3, 0.34, 0.22))}
@@ -654,6 +730,10 @@ MUEBLES = {
     "FregaderoCocina": (fregadero_cocina, *solo(("Madera", "Encimera", "Interior", "Metal", "Esmalte")), {}, ()),
     "AlacenaCocina": (alacena_cocina, *solo(("Madera", "Interior", "Metal")), {}, ()),
     "AlacenaAbierta": (alacena_abierta, *solo(("Madera", "Interior", "Metal", "Cristal")), {}, ()),
+    # Pedido por el usuario: la nevera oxidada del Creator Store no le gustaba.
+    "NeveraVieja": (nevera_vieja, {"Esmalte": esmalte_nevera, "Cromo": ("liso", (0.55, 0.55, 0.53)),
+                                   "Interior": ("liso", (0.05, 0.05, 0.05))},
+                    {"Esmalte": 6.4, "Cromo": 1, "Interior": 1}, {}, ("Cromo",)),
     # Comedor (11.8.3).
     "PlantaSeca": (planta_seca, {"Tallo": ("liso", (0.3, 0.22, 0.14)), "Hoja": ("liso", (0.3, 0.21, 0.11)),
                                  "Tierra": ("liso", (0.12, 0.09, 0.07))},

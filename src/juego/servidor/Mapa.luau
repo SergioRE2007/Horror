@@ -1550,7 +1550,7 @@ local function construirCasa(mapa: Folder)
 	end
 	-- Apartadas del rincón del comedor: la nevera allí estrechaba el vano (vanos anchos, pedido por el usuario).
 	local hierro = contraPared("CocinaHierro", -38.3, ABAJO, 8, ESTE)
-	contraPared("Nevera", -38.3, ABAJO, 12.7, ESTE)
+	contraPared("NeveraVieja", -38.3, ABAJO, 12.7, ESTE) -- de los 50, hecha aquí (pedido por el usuario: la oxidada no le gustaba)
 	if hierro then
 		tienda("OllaPH", hierro:GetPivot() * CFrame.new(-1, 3.42, 0.1), true)
 		tienda("SartenPH", hierro:GetPivot() * CFrame.new(1.1, 3.42, 0) * CFrame.Angles(0, 0.5, 0), true)
