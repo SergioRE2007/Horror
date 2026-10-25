@@ -5,7 +5,8 @@
 # SofaTapado, Piano, Banqueta, Repisa, LamparaPie, AlfombraSalon y CortinaVano (la de los vanos de toda la casa); de la
 # cocina, EncimeraCocina, EncimeraAbierta, FregaderoCocina, AlacenaCocina y AlacenaAbierta; del pasillo y el baño,
 # VaterViejo, LavaboPie, CortinaDucha, Toallas, Paraguero y CadenaPuerta; del dormitorio de abajo, ColchaCama,
-# AlfombraTrapo, CosasMesilla, Zapatillas, RopaSilla y MantaMecedora.
+# AlfombraTrapo, CosasMesilla, Zapatillas, RopaSilla y MantaMecedora; del dormitorio grande, DoselCama, ColchaDosel,
+# RopaTirada y CosasTocador.
 import argparse
 import json
 import math
@@ -1064,6 +1065,170 @@ def manta_mecedora(m, rng):
     tela(m, "Manta", f, 24, 30, 0.05)
 
 
+# ---------- Dormitorio grande (11.8.8) ----------
+# La cama de los dueños es GothicBed_01 (CamaDoselPH, --escala 4.5), con la cabecera a +Z: postes en x ±2,93 y
+# z ±4,42, de 6,91 los de la cabecera y 5,62 los de los pies; colchón a 2,5–2,7; largueros de 0,5 a 2,08 en |x|
+# 2,6–3,4; el pie, de 1,11 a 3,67. El dosel y la colcha van en los ejes de la cama y se ponen con su mismo CFrame.
+CAMA_X, CAMA_Z, DOSEL_Y = 2.93, 4.42, 8.4
+
+
+def punto_camino(camino, t):
+    """Punto a la fracción `t` (0 a 1) del largo de una línea quebrada de puntos (a, b)."""
+    largos = [0.0]
+    for p, q in zip(camino, camino[1:]):
+        largos.append(largos[-1] + math.dist(p, q))
+    s = min(max(t, 0.0), 1.0) * largos[-1]
+    for k in range(len(camino) - 1):
+        if s <= largos[k + 1] or k == len(camino) - 2:
+            f = (s - largos[k]) / max(largos[k + 1] - largos[k], 1e-6)
+            return tuple(a + (b - a) * f for a, b in zip(camino[k], camino[k + 1]))
+
+
+def dosel_cama(m, rng):
+    # Dosel de terciopelo burdeos: los postes suben hasta un bastidor de madera con el cielo combado, faldón de ondas
+    # alrededor (roto en los pies), cortina de fondo tras el cabecero y cortinas recogidas en los cuatro postes; la de
+    # los pies del lado -X (el de la puerta), arrancada a media altura.
+    for sx in (-1, 1):
+        for sz, desde in ((-1, 5.5), (1, 6.8)):
+            m.rama("Madera", (sx * CAMA_X, desde, sz * CAMA_Z), (sx * CAMA_X, DOSEL_Y + 0.1, sz * CAMA_Z), 0.1, 0.09, 8)
+    ax, az = CAMA_X + 0.12, CAMA_Z + 0.12
+    for sz in (-1, 1):
+        m.add("Madera", box(2 * ax + 0.14, 0.45, 0.14), T(0, DOSEL_Y + 0.22, sz * az))
+        m.add("Madera", box(2 * ax + 0.4, 0.1, 0.27), T(0, DOSEL_Y + 0.5, sz * az))
+    for sx in (-1, 1):
+        m.add("Madera", box(0.14, 0.45, 2 * az), T(sx * ax, DOSEL_Y + 0.22, 0))
+        m.add("Madera", box(0.27, 0.1, 2 * az + 0.4), T(sx * ax, DOSEL_Y + 0.5, 0))
+    # El cielo, combado hacia abajo.
+    tela(m, "Tela", lambda u, v: ((u - 0.5) * 2 * ax, DOSEL_Y + 0.42 - 0.3 * math.sin(math.pi * u) * math.sin(math.pi * v),
+                                  (v - 0.5) * 2 * az), 8, 10, 0.04)
+
+    # Faldón de ondas por fuera del bastidor; en los pies, un trozo arrancado que cuelga.
+    def faldon(p0, p1, fuera, roto):
+        largo = math.dist(p0, p1)
+
+        def f(u, v):
+            x = p0[0] + (p1[0] - p0[0]) * u
+            z = p0[1] + (p1[1] - p0[1]) * u
+            bajo = DOSEL_Y - 0.45 - 0.18 * abs(math.sin(u * largo * 1.3))
+            if roto and 0.55 < u < 0.8:
+                bajo -= 1.6 * math.sin((u - 0.55) / 0.25 * math.pi) * (0.7 + 0.3 * math.sin(u * 40))
+            y = DOSEL_Y + 0.45 + (bajo - DOSEL_Y - 0.45) * v
+            ola = 0.06 * math.sin(u * largo * 6) + 0.05 * v
+            return (x + fuera[0] * (0.2 + ola), y, z + fuera[1] * (0.2 + ola))
+
+        tela(m, "Tela", f, int(largo * 4), 2, 0.04)
+
+    faldon((-ax, -az), (ax, -az), (0, -1), True)
+    faldon((-ax, az), (ax, az), (0, 1), False)
+    for sx in (-1, 1):
+        faldon((sx * ax, -az), (sx * ax, az), (sx, 0), False)
+    # Cortina de fondo, tras el cabecero (contra la pared).
+    tela(m, "Tela", lambda u, v: ((u - 0.5) * 2 * ax, 0.15 + v * (DOSEL_Y - 0.15), az + 0.2 + 0.07 * math.sin(u * 2 * math.pi * 9)),
+         36, 4, 0.05)
+
+    # Cortinas recogidas en cada poste (como las de los vanos): por fuera, a lo largo del lado, atadas a 4,2.
+    def cortina(sx, sz, rota):
+        atada = 4.2
+        bajo = 3.4 if rota else 0.12
+
+        def ancho(y):
+            if y > atada:
+                return 0.3 + 1.3 * ((y - atada) / (DOSEL_Y - atada)) ** 0.8
+            return 0.3 + 0.5 * ((atada - y) / atada) ** 0.8
+
+        def f(u, v):
+            fondo = bajo
+            if rota:  # el bajo rasgado, en picos
+                fondo = bajo + 0.5 * abs(math.sin(u * 13)) + 0.3 * abs(math.sin(u * 31 + 1))
+            y = fondo + v * (DOSEL_Y + 0.4 - fondo)
+            w = ancho(y)
+            pliegue = (0.04 + 0.14 * w / 1.6) * math.sin(u * 2 * math.pi * 4)
+            return (sx * (CAMA_X + 0.25 + pliegue), y, sz * (CAMA_Z + 0.05 - u * w))
+
+        tela(m, "Tela", f, 16, 12, 0.05)
+        m.add("Madera", lathe([(0.24, -0.08), (0.3, 0), (0.24, 0.08)], 8), T(sx * CAMA_X, atada, sz * CAMA_Z))
+
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            cortina(sx, sz, sx == -1 and sz == -1)
+
+
+def colcha_dosel(m, rng):
+    # La colcha de la cama de los dueños, arrancada hacia el lado -X (el de la puerta): por el lado +X se ve la sábana;
+    # por el -X cae del larguero al suelo y se amontona, más cuanto más cerca de los pies (de ahí tiraron).
+    pies, cabeza = -4.15, 2.3
+
+    def f(u, v):
+        z = pies + (cabeza - pies) * v
+        charco = 0.5 + 1.9 * (1 - v) ** 1.5
+        camino = [(2.6, 2.6), (0, 2.66), (-3.0, 2.62), (-3.5, 2.2), (-3.6, 1.1), (-3.75, 0.1), (-3.75 - charco, 0.07)]
+        x, y = punto_camino(camino, u)
+        if y > 2.4:  # arrugas encima
+            y += 0.06 * math.sin(x * 2.3 + z * 1.7) + 0.04 * math.sin(z * 4.1)
+        elif y < 0.15:  # pliegues en el suelo
+            y += 0.1 * abs(math.sin(x * 3 + z * 2.2)) * min(1.0, (-3.75 - x) / 0.6)
+            z += 0.25 * math.sin(x * 1.7)
+        else:  # caída por el larguero, con pliegues
+            x -= 0.1 * abs(math.sin(z * 3.5))
+        return (x, y, z)
+
+    tela(m, "Colcha", f, 40, 26, 0.06)
+
+
+def ropa_tirada(m, rng):
+    # Ropa de los dueños tirada junto al armario: un vestido arrugado, una camisa y unos zapatos de tacón (uno
+    # tumbado). Unos 4,5 × 3; el pivote, el centro de abajo.
+    def vestido(u, v):
+        ancho = 0.6 + 1.1 * v ** 1.3
+        x, z = (u - 0.5) * ancho, (v - 0.5) * 3.2
+        return (x, 0.06 + 0.12 * abs(math.sin(u * math.pi * 3 + v * 4)) * v + 0.05 * math.sin(v * 9), z)
+
+    tela(m, "Vestido", lambda u, v: tuple(R("Y", 25) @ Vector(vestido(u, v))), 12, 14, 0.04)
+    m.add("Vestido", cojin(0.25, 0.08, 0.6, 0.6), R("Y", 25) @ T(-0.45, 0.08, -1.55) @ R("Y", 35))  # manga
+    m.add("Vestido", cojin(0.25, 0.08, 0.6, 0.6), R("Y", 25) @ T(0.45, 0.08, -1.55) @ R("Y", -50))
+
+    def camisa(u, v):
+        x, z = (u - 0.5) * 1.6, (v - 0.5) * 1.4
+        return (x + 1.5, 0.07 + 0.1 * abs(math.sin(u * 7 + v * 5)), z + 0.6)
+
+    tela(m, "Camisa", camisa, 8, 8, 0.04)
+    m.rama("Camisa", (0.75, 0.08, 0.3), (-0.1, 0.08, 1.0), 0.15, 0.12, 6)
+    m.rama("Camisa", (2.25, 0.08, 0.2), (2.4, 0.08, -0.8), 0.15, 0.12, 6)
+    for mz in (T(-1.6, 0, 1.0) @ R("Y", 70), T(1.4, 0, -0.9) @ R("Y", -30) @ T(0, 0.17, 0) @ R("Z", 90)):
+        m.add("Zapato", cojin(0.16, 0.07, 0.42, 0.5), mz @ T(0, 0.25, -0.1) @ R("X", -18))
+        m.add("Zapato", cojin(0.17, 0.12, 0.3, 0.5), mz @ T(0, 0.12, -0.3))
+        m.rama("Zapato", (0, 0, 0.3), (0, 0.42, 0.24), 0.03, 0.06, 6)
+
+
+TOCADOR_Y = 5.2  # la tapa del tocador (TocadorPH, --alto 5.2: 3,79 × 2,46)
+
+
+def cosas_tocador(m, rng):
+    # Lo de encima del tocador de la señora: tres frascos de perfume (uno tumbado), un joyero abierto con un collar de
+    # perlas que cuelga por delante, un cepillo y una vela gastada en su platillo. En los ejes del tocador.
+    y = TOCADOR_Y
+    for x, z, r, h in ((1.35, 0.35, 0.16, 0.42), (1.05, 0.55, 0.12, 0.3)):
+        m.add("Cristal", lathe([(0, 0), (r, 0), (r * 1.1, h * 0.5), (r * 0.5, h), (0.05, h * 1.05)], 12), T(x, y, z))
+        m.add("Tapon", sphere(0.07, 8, 4), T(x, y + h * 1.1, z))
+    m.add("Cristal", lathe([(0, 0), (0.14, 0), (0.15, 0.2), (0.07, 0.36), (0.04, 0.4)], 12), T(1.45, y + 0.15, -0.25) @ R("Z", 80))
+    m.add("Tapon", sphere(0.06, 8, 4), T(1.0, y + 0.06, -0.5))
+    # Joyero abierto, con la tapa hacia atrás.
+    m.add("Joyero", box(0.9, 0.38, 0.6), T(-1.0, y + 0.19, 0.25))
+    m.add("Interior", box(0.8, 0.02, 0.5), T(-1.0, y + 0.37, 0.25))
+    m.add("Joyero", box(0.9, 0.06, 0.6), T(-1.0, y + 0.38, 0.55) @ R("X", -105) @ T(0, 0, 0.3))
+    # Collar: del joyero al borde de delante y colgando.
+    camino = [(-1.0, y + 0.36, 0.2), (-0.95, y + 0.05, -0.3), (-0.9, y + 0.02, -1.1), (-0.85, y - 0.05, -1.25),
+              (-0.8, y - 0.7, -1.3), (-0.7, y - 0.8, -1.3), (-0.65, y - 0.5, -1.28), (-0.6, y + 0.02, -1.1)]
+    for k in range(46):
+        m.add("Perla", sphere(0.04, 6, 4), T(*punto_camino(camino, k / 45)))
+    # Cepillo y vela.
+    m.add("Madera", box(0.14, 0.06, 0.6), T(0.25, y + 0.03, -0.55) @ R("Y", 20) @ T(0, 0, 0.4))
+    m.add("Madera", cojin(0.2, 0.05, 0.28, 0.6), T(0.25, y + 0.05, -0.55) @ R("Y", 20) @ T(0, 0, -0.1))
+    m.add("Cerdas", cojin(0.17, 0.04, 0.24, 0.6), T(0.25, y + 0.01, -0.55) @ R("Y", 20) @ T(0, 0, -0.1))
+    m.add("Platillo", cyl(0.25, 0.04, 12), T(0.2, y, 0.5))
+    m.add("Vela", cyl(0.08, 0.3, 10), T(0.2, y + 0.04, 0.5))
+
+
 COCINA = {"Madera": "distressed_painted_planks", "Encimera": "kitchen_wood", "Interior": ("liso", (0.07, 0.055, 0.045)),
           "Metal": ("liso", (0.36, 0.34, 0.31)), "Esmalte": ("liso", (0.72, 0.7, 0.64)),
           "Cristal": ("liso", (0.3, 0.34, 0.22))}
@@ -1144,6 +1309,20 @@ MUEBLES = {
     "RopaSilla": (ropa_silla, {"Ropa": "rough_linen", "Rebeca": "poly_wool_herringbone"}, {"Ropa": 1.5, "Rebeca": 1.5},
                   {"Ropa": (0.7, 0.66, 0.6), "Rebeca": (0.4, 0.45, 0.4)}, ("Ropa", "Rebeca")),
     "MantaMecedora": (manta_mecedora, {"Manta": ganchillo}, {"Manta": 2.4}, {}, ("Manta",)),
+    "DoselCama": (dosel_cama, {"Madera": "dark_wood", "Tela": "velour_velvet"}, {"Madera": 2, "Tela": 2.5},
+                  {"Tela": (0.5, 0.27, 0.29)}, ("Tela",)),
+    "ColchaDosel": (colcha_dosel, {"Colcha": "rough_linen"}, {"Colcha": 1.5}, {"Colcha": (0.85, 0.7, 0.42)},
+                    ("Colcha",)),
+    "RopaTirada": (ropa_tirada, {"Vestido": ("liso", (0.2, 0.27, 0.22)), "Camisa": ("liso", (0.72, 0.7, 0.63)),
+                                 "Zapato": ("liso", (0.06, 0.05, 0.05))}, {"Vestido": 1, "Camisa": 1, "Zapato": 1}, {},
+                   ("Vestido", "Camisa", "Zapato")),
+    "CosasTocador": (cosas_tocador, {"Cristal": ("liso", (0.62, 0.7, 0.66)), "Tapon": ("liso", (0.55, 0.45, 0.2)),
+                                     "Joyero": ("liso", (0.22, 0.1, 0.08)), "Interior": ("liso", (0.35, 0.06, 0.08)),
+                                     "Perla": ("liso", (0.85, 0.82, 0.74)), "Madera": ("liso", (0.25, 0.16, 0.1)),
+                                     "Cerdas": ("liso", (0.08, 0.07, 0.06)), "Platillo": ("liso", (0.5, 0.42, 0.25)),
+                                     "Vela": ("liso", (0.78, 0.74, 0.62))},
+                     {p: 1 for p in ("Cristal", "Tapon", "Joyero", "Interior", "Perla", "Madera", "Cerdas", "Platillo", "Vela")},
+                     {}, ("Cristal", "Tapon", "Perla", "Platillo", "Vela")),
 }
 
 

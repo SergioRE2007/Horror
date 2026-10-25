@@ -22,6 +22,7 @@ parser.add_argument("--oscurecer", type=float, default=0.85)
 parser.add_argument("--limpia", action="store_true", help="sin manchas (en suelos se ven en cuadrícula)")
 parser.add_argument("--rayas", action="store_true", help="papel de rayas verticales (salón)")
 parser.add_argument("--flores", action="store_true", help="papel de florecillas (dormitorio de abajo)")
+parser.add_argument("--damasco", action="store_true", help="papel de damasco (dormitorio grande)")
 parser.add_argument("--colores", default="0.5,0.56,0.44/0.8,0.74,0.6/0.42,0.14,0.12",
                     help="con --rayas: banda ancha, banda clara e hilo (r,g,b separados por /)")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
@@ -88,3 +89,40 @@ if args.flores:
     rgb = rgb * 0.35 + luz * color * rgb.mean() * 1.15
     polyhaven.guardar("flores", rgb, w, h, ruta)
     print("FLORES", args.nombre)
+
+# --damasco: papel de damasco de casa rica (dormitorio grande, 11.8.8), encima del papel viejo de Poly Haven: medallones
+# en forma de ojiva con una flor de lis dentro, un tono más claro que el fondo azul grisáceo y
+# perfilados en oscuro; 3 por fila por baldosa, en filas alternas.
+if args.damasco:
+    import bpy
+
+    ruta = os.path.join(salida, args.nombre) + "_color.png"
+    imagen = bpy.data.images.load(ruta)
+    w, h = imagen.size
+    pixeles = np.empty(w * h * 4, dtype=np.float32)
+    imagen.pixels.foreach_get(pixeles)
+    rgb = pixeles.reshape(h, w, 4)[:, :, :3]
+    luz = rgb.mean(axis=2, keepdims=True) / max(rgb.mean(), 1e-3)
+    n = 3
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    fila = np.floor(yy / h * n)
+    u = np.abs((xx / w * n + 0.5 * (fila % 2)) % 1 - 0.5)  # simétrico: solo la mitad derecha
+    v = (yy / h * n) % 1 - 0.5  # en Blender la fila 0 es la de abajo: v crece hacia arriba
+    fondo, claro, perfil = (np.array(c, dtype=np.float32) for c in ((0.3, 0.4, 0.5), (0.5, 0.58, 0.64), (0.19, 0.25, 0.32)))
+    color = np.ones((h, w, 3), dtype=np.float32) * fondo
+    t = np.clip(v + 0.5, 0, 1)
+    borde = 0.33 * np.sin(np.pi * t) ** 0.75 * (1.15 - 0.45 * t)  # ojiva, más ancha abajo
+    color[(u < borde) & (u > borde - 0.035)] = perfil
+    dentro = u < borde - 0.06
+    color[dentro & (u > borde - 0.085)] = claro
+    # Flor de lis: pétalo de arriba, dos laterales curvados, tallo y atadura.
+    color[dentro & ((u / 0.06) ** 2 + ((v - 0.12) / 0.16) ** 2 < 1)] = claro
+    ang = 0.7
+    a, b = u - 0.11, v - 0.02
+    lat = ((a * np.cos(ang) - b * np.sin(ang)) / 0.04) ** 2 + ((a * np.sin(ang) + b * np.cos(ang)) / 0.12) ** 2 < 1
+    color[dentro & lat] = claro
+    color[dentro & (np.abs(v + 0.08) < 0.018) & (u < 0.1)] = perfil
+    color[dentro & (u < 0.018) & (v < -0.08) & (v > -0.3)] = claro
+    rgb = rgb * 0.35 + luz * color * rgb.mean() * 1.15
+    polyhaven.guardar("damasco", rgb, w, h, ruta)
+    print("DAMASCO", args.nombre)
