@@ -55,3 +55,15 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - `wooden_bookshelf_worn` a `--alto 8.5` sirve de despensa; `painted_wooden_shelves` es un estante pequeño de pared (no despensa); `ceramic_pot` es una tinaja grande para el suelo; `fish_knife` sale de pie (tumbarlo con 90° en X).
 - **Guardar `Muebles.rbxm` en trozos:** con la cocina pasa de 1024 KB aun con Zstd. Partir el texto en Base64 en trozos de 900 KB y mandar cada uno con la cabecera `X-Trozo: k/n`: `tools/receptor.mjs` los junta y escribe al llegar el último.
 - El resumen de las texturas subidas (pieza → id) se sirve a Studio como `.json` desde el servidor local del puerto 8777 (`HttpService:GetAsync`), en vez de pegarlo en el código.
+
+## Pasillo, baño y trastero (11.8.5)
+
+- `a_mano.py`: `VaterViejo` (cisterna alta con cadena), `LavaboPie`, `CortinaDucha` (barra en U con `camino_u`), `Toallas`, `Paraguero` (`paraguas()` sale del perchero, con `grueso`) y `CadenaPuerta` (`eslabon()`). `loza()` hace la imagen de loza vieja. Los que no empiezan en el suelo (la cortina, dentro de la bañera, a 1,4; la cadena, a 3,2) tienen el pivote en su punto más bajo: se ponen con ese desfase.
+- Retratos de familia: `hanging_picture_frame_03` es un marco ovalado cuya foto es la pieza `_2`; `tools/texturas/retratos.ps1` hace tres fotos en sepia con las caras rayadas y se montan como `CuadroFamiliaPH`, `PH2` y `PH3` (el mismo marco con otra `ColorMap`).
+- `textura_ph.py --rayas --colores` cambia los colores de las rayas (el pasillo, burdeos). `sangre.py` hace también `Aranazos` y `Grietas` (espejo roto).
+- Cosas de Poly Haven: `steel_frame_shelves_01` viene a escala 10 (usar `--alto`); `vintage_telephone_wall_clock` es un teléfono de pared rojo, sin auricular suelto; `medical_box` es un botiquín plano y cerrado; `vintage_suitcase` son dos maletas juntas; `terry_cloth` es azul (las toallas, con `rough_linen`). Alturas de baldas medidas en Blender con las caras que miran arriba (la estantería de metal: 0,5, 2,6, 4,6, 6,6 y 8,6).
+- Una textura recién subida que falla la primera vez se queda en blanco en modo Edit aunque luego ya cargue (`ContentProvider:PreloadAsync` da `Success`): en Play sí se ve. Mirarlo en Play antes de rehacer nada.
+- `ServerStorage.Muebles` puede tener copias repetidas tras guardar `Muebles.rbxm` (Rojo): al cambiar un mueble en Studio, cambiar todas las copias.
+- La textura de óxido en una cadena no se distinguía de la madera oscura de la puerta: hierro gris (`liso`) con el envejecido.
+- `mancha()` en el suelo: con `giro` 0 el largo (`alto`) va a lo largo de x; para que vaya en z, `math.pi / 2`.
+- Lo que va en una puerta que se abre (arañazos, la mano) se pone en un `SurfaceGui` de la `Hoja`, que gira con ella; la cadena va dentro del modelo de la puerta como `Cadena` y `Casa` la esconde cuando ya no está cerrada con llave.
