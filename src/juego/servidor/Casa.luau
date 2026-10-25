@@ -41,6 +41,16 @@ local function publicar(el: Model)
 		p.principal.Enabled = e.vida > 0
 	else
 		el:SetAttribute("Abierta", e.abierta)
+		-- La cadena con candado de una puerta con llave (la del sótano, Mapa) solo se ve mientras está cerrada: desaparece
+		-- al abrirla y al cargar una partida en la que ya estaba abierta.
+		local cadena = el:FindFirstChild("Cadena")
+		if cadena then
+			for _, pieza in cadena:GetDescendants() do
+				if pieza:IsA("BasePart") then
+					pieza.Transparency = if e.bloqueada then 0 else 1
+				end
+			end
+		end
 		local hoja = el:FindFirstChild("Hoja") :: BasePart
 		hoja.CanCollide = not e.abierta
 		-- El bicho planea su camino a través de las puertas sin llave: las abre a golpes.

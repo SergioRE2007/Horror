@@ -130,6 +130,54 @@ def huellas(azar):
     guardar("Huellas", alfa, azar, HOLLIN[None, None, :] * (0.8 + 0.4 * ruido(azar, 20)[:, :, None]))
 
 
+def aranazos(azar):
+    # Arañazos de uñas en la puerta del sótano (pasillo, 11.8.5): grupos de cuatro surcos que bajan, de madera rascada
+    # más clara, con algo de sangre seca donde empiezan (alguien quiso abrirla con las manos).
+    alfa = np.zeros((W, W), dtype=np.float32)
+    sangre = np.zeros((W, W), dtype=np.float32)
+    for _ in range(6):
+        x0, y0 = azar.uniform(90, 420), azar.uniform(30, 260)
+        largo, tuerce = azar.uniform(120, 240), azar.uniform(-0.25, 0.25)
+        for dedo in range(4):
+            dx = dedo * 17 + azar.uniform(-2, 2)
+            n = int(largo * azar.uniform(0.7, 1))
+            for k in range(0, n, 2):
+                x, y = x0 + dx + tuerce * k + 4 * math.sin(k / 40), y0 + k
+                disco(alfa, x, y, 4.2 * (1 - 0.5 * k / n), 0.9)
+                if k < 40:
+                    disco(sangre, x, y, 3.5, 1 - k / 40)
+    madera = np.array([0.74, 0.62, 0.46], dtype=np.float32)[None, None, :] * (0.8 + 0.3 * ruido(azar, 20)[:, :, None])
+    rgb = madera * (1 - sangre[:, :, None]) + COLOR[None, None, :] * sangre[:, :, None]
+    guardar("Aranazos", alfa, azar, rgb)
+
+
+def grietas(azar):
+    # Espejo roto de un golpe (baño, 11.8.5): grietas claras que salen del punto del golpe, un anillo alrededor y un
+    # poco de sangre seca en el centro.
+    alfa = np.zeros((W, W), dtype=np.float32)
+    sangre = np.zeros((W, W), dtype=np.float32)
+    cx, cy = 230, 200
+    for k in range(14):
+        a = 2 * math.pi * k / 14 + azar.uniform(-0.2, 0.2)
+        x, y, largo = cx, cy, azar.uniform(150, 320)
+        for t in range(0, int(largo), 2):
+            a += azar.uniform(-0.08, 0.08)
+            x, y = x + 2 * math.cos(a), y + 2 * math.sin(a)
+            disco(alfa, x, y, 2.8 * (1 - 0.5 * t / largo), 0.95)
+    for k in range(60):  # el anillo, a trozos
+        a = 2 * math.pi * k / 60
+        r = 55 + azar.uniform(-6, 6)
+        disco(alfa, cx + r * math.cos(a), cy + r * math.sin(a), 2.4, 0.9)
+    disco(alfa, cx, cy, 14, 0.8)
+    disco(sangre, cx, cy, 22, 1)
+    for _ in range(6):
+        disco(sangre, cx + azar.uniform(-30, 30), cy + azar.uniform(-10, 40), azar.uniform(3, 8), 1)
+    np.maximum(alfa, sangre * 0.9, out=alfa)
+    rgb = np.ones((W, W, 3), dtype=np.float32) * 0.85
+    rgb = rgb * (1 - sangre[:, :, None]) + COLOR[None, None, :] * sangre[:, :, None]
+    guardar("Grietas", alfa, azar, rgb)
+
+
 os.makedirs(SALIDA, exist_ok=True)
 azar = np.random.default_rng(13)
 gotas(azar)
@@ -138,3 +186,5 @@ salpicadura(azar)
 desconchon(azar)
 hollin(azar)
 huellas(azar)
+aranazos(azar)
+grietas(azar)

@@ -3,7 +3,8 @@
 # Uso: blender -b --factory-startup --python tools/blender/a_mano.py -- --nombre Perchero
 # Muebles: Perchero (con abrigo y paraguas), Cartas (sobres tirados), AlfombraLarga (la del vestíbulo); del salón,
 # SofaTapado, Piano, Banqueta, Repisa, LamparaPie, AlfombraSalon y CortinaVano (la de los vanos de toda la casa); de la
-# cocina, EncimeraCocina, EncimeraAbierta, FregaderoCocina, AlacenaCocina y AlacenaAbierta.
+# cocina, EncimeraCocina, EncimeraAbierta, FregaderoCocina, AlacenaCocina y AlacenaAbierta; del pasillo y el baño,
+# VaterViejo, LavaboPie, CortinaDucha, Toallas, Paraguero y CadenaPuerta.
 import argparse
 import json
 import math
@@ -156,14 +157,17 @@ def perchero(m, rng):
     # Sombrero de fieltro en el gancho de atrás a la izquierda.
     m.add("Paraguas", lathe([(0.62, 0), (0.6, 0.04), (0.33, 0.06), (0.31, 0.38), (0.22, 0.46), (0, 0.44)], 14),
           T(-0.45, 6.92, 0.45) @ R("X", 12) @ R("Z", -8))
-    # Paraguas cerrado, apoyado en el pie: tela plegada (pocos lados, con saltos) y mango curvo de madera.
-    pie = Vector((-0.95, 0, -0.35))
-    arriba = Vector((-0.28, 3.6, -0.12))
+    # Paraguas cerrado, apoyado en el pie.
+    paraguas(m, rng, Vector((-0.95, 0, -0.35)), Vector((-0.28, 3.6, -0.12)))
+
+
+def paraguas(m, rng, pie, arriba, grueso=1.0):
+    """Paraguas cerrado de `pie` a `arriba`: tela plegada (pocos lados, con saltos) y mango curvo de madera."""
     eje = arriba - pie
     giro = T(*pie) @ eje.to_track_quat("Y", "Z").to_matrix().to_4x4()
     largo = eje.length
     m.add("Paraguas", lathe([(0.02, 0), (0.05, 0.25), (0.3, 1.0), (0.26, 2.5), (0.12, largo - 0.55), (0.04, largo - 0.4)],
-                            8, jitter=0.18, rng=rng), giro)
+                            8, jitter=0.18, rng=rng), giro @ S(grueso, 1, grueso))
     m.add("Madera", cyl(0.035, 0.5, 6), giro @ T(0, largo - 0.45, 0))
     curva = [giro @ Vector((0.18 * (1 - math.cos(t)), largo + 0.18 * math.sin(t), 0))
              for t in (0, 0.8, 1.6, 2.4, 3.1)]
@@ -688,6 +692,191 @@ def nevera_vieja(m, rng):
     m.add("Cromo", box(0.3, 1.5, 0.04), T(1.12, 4.0, -1.21))
 
 
+# ---------- Pasillo, baño y trastero (11.8.5) ----------
+
+def loza(w=512):
+    """Loza vieja de baño: blanco roto con grano, cuarteado fino, mugre abajo y chorretones de cal y óxido. Una
+    baldosa cubre 4 studs de alto (la fila 0 es el suelo)."""
+    azar = np.random.default_rng(5)
+    v, u = np.mgrid[0:w, 0:w].astype(np.float32) / w
+    rgb = np.ones((w, w, 3), dtype=np.float32) * np.array([0.84, 0.82, 0.76], dtype=np.float32)
+    rgb *= (1 - azar.random((w, w, 1)).astype(np.float32) * 0.05)
+    rgb *= (0.68 + 0.32 * np.clip(v / 0.3, 0, 1))[..., None]  # mugre abajo
+    cal = np.array([0.5, 0.44, 0.3], dtype=np.float32)
+    for _ in range(70):  # cuarteado: rayas finas sueltas
+        x0, y0 = azar.random(2)
+        ang = azar.uniform(0, np.pi)
+        t = (u - x0) * np.cos(ang) + (v - y0) * np.sin(ang)
+        d = np.abs((u - x0) * np.sin(ang) - (v - y0) * np.cos(ang))
+        a = ((d < 0.0014) & (t > 0) & (t < azar.uniform(0.03, 0.12)))[..., None] * 0.4
+        rgb = rgb * (1 - a) + cal * a
+    oxido = np.array([0.45, 0.27, 0.12], dtype=np.float32)
+    for _ in range(12):  # chorretones hacia abajo
+        cu, cv = azar.random(), azar.uniform(0.3, 1)
+        largo, ancho = azar.uniform(0.1, 0.4), azar.uniform(0.003, 0.008)
+        dentro = (np.abs(u - cu) < ancho) & (v < cv) & (v > cv - largo)
+        a = (dentro * 0.35 * np.clip((v - (cv - largo)) / largo, 0, 1))[..., None]
+        rgb = rgb * (1 - a) + oxido * a
+    ruta = os.path.join(BAJADOS, "loza.png")
+    polyhaven.guardar("loza", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def vater_viejo(m, rng):
+    # Váter de principios de siglo: taza de loza sobre un pie (1,55 de alto), asiento de madera con la tapa levantada y
+    # cisterna alta de hierro en la pared (a 7,6) con el tubo de bajada y la cadena con tirador. Espalda a +Z.
+    taza = T(0, 0, -0.15) @ S(1, 1, 1.25)
+    m.add("Loza", lathe([(0.5, 0), (0.42, 0.15), (0.36, 0.6), (0.46, 1.05), (0.72, 1.45), (0.76, 1.55), (0.64, 1.56),
+                         (0.5, 1.3), (0.28, 1.0), (0, 0.95)], 16), taza)
+    m.add("Loza", box(0.7, 1.3, 0.7), T(0, 0.75, 0.75))  # cuello hasta la pared
+    m.add("Madera", lathe([(0.76, 1.57), (0.8, 1.62), (0.74, 1.67), (0.5, 1.67), (0.46, 1.62), (0.5, 1.57), (0.76, 1.57)],
+                          16, caps=False), taza)
+    # Tapa levantada contra el tubo (gira en la bisagra de atrás).
+    m.add("Madera", cyl(0.76, 0.07, 16), T(0, 1.66, 0.85) @ R("X", 100) @ T(0, 0, -0.95) @ S(1, 1, 1.25))
+    m.add("Hierro", box(1.9, 0.95, 0.75), T(0, 7.6, 0.92))
+    m.add("Hierro", box(2.05, 0.12, 0.85), T(0, 8.13, 0.88))  # tapa con reborde
+    for lado in (-1, 1):  # ménsulas
+        m.add("Hierro", box(0.12, 0.6, 0.6), T(lado * 0.7, 6.95, 1.0))
+    m.rama("Metal", (0, 7.13, 0.95), (0, 1.5, 0.95), 0.09, 0.09)  # tubo de bajada
+    m.rama("Metal", (0, 1.5, 0.95), (0, 1.3, 0.6), 0.09, 0.09)
+    m.add("Metal", box(0.5, 0.06, 0.06), T(0.75, 7.2, 0.6))  # palanca
+    for k in range(18):  # cadena: eslabones cruzados
+        m.add("Metal", box(0.05, 0.13, 0.02) if k % 2 else box(0.02, 0.13, 0.05), T(1.0, 7.15 - k * 0.14, 0.6))
+    m.add("Loza", lathe([(0, 0), (0.09, 0.05), (0.11, 0.25), (0.06, 0.45), (0, 0.5)], 8), T(1.0, 4.55, 0.6))
+
+
+def lavabo_pie(m, rng):
+    # Lavabo de pie de loza (4 de alto): pie torneado, pila ovalada honda con reborde, trasera con dos grifos de cruceta
+    # y el caño. Espalda a +Z.
+    m.add("Loza", lathe([(0.55, 0), (0.45, 0.12), (0.3, 0.5), (0.26, 1.8), (0.34, 2.4), (0.5, 2.7), (0, 2.75)], 14))
+    pila = T(0, 0, -0.05) @ S(1, 1, 0.78)
+    m.add("Loza", lathe([(0.5, 2.6), (0.95, 2.95), (1.12, 3.25), (1.15, 3.38), (1.0, 3.4), (0.85, 3.2), (0.35, 3.0),
+                         (0, 2.98)], 18), pila)
+    m.add("Loza", box(2.3, 0.75, 0.3), T(0, 3.65, 0.78))  # trasera
+    m.add("Loza", box(2.3, 0.18, 0.55), T(0, 3.32, 0.66))  # repisa de los grifos
+    for lado in (-1, 1):
+        m.rama("Metal", (lado * 0.6, 3.4, 0.7), (lado * 0.6, 3.75, 0.7), 0.05, 0.05)
+        m.add("Metal", box(0.36, 0.05, 0.05), T(lado * 0.6, 3.75, 0.7))
+        m.add("Metal", box(0.05, 0.05, 0.36), T(lado * 0.6, 3.75, 0.7))
+    m.rama("Metal", (0, 3.4, 0.6), (0, 3.7, 0.55), 0.06, 0.06)
+    m.rama("Metal", (0, 3.7, 0.55), (0, 3.6, 0.15), 0.05, 0.045)
+    m.add("Interior", cyl(0.1, 0.02, 10), T(0, 3.0, -0.05))  # desagüe
+
+
+def camino_u(largo, fondo, r, n=6):
+    """Barra en U vista desde arriba (x, z): de atrás a la izquierda, por delante, a atrás a la derecha, con las dos
+    esquinas de delante redondeadas. Devuelve los puntos y su largo acumulado."""
+    pts = [(-largo / 2, fondo / 2), (-largo / 2, -fondo / 2 + r)]
+    for k in range(1, n + 1):
+        a = math.pi + math.pi / 2 * k / n
+        pts.append((-largo / 2 + r + r * math.cos(a), -fondo / 2 + r + r * math.sin(a)))
+    for k in range(n + 1):
+        a = 1.5 * math.pi + math.pi / 2 * k / n
+        pts.append((largo / 2 - r + r * math.cos(a), -fondo / 2 + r + r * math.sin(a)))
+    pts.append((largo / 2, fondo / 2))
+    acum = [0.0]
+    for a, b in zip(pts, pts[1:]):
+        acum.append(acum[-1] + math.dist(a, b))
+    return pts, acum
+
+
+def en_camino(pts, acum, s):
+    """Punto (x, z) y normal hacia fuera a la distancia `s` de un camino_u."""
+    for i in range(len(pts) - 1):
+        if s <= acum[i + 1] or i == len(pts) - 2:
+            t = (s - acum[i]) / max(acum[i + 1] - acum[i], 1e-6)
+            (x0, z0), (x1, z1) = pts[i], pts[i + 1]
+            dx, dz = (x1 - x0), (z1 - z0)
+            largo = math.hypot(dx, dz) or 1
+            return (x0 + dx * t, z0 + dz * t), (dz / largo, -dx / largo)
+
+
+def cortina_ducha(m, rng):
+    # Cortina corrida alrededor de la bañera de patas (7,5 × 3,2): barra en U a 7,4 del suelo, sujeta a la pared y al
+    # techo (11,8) por una varilla, y la tela tapando el frente y los dos lados hasta dentro de la bañera, con pliegues
+    # y el bajo irregular. No se ve qué hay dentro. Espalda (la pared) a +Z.
+    largo, fondo, alto, abajo = 7.3, 2.9, 7.4, 1.6
+    pts, acum = camino_u(largo, fondo, 0.6)
+    total = acum[-1]
+
+    def f(u, v):
+        (x, z), (nx, nz) = en_camino(pts, acum, u * total)
+        pliegue = 0.13 * math.sin(u * total / 0.42 * math.pi) * (0.55 + 0.45 * (1 - v))
+        bajo = abajo + 0.12 * math.sin(u * total * 2.3) + 0.08 * math.sin(u * total * 5.1 + 1)
+        y = bajo + v * (alto - 0.12 - bajo)
+        return (x + nx * pliegue, y, z + nz * pliegue)
+
+    tela(m, "Tela", f, 140, 10, 0.03)
+    for a, b in zip(pts, pts[1:]):
+        m.rama("Metal", (a[0], alto, a[1]), (b[0], alto, b[1]), 0.05, 0.05, 6)
+    for k in range(int(total / 0.42)):  # anillas
+        (x, z), _ = en_camino(pts, acum, (k + 0.5) * 0.42)
+        m.add("Metal", box(0.05, 0.22, 0.05), T(x, alto - 0.08, z))
+    for x in (-largo / 2, largo / 2):  # a la pared
+        m.add("Metal", cyl(0.14, 0.05, 8), T(x, alto, fondo / 2) @ R("X", 90))
+    m.rama("Metal", (0, alto, -fondo / 2), (0, 11.8, -fondo / 2), 0.04, 0.04, 6)  # varilla al techo
+    m.add("Metal", cyl(0.18, 0.05, 8), T(0, 11.75, -fondo / 2))
+
+
+def toallas(m, rng):
+    # Dos toallas sucias tiradas en el suelo: una hecha un montón y otra medio extendida encima de una esquina.
+    def monton(cx, cz, ancho, hondo, alto, giro, semilla):
+        def f(u, v):
+            x, z = (u - 0.5) * ancho, (v - 0.5) * hondo
+            bulto = math.exp(-((x / (ancho * 0.35)) ** 2 + (z / (hondo * 0.35)) ** 2))
+            y = 0.05 + alto * bulto * (0.65 + 0.35 * math.sin(7 * x + semilla) * math.sin(5 * z)) \
+                + 0.04 * math.sin(13 * x + 3 * z + semilla)
+            c, s = math.cos(giro), math.sin(giro)
+            return (cx + x * c - z * s, y, cz + x * s + z * c)
+        tela(m, "Toalla", f, 18, 14, 0.06)
+    monton(0, 0, 2.4, 1.6, 0.8, 0.3, 1.0)
+    monton(1.0, 0.6, 2.0, 1.3, 0.3, -0.7, 2.5)
+
+
+def paraguero(m, rng):
+    # Paragüero de latón (2,2 de alto) con dos paraguas cerrados y un bastón de madera.
+    m.add("Laton", lathe([(0.52, 0), (0.56, 0.08), (0.5, 0.2), (0.5, 1.9), (0.56, 2.1), (0.54, 2.2), (0.48, 2.2),
+                          (0.46, 0.3), (0, 0.28)], 14))
+    paraguas(m, rng, Vector((0.12, 0.3, 0.05)), Vector((0.55, 4.1, -0.25)), 0.55)
+    paraguas(m, rng, Vector((-0.15, 0.3, 0.1)), Vector((-0.6, 3.9, 0.35)), 0.55)
+    m.rama("Madera", (0.05, 0.3, -0.15), (-0.1, 3.4, -0.6), 0.06, 0.05, 6)
+    m.add("Madera", sphere(0.1, 6, 4), T(-0.1, 3.45, -0.6))
+
+
+def eslabon(m, papel, centro, direccion, giro, r=0.12, grueso=0.035):
+    """Eslabón de cadena (anillo alargado) en `centro`, a lo largo de `direccion`, girado `giro` grados sobre ella."""
+    perfil = [(r + grueso * math.cos(a), grueso * math.sin(a)) for a in (2 * math.pi * k / 6 for k in range(7))]
+    orienta = Vector(direccion).normalized().to_track_quat("Z", "Y").to_matrix().to_4x4()
+    # El anillo sale tumbado (en el plano XZ): se alarga en Z, que se lleva a lo largo de la cadena.
+    m.add(papel, lathe(perfil, 8, caps=False), T(*centro) @ orienta @ R("Z", giro) @ S(1, 1, 1.7))
+
+
+def cadena_puerta(m, rng):
+    # Cadena de lado a lado de la puerta del sótano (4,8 de ancho), de dos argollas del marco a 5 del suelo, caída en
+    # medio, con un candado grande colgando; y otra más corta, en diagonal. Óxido. El frente (la sala) a -Z.
+    def cadena(a, b, caida):
+        a, b = Vector(a), Vector(b)
+        n = int((b - a).length / 0.21)
+        puntos = [a.lerp(b, k / n) - Vector((0, caida * math.sin(math.pi * k / n), 0)) for k in range(n + 1)]
+        for k, (p, q) in enumerate(zip(puntos, puntos[1:])):
+            eslabon(m, "Metal", (p + q) / 2, q - p, 90 * (k % 2))
+        return puntos
+    for x in (-2.75, 2.75):  # argollas
+        m.add("Metal", box(0.25, 0.4, 0.12), T(x, 5.0, 0.0))
+    puntos = cadena((-2.75, 5.0, -0.12), (2.75, 5.0, -0.12), 0.7)
+    medio = puntos[len(puntos) // 2]
+    cadena((-2.75, 7.3, -0.1), (2.75, 3.4, -0.1), 0.25)
+    for y in (7.3, 3.4):
+        m.add("Metal", box(0.25, 0.4, 0.12), T(-2.75 if y > 5 else 2.75, y, 0.0))
+    # Candado: arco y cuerpo.
+    for k in range(7):
+        a, b = math.pi * k / 7, math.pi * (k + 1) / 7
+        m.rama("Metal", (medio.x + 0.22 * math.cos(a), medio.y - 0.35 + 0.3 * math.sin(a), medio.z - 0.05),
+               (medio.x + 0.22 * math.cos(b), medio.y - 0.35 + 0.3 * math.sin(b), medio.z - 0.05), 0.04, 0.04, 6)
+    m.add("Metal", box(0.62, 0.7, 0.26), T(medio.x, medio.y - 0.7, medio.z - 0.05))
+    m.add("Interior", box(0.08, 0.2, 0.02), T(medio.x, medio.y - 0.8, medio.z - 0.19))
+
+
 COCINA = {"Madera": "distressed_painted_planks", "Encimera": "kitchen_wood", "Interior": ("liso", (0.07, 0.055, 0.045)),
           "Metal": ("liso", (0.36, 0.34, 0.31)), "Esmalte": ("liso", (0.72, 0.7, 0.64)),
           "Cristal": ("liso", (0.3, 0.34, 0.22))}
@@ -738,6 +927,21 @@ MUEBLES = {
     "PlantaSeca": (planta_seca, {"Tallo": ("liso", (0.3, 0.22, 0.14)), "Hoja": ("liso", (0.3, 0.21, 0.11)),
                                  "Tierra": ("liso", (0.12, 0.09, 0.07))},
                    {"Tallo": 1, "Hoja": 1, "Tierra": 1}, {}, ("Tallo", "Hoja")),
+    # Pasillo, baño y trastero (11.8.5).
+    "VaterViejo": (vater_viejo, {"Loza": loza, "Madera": "dark_wood", "Hierro": "rusty_painted_metal",
+                                 "Metal": ("liso", (0.36, 0.34, 0.31))},
+                   {"Loza": 4, "Madera": 2, "Hierro": 2, "Metal": 1}, {"Hierro": (0.5, 0.58, 0.5)}, ("Loza", "Metal")),
+    "LavaboPie": (lavabo_pie, {"Loza": loza, "Metal": ("liso", (0.4, 0.38, 0.34)), "Interior": ("liso", (0.05, 0.05, 0.05))},
+                  {"Loza": 4, "Metal": 1, "Interior": 1}, {}, ("Loza", "Metal")),
+    "CortinaDucha": (cortina_ducha, {"Tela": "rough_linen", "Metal": ("liso", (0.4, 0.38, 0.34))},
+                     {"Tela": 2.5, "Metal": 1}, {"Tela": (0.8, 0.82, 0.74)}, ("Tela",)),
+    "Toallas": (toallas, {"Toalla": "rough_linen"}, {"Toalla": 1.5}, {"Toalla": (0.8, 0.74, 0.66)}, ("Toalla",)),
+    "Paraguero": (paraguero, {"Laton": ("liso", (0.42, 0.33, 0.18)), "Paraguas": "poly_wool_herringbone",
+                              "Madera": "dark_wood"},
+                  {"Laton": 1, "Paraguas": 1.5, "Madera": 2}, {"Paraguas": (0.18, 0.17, 0.17)}, ("Laton", "Paraguas")),
+    # Hierro gris con el envejecido: la textura de óxido no se distinguía de la madera oscura de la puerta.
+    "CadenaPuerta": (cadena_puerta, {"Metal": ("liso", (0.5, 0.48, 0.45)), "Interior": ("liso", (0.03, 0.03, 0.03))},
+                     {"Metal": 1, "Interior": 1}, {}, ("Metal",)),
 }
 
 

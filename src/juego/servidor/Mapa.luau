@@ -737,12 +737,16 @@ local SALAS = {
 	-- yeso propios de la sala (MaterialVariants).
 	{ x1 = 12, x2 = 39, z1 = -33, z2 = 5, y = ABAJO, papel = "PapelSalon", suelo = "SueloSalon", techo = "TechoSalon", rodapie = "MaderaOscura" },
 	{ x1 = 22, x2 = 39, z1 = 5, z2 = 33, y = ABAJO, papel = "Rojo", suelo = "Madera", techo = true }, -- dormitorio
-	{ x1 = 12, x2 = 22, z1 = 5, z2 = 19, y = ABAJO, papel = "Claro", suelo = "Madera", techo = true }, -- trastero
-	{ x1 = 12, x2 = 22, z1 = 19, z2 = 33, y = ABAJO, papel = "Claro", suelo = "Azulejo", techo = true }, -- baño
+	-- Trastero y baño (11.8.5): yeso roto con el ladrillo a la vista y tablas viejas; en el baño, pintura rosa que se
+	-- pela sobre azulejo pequeño a media pared, mosaico en el suelo y techo ahumado. Propios de cada sala.
+	{ x1 = 12, x2 = 22, z1 = 5, z2 = 19, y = ABAJO, papel = "PapelTrastero", suelo = "SueloTrastero", techo = true, rodapie = "MaderaOscura" },
+	{ x1 = 12, x2 = 22, z1 = 19, z2 = 33, y = ABAJO, papel = "PapelBano", suelo = "SueloBano", techo = "TechoCocina", azulejo = "AzulejoBano" },
 	-- Vestíbulo (a doble altura; 11.8.1): papel verde oscuro sobre zócalo alto de paneles, parquet en espiga y techo de
 	-- yeso agrietado, propios de la sala (plan-salas.md, paso 3).
 	{ x1 = -12, x2 = 12, z1 = -33, z2 = 9, y = ABAJO, papel = "Vestibulo", suelo = "ParquetVestibulo", zocalo = "PanelVestibulo" },
-	{ x1 = -12, x2 = 12, z1 = 9, z2 = 33, y = ABAJO, papel = "Pasillo", suelo = "Madera", techo = true }, -- pasillo del sótano
+	-- Pasillo del sótano (11.8.5): papel de rayas burdeos sobre papel viejo, rodapié oscuro, tablas gastadas y el techo
+	-- agrietado del vestíbulo.
+	{ x1 = -12, x2 = 12, z1 = 9, z2 = 33, y = ABAJO, papel = "PapelPasillo", suelo = "SueloPasillo", techo = "TechoVestibulo", rodapie = "MaderaOscura" },
 	-- Comedor y su mirador (11.8.3): pintura roja oscura que se cae a trozos sobre un zócalo alto de paneles, parquet en
 	-- diagonal y techo de gotelé, propios de la sala.
 	{ x1 = -39, x2 = -12, z1 = -33, z2 = 3, y = ABAJO, papel = "PapelComedor", suelo = "SueloComedor", techo = "TechoComedor", zocalo = "ZocaloComedor" },
@@ -966,7 +970,7 @@ local function abandonar()
 	end
 	-- Tablas sueltas y basura (papeles), junto a las paredes.
 	for _, sitio in {
-		Vector3.new(10, ABAJO, 31), Vector3.new(25, ABAJO, 30), Vector3.new(-36, ABAJO, -29),
+		Vector3.new(-9.5, ABAJO, 30.5), Vector3.new(25, ABAJO, 30), Vector3.new(-36, ABAJO, -29),
 		Vector3.new(-36, ABAJO, 6), Vector3.new(-9, ARRIBA, 31), Vector3.new(-36, ARRIBA, -30), Vector3.new(36, ARRIBA, 12),
 	} do
 		for i = 1, 3 do
@@ -1106,6 +1110,73 @@ local function vestirCocina()
 	mancha(Vector3.new(-35.6, ABAJO + 0.08, 20.6), Vector3.yAxis, 3, SANGRE_VESTIBULO.Arrastre, Color3.new(1, 1, 1), 2.2, 6)
 	mancha(Vector3.new(-38.42, ABAJO + 4.4, 21.1), Vector3.xAxis, 3, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 120, 115), 0)
 	luzLuna(Vector3.new(-34, ABAJO + 8, 32.4), Vector3.new(-30, ABAJO, 22), 1.5, 24)
+end
+
+-- Lo que cuenta la historia del pasillo, el baño y el trastero (11.8.5): el arrastre del vestíbulo sigue por la
+-- alfombra y acaba bajo la puerta del sótano, cerrada con cadena y candado, con arañazos de uñas y una mano que resbaló
+-- (alguien quiso entrar o salir). Una sola bombilla colgando delante. En el baño, el espejo roto de un golpe, una mano
+-- en la cortina de la ducha y la luna por la ventana. Papel desconchado. Moderate como máximo.
+local MARCAS = { Aranazos = "rbxassetid://72113309993798", Grietas = "rbxassetid://113133657830111" }
+local function vestirPasillo()
+	local blanco = Color3.new(1, 1, 1)
+	for _, d in {
+		{ -11.42, ABAJO + 9, 13, Vector3.xAxis, 3.5 }, { 11.42, ABAJO + 8, 24, -Vector3.xAxis, 3 }, { -9, ABAJO + 9.5, 32.42, -Vector3.zAxis, 3 },
+		{ 12.58, ABAJO + 9, 23, Vector3.xAxis, 3 }, { 21.42, ABAJO + 9, 16, -Vector3.xAxis, 3 }, { 14, ABAJO + 9, 18.42, -Vector3.zAxis, 2.5 },
+	} do
+		mancha(Vector3.new(d[1], d[2], d[3]), d[4], d[5], SANGRE_VESTIBULO.Desconchon, Color3.fromRGB(170, 160, 145), d[2] % 3)
+	end
+	-- El arrastre, encima de la alfombra (0,27 de alto) y a lo largo de ella (con giro 0, el largo va en x).
+	mancha(Vector3.new(1, ABAJO + 0.29, 15.5), Vector3.yAxis, 2.6, SANGRE_VESTIBULO.Arrastre, blanco, math.pi / 2 + 0.06, 9)
+	mancha(Vector3.new(0.4, ABAJO + 0.29, 25), Vector3.yAxis, 2.6, SANGRE_VESTIBULO.Arrastre, blanco, math.pi / 2 + 0.03, 9)
+	-- Puerta del sótano: la cadena va dentro del modelo de la puerta (Casa la quita al abrirla con la llave); los
+	-- arañazos y la mano, en la hoja, para que giren con ella.
+	local sotano = casa:FindFirstChild("Sotano")
+	local cadena = tienda("CadenaPuerta", CFrame.lookAt(Vector3.new(0, ABAJO + 3.2, 32.45), Vector3.new(0, ABAJO + 3.2, 31)), true)
+	if sotano and cadena then
+		cadena.Name = "Cadena"
+		cadena.Parent = sotano
+	end
+	local hoja = sotano and sotano:FindFirstChild("Hoja") :: BasePart?
+	if hoja then
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front -- la cara del pasillo
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 50
+		gui.LightInfluence = 1
+		gui.Parent = hoja
+		for _, m in { { MARCAS.Aranazos, 0.05, 0.28, 0.9, 0.42 }, { SANGRE_VESTIBULO.Gotas, 0.42, 0.42, 0.5, 0.3, Color3.fromRGB(130, 100, 95) } } do
+			local imagen = Instance.new("ImageLabel")
+			imagen.BackgroundTransparency = 1
+			imagen.Image = m[1]
+			imagen.ImageColor3 = m[6] or Color3.new(1, 1, 1) -- la mano, más oscura: roja viva parecía pintura
+			imagen.Position = UDim2.fromScale(m[2], m[3])
+			imagen.Size = UDim2.fromScale(m[4], m[5])
+			imagen.Parent = gui
+		end
+	end
+	-- La bombilla: cuelga de un cable en su portalámparas, delante de la puerta. La única luz del pasillo; la enciende el
+	-- generador, como las demás.
+	local techo = ABAJO + ALTO - BAJO_TECHO
+	local abajo = techo - 2.6
+	local cable = adorno(Vector3.new(0.06, techo - abajo, 0.06), CFrame.new(0, (techo + abajo) / 2, 28.5), Enum.Material.SmoothPlastic)
+	cable.Color = Color3.fromRGB(20, 18, 16)
+	tienda("PortalamparasPH", CFrame.new(0, abajo - 0.66, 28.5), true)
+	local bombilla = bloque("Lampara", Vector3.new(0.45, 0.45, 0.45), CFrame.new(0, abajo - 0.45, 28.5), COLOR.Lampara, Enum.Material.SmoothPlastic)
+	bombilla.Shape = Enum.PartType.Ball
+	bombilla.CanCollide = false
+	bombilla.CastShadow = false
+	local luz = Instance.new("PointLight")
+	luz.Color = COLOR.Lampara
+	luz.Brightness = 1.1
+	luz.Range = 22
+	luz.Shadows = true
+	luz.Enabled = false
+	luz.Parent = bombilla
+	table.insert(Mapa.lamparas, bombilla)
+	-- Baño: grietas en el espejo, una mano en la cortina corrida y la luna por la ventana.
+	mancha(Vector3.new(21.05, ABAJO + 7.1, 30.9), -Vector3.xAxis, 2.4, MARCAS.Grietas, blanco, 0)
+	mancha(Vector3.new(17.4, ABAJO + 4.6, 22.95), Vector3.zAxis, 2.6, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 120, 115), 0)
+	luzLuna(Vector3.new(17, ABAJO + 8, 32.4), Vector3.new(17, ABAJO, 25), 1.2, 18)
 end
 
 -- Torre de la esquina de delante a la izquierda, mirando la casa desde el camino (pedido por el usuario): un octógono
@@ -1592,16 +1663,78 @@ local function construirCasa(mapa: Folder)
 	-- Dormitorio: cama con el cabecero contra la pared de atrás, mesilla con lámpara y armario.
 	bloque("Mesilla", Vector3.new(2, 2.4, 2), CFrame.new(30.6, ABAJO + 1.2, 31.4), COLOR.Mueble)
 	contraPared("LamparaMesa", 30.6, ABAJO + 2.4, 32.5, DELANTE, true)
-	-- Trastero: estantería y armario.
-	mueble("Estanteria", CFrame.new(16, ABAJO, 6.25) * CFrame.Angles(0, math.pi, 0),
-		{ bloque("Estanteria", Vector3.new(6, 7, 1.5), CFrame.new(16, ABAJO + 3.5, 6.25), COLOR.Mueble) })
-	-- Baño: bañera de patas contra la pared del trastero, váter y lavabo.
+	-- Pasillo (11.8.5, opción A del usuario, "todo lleva al sótano"): la alfombra larga, recta hasta la puerta del
+	-- sótano, que se ve desde la entrada; retratos de familia (con las caras rayadas) en fila a los dos lados de la
+	-- puerta, la mesita con el teléfono de pared junto a ella y un paragüero. Los lados, casi vacíos. La cadena, los
+	-- arañazos, la sangre y la bombilla, en vestirPasillo.
+	local alfombra = tienda("AlfombraLarga", CFrame.new(0, ABAJO, 20.6), true)
+	if alfombra then -- estirada a lo largo (de 13,4 a 20), como la mesa del comedor
+		local k = 20 / (alfombra:GetAttribute("Tam") :: Vector3).Z
+		for _, pieza in alfombra:GetDescendants() do
+			if pieza:IsA("BasePart") then
+				pieza.Size *= Vector3.new(1, 1, k)
+				pieza.Position = Vector3.new(pieza.Position.X, pieza.Position.Y, 20.6 + (pieza.Position.Z - 20.6) * k)
+			end
+		end
+	end
+	for i, x in { -10, -7.2, -4.4, 4.4, 7.2, 10 } do
+		local retrato = contraPared(if i % 3 == 1 then "CuadroFamiliaPH" elseif i % 3 == 2 then "CuadroFamiliaPH2" else "CuadroFamiliaPH3",
+			x, ABAJO + 5.9 + (i % 2) * 0.35, 32.3, DELANTE, true)
+		if retrato then -- cada uno algo torcido
+			retrato:PivotTo(retrato:GetPivot() * CFrame.Angles(0, 0, math.rad(({ -4, 2, -1, 5, -2, 9 })[i])))
+		end
+	end
+	contraPared("MesitaPH", -6.2, ABAJO, 32.3, DELANTE)
+	contraPared("TelefonoPH", -6.2, ABAJO + 3.3, 32.3, DELANTE, true)
+	contraPared("Paraguero", 11.3, ABAJO, 29.5, OESTE, true)
+	-- Trastero (11.8.5): lleno. En la pared del salón, la escoba y el cubo junto a la entrada, una estantería de madera
+	-- con trastos y la maleta encima, y cajas en el rincón; en la del baño, la estantería de metal y un cajón con una caja
+	-- encima, y más cajas junto al armario (escondite, más abajo). El centro, libre.
+	contraPared("EscobaPH", 12.7, ABAJO, 6.8, ESTE, true)
+	tienda("CuboPH", CFrame.new(13.6, ABAJO, 8.8) * CFrame.Angles(0, 0.6, 0))
+	local estanteria = contraPared("DespensaPH", 16.3, ABAJO, 5.7, DETRAS)
+	if estanteria then -- baldas a 0,44, 1,61, 2,77, 3,96, 5,26 y 6,85 del suelo (la despensa de la cocina)
+		local e = estanteria:GetPivot()
+		for k, c in {
+			{ "CestaPH", -1.4, 0.44 }, { "LatasPH", 1.3, 0.44 }, { "EnciclopediaPH", -0.8, 1.61 }, { "LatasPH", 1.5, 1.61 },
+			{ "OllaPH", -1.2, 2.77 }, { "CestaPH", 1.1, 3.96 }, { "LataOxidadaPH", -1.6, 5.26 }, { "LataOxidadaPH", -1.1, 5.26 },
+		} do
+			tienda(c[1], e * CFrame.new(c[2], c[3], 0) * CFrame.Angles(0, k * 0.5, 0), true)
+		end
+		local maleta = tienda("MaletaPH", e * CFrame.new(0, 8.5, 0.1), true)
+		if maleta then
+			maleta:ScaleTo(0.85)
+		end
+	end
+	tienda("CajaCartonPH", CFrame.new(20.2, ABAJO, 7) * CFrame.Angles(0, 0.08, 0))
+	tienda("CajaCartonPH", CFrame.new(20.1, ABAJO + 1.7, 7.2) * CFrame.Angles(0, -0.3, 0), true)
+	local metal = contraPared("EstanteriaMetalPH", 15.3, ABAJO, 18.3, DELANTE)
+	if metal then -- baldas a 0,5, 2,6, 4,6, 6,6 y 8,6 (arriba del todo); las cajas, giradas para que quepan de fondo
+		local e = metal:GetPivot()
+		for k, c in {
+			{ "CajonPH", 0, 0.5, 0 }, { "CestaPH", -1.2, 2.6, 0.4 }, { "LatasPH", 0.6, 2.6, 0 }, { "LataOxidadaPH", 1.5, 2.6, 0 },
+			{ "CajaCartonPH", -0.6, 4.6, math.pi / 2 }, { "EnciclopediaPH", 1.3, 4.6, 0.2 }, { "OllaPH", -1.1, 6.6, 0 },
+			{ "LataOxidadaPH", 0.9, 6.6, 0 }, { "CajaCartonPH", 0.3, 8.6, math.pi / 2 + 0.15 },
+		} do
+			tienda(c[1], e * CFrame.new(c[2], c[3], 0) * CFrame.Angles(0, c[4] + k * 0.05, 0), true)
+		end
+	end
+	local cajon = contraPared("CajonPH", 19.45, ABAJO, 18.3, DELANTE)
+	if cajon then
+		tienda("CajaCartonPH", cajon:GetPivot() * CFrame.new(0.4, 1.57, 0) * CFrame.Angles(0, math.pi / 2 + 0.2, 0), true)
+	end
+	contraPared("CajaCartonPH", 21.3, ABAJO, 15, OESTE)
+	-- Baño (11.8.5, como estaba): la bañera de patas contra la pared del trastero con la cortina corrida (no se ve qué
+	-- hay dentro), el váter de cisterna alta, el lavabo de pie con el espejo roto de un golpe, el botiquín tirado y
+	-- toallas sucias en el suelo. Las grietas y la sangre, en vestirPasillo.
 	tienda("Banera", CFrame.lookAt(Vector3.new(16, ABAJO, 21.2), Vector3.new(15, ABAJO, 21.2)))
-	contraPared("Vater", 12.5, ABAJO, 28, ESTE)
-	mueble("Lavabo", CFrame.lookAt(Vector3.new(20.7, ABAJO, 31), Vector3.new(19.7, ABAJO, 31)))
-	local lavabo = bloque("Choque", Vector3.new(1.6, 3, 2.4), CFrame.new(20.7, ABAJO + 1.5, 31))
-	lavabo.Transparency = 1
-	lavabo.CanQuery = false
+	-- La cortina empieza a 1,4 del suelo (dentro de la bañera): su pivote es su punto más bajo.
+	tienda("CortinaDucha", CFrame.lookAt(Vector3.new(16, ABAJO + 1.4, 21.2), Vector3.new(16, ABAJO + 1.4, 22.2)), true)
+	contraPared("VaterViejo", 12.7, ABAJO, 28, ESTE)
+	contraPared("LavaboPie", 21.3, ABAJO, 31, OESTE)
+	contraPared("EspejoPH", 21.3, ABAJO + 4.6, 30.9, OESTE, true)
+	tienda("BotiquinPH", CFrame.new(19.4, ABAJO, 28.6) * CFrame.Angles(0, 0.5, 0), true)
+	tienda("Toallas", CFrame.new(15.2, ABAJO, 24.6) * CFrame.Angles(0, 0.4, 0), true)
 	-- Lavadero: estantería, armario y el enchufe del móvil (más abajo).
 	mueble("Estanteria", CFrame.new(-24.75, ABAJO, 36.6) * CFrame.Angles(0, -math.pi / 2, 0),
 		{ bloque("Estanteria", Vector3.new(1.5, 7, 6), CFrame.new(-24.75, ABAJO + 3.5, 36.6), COLOR.Mueble) })
@@ -1673,7 +1806,7 @@ local function construirCasa(mapa: Folder)
 		table.insert(Mapa.salas, sala)
 	end
 	for _, luz in {
-		Vector3.new(0, ABAJO, 4.5), Vector3.new(0, ABAJO, 22), Vector3.new(25, ABAJO, -20), -- en el salón, además, la lámpara de pie
+		Vector3.new(0, ABAJO, 4.5), Vector3.new(25, ABAJO, -20), -- en el salón, además, la lámpara de pie; en el pasillo, la bombilla
 		Vector3.new(30, ABAJO, 19), Vector3.new(17, ABAJO, 12), Vector3.new(17, ABAJO, 26), -- en el comedor, la araña (abajo)
 		Vector3.new(-25.5, ABAJO, 18), Vector3.new(-19, ABAJO, 39), Vector3.new(42, ABAJO, -36),
 		Vector3.new(0, ARRIBA, 18), Vector3.new(25, ARRIBA, -14), Vector3.new(-25, ARRIBA, -14), Vector3.new(-25, ARRIBA, 21),
@@ -1866,6 +1999,7 @@ function Mapa.start()
 	vestirSalon()
 	vestirComedor()
 	vestirCocina()
+	vestirPasillo()
 	abandonar()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
