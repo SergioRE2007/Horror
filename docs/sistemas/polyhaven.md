@@ -76,3 +76,9 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - `textura_ph.py --flores`: papel de florecillas encima de `decrepit_wallpaper`, con `--limpia` (con las manchas del envejecido parecía camuflaje, como en la cocina).
 - `old_bed_frame` es de hospital: 0,9 × 2 m, somier de malla a 2,25 del suelo (a `--escala 4.6`) y la cabecera a +Z. `cama()` de `Mapa` acepta un mueble (`aspecto`) y su colcha (`ropa`) con su ancho y largo: los bloques que chocan se hacen a esa medida y quedan invisibles.
 - El suelo de las salas (la lámina del `MaterialVariant`) tiene la cara de arriba a `ABAJO + 0,06`: una alfombra fina a `ABAJO + 0,02` parpadeaba con él (va a `+ 0,075`).
+
+## Galería (11.8.7)
+
+- `a_mano.py`: `BalaustradaGaleria` (un tramo de 6,8 en una sola malla: zócalo, once barrotes con el perfil de `Balaustre` y pasamanos; misma textura que los barrotes, Roblox da el mismo id) y `AlfombraGaleria` (`alfombra_larga` con `ancho`, `largo` y `doblada`, a 4 × 26 sin doblar). `textura_ph.py --damasco`: medallones lobulados con flor de lis y red de rombos sobre `decrepit_wallpaper` (en la imagen +v es arriba: la flor salió boca abajo la primera vez).
+- `wheelchair_01` a `--alto 4.2` (40.000 triángulos a 5.000 sin romperse los radios); `treasure_chest` a escala 4 es un arcón de 3,8 × 2,5. `old_wood_floor` con `--limpia` sale gris claro: `--tinte 0.72,0.6,0.5 --oscurecer 0.65`.
+- **Suelo de arriba:** `Separar` engorda el `Piso` de la planta de arriba (su cara queda a `ARRIBA + 0,18`) y tapaba la lámina del suelo propio de la sala; `vestirSuelos` la pone sobre `sueloArriba()` y los muebles de la galería van a esa altura (los de abajo, sin tocar).
