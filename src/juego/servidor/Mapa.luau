@@ -1471,7 +1471,7 @@ local function construirCasa(mapa: Folder)
 	-- mirador, a los lados de la ventana.
 	local MESA = Vector3.new(-25.5, ABAJO, -15)
 	tienda("MesaComedorPH", CFrame.new(MESA) * CFrame.Angles(0, math.pi / 2, 0))
-	local encimaMesa = ABAJO + 3.51
+	local encimaMesa = ABAJO + 3.28 -- bajado por el usuario: a 3,51 lo de encima flotaba
 	local function sobreMesa(nombre: string, x: number, z: number, giro: number?, alto: number?)
 		tienda(nombre, CFrame.new(MESA.X + x, encimaMesa + (alto or 0), MESA.Z + z) * CFrame.Angles(0, giro or 0, 0), true)
 	end
@@ -1481,13 +1481,17 @@ local function construirCasa(mapa: Folder)
 		local pos = MESA + Vector3.new(s[1], 0, s[2])
 		local cf = CFrame.lookAt(pos, MESA + Vector3.new(0, 0, s[2] * 0.6))
 		tienda("SillaComedorPH", if i == 7 then cf * CFrame.Angles(0, math.rad(-25), 0) else cf)
-		sobreMesa("PlatoPH", s[1] * 0.5, math.clamp(s[2], -5.4, 5.4), i)
+		if i == 7 then -- el de la apartada, movido por el usuario
+			sobreMesa("PlatoPH", 0.86, -5.35, i, -0.1)
+		else
+			sobreMesa("PlatoPH", s[1] * 0.5, math.clamp(s[2], -5.4, 5.4), i)
+		end
 	end
-	sobreMesa("PlatoPH", 1.7, -4.2, 8) -- el de la silla volcada
+	sobreMesa("PlatoPH", 1.84, -4.65, 8, -0.13) -- el de la silla volcada (movido por el usuario)
 	-- Volcada de espaldas hacia el vestíbulo, como si alguien se hubiera levantado de golpe. No choca (sería una caja
-	-- tumbada): queda a un lado, fuera del paso.
-	local volcada = MESA + Vector3.new(5.6, 0, -4.6)
-	tienda("SillaComedorPH", CFrame.lookAt(volcada, MESA + Vector3.new(0, 0, -4.2)) * CFrame.Angles(0, math.rad(15), 0)
+	-- tumbada): queda a un lado, fuera del paso. El usuario la acercó a la mesa sin girarla.
+	local giroVolcada = CFrame.lookAt(MESA + Vector3.new(5.6, 0, -4.6), MESA + Vector3.new(0, 0, -4.2)).Rotation
+	tienda("SillaComedorPH", CFrame.new(MESA + Vector3.new(3.71, 0, -3.95)) * giroVolcada * CFrame.Angles(0, math.rad(15), 0)
 		* CFrame.new(0, 1.16, 0) * CFrame.Angles(math.rad(90), 0, 0), true)
 	-- Lo que había en la mesa: fruta podrida en los platos y en el frutero, copas, dos candelabros y la jarra.
 	sobreMesa("FruteroPH", 0, 0)
