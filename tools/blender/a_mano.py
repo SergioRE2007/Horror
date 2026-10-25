@@ -5,7 +5,7 @@
 # SofaTapado, Piano, Banqueta, Repisa, LamparaPie, AlfombraSalon y CortinaVano (la de los vanos de toda la casa); de la
 # cocina, EncimeraCocina, EncimeraAbierta, FregaderoCocina, AlacenaCocina y AlacenaAbierta; del pasillo y el baño,
 # VaterViejo, LavaboPie, CortinaDucha, Toallas, Paraguero y CadenaPuerta; del dormitorio de abajo, ColchaCama,
-# AlfombraTrapo, CosasMesilla, Zapatillas, RopaSilla y MantaMecedora.
+# AlfombraTrapo, CosasMesilla, Zapatillas, RopaSilla y MantaMecedora; de la galería, BalaustradaGaleria y AlfombraGaleria.
 import argparse
 import json
 import math
@@ -188,9 +188,9 @@ def cartas(m, rng):
         m.add("Papel", ([(-0.46, 0.012, -0.26), (0.46, 0.012, -0.26), (0, 0.022, 0.05)], [(0, 2, 1)]), giro)
 
 
-def alfombra_larga(m, rng):
+def alfombra_larga(m, rng, ancho=4.5, largo=13.0, doblada=True):
     # Alfombra de 4,5 x 13 studs: arrugas suaves a lo ancho, una esquina doblada encima, borde y flecos en las puntas.
-    ancho, largo, alto = 4.5, 13.0, 0.06
+    alto = 0.06
     nx, nz = 8, 40
 
     def punto(i, j):
@@ -204,7 +204,7 @@ def alfombra_larga(m, rng):
     # Esquina doblada: los vértices al otro lado de la diagonal se reflejan sobre ella y suben un poco.
     esquina = Vector((ancho / 2, -largo / 2))
     normal = Vector((-1, 1)).normalized()
-    d0 = 1.1
+    d0 = 1.1 if doblada else -99
     for k, (x, y, z) in enumerate(verts):
         d = (Vector((x, z)) - esquina).dot(normal)
         if d < d0:
@@ -215,7 +215,7 @@ def alfombra_larga(m, rng):
     for lado in (-1, 1):
         m.add("Borde", box(0.35, 0.02, largo - 0.2), T(lado * (ancho / 2 - 0.25), alto + 0.012, 0))
     for punta in (-1, 1):
-        if punta == -1:
+        if punta == -1 and doblada:
             continue  # la punta de delante está doblada
         for k in range(18):
             x = -ancho / 2 + 0.2 + (ancho - 0.4) * k / 17
@@ -227,6 +227,29 @@ def balaustre(m, rng):
     # Barrote torneado de la escalera (0,8 m): dados abajo y arriba, jarrón y anillos.
     m.add("Madera", lathe([(0.17, 0), (0.17, 0.45), (0.11, 0.55), (0.08, 0.8), (0.15, 1.3), (0.15, 1.45), (0.07, 2.0),
                            (0.1, 2.45), (0.07, 2.6), (0.17, 2.7), (0.17, 3.2)], 10))
+
+
+def balaustrada_galeria(m, rng):
+    # Galería (11.8.7): un tramo de balaustrada de 6,8 de largo (en x) y 3,5 de alto sobre el hueco del vestíbulo, en una
+    # sola malla: zócalo con moldura, once barrotes torneados como los de la escalera y pasamanos ancho y redondeado.
+    largo = 6.8
+    m.add("Madera", box(largo, 0.3, 0.55), T(0, 0.15, 0))
+    m.add("Madera", box(largo, 0.08, 0.64), T(0, 0.34, 0))
+    perfil = [(0.17, 0), (0.17, 0.45), (0.11, 0.55), (0.08, 0.8), (0.15, 1.3), (0.15, 1.45), (0.07, 2.0),
+              (0.1, 2.45), (0.07, 2.6), (0.17, 2.7), (0.17, 3.2)]
+    alto = 3.06 - 0.38
+    n = 11
+    for k in range(n):
+        x = -largo / 2 + largo * (k + 0.5) / n
+        m.add("Madera", lathe([(r, 0.38 + y * alto / 3.2) for r, y in perfil], 10), T(x, 0, 0))
+    m.add("Madera", box(largo, 0.1, 0.38), T(0, 3.11, 0))
+    m.add("Madera", box(largo, 0.2, 0.52), T(0, 3.26, 0))
+    m.add("Madera", cyl(0.27, largo, 12), T(largo / 2, 3.36, 0) @ R("Z", 90) @ S(0.55, 1, 1))
+
+
+def alfombra_galeria(m, rng):
+    # Galería (11.8.7): la alfombra larga, estirada de la escalera a la silla de ruedas del fondo (4 x 26, sin doblar).
+    alfombra_larga(m, rng, 4.0, 26.0, False)
 
 
 def poste_escalera(m, rng):
@@ -1082,6 +1105,7 @@ MUEBLES = {
                  {"Abrigo": (0.55, 0.45, 0.38), "Paraguas": (0.18, 0.17, 0.17)}, ("Abrigo", "Paraguas")),
     "Cartas": (cartas, {"Papel": None}, {"Papel": 1}, {}, ()),
     "Balaustre": (balaustre, {"Madera": "dark_wood"}, {"Madera": 2}, {}, ("Madera",)),
+    "BalaustradaGaleria": (balaustrada_galeria, {"Madera": "dark_wood"}, {"Madera": 2}, {}, ("Madera",)),
     "PosteEscalera": (poste_escalera, {"Madera": "dark_wood"}, {"Madera": 2}, {}, ("Madera",)),
     "Roseton": (roseton, {"Yeso": "worn_cracked_plaster"}, {"Yeso": 3}, {"Yeso": (0.8, 0.78, 0.72)}, ("Yeso",)),
     "AlfombraLarga": (alfombra_larga, {"Alfombra": "quatrefoil_jacquard_fabric", "Borde": "dirty_carpet"},
@@ -1144,6 +1168,9 @@ MUEBLES = {
     "RopaSilla": (ropa_silla, {"Ropa": "rough_linen", "Rebeca": "poly_wool_herringbone"}, {"Ropa": 1.5, "Rebeca": 1.5},
                   {"Ropa": (0.7, 0.66, 0.6), "Rebeca": (0.4, 0.45, 0.4)}, ("Ropa", "Rebeca")),
     "MantaMecedora": (manta_mecedora, {"Manta": ganchillo}, {"Manta": 2.4}, {}, ("Manta",)),
+    # Galería (11.8.7).
+    "AlfombraGaleria": (alfombra_galeria, {"Alfombra": "quatrefoil_jacquard_fabric", "Borde": "dirty_carpet"},
+                        {"Alfombra": 3, "Borde": 2}, {"Alfombra": (0.5, 0.3, 0.3)}, ()),
 }
 
 
