@@ -21,6 +21,7 @@ parser.add_argument("--tinte", default="1,1,1")
 parser.add_argument("--oscurecer", type=float, default=0.85)
 parser.add_argument("--limpia", action="store_true", help="sin manchas (en suelos se ven en cuadrícula)")
 parser.add_argument("--rayas", action="store_true", help="papel de rayas verticales (salón)")
+parser.add_argument("--flores", action="store_true", help="papel de florecillas (dormitorio de abajo)")
 parser.add_argument("--colores", default="0.5,0.56,0.44/0.8,0.74,0.6/0.42,0.14,0.12",
                     help="con --rayas: banda ancha, banda clara e hilo (r,g,b separados por /)")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
@@ -52,3 +53,38 @@ if args.rayas:
     rgb = rgb * 0.4 + luz * raya[None, :, :] * rgb.mean() * 1.1
     polyhaven.guardar("rayas", rgb, w, h, ruta)
     print("RAYAS", args.nombre)
+
+# --flores: papel de florecillas de abuela (dormitorio de abajo, 11.8.6), encima del papel viejo de Poly Haven: ramitos
+# de capullos rosa desvaído con dos hojas verde oliva, en filas alternas, sobre el fondo crema; 4 por fila por baldosa.
+if args.flores:
+    import bpy
+
+    ruta = os.path.join(salida, args.nombre) + "_color.png"
+    imagen = bpy.data.images.load(ruta)
+    w, h = imagen.size
+    pixeles = np.empty(w * h * 4, dtype=np.float32)
+    imagen.pixels.foreach_get(pixeles)
+    rgb = pixeles.reshape(h, w, 4)[:, :, :3]
+    luz = rgb.mean(axis=2, keepdims=True) / max(rgb.mean(), 1e-3)
+    n = 4
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    fila = np.floor(yy / h * n)
+    u = (xx / w * n + 0.5 * (fila % 2)) % 1 - 0.5  # media vuelta cada fila
+    v = (yy / h * n) % 1 - 0.5
+    fondo, rosa, rosa_osc, hoja = (np.array(c, dtype=np.float32) for c in
+                                   ((0.82, 0.76, 0.6), (0.72, 0.45, 0.44), (0.5, 0.25, 0.27), (0.42, 0.46, 0.3)))
+    color = np.ones((h, w, 3), dtype=np.float32) * fondo
+    for su, sv, k in ((-0.1, -0.02, 1.0), (0.1, 0.06, 0.8)):  # dos capullos por ramito
+        d = np.hypot(u - su, (v - sv) * 1.2)
+        color[d < 0.075 * k] = rosa
+        espiral = np.abs(np.sin(np.arctan2(v - sv, u - su) * 2 + d * 90)) < 0.35
+        color[(d < 0.06 * k) & espiral] = rosa_osc
+    for su, sv, giro in ((-0.02, 0.13, 0.6), (0.17, -0.07, -0.8)):  # hojas
+        a, b = u - su, v - sv
+        c, s = np.cos(giro), np.sin(giro)
+        color[((a * c - b * s) / 0.07) ** 2 + ((a * s + b * c) / 0.028) ** 2 < 1] = hoja
+    tallo = (np.abs(v - 0.02 - (u * 0.5)) < 0.006) & (np.abs(u) < 0.13)
+    color[tallo] = hoja * 0.8
+    rgb = rgb * 0.35 + luz * color * rgb.mean() * 1.15
+    polyhaven.guardar("flores", rgb, w, h, ruta)
+    print("FLORES", args.nombre)

@@ -444,25 +444,38 @@ local function armario(centro: Vector3, frente: Vector3)
 end
 
 -- Cama con hueco debajo para esconderse. `largo` = de los pies a la cabecera; `lado` (1 o -1) por dónde se sale.
-local function cama(centro: Vector3, largo: Vector3, lado: number)
+-- `aspecto` = un mueble de ServerStorage.Muebles con la cabecera a +Z (la de hierro del dormitorio de abajo, con su
+-- colcha `ropa`), de `ancho` × `largoCama`; sin él, la de Blender de 5 × 8. Los bloques siguen chocando, invisibles.
+local function cama(centro: Vector3, largo: Vector3, lado: number, aspecto: string?, ropa: string?, ancho: number?, largoCama: number?)
 	local modelo = Instance.new("Model")
 	modelo.Name = "Cama"
 	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- el cliente lo necesita entero
 	local cf = CFrame.lookAt(centro, centro + largo) -- -Z = hacia la cabecera
+	local a, l = ancho or 5, largoCama or 8
 	local trozos = {}
 	local function trozo(nombre: string, tamano: Vector3, offset: Vector3, color: Color3?)
 		table.insert(trozos, bloque(nombre, tamano, cf * CFrame.new(offset), color or COLOR.Mueble, nil, modelo))
 	end
-	trozo("Colchon", Vector3.new(5, 1, 8), Vector3.new(0, 2.9, 0), Color3.fromRGB(120, 116, 110))
-	trozo("Somier", Vector3.new(5.2, 0.4, 8.2), Vector3.new(0, 2.2, 0))
-	trozo("Cabecero", Vector3.new(5.2, 5, 0.4), Vector3.new(0, 2.5, -4.2))
-	for _, x in { -2.4, 2.4 } do
-		for _, z in { -3.9, 3.9 } do
+	trozo("Colchon", Vector3.new(a, 1, l), Vector3.new(0, 2.9, 0), Color3.fromRGB(120, 116, 110))
+	trozo("Somier", Vector3.new(a + 0.2, 0.4, l + 0.2), Vector3.new(0, 2.2, 0))
+	trozo("Cabecero", Vector3.new(a + 0.2, 5, 0.4), Vector3.new(0, 2.5, -l / 2 - 0.2))
+	for _, x in { -a / 2 + 0.1, a / 2 - 0.1 } do
+		for _, z in { -l / 2 + 0.1, l / 2 - 0.1 } do
 			trozo("Pata", Vector3.new(0.4, 2, 0.4), Vector3.new(x, 1, z))
 		end
 	end
-	trozo("Almohada", Vector3.new(4, 0.6, 1.4), Vector3.new(0, 3.7, -3.2), Color3.fromRGB(140, 136, 130))
-	mueble("Cama", cf, trozos, modelo)
+	trozo("Almohada", Vector3.new(a - 1, 0.6, 1.4), Vector3.new(0, 3.7, -l / 2 + 0.8), Color3.fromRGB(140, 136, 130))
+	local girada = cf * CFrame.Angles(0, math.pi, 0) -- la cabecera del mueble (+Z) hacia la de la cama
+	if aspecto and tienda(aspecto, girada, true) then
+		for _, b in trozos do
+			b.Transparency = 1
+		end
+		if ropa then -- lo más bajo de la colcha (el bajo, por los lados) va a 1,24 del suelo
+			tienda(ropa, girada * CFrame.new(0, 1.24, -0.03), true)
+		end
+	else
+		mueble("Cama", cf, trozos, modelo)
+	end
 	-- Tumbado boca abajo debajo de la cama, la cabeza hacia los pies de la cama, mirando fuera.
 	local dentro = cf * CFrame.new(0, 0.7, -0.5) * CFrame.Angles(0, math.pi, 0) * CFrame.Angles(-math.pi / 2, 0, 0)
 	modelo:SetAttribute("Tipo", "Cama")
@@ -736,7 +749,9 @@ local SALAS = {
 	-- Salón (11.8.2): papel de rayas de los años 50 sobre papel viejo, rodapié de madera oscura, tablas viejas y techo de
 	-- yeso propios de la sala (MaterialVariants).
 	{ x1 = 12, x2 = 39, z1 = -33, z2 = 5, y = ABAJO, papel = "PapelSalon", suelo = "SueloSalon", techo = "TechoSalon", rodapie = "MaderaOscura" },
-	{ x1 = 22, x2 = 39, z1 = 5, z2 = 33, y = ABAJO, papel = "Rojo", suelo = "Madera", techo = true }, -- dormitorio
+	-- Dormitorio de abajo, el de la abuela (11.8.6): papel de florecillas sobre papel viejo manchado, rodapié oscuro,
+	-- tablas oscuras barnizadas y el techo de yeso del salón.
+	{ x1 = 22, x2 = 39, z1 = 5, z2 = 33, y = ABAJO, papel = "PapelDormitorio", suelo = "SueloDormitorio", techo = "TechoSalon", rodapie = "MaderaOscura" },
 	-- Trastero y baño (11.8.5): yeso roto con el ladrillo a la vista y tablas viejas; en el baño, pintura rosa que se
 	-- pela sobre azulejo pequeño a media pared, mosaico en el suelo y techo ahumado. Propios de cada sala.
 	{ x1 = 12, x2 = 22, z1 = 5, z2 = 19, y = ABAJO, papel = "PapelTrastero", suelo = "SueloTrastero", techo = true, rodapie = "MaderaOscura" },
@@ -955,7 +970,7 @@ local function abandonar()
 	end
 	-- Sangre: en el suelo { x, y, z } y en las paredes { x, y, z, normal }.
 	for _, s in {
-		{ -8, ABAJO, -6 }, { 6, ABAJO, -22 }, { 28, ABAJO, 25 }, { -18, ABAJO, -17 }, { -24, ABAJO, 8 },
+		{ -8, ABAJO, -6 }, { 6, ABAJO, -22 }, { 34.2, ABAJO, 28 }, { -18, ABAJO, -17 }, { -24, ABAJO, 8 },
 		{ -24, ARRIBA, -10 }, { 28, ARRIBA, -20 },
 	} do
 		mancha(Vector3.new(s[1], s[2] + 0.08, s[3]), Vector3.yAxis, azar:NextNumber(3, 5), SANGRE[azar:NextInteger(1, #SANGRE)],
@@ -1177,6 +1192,47 @@ local function vestirPasillo()
 	mancha(Vector3.new(21.05, ABAJO + 7.1, 30.9), -Vector3.xAxis, 2.4, MARCAS.Grietas, blanco, 0)
 	mancha(Vector3.new(17.4, ABAJO + 4.6, 22.95), Vector3.zAxis, 2.6, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 120, 115), 0)
 	luzLuna(Vector3.new(17, ABAJO + 8, 32.4), Vector3.new(17, ABAJO, 25), 1.2, 18)
+end
+
+-- Lo que cuenta la historia del dormitorio de abajo (11.8.6): arañazos de uñas que salen de debajo de la cama hacia la
+-- puerta (y la sangre de abandonar, debajo de la cama), unas gotas a los pies y el papel desconchado. La única luz es la
+-- lámpara de la mesilla (la enciende el generador), más la luna por las dos ventanas. Moderate como máximo.
+local function vestirDormitorio()
+	for _, d in {
+		{ 38.42, ABAJO + 9, 25, -Vector3.xAxis, 3 }, { 22.58, ABAJO + 8.5, 16, Vector3.xAxis, 3.5 }, { 36.5, ABAJO + 9, 5.58, Vector3.zAxis, 2.5 },
+	} do
+		mancha(Vector3.new(d[1], d[2], d[3]), d[4], d[5], SANGRE_VESTIBULO.Desconchon, Color3.fromRGB(170, 160, 145), d[2] % 3)
+	end
+	-- Los arañazos, a lo largo (giro pi / 2: el largo de la imagen va en z), un poco torcidos hacia la puerta.
+	mancha(Vector3.new(34, ABAJO + 0.09, 20.6), Vector3.yAxis, 3, MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), math.pi / 2 + 0.1, 5)
+	mancha(Vector3.new(33.1, ABAJO + 0.09, 16.4), Vector3.yAxis, 2.6, MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), math.pi / 2 + 0.2, 4)
+	mancha(Vector3.new(35.4, ABAJO + 0.08, 22.6), Vector3.yAxis, 1.2, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 110, 110), 0.7)
+	-- La lámpara de la mesilla de la ventana: la bombilla, dentro de la pantalla.
+	local lamparita = contraPared("LamparaMesa", 31, ABAJO + 2.47, 32.5, -Vector3.zAxis, true) -- (DELANTE se define más abajo)
+	if lamparita then
+		for _, d in lamparita:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.CastShadow = false -- que la pantalla no tape la luz
+			end
+		end
+		local bombilla = bloque("Lampara", Vector3.new(0.4, 0.4, 0.4), lamparita:GetPivot() * CFrame.new(0, 1.7, 0), COLOR.Lampara,
+			Enum.Material.SmoothPlastic)
+		bombilla.Shape = Enum.PartType.Ball
+		bombilla.CanCollide = false
+		bombilla.CastShadow = false
+		local luz = Instance.new("PointLight")
+		luz.Color = COLOR.Lampara
+		luz.Brightness = 0.8
+		luz.Range = 22
+		luz.Shadows = true
+		luz.Enabled = false -- la enciende el generador
+		luz.Parent = bombilla
+		table.insert(Mapa.lamparas, bombilla)
+	else
+		lampara(Vector3.new(30, ABAJO + ALTO - 0.3, 19))
+	end
+	luzLuna(Vector3.new(26, ABAJO + 8, 32.4), Vector3.new(27, ABAJO, 22), 1.2, 22)
+	luzLuna(Vector3.new(38.4, ABAJO + 8, 15), Vector3.new(30, ABAJO, 15), 1.2, 20)
 end
 
 -- Torre de la esquina de delante a la izquierda, mirando la casa desde el camino (pedido por el usuario): un octógono
@@ -1660,9 +1716,27 @@ local function construirCasa(mapa: Folder)
 		tienda("LataOxidadaPH", d * CFrame.new(0.2, 3.96 + 0.25, 0) * CFrame.Angles(0, 0.7, math.pi / 2), true)
 	end
 	contraPared("TarroPH", -12.7, ABAJO, 14.5, OESTE)
-	-- Dormitorio: cama con el cabecero contra la pared de atrás, mesilla con lámpara y armario.
-	bloque("Mesilla", Vector3.new(2, 2.4, 2), CFrame.new(30.6, ABAJO + 1.2, 31.4), COLOR.Mueble)
-	contraPared("LamparaMesa", 30.6, ABAJO + 2.4, 32.5, DELANTE, true)
+	-- Dormitorio de abajo (11.8.6, opción A del usuario, "el cuarto de la abuela"): la cama de hierro (escondite, más
+	-- abajo) contra la pared del fondo con una mesilla a cada lado: en la de la ventana, la lámpara (la luz del cuarto, en
+	-- vestirDormitorio); en la otra, el vaso con la dentadura, las pastillas y el rosario. Alfombra de trapo y zapatillas
+	-- al lado de la cama, silla con la ropa doblada y la rebeca entre la cama y la ventana del lado, cómoda con espejo y
+	-- fotos junto a la entrada, y la mecedora con su manta en la pared del baño, mirando a la cama. El centro, libre.
+	contraPared("MesillaPH", 31, ABAJO, 32.5, DELANTE)
+	contraPared("MesillaPH", 37.4, ABAJO, 32.5, DELANTE)
+	tienda("CosasMesilla", CFrame.new(37.4, ABAJO + 2.47, 31.5) * CFrame.Angles(0, 0.3, 0), true)
+	tienda("AlfombraTrapo", CFrame.new(30, ABAJO + 0.075, 26.5) * CFrame.Angles(0, math.pi / 2, 0), true)
+	tienda("Zapatillas", CFrame.new(30.7, ABAJO + 0.115, 26.9) * CFrame.Angles(0, -math.pi / 2 + 0.2, 0), true)
+	local silla = contraPared("SillaDormitorioPH", 38.5, ABAJO, 20.6, OESTE)
+	if silla then -- la ropa, con el mismo CFrame que la silla (su caja empieza en el asiento)
+		tienda("RopaSilla", silla:GetPivot() * CFrame.new(0, 2.32, 0.42), true)
+	end
+	contraPared("ComodaPH", 38.5, ABAJO, 8.6, OESTE)
+	contraPared("EspejoPH", 38.5, ABAJO + 5.3, 8.6, OESTE, true)
+	tienda("FotoPH1", CFrame.new(37.6, ABAJO + 4.85, 7.2) * CFrame.Angles(0, math.pi / 2 + 0.25, 0), true)
+	tienda("FotoPH2", CFrame.new(37.7, ABAJO + 4.85, 10.2) * CFrame.Angles(0, math.pi / 2 - 0.2, 0), true)
+	local mecedora = CFrame.lookAt(Vector3.new(24.8, ABAJO, 19), Vector3.new(34.2, ABAJO, 27.85))
+	tienda("MecedoraPH", mecedora)
+	tienda("MantaMecedora", mecedora * CFrame.new(0, 1.7, 0.34), true)
 	-- Pasillo (11.8.5, opción A del usuario, "todo lleva al sótano"): la alfombra larga, recta hasta la puerta del
 	-- sótano, que se ve desde la entrada; retratos de familia (con las caras rayadas) en fila a los dos lados de la
 	-- puerta, la mesita con el teléfono de pared junto a ella y un paragüero. Los lados, casi vacíos. La cadena, los
@@ -1790,7 +1864,7 @@ local function construirCasa(mapa: Folder)
 	end
 
 	-- Escondites: las camas de los dos dormitorios y los armarios (dormitorios, trastero y lavadero).
-	cama(Vector3.new(34.5, ABAJO, 28.1), DETRAS, 1)
+	cama(Vector3.new(34.2, ABAJO, 27.85), DETRAS, 1, "CamaHierroPH", "ColchaCama", 4, 8.8) -- la de hierro de la abuela
 	armario(Vector3.new(24, ABAJO + 4, 12), ESTE)
 	armario(Vector3.new(20, ABAJO + 4, 12), OESTE) -- trastero
 	armario(Vector3.new(-21, ABAJO + 4, 43), DELANTE) -- lavadero
@@ -1807,7 +1881,7 @@ local function construirCasa(mapa: Folder)
 	end
 	for _, luz in {
 		Vector3.new(0, ABAJO, 4.5), Vector3.new(25, ABAJO, -20), -- en el salón, además, la lámpara de pie; en el pasillo, la bombilla
-		Vector3.new(30, ABAJO, 19), Vector3.new(17, ABAJO, 12), Vector3.new(17, ABAJO, 26), -- en el comedor, la araña (abajo)
+		Vector3.new(17, ABAJO, 12), Vector3.new(17, ABAJO, 26), -- en el comedor, la araña (abajo); en el dormitorio, la lámpara de la mesilla
 		Vector3.new(-25.5, ABAJO, 18), Vector3.new(-19, ABAJO, 39), Vector3.new(42, ABAJO, -36),
 		Vector3.new(0, ARRIBA, 18), Vector3.new(25, ARRIBA, -14), Vector3.new(-25, ARRIBA, -14), Vector3.new(-25, ARRIBA, 21),
 		Vector3.new(27, ARRIBA, 21), Vector3.new(42, ARRIBA, -36),
@@ -2000,6 +2074,7 @@ function Mapa.start()
 	vestirComedor()
 	vestirCocina()
 	vestirPasillo()
+	vestirDormitorio()
 	abandonar()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).

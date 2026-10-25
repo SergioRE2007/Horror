@@ -67,3 +67,12 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - La textura de óxido en una cadena no se distinguía de la madera oscura de la puerta: hierro gris (`liso`) con el envejecido.
 - `mancha()` en el suelo: con `giro` 0 el largo (`alto`) va a lo largo de x; para que vaya en z, `math.pi / 2`.
 - Lo que va en una puerta que se abre (arañazos, la mano) se pone en un `SurfaceGui` de la `Hoja`, que gira con ella; la cadena va dentro del modelo de la puerta como `Cadena` y `Casa` la esconde cuando ya no está cerrada con llave.
+
+## Dormitorio de abajo (11.8.6)
+
+- `a_mano.py`: `ColchaCama` (colchón, colcha y almohada para la cama de hierro), `AlfombraTrapo`, `CosasMesilla`, `Zapatillas`, `RopaSilla` y `MantaMecedora`. `cojin()` hace cajas redondeadas (supercuádricas); `ganchillo()` y `alfombra_dormitorio()`, las imágenes de la colcha de cuadros y de la alfombra trenzada. Lo que va encima de otro mueble (colcha, ropa, manta) se hace en los ejes de ese mueble y se pone con su mismo CFrame más el desfase que imprime `a_mano.py` (`ABAJO` y `CENTRO`: el pivote del montaje es el centro de abajo de la caja).
+- Lo de colores lisos y pequeño (`CosasMesilla`, la suela, el colchón) no sube texturas: al montarlo se le pone color, material y transparencia a la MeshPart (el vaso y el agua, medio transparentes).
+- Para comprobar que encajan, `juntar.py` (en el scratchpad de la sesión) importaba los `.fbx` juntos y hacía una vista; medir alturas de asientos y baldas: caras que miran arriba en Blender.
+- `textura_ph.py --flores`: papel de florecillas encima de `decrepit_wallpaper`, con `--limpia` (con las manchas del envejecido parecía camuflaje, como en la cocina).
+- `old_bed_frame` es de hospital: 0,9 × 2 m, somier de malla a 2,25 del suelo (a `--escala 4.6`) y la cabecera a +Z. `cama()` de `Mapa` acepta un mueble (`aspecto`) y su colcha (`ropa`) con su ancho y largo: los bloques que chocan se hacen a esa medida y quedan invisibles.
+- El suelo de las salas (la lámina del `MaterialVariant`) tiene la cara de arriba a `ABAJO + 0,06`: una alfombra fina a `ABAJO + 0,02` parpadeaba con él (va a `+ 0,075`).

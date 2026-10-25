@@ -4,7 +4,8 @@
 # Muebles: Perchero (con abrigo y paraguas), Cartas (sobres tirados), AlfombraLarga (la del vestíbulo); del salón,
 # SofaTapado, Piano, Banqueta, Repisa, LamparaPie, AlfombraSalon y CortinaVano (la de los vanos de toda la casa); de la
 # cocina, EncimeraCocina, EncimeraAbierta, FregaderoCocina, AlacenaCocina y AlacenaAbierta; del pasillo y el baño,
-# VaterViejo, LavaboPie, CortinaDucha, Toallas, Paraguero y CadenaPuerta.
+# VaterViejo, LavaboPie, CortinaDucha, Toallas, Paraguero y CadenaPuerta; del dormitorio de abajo, ColchaCama,
+# AlfombraTrapo, CosasMesilla, Zapatillas, RopaSilla y MantaMecedora.
 import argparse
 import json
 import math
@@ -877,6 +878,192 @@ def cadena_puerta(m, rng):
     m.add("Interior", box(0.08, 0.2, 0.02), T(medio.x, medio.y - 0.8, medio.z - 0.19))
 
 
+# ---------- Dormitorio de abajo (11.8.6): el cuarto de la abuela ----------
+
+def cojin(a, b, c, e=0.3, n=12, anillos=8):
+    """Caja redondeada (supercuádrica) de semiejes a, b, c: almohada, colchón, ropa doblada, zapatillas. `e` pequeño =
+    más cuadrada."""
+    def p(t, k):
+        return math.copysign(abs(t) ** k, t)
+    verts, caras = [], []
+    for j in range(anillos + 1):
+        fi = -math.pi / 2 + math.pi * j / anillos
+        for i in range(n):
+            th = 2 * math.pi * i / n
+            verts.append((a * p(math.cos(fi), e) * p(math.cos(th), e), b * p(math.sin(fi), e),
+                          c * p(math.cos(fi), e) * p(math.sin(th), e)))
+    for j in range(anillos):
+        for i in range(n):
+            q = j * n + i, j * n + (i + 1) % n, (j + 1) * n + (i + 1) % n, (j + 1) * n + i
+            caras.append(q)
+    return verts, caras
+
+
+def ganchillo(w=512):
+    """Colcha de ganchillo de cuadros (granny squares): 3 × 3 cuadros por baldosa, cada uno con anillos cuadrados de
+    colores desvaídos, agujeros oscuros entre anillos y el borde crema."""
+    paleta = np.array([(0.62, 0.38, 0.38), (0.45, 0.47, 0.3), (0.66, 0.55, 0.3), (0.42, 0.3, 0.24), (0.5, 0.42, 0.5)],
+                      dtype=np.float32)
+    crema = np.array([0.8, 0.74, 0.6], dtype=np.float32)
+    yy, xx = np.mgrid[0:w, 0:w].astype(np.float32) / w * 3
+    ci, cj = np.floor(xx).astype(int), np.floor(yy).astype(int)
+    d = np.maximum(np.abs(xx % 1 - 0.5), np.abs(yy % 1 - 0.5)) * 2  # 0 en el centro, 1 en el borde del cuadro
+    anillo = np.floor(d * 4).astype(int)  # 4 anillos
+    semilla = (ci * 7 + cj * 13) % 5
+    rgb = paleta[(semilla[:, :, None] + anillo[:, :, None] * 2) % 5][:, :, 0, :]
+    rgb[anillo >= 3] = crema
+    hueco = np.abs((d * 4) % 1 - 0.5) > 0.4  # entre anillo y anillo, el agujero del ganchillo
+    rgb[hueco] = rgb[hueco] * 0.25
+    puntos = (np.sin(xx * 90) * np.sin(yy * 90)) > 0.6  # los puntos del ganchillo
+    rgb[puntos] *= 0.8
+    azar = np.random.default_rng(13)
+    rgb *= (1 - azar.random((w, w, 1)).astype(np.float32) * 0.15)
+    ruta = os.path.join(BAJADOS, "ganchillo.png")
+    polyhaven.guardar("ganchillo", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def colcha_cama(m, rng):
+    # Colchón, colcha de ganchillo y almohada para la cama de hierro (CamaHierroPH, 4,2 × 9,2, somier de malla a 2,25):
+    # se pone con el mismo CFrame que la cama, la cabecera a +Z. La colcha cae por los lados hasta 1,3 del suelo (debajo
+    # queda oscuro: el escondite) y deja la almohada fuera.
+    m.add("Colchon", cojin(1.85, 0.45, 4.3, 0.15), T(0, 2.73, 0))
+    caida, arriba, ancho = 1.3, 3.22, 1.9
+    lado = arriba - caida
+    total = 2 * lado + 2 * ancho
+
+    def f(u, v):
+        s = u * total
+        if s < lado:
+            x, y = -ancho - 0.12 * (1 - s / lado), caida + s
+        elif s < lado + 2 * ancho:
+            x, y = -ancho + (s - lado), arriba + 0.04 * math.sin((s - lado) * 3.1)
+        else:
+            t = s - lado - 2 * ancho
+            x, y = ancho + 0.12 * (t / lado), arriba - t
+        z = -4.35 + v * 7.0
+        # Pliegues que caen por los lados y el bajo ondulado.
+        pliegue = 0.07 * math.sin(z * 2.3 + (1 if x > 0 else 0)) * (1 - min(y - caida, 1))
+        if abs(x) > ancho - 0.01:
+            x += math.copysign(pliegue, x)
+            y += 0.06 * math.sin(z * 3.7) * (1 - min(y - caida, 1))
+        return (x, y, z)
+
+    tela(m, "Colcha", f, 30, 40, 0.05)
+    m.add("Almohada", cojin(1.5, 0.3, 0.6, 0.35), T(0, 3.45, 3.55) @ R("X", -8))
+
+
+def alfombra_dormitorio(w=512, tesela=8.0, mitad=(3.2, 2.1)):
+    """Alfombra ovalada de trapo trenzado: anillos de colores desvaídos, cada uno con la trenza en diagonal. La UV de
+    caja pone el centro en la esquina de la imagen (ver alfombra_persa)."""
+    t = (np.arange(w, dtype=np.float32) / w + 0.5) % 1 - 0.5
+    x = t[None, :] * tesela
+    z = t[:, None] * tesela
+    r = np.hypot(x / mitad[0], z / mitad[1])
+    banda = np.floor(r * 11).astype(int)
+    paleta = np.array([(0.5, 0.32, 0.28), (0.62, 0.56, 0.44), (0.36, 0.38, 0.3), (0.55, 0.42, 0.3), (0.3, 0.26, 0.28)],
+                      dtype=np.float32)
+    rgb = paleta[banda % 5]
+    angulo = np.arctan2(z / mitad[1], x / mitad[0])
+    trenza = np.sin(angulo * 60 + (r * 11 % 1) * 6 * np.where(banda % 2, 1, -1))
+    rgb = rgb * (0.78 + 0.22 * trenza[:, :, None])
+    rgb[np.abs(r * 11 % 1 - 0.5) > 0.44] *= 0.5  # la costura entre trenzas
+    azar = np.random.default_rng(17)
+    rgb *= (1 - azar.random((w, w, 1)).astype(np.float32) * 0.15)
+    ruta = os.path.join(BAJADOS, "alfombra_trapo.png")
+    polyhaven.guardar("trapo", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def alfombra_trapo(m, rng):
+    # Alfombra ovalada de trapo (6,4 × 4,2) a los pies de la cama: lámina con un canto de 0,04.
+    n, a, b, h = 48, 3.2, 2.1, 0.04
+    verts = [(0, h, 0)] + [(a * math.cos(2 * math.pi * i / n), h, b * math.sin(2 * math.pi * i / n)) for i in range(n)]
+    verts += [(x, 0, z) for x, _, z in verts[1:]]
+    caras = [(0, 1 + (i + 1) % n, 1 + i) for i in range(n)]
+    caras += [(1 + i, 1 + (i + 1) % n, 1 + n + (i + 1) % n, 1 + n + i) for i in range(n)]
+    m.add("Alfombra", (verts, caras))
+
+
+def cosas_mesilla(m, rng):
+    # Lo de la mesilla de la abuela (encima de MesillaPH, 2 × 2): vaso de agua turbia con la dentadura postiza dentro,
+    # tres frascos de pastillas (uno tumbado, con pastillas por la mesa) y un rosario.
+    vx, vz = -0.45, -0.3
+    m.add("Cristal", lathe([(0, 0), (0.15, 0), (0.17, 0.52)], 14, caps=False), T(vx, 0, vz))
+    m.add("Agua", cyl(0.145, 0.34, 14), T(vx, 0.01, vz))
+    for k in range(9):  # la dentadura, de pie dentro del vaso
+        a = math.pi * (0.1 + 0.8 * k / 8)
+        x, z = vx + 0.1 * math.cos(a), vz + 0.06 * math.sin(a) - 0.02
+        m.add("Diente", box(0.035, 0.06, 0.03), T(x, 0.2, z) @ R("Y", -math.degrees(a)))
+        m.add("Encia", box(0.045, 0.05, 0.05), T(x, 0.15, z) @ R("Y", -math.degrees(a)))
+    for x, z, r, h in ((0.25, -0.45, 0.1, 0.36), (0.5, -0.2, 0.09, 0.3)):
+        m.add("Frasco", cyl(r, h, 12), T(x, 0, z))
+        m.add("Tapa", cyl(r * 1.05, 0.08, 12), T(x, h, z))
+    m.add("Frasco", cyl(0.09, 0.3, 12), T(0.1, 0.09, 0.15) @ R("Z", 90) @ R("X", 20))
+    for k in range(6):
+        m.add("Tapa", sphere(0.03, 6, 3), T(-0.05 - k * 0.09 + rng.uniform(-0.03, 0.03), 0.02, 0.25 + rng.uniform(-0.08, 0.08)))
+    # El rosario: cuentas en un lazo y la cruz.
+    for k in range(26):
+        a = 2 * math.pi * k / 26
+        m.add("Rosario", sphere(0.04, 6, 4), T(0.35 + 0.32 * math.cos(a), 0.035, 0.5 + 0.2 * math.sin(a)))
+    m.add("Rosario", box(0.05, 0.03, 0.26), T(0.0, 0.02, 0.62) @ R("Y", 60))
+    m.add("Rosario", box(0.16, 0.03, 0.05), T(-0.01, 0.02, 0.6) @ R("Y", 60))
+
+
+def zapatillas(m, rng):
+    # Zapatillas de fieltro de la abuela a los pies de la cama, una algo girada (1,3 de largo).
+    for x, giro in ((-0.35, 8), (0.4, -22)):
+        mz = T(x, 0, 0) @ R("Y", giro)
+        m.add("Suela", cojin(0.26, 0.05, 0.66, 0.4), mz @ T(0, 0.05, 0))
+        m.add("Fieltro", cojin(0.25, 0.2, 0.42, 0.5), mz @ T(0, 0.1, -0.2))
+        m.add("Fieltro", cojin(0.25, 0.08, 0.3, 0.5), mz @ T(0, 0.12, 0.38))
+
+
+def ropa_silla(m, rng):
+    # La ropa de la abuela en la silla (SillaDormitorioPH: asiento a 2,3, respaldo a +Z 1,13–1,32 y 5,05 de alto): un
+    # montón doblado en el asiento y una rebeca echada por encima del respaldo. Mismo CFrame que la silla.
+    y = 2.32
+    for k, (a, b, giro) in enumerate(((0.75, 0.6, 4), (0.7, 0.55, -6), (0.62, 0.5, 10))):
+        m.add("Ropa" if k != 1 else "Rebeca", cojin(a, 0.09, b, 0.25), T(0.05 * k, y + 0.09, -0.15) @ R("Y", giro))
+        y += 0.17
+    camino = [(1.0, 3.7), (1.08, 4.6), (1.16, 5.1), (1.3, 5.16), (1.42, 4.9), (1.5, 4.2), (1.55, 3.5)]
+    largos = [0.0]
+    for p, q in zip(camino, camino[1:]):
+        largos.append(largos[-1] + math.dist(p, q))
+
+    def f(u, v):
+        s = v * largos[-1]
+        k = max(i for i in range(len(largos) - 1) if largos[i] <= s + 1e-9) if s < largos[-1] else len(largos) - 2
+        t = (s - largos[k]) / (largos[k + 1] - largos[k])
+        z = camino[k][0] + (camino[k + 1][0] - camino[k][0]) * t
+        yy = camino[k][1] + (camino[k + 1][1] - camino[k][1]) * t
+        x = (u - 0.5) * 1.9
+        caida = 0.15 * (abs(x) / 0.95) ** 2 * (1 if abs(yy - 5.1) > 0.3 else 0.3)
+        return (x, yy - caida + 0.05 * math.sin(x * 9), z + 0.03 * math.sin(x * 7 + yy))
+
+    tela(m, "Rebeca", f, 24, 20, 0.06)
+
+
+def manta_mecedora(m, rng):
+    # Manta de ganchillo echada sobre el respaldo de la mecedora (MecedoraPH: asiento a 1,7, respaldo arriba a +Z
+    # 0,76–0,94 y 3,98 de alto), que cae por delante hasta el asiento. Mismo CFrame que la mecedora.
+    camino = [(-0.35, 1.76), (0.3, 1.8), (0.55, 2.7), (0.8, 3.85), (0.9, 4.06), (1.02, 3.9), (1.08, 3.2)]
+    largos = [0.0]
+    for p, q in zip(camino, camino[1:]):
+        largos.append(largos[-1] + math.dist(p, q))
+
+    def f(u, v):
+        s = v * largos[-1]
+        k = max(i for i in range(len(largos) - 1) if largos[i] <= s + 1e-9) if s < largos[-1] else len(largos) - 2
+        t = (s - largos[k]) / (largos[k + 1] - largos[k])
+        z = camino[k][0] + (camino[k + 1][0] - camino[k][0]) * t
+        y = camino[k][1] + (camino[k + 1][1] - camino[k][1]) * t
+        x = (u - 0.5) * 1.8
+        return (x, y + 0.04 * math.sin(x * 8 + y * 2), z - 0.08 * (abs(x) / 0.9) ** 2)
+
+    tela(m, "Manta", f, 24, 30, 0.05)
+
+
 COCINA = {"Madera": "distressed_painted_planks", "Encimera": "kitchen_wood", "Interior": ("liso", (0.07, 0.055, 0.045)),
           "Metal": ("liso", (0.36, 0.34, 0.31)), "Esmalte": ("liso", (0.72, 0.7, 0.64)),
           "Cristal": ("liso", (0.3, 0.34, 0.22))}
@@ -942,6 +1129,21 @@ MUEBLES = {
     # Hierro gris con el envejecido: la textura de óxido no se distinguía de la madera oscura de la puerta.
     "CadenaPuerta": (cadena_puerta, {"Metal": ("liso", (0.5, 0.48, 0.45)), "Interior": ("liso", (0.03, 0.03, 0.03))},
                      {"Metal": 1, "Interior": 1}, {}, ("Metal",)),
+    # Dormitorio de abajo (11.8.6): el cuarto de la abuela.
+    "ColchaCama": (colcha_cama, {"Colcha": ganchillo, "Almohada": "rough_linen", "Colchon": ("liso", (0.6, 0.56, 0.48))},
+                   {"Colcha": 2.4, "Almohada": 1.5, "Colchon": 1}, {"Almohada": (0.85, 0.8, 0.7)}, ("Colcha", "Almohada", "Colchon")),
+    "AlfombraTrapo": (alfombra_trapo, {"Alfombra": alfombra_dormitorio}, {"Alfombra": 8}, {}, ()),
+    "CosasMesilla": (cosas_mesilla, {"Cristal": ("liso", (0.7, 0.74, 0.72)), "Agua": ("liso", (0.45, 0.42, 0.3)),
+                                     "Diente": ("liso", (0.85, 0.8, 0.66)), "Encia": ("liso", (0.7, 0.36, 0.38)),
+                                     "Frasco": ("liso", (0.45, 0.24, 0.08)), "Tapa": ("liso", (0.85, 0.83, 0.78)),
+                                     "Rosario": ("liso", (0.2, 0.13, 0.09))},
+                     {p: 1 for p in ("Cristal", "Agua", "Diente", "Encia", "Frasco", "Tapa", "Rosario")}, {},
+                     ("Cristal", "Agua", "Frasco", "Tapa", "Rosario")),
+    "Zapatillas": (zapatillas, {"Fieltro": "poly_wool_herringbone", "Suela": ("liso", (0.16, 0.12, 0.1))},
+                   {"Fieltro": 1, "Suela": 1}, {"Fieltro": (0.6, 0.25, 0.28)}, ("Fieltro", "Suela")),
+    "RopaSilla": (ropa_silla, {"Ropa": "rough_linen", "Rebeca": "poly_wool_herringbone"}, {"Ropa": 1.5, "Rebeca": 1.5},
+                  {"Ropa": (0.7, 0.66, 0.6), "Rebeca": (0.4, 0.45, 0.4)}, ("Ropa", "Rebeca")),
+    "MantaMecedora": (manta_mecedora, {"Manta": ganchillo}, {"Manta": 2.4}, {}, ("Manta",)),
 }
 
 
@@ -988,6 +1190,9 @@ def main():
     tris = sum(len(p.vertices) - 2 for o in objetos for p in o.data.polygons)
     print("PIEZAS %s" % ", ".join("%s%s" % (p["malla"], "" if p["texturas"] else " (liso)") for p in piezas))
     print("TAM %.3f %.3f %.3f (studs: ancho, alto, fondo)  triangulos %d" % (tam[0], tam[2], tam[1], tris))
+    # Dónde queda lo más bajo y el centro de la caja (el pivote al montarlo), en ejes del juego.
+    print("ABAJO %.3f  CENTRO x %.3f z %.3f" % (min(p[2] for p in puntos), -(max(p[0] for p in puntos) + min(p[0] for p in puntos)) / 2,
+                                              (max(p[1] for p in puntos) + min(p[1] for p in puntos)) / 2))
     lado = max(tam[0], tam[2], tam[1] * 0.6) * 1.3
     bpy.context.scene.render.resolution_percentage = 50
     render(base + ".png", 0, lado, lado, tam[2] / 2, angle=210, pitch=25)
