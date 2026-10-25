@@ -788,7 +788,9 @@ local SALAS = {
 	{ x1 = -26, x2 = -12, z1 = 33, z2 = 45, y = ABAJO, papel = "Claro", suelo = "Azulejo", techo = true }, -- lavadero
 	{ x1 = 12, x2 = 39, z1 = -33, z2 = 9, y = ARRIBA, papel = "Rojo", suelo = "Madera", techo = true }, -- dormitorio grande
 	{ x1 = 12, x2 = 39, z1 = 9, z2 = 33, y = ARRIBA, papel = "Claro" }, -- cuarto de la escalera del desván
-	{ x1 = -12, x2 = 12, z1 = 0, z2 = 33, y = ARRIBA, papel = "Pasillo", suelo = "Madera", techo = true }, -- galería
+	-- Galería (11.8.7): damasco azul pizarra y oro viejo sobre el zócalo de paneles del vestíbulo, tablas viejas y el
+	-- techo agrietado del vestíbulo (se ven juntos desde el hueco).
+	{ x1 = -12, x2 = 12, z1 = 0, z2 = 33, y = ARRIBA, papel = "PapelGaleria", suelo = "SueloGaleria", techo = "TechoVestibulo", zocalo = "PanelVestibulo" },
 	{ x1 = -12, x2 = 12, z1 = -33, z2 = 0, y = ARRIBA, papel = "Vestibulo", techo = "TechoVestibulo" }, -- hueco del vestíbulo
 	{ x1 = -39, x2 = -12, z1 = -33, z2 = 9, y = ARRIBA, papel = "Salon", suelo = "Madera", techo = true }, -- habitación del rico
 	{ x1 = -39, x2 = -12, z1 = 9, z2 = 33, y = ARRIBA, papel = "Claro", suelo = "Madera", techo = true }, -- cuarto de los niños
@@ -890,19 +892,38 @@ local function vestirParedes()
 end
 
 -- Suelos y techos de cada sala: madera oscura, azulejo en el baño, techo de yeso (o los propios de cada sala).
+-- Cara de arriba del suelo de arriba (Piso) en `punto`: Separar lo engorda y queda por encima de ARRIBA (tapaba el suelo
+-- propio de la galería, 11.8.7). Abajo no se mira: allí no crece y las salas ya hechas siguen igual.
+local function sueloArriba(punto: Vector3): number
+	local alto = ARRIBA
+	for _, piso in casa:GetChildren() do
+		if piso.Name == "Piso" and piso:IsA("BasePart") then
+			local d = piso.CFrame:PointToObjectSpace(punto)
+			local cara = piso.Position.Y + piso.Size.Y / 2
+			if math.abs(d.X) < piso.Size.X / 2 and math.abs(d.Z) < piso.Size.Z / 2 and math.abs(cara - ARRIBA) < 0.5 then
+				alto = math.max(alto, cara)
+			end
+		end
+	end
+	return alto
+end
+
 local function vestirSuelos()
 	local azar = Random.new(41) -- siempre igual en todos los servidores
 	for _, s in SALAS do
 		local ancho, fondo = s.x2 - s.x1 - 1, s.z2 - s.z1 - 1
 		local centro = Vector3.new((s.x1 + s.x2) / 2, s.y, (s.z1 + s.z2) / 2)
+		-- El suelo de verdad (arriba lo sube Separar): ahí van la lámina y los cascotes; el techo sigue saliendo de centro.
+		local pisa = if s.y == ARRIBA then sueloArriba(centro) else s.y
+		local lamSuelo = CFrame.new(centro.X, pisa + 0.03, centro.Z)
 		if s.suelo == "Madera" then
-			lamina(Vector3.new(ancho, 0.06, fondo), CFrame.new(centro + Vector3.new(0, 0.03, 0)), Color3.fromRGB(46, 32, 24),
+			lamina(Vector3.new(ancho, 0.06, fondo), lamSuelo, Color3.fromRGB(46, 32, 24),
 				Enum.Material.WoodPlanks)
 		elseif s.suelo == "Azulejo" then
-			lamina(Vector3.new(ancho, 0.06, fondo), CFrame.new(centro + Vector3.new(0, 0.03, 0)), Color3.fromRGB(150, 148, 138),
+			lamina(Vector3.new(ancho, 0.06, fondo), lamSuelo, Color3.fromRGB(150, 148, 138),
 				Enum.Material.CeramicTiles)
 		elseif s.suelo then -- un MaterialVariant propio de la sala (el último: si no, se comía el azulejo)
-			variante(lamina(Vector3.new(ancho, 0.06, fondo), CFrame.new(centro + Vector3.new(0, 0.03, 0)), Color3.fromRGB(46, 32, 24),
+			variante(lamina(Vector3.new(ancho, 0.06, fondo), lamSuelo, Color3.fromRGB(46, 32, 24),
 				Enum.Material.WoodPlanks), s.suelo)
 		end
 		if s.techo then
@@ -922,7 +943,7 @@ local function vestirSuelos()
 					Color3.fromRGB(72, 58, 44), Enum.Material.Wood)
 			end
 			for k = 1, 4 do
-				local suelo = Vector3.new(agujero.X + azar:NextNumber(-1.5, 1.5), s.y + 0.1, agujero.Z + azar:NextNumber(-1.5, 1.5))
+				local suelo = Vector3.new(agujero.X + azar:NextNumber(-1.5, 1.5), pisa + 0.1, agujero.Z + azar:NextNumber(-1.5, 1.5))
 				lamina(Vector3.new(azar:NextNumber(0.5, 1.4), 0.14, azar:NextNumber(0.4, 1)), CFrame.new(suelo) * CFrame.Angles(0, k, 0),
 					Color3.fromRGB(96, 90, 80), Enum.Material.Plaster)
 			end
@@ -1251,6 +1272,54 @@ local function vestirDormitorio()
 	luzLuna(Vector3.new(38.4, ABAJO + 8, 15), Vector3.new(30, ABAJO, 15), 1.2, 20)
 end
 
+-- Galería (11.8.7, opción A del usuario, "la silla te espera"): al subir la escalera, al fondo y en el centro, una
+-- silla de ruedas vieja quieta mirándote de frente bajo la ventana tapiada, con la luna entre las tablas cayendo
+-- encima, y la alfombra larga que lleva hasta ella. Arcón contra la pared del dormitorio grande, cuadros grandes (alguno
+-- torcido) en los trozos de pared entre puertas y vanos, y dos macetas con plantas secas a los lados de la silla (junto a
+-- la barandilla tapaban la puerta del rico y el vano del dormitorio). Sangre seca: gotas delante de la silla y una mano
+-- que resbala hasta el arcón; desconchones. Todo contra las paredes: el centro y los vanos, libres.
+local function vestirGaleria()
+	local DELANTE, OESTE, ESTE = Vector3.new(0, 0, -1), Vector3.new(-1, 0, 0), Vector3.new(1, 0, 0)
+	local y = sueloArriba(Vector3.new(0, ARRIBA, 16)) -- el suelo de verdad, algo por encima de ARRIBA
+	-- Balaustrada de verdad sobre el hueco (de una pieza: zócalo con moldura, once barrotes torneados y pasamanos ancho;
+	-- a_mano.py), con un poste en cada punta. La que choca es invisible (más arriba).
+	for _, x in { -8.1, 8.1 } do
+		if tienda("BalaustradaGaleria", CFrame.new(x, y, 0.2), true) then
+			tienda("PosteEscalera", CFrame.new(math.sign(x) * 4.4, y - 1.4, 0.2), true)
+			tienda("PosteEscalera", CFrame.new(math.sign(x) * 11.3, y - 1.4, 0.2), true)
+		end
+	end
+	tienda("AlfombraGaleria", CFrame.new(0.3, y + 0.075, 14.2) * CFrame.Angles(0, math.rad(-1), 0), true)
+	tienda("SillaRuedasPH", CFrame.new(0, y, 29.6) * CFrame.Angles(0, math.rad(8), 0))
+	contraPared("ArconPH", 11.42, y, 14, OESTE)
+	for _, x in { -4.8, 4.8 } do
+		tienda("MacetaPH", CFrame.new(x, y, 31.2), true)
+		tienda("PlantaSeca", CFrame.new(x, y + 1.45, 31.2) * CFrame.Angles(0, x, 0), true)
+	end
+	-- { mueble, x, y, z, hacia la sala, escala, torcido (grados) }
+	for _, c in {
+		{ "CuadroPH2", -7.5, ARRIBA + 3, 32.42, DELANTE, 1.25, 2 }, { "CuadroFamiliaPH", 7.5, ARRIBA + 3.2, 32.42, DELANTE, 1.6, -3 },
+		{ "CuadroSalonPH", 11.42, ARRIBA + 4.4, 14, OESTE, 1.2, 0 }, { "CuadroPH1", 11.42, ARRIBA + 4, 22, OESTE, 1.3, 7 },
+		{ "CuadroFamiliaPH2", -11.42, ARRIBA + 3.4, 11.2, ESTE, 1.5, -2 }, { "CuadroPH1", -11.42, ARRIBA + 4, 29.5, ESTE, 1.3, -9 },
+	} do
+		local cuadro = contraPared(c[1], c[2], c[3], c[4], c[5], true)
+		if cuadro then
+			cuadro:ScaleTo(cuadro:GetScale() * c[6])
+			cuadro:PivotTo(cuadro:GetPivot() * CFrame.Angles(0, 0, math.rad(c[7])))
+		end
+	end
+	local blanco = Color3.new(1, 1, 1)
+	for _, d in {
+		{ 11.42, ARRIBA + 8, 25, -Vector3.xAxis, 3.5 }, { -11.42, ARRIBA + 9, 19.5, Vector3.xAxis, 3 }, { 9.5, ARRIBA + 9.5, 32.42, -Vector3.zAxis, 3 },
+	} do
+		mancha(Vector3.new(d[1], d[2], d[3]), d[4], d[5], SANGRE_VESTIBULO.Desconchon, Color3.fromRGB(170, 160, 145), d[2] % 3)
+	end
+	mancha(Vector3.new(3, y + 0.09, 26.8), Vector3.yAxis, 1.4, SANGRE_VESTIBULO.Gotas, blanco, 0.9)
+	mancha(Vector3.new(11.42, ARRIBA + 3.2, 18.2), -Vector3.xAxis, 3.5, SANGRE_VESTIBULO.Gotas, blanco, 0)
+	-- La luna entra entre las tablas de la ventana tapiada y cae sobre la silla.
+	luzLuna(Vector3.new(0, ARRIBA + 5.5, 32.2), Vector3.new(0, ARRIBA, 25), 1.2, 20)
+end
+
 -- Torre de la esquina de delante a la izquierda, mirando la casa desde el camino (pedido por el usuario): un octógono
 -- de 8 de apotema centrado en la esquina de la casa (x 39, z -33), en las dos plantas. Abajo es el mirador del salón y
 -- arriba, del dormitorio grande: las caras que caen dentro de la casa no se hacen y la torre se abre a la sala. La cara
@@ -1410,18 +1479,10 @@ local function construirCasa(mapa: Folder)
 		pared.Transparency = 1
 		pared.CanQuery = false
 	end
-	-- Barandilla de la galería, al borde del hueco.
-	-- Choca invisible y se ven barrotes torneados como los de la escalera, con pasamanos y un poste en cada punta.
+	-- Barandilla de la galería, al borde del hueco: choca invisible; lo que se ve, la balaustrada, va en vestirGaleria.
 	for _, x in { -8.1, 8.1 } do
 		local barandilla = bloque("Barandilla", Vector3.new(6.8, 3.5, 0.4), CFrame.new(x, ARRIBA + 1.75, 0.2), COLOR.Mueble)
-		if MUEBLES.Balaustre then
-			barandilla.Transparency = 1
-			for k = 0, 7 do
-				tienda("Balaustre", CFrame.new(x - 3 + k * 6 / 7, ARRIBA, 0.2), true)
-			end
-			variante(adorno(Vector3.new(6.8, 0.3, 0.4), CFrame.new(x, ARRIBA + 3.35, 0.2)), "MaderaOscura")
-			tienda("PosteEscalera", CFrame.new(math.sign(x) * 4.4, ARRIBA - 1.4, 0.2), true)
-		end
+		barandilla.Transparency = if MUEBLES.BalaustradaGaleria then 1 else 0
 	end
 
 	-- Planta baja: fuera. Ninguna ventana tiene muebles delante (pedido por el usuario). Las de delante dan al porche.
@@ -2096,6 +2157,7 @@ function Mapa.start()
 	vestirCocina()
 	vestirPasillo()
 	vestirDormitorio()
+	vestirGaleria()
 	abandonar()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
