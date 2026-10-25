@@ -23,6 +23,8 @@ local MATERIALES = game:GetService("MaterialService"):FindFirstChild("Materiales
 local Mapa = {}
 
 local ABAJO, ARRIBA, ALTO = 1, 14, 12
+-- Los techos de yeso de cada sala, este tanto por debajo del suelo de arriba (Separar lo engorda 0,15 y los tapaba).
+local BAJO_TECHO = 0.2
 -- Tejado a dos aguas con la cumbrera a lo largo de x en z = 0: sube `pendiente` por stud desde el alero (|z| = `alero`,
 -- a y = 27). El Trepador anda por encima (sus medidas, en Trepador).
 local TEJADO = { pendiente = 9 / 24, alero = 34.5 }
@@ -211,9 +213,10 @@ local function tienda(nombre: string, cf: CFrame, sinChoque: boolean?): Model?
 end
 
 -- Araña del vestíbulo (Poly Haven, pedido por el usuario: algo baja): cuelga de un rosetón por una cadena y tiene una
--- sola bombilla viva, en la pantalla de delante, que enciende el generador como las demás lámparas.
-local function arana(abajo: Vector3, techo: number)
-	local modelo = tienda("AranaPH", CFrame.new(abajo), true)
+-- sola bombilla viva, en la pantalla de delante, que enciende el generador como las demás lámparas. La del comedor es
+-- otra (`nombre`), con su bombilla en `bombilla` (desde abajo del todo) y menos alcance.
+local function arana(abajo: Vector3, techo: number, nombre: string?, bombilla: Vector3?, alcance: number?)
+	local modelo = tienda(nombre or "AranaPH", CFrame.new(abajo), true)
 	if not modelo then
 		lampara(Vector3.new(abajo.X, techo - 0.3, abajo.Z))
 		return
@@ -222,15 +225,15 @@ local function arana(abajo: Vector3, techo: number)
 	local arriba = abajo.Y + (modelo:GetAttribute("Tam") :: Vector3).Y
 	local cadena = adorno(Vector3.new(0.15, math.max(techo - arriba, 0.1), 0.15), CFrame.new(abajo.X, (arriba + techo) / 2, abajo.Z), Enum.Material.Metal)
 	cadena.Color = Color3.fromRGB(70, 58, 40)
-	local p = bloque("Lampara", Vector3.new(0.4, 0.4, 0.4), CFrame.new(abajo + Vector3.new(0, 2.2, -1.75)), COLOR.Lampara,
-		Enum.Material.SmoothPlastic)
+	local p = bloque("Lampara", Vector3.new(0.4, 0.4, 0.4), CFrame.new(abajo + (bombilla or Vector3.new(0, 2.2, -1.75))),
+		COLOR.Lampara, Enum.Material.SmoothPlastic)
 	p.Shape = Enum.PartType.Ball
 	p.CanCollide = false
 	p.CastShadow = false
 	local luz = Instance.new("PointLight")
 	luz.Color = COLOR.Lampara
 	luz.Brightness = 1.1
-	luz.Range = 30 -- el hueco es grande y alto
+	luz.Range = alcance or 30 -- el hueco del vestíbulo es grande y alto
 	luz.Shadows = true
 	luz.Enabled = false -- la enciende el generador
 	luz.Parent = p
@@ -740,8 +743,10 @@ local SALAS = {
 	-- yeso agrietado, propios de la sala (plan-salas.md, paso 3).
 	{ x1 = -12, x2 = 12, z1 = -33, z2 = 9, y = ABAJO, papel = "Vestibulo", suelo = "ParquetVestibulo", zocalo = "PanelVestibulo" },
 	{ x1 = -12, x2 = 12, z1 = 9, z2 = 33, y = ABAJO, papel = "Pasillo", suelo = "Madera", techo = true }, -- pasillo del sótano
-	{ x1 = -39, x2 = -12, z1 = -33, z2 = 3, y = ABAJO, papel = "Salon", suelo = "Madera", techo = true }, -- comedor
-	{ x1 = -43, x2 = -39, z1 = -17, z2 = -3, y = ABAJO, papel = "Salon", suelo = "Madera", techo = true }, -- mirador del comedor
+	-- Comedor y su mirador (11.8.3): pintura roja oscura que se cae a trozos sobre un zócalo alto de paneles, parquet en
+	-- diagonal y techo de gotelé, propios de la sala.
+	{ x1 = -39, x2 = -12, z1 = -33, z2 = 3, y = ABAJO, papel = "PapelComedor", suelo = "SueloComedor", techo = "TechoComedor", zocalo = "ZocaloComedor" },
+	{ x1 = -43, x2 = -39, z1 = -17, z2 = -3, y = ABAJO, papel = "PapelComedor", suelo = "SueloComedor", techo = "TechoComedor", zocalo = "ZocaloComedor" },
 	{ x1 = -39, x2 = -12, z1 = 3, z2 = 33, y = ABAJO, papel = "Cocina", suelo = "Damas", techo = true }, -- cocina
 	{ x1 = -26, x2 = -12, z1 = 33, z2 = 45, y = ABAJO, papel = "Claro", suelo = "Azulejo", techo = true }, -- lavadero
 	{ x1 = 12, x2 = 39, z1 = -33, z2 = 9, y = ARRIBA, papel = "Rojo", suelo = "Madera", techo = true }, -- dormitorio grande
@@ -841,7 +846,7 @@ local function vestirParedes()
 					end
 				end
 				if math.abs(alto - (sala.y + ALTO)) < 0.5 then
-					tira(0.5, alto - 0.25, 0.3, Color3.fromRGB(122, 114, 100), Enum.Material.Plaster)
+					tira(0.5, alto - 0.25 - (if sala.techo then BAJO_TECHO else 0), 0.3, Color3.fromRGB(122, 114, 100), Enum.Material.Plaster)
 				end
 			end
 		end
@@ -876,14 +881,15 @@ local function vestirSuelos()
 				Enum.Material.WoodPlanks), s.suelo)
 		end
 		if s.techo then
-			local techo = lamina(Vector3.new(ancho, 0.06, fondo), CFrame.new(centro + Vector3.new(0, ALTO - 0.03, 0)),
+			-- Por debajo del suelo de arriba, que Separar engorda 0,15: a ALTO - 0,03 quedaba dentro y se veían sus tablas.
+			local techo = lamina(Vector3.new(ancho, 0.06, fondo), CFrame.new(centro + Vector3.new(0, ALTO - BAJO_TECHO, 0)),
 				Color3.fromRGB(62, 58, 52), Enum.Material.Plaster)
 			if type(s.techo) == "string" then -- techo propio de la sala (un MaterialVariant)
 				variante(techo, s.techo)
 			end
 			-- Techo roto (pedido por el usuario: más abandonado): un trozo de yeso caído con los listones a la vista y los
 			-- cascotes en el suelo, debajo. No choca.
-			local agujero = centro + Vector3.new(azar:NextNumber(-ancho / 4, ancho / 4), ALTO - 0.08, azar:NextNumber(-fondo / 4, fondo / 4))
+			local agujero = centro + Vector3.new(azar:NextNumber(-ancho / 4, ancho / 4), ALTO - BAJO_TECHO - 0.05, azar:NextNumber(-fondo / 4, fondo / 4))
 			local giro = CFrame.Angles(0, azar:NextNumber(0, math.pi), 0)
 			lamina(Vector3.new(3.4, 0.04, 2.6), CFrame.new(agujero) * giro, Color3.fromRGB(24, 20, 18), Enum.Material.Wood)
 			for k = -1, 1 do
@@ -924,12 +930,12 @@ local function abandonar()
 	local azar = Random.new(11)
 	-- Telarañas: { x, y del techo, z, hacia dónde mira (a la sala) }.
 	for _, t in {
-		{ 14, ABAJO + ALTO, -31, Vector3.new(1, 0, 1) }, { 14, ABAJO + ALTO, 3, Vector3.new(1, 0, -1) }, -- salón
-		{ 37, ABAJO + ALTO, 31, Vector3.new(-1, 0, -1) }, { 14, ABAJO + ALTO, 31, Vector3.new(1, 0, -1) }, -- dormitorio, baño
-		{ -37, ABAJO + ALTO, -31, Vector3.new(1, 0, 1) }, { -37, ABAJO + ALTO, 31, Vector3.new(1, 0, -1) }, -- comedor, cocina
-		{ -10, ABAJO + ALTO, 31, Vector3.new(1, 0, -1) }, { -24, ABAJO + ALTO, 43, Vector3.new(1, 0, -1) }, -- pasillo, lavadero
-		{ -37, ARRIBA + ALTO, -31, Vector3.new(1, 0, 1) }, { 37, ARRIBA + ALTO, 31, Vector3.new(-1, 0, -1) },
-		{ -10, ARRIBA + ALTO, -31, Vector3.new(1, 0, 1) },
+		{ 14, ABAJO + ALTO - BAJO_TECHO, -31, Vector3.new(1, 0, 1) }, { 14, ABAJO + ALTO - BAJO_TECHO, 3, Vector3.new(1, 0, -1) }, -- salón
+		{ 37, ABAJO + ALTO - BAJO_TECHO, 31, Vector3.new(-1, 0, -1) }, { 14, ABAJO + ALTO - BAJO_TECHO, 31, Vector3.new(1, 0, -1) }, -- dormitorio, baño
+		{ -37, ABAJO + ALTO - BAJO_TECHO, -31, Vector3.new(1, 0, 1) }, { -37, ABAJO + ALTO - BAJO_TECHO, 31, Vector3.new(1, 0, -1) }, -- comedor, cocina
+		{ -10, ABAJO + ALTO - BAJO_TECHO, 31, Vector3.new(1, 0, -1) }, { -24, ABAJO + ALTO - BAJO_TECHO, 43, Vector3.new(1, 0, -1) }, -- pasillo, lavadero
+		{ -37, ARRIBA + ALTO - BAJO_TECHO, -31, Vector3.new(1, 0, 1) }, { 37, ARRIBA + ALTO - BAJO_TECHO, 31, Vector3.new(-1, 0, -1) },
+		{ -10, ARRIBA + ALTO - BAJO_TECHO, -31, Vector3.new(1, 0, 1) },
 	} do
 		local nombre = if azar:NextNumber() < 0.5 then "Telarana" else "TelaranaTecho"
 		local molde = MUEBLES and MUEBLES:FindFirstChild(nombre)
@@ -1070,7 +1076,7 @@ local function vestirSalon()
 		end
 	end
 	local radio = TORRE.apotema / math.cos(math.pi / 8)
-	for _, d in { { ABAJO + 0.02, "SueloSalon" }, { ABAJO + ALTO - 0.02, "TechoSalon" } } do
+	for _, d in { { ABAJO + 0.02, "SueloSalon" }, { ABAJO + ALTO - BAJO_TECHO, "TechoSalon" } } do
 		local disco = lamina(Vector3.new(0.04, radio * 2, radio * 2), CFrame.new(TORRE.x, d[1], TORRE.z) * CFrame.Angles(0, 0, math.pi / 2),
 			COLOR.Marco, Enum.Material.SmoothPlastic)
 		disco.Shape = Enum.PartType.Cylinder
@@ -1078,6 +1084,24 @@ local function vestirSalon()
 	end
 	luzLuna(Vector3.new(25, ABAJO + 8, -32.4), Vector3.new(25, ABAJO, -22), 1.5, 26)
 	luzLuna(Vector3.new(42.2, ABAJO + 8, -36.2), Vector3.new(39, ABAJO, -31), 1.2, 18)
+end
+
+-- Lo que cuenta la historia del comedor (11.8.3): alguien se levantó de golpe de la cena (la silla volcada), se le cayó
+-- la copa en el mantel y se lo llevaron a rastras hacia el vestíbulo, agarrándose al marco (mano en la pared). Papel
+-- desconchado y luna por la ventana de delante y la del mirador. Moderate como máximo.
+local function vestirComedor()
+	local blanco = Color3.new(1, 1, 1)
+	for _, d in {
+		{ -38.42, ABAJO + 9.5, -21, Vector3.xAxis, 3.5 }, { -16, ABAJO + 9, 2.42, -Vector3.zAxis, 3 },
+		{ -34, ABAJO + 7.5, -32.42, Vector3.zAxis, 3 },
+	} do
+		mancha(Vector3.new(d[1], d[2], d[3]), d[4], d[5], SANGRE_VESTIBULO.Desconchon, Color3.fromRGB(170, 160, 145), d[2] % 3)
+	end
+	mancha(Vector3.new(-23.6, ABAJO + 3.53, -18.6), Vector3.yAxis, 1.6, SANGRE_VESTIBULO.Salpicadura, Color3.fromRGB(150, 110, 110), 1)
+	mancha(Vector3.new(-16.5, ABAJO + 0.08, -19.8), Vector3.yAxis, 3, SANGRE_VESTIBULO.Arrastre, blanco, math.pi / 2 + 0.15, 8)
+	mancha(Vector3.new(-12.58, ABAJO + 4.6, -12.6), -Vector3.xAxis, 3, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 120, 115), 0)
+	luzLuna(Vector3.new(-24, ABAJO + 8, -32.4), Vector3.new(-24, ABAJO, -22), 1.5, 26)
+	luzLuna(Vector3.new(-42.4, ABAJO + 8, -10), Vector3.new(-32, ABAJO, -10), 1.2, 22)
 end
 
 -- Torre de la esquina de delante a la izquierda, mirando la casa desde el camino (pedido por el usuario): un octógono
@@ -1436,24 +1460,55 @@ local function construirCasa(mapa: Folder)
 	if encima then
 		encima:PivotTo(encima:GetPivot() * CFrame.Angles(0, 0, math.rad(-3)))
 	end
-	-- Comedor: mesa larga en medio con seis sillas, aparador con lámpara, reloj y librería. El mirador, libre.
-	bloque("Mesa", Vector3.new(5, 0.4, 14), CFrame.new(-25.5, ABAJO + 3, -15), COLOR.Mueble)
-	for _, x in { -27.5, -23.5 } do
-		for _, z in { -21.5, -8.5 } do
-			bloque("Pata", Vector3.new(0.5, 2.8, 0.5), CFrame.new(x, ABAJO + 1.4, z), COLOR.Mueble)
-		end
+	-- Comedor (11.8.3, opción A del usuario, "cena servida"): la cena que nunca se recogió. Mesa larga en medio, a lo
+	-- largo, con el mantel, los platos con fruta podrida, copas, candelabros, jarra y frutero; ocho sillas, una apartada y
+	-- otra volcada hacia el vestíbulo; la araña encima. Vitrina con el juego de té en la pared de la cocina, aparador con
+	-- lámpara y candelabro en la del vestíbulo, el reloj de pie parado en la esquina de delante y plantas muertas en el
+	-- mirador, a los lados de la ventana.
+	local MESA = Vector3.new(-25.5, ABAJO, -15)
+	tienda("MesaComedorPH", CFrame.new(MESA) * CFrame.Angles(0, math.pi / 2, 0))
+	local encimaMesa = ABAJO + 3.51
+	local function sobreMesa(nombre: string, x: number, z: number, giro: number?, alto: number?)
+		tienda(nombre, CFrame.new(MESA.X + x, encimaMesa + (alto or 0), MESA.Z + z) * CFrame.Angles(0, giro or 0, 0), true)
 	end
-	for _, z in { -20, -15, -10 } do
-		for _, lado in { -1, 1 } do
-			-- Pegadas a la mesa y mirándola (las colocó el usuario: el modelo de la silla mira hacia +X, no hacia -Z).
-			local pos = Vector3.new(-25.5 + lado * 2.7, ABAJO, z)
-			tienda("SillaCocina", CFrame.lookAt(pos, pos - Vector3.new(lado, 0, 0)) * CFrame.Angles(0, math.pi / 2, 0))
-		end
+	-- Ocho sillas: { x, z } desde el centro de la mesa (13 de largo), mirándola. La de la cabecera de delante, apartada
+	-- y torcida.
+	for i, s in { { -3.4, -4.2 }, { -3.4, 0 }, { -3.4, 4.2 }, { 3.4, 0 }, { 3.4, 4.2 }, { 0, 7.3 }, { 0.6, -8.6 } } do
+		local pos = MESA + Vector3.new(s[1], 0, s[2])
+		local cf = CFrame.lookAt(pos, MESA + Vector3.new(0, 0, s[2] * 0.6))
+		tienda("SillaComedorPH", if i == 7 then cf * CFrame.Angles(0, math.rad(-25), 0) else cf)
+		sobreMesa("PlatoPH", s[1] * 0.5, math.clamp(s[2], -5.4, 5.4), i)
 	end
-	contraPared("Aparador", -12.5, ABAJO, -6, OESTE)
-	contraPared("LamparaMesa", -12.7, ABAJO + 3.4, -8.5, OESTE, true)
-	contraPared("Reloj", -12.5, ABAJO, -30, OESTE)
-	contraPared("Libreria", -18, ABAJO, 2.5, DELANTE)
+	sobreMesa("PlatoPH", 1.7, -4.2, 8) -- el de la silla volcada
+	-- Volcada de espaldas hacia el vestíbulo, como si alguien se hubiera levantado de golpe. No choca (sería una caja
+	-- tumbada): queda a un lado, fuera del paso.
+	local volcada = MESA + Vector3.new(5.6, 0, -4.6)
+	tienda("SillaComedorPH", CFrame.lookAt(volcada, MESA + Vector3.new(0, 0, -4.2)) * CFrame.Angles(0, math.rad(15), 0)
+		* CFrame.new(0, 1.16, 0) * CFrame.Angles(math.rad(90), 0, 0), true)
+	-- Lo que había en la mesa: fruta podrida en los platos y en el frutero, copas, dos candelabros y la jarra.
+	sobreMesa("FruteroPH", 0, 0)
+	for k, f in { { "ManzanaPH", 0.25, 0.1 }, { "GranadaPH", -0.2, -0.15 }, { "ManzanaPH", -0.1, 0.3 }, { "ManzanaPH", 1.85, 4.1 },
+		{ "GranadaPH", -1.6, -4.3 }, { "ManzanaPH", 0.2, 5.5 } } do
+		sobreMesa(f[1], f[2], f[3], k, 0.08)
+	end
+	sobreMesa("CopasPH", 0.9, -1.4, 0.3)
+	sobreMesa("CandelabroPH", 0, -2.6)
+	sobreMesa("CandelabroPH", 0, 2.6)
+	sobreMesa("JarraPH", -0.9, 1.4, 2)
+	contraPared("VitrinaComedorPH", -19.5, ABAJO, 2.3, DELANTE)
+	tienda("JuegoTePH", CFrame.new(-19.5, ABAJO + 3.95, 0.5), true)
+	local aparador = contraPared("AparadorPH", -12.7, ABAJO, -5, OESTE)
+	if aparador then
+		local x = aparador:GetPivot().X
+		tienda("LamparaAceitePH", CFrame.new(x, ABAJO + 3.66, -6.8), true)
+		tienda("CandelabroPH", CFrame.new(x - 0.4, ABAJO + 3.66, -3.4), true)
+		tienda("JarraPH", CFrame.new(x + 0.2, ABAJO + 3.66, -4.6) * CFrame.Angles(0, math.rad(-70), 0), true)
+	end
+	contraPared("RelojPiePH", -12.7, ABAJO, -30, OESTE)
+	for _, z in { -4.6, -15.4 } do
+		tienda("MacetaPH", CFrame.new(-41.3, ABAJO, z), true)
+		tienda("PlantaSeca", CFrame.new(-41.3, ABAJO + 1.45, z) * CFrame.Angles(0, z, 0), true)
+	end
 	-- Cocina (como la prueba aprobada por el usuario): encimeras viejas hechas con piezas y el fregadero en medio contra
 	-- la pared de atrás, la nevera contra la del garaje, las dos cocinas contra la del comedor. Sin mesa en medio (la
 	-- quitó el usuario): libre para correr.
@@ -1558,14 +1613,16 @@ local function construirCasa(mapa: Folder)
 	end
 	for _, luz in {
 		Vector3.new(0, ABAJO, 4.5), Vector3.new(0, ABAJO, 22), Vector3.new(25, ABAJO, -20), -- en el salón, además, la lámpara de pie
-		Vector3.new(30, ABAJO, 19), Vector3.new(17, ABAJO, 12), Vector3.new(17, ABAJO, 26), Vector3.new(-25.5, ABAJO, -15),
+		Vector3.new(30, ABAJO, 19), Vector3.new(17, ABAJO, 12), Vector3.new(17, ABAJO, 26), -- en el comedor, la araña (abajo)
 		Vector3.new(-25.5, ABAJO, 18), Vector3.new(-19, ABAJO, 39), Vector3.new(42, ABAJO, -36),
 		Vector3.new(0, ARRIBA, 18), Vector3.new(25, ARRIBA, -14), Vector3.new(-25, ARRIBA, -14), Vector3.new(-25, ARRIBA, 21),
 		Vector3.new(27, ARRIBA, 21), Vector3.new(42, ARRIBA, -36),
 	} do
 		lampara(luz + Vector3.new(0, ALTO - 0.3, 0))
 	end
-	arana(Vector3.new(0, ABAJO + 12, -21), ARRIBA + ALTO - 0.06) -- en el hueco del vestíbulo, algo baja
+	arana(Vector3.new(0, ABAJO + 12, -21), ARRIBA + ALTO - BAJO_TECHO) -- en el hueco del vestíbulo, algo baja
+	-- Sobre la mesa del comedor, colgada de su barra (llega al techo).
+	arana(Vector3.new(-25.5, ABAJO + ALTO - 5.3, -15), ABAJO + ALTO - BAJO_TECHO, "AranaComedorPH", Vector3.new(0, 1.3, -1.5), 24)
 
 
 	construirCobertizo()
@@ -1746,6 +1803,7 @@ function Mapa.start()
 	vestirSuelos()
 	vestirVestibulo()
 	vestirSalon()
+	vestirComedor()
 	abandonar()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
