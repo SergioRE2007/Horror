@@ -22,6 +22,7 @@ parser.add_argument("--oscurecer", type=float, default=0.85)
 parser.add_argument("--limpia", action="store_true", help="sin manchas (en suelos se ven en cuadrícula)")
 parser.add_argument("--rayas", action="store_true", help="papel de rayas verticales (salón)")
 parser.add_argument("--flores", action="store_true", help="papel de florecillas (dormitorio de abajo)")
+parser.add_argument("--damasco", action="store_true", help="papel de damasco azul pizarra (galería)")
 parser.add_argument("--colores", default="0.5,0.56,0.44/0.8,0.74,0.6/0.42,0.14,0.12",
                     help="con --rayas: banda ancha, banda clara e hilo (r,g,b separados por /)")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
@@ -88,3 +89,43 @@ if args.flores:
     rgb = rgb * 0.35 + luz * color * rgb.mean() * 1.15
     polyhaven.guardar("flores", rgb, w, h, ruta)
     print("FLORES", args.nombre)
+
+# --damasco: papel de damasco de casa rica (galería, 11.8.7), encima del papel viejo de Poly Haven: medallones lobulados
+# de oro viejo con una flor de lis dentro, sobre azul pizarra, en filas alternas, y una red de rombos fina; 3 por fila por
+# baldosa.
+if args.damasco:
+    import bpy
+
+    ruta = os.path.join(salida, args.nombre) + "_color.png"
+    imagen = bpy.data.images.load(ruta)
+    w, h = imagen.size
+    pixeles = np.empty(w * h * 4, dtype=np.float32)
+    imagen.pixels.foreach_get(pixeles)
+    rgb = pixeles.reshape(h, w, 4)[:, :, :3]
+    luz = rgb.mean(axis=2, keepdims=True) / max(rgb.mean(), 1e-3)
+    n = 3
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    fila = np.floor(yy / h * n)
+    u = (xx / w * n + 0.5 * (fila % 2)) % 1 - 0.5
+    v = (yy / h * n) % 1 - 0.5
+    fondo, oro, oro_osc = (np.array(c, dtype=np.float32) for c in ((0.3, 0.35, 0.4), (0.62, 0.56, 0.4), (0.44, 0.4, 0.3)))
+    color = np.ones((h, w, 3), dtype=np.float32) * fondo
+    d = np.hypot(u, v * 0.8)
+    a = np.arctan2(v, u)
+    borde = 0.3 + 0.05 * np.cos(4 * a) + 0.025 * np.cos(8 * a)  # medallón lobulado
+    color[(d < borde) & (d > borde - 0.035)] = oro
+    color[(d < borde - 0.07) & (d > borde - 0.085)] = oro_osc
+    # Flor de lis: pétalo de en medio y dos curvos a los lados, con su atadura.
+    # (+v es arriba en la imagen: los pétalos suben desde la atadura y debajo queda el pie.)
+    color[(u / 0.045) ** 2 + ((v - 0.05) / 0.13) ** 2 < 1] = oro
+    for lado in (-1, 1):
+        c, sn = np.cos(lado * 0.6), np.sin(lado * 0.6)
+        pu, pv = u - lado * 0.085, v - 0.01
+        color[((pu * c - pv * sn) / 0.03) ** 2 + ((pu * sn + pv * c) / 0.085) ** 2 < 1] = oro
+    color[(u / 0.03) ** 2 + ((v + 0.13) / 0.05) ** 2 < 1] = oro
+    color[(np.abs(u) < 0.11) & (np.abs(v + 0.07) < 0.018)] = oro_osc
+    # Red de rombos fina entre medallones.
+    color[np.abs(np.abs(u) + np.abs(v) - 0.5) < 0.008] = oro_osc
+    rgb = rgb * 0.35 + luz * color * rgb.mean() * 1.15
+    polyhaven.guardar("damasco", rgb, w, h, ruta)
+    print("DAMASCO", args.nombre)
