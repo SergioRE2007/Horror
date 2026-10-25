@@ -39,7 +39,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 ## Al empezar una sesión (proyecto con Rojo)
 
 0. `git switch main` y `git pull`.
-1. `rojo serve juego.project.json` en segundo plano (o `lobby.project.json`, puerto 34873) y comprobar `http://localhost:34872/api/rojo`. Estructura en `docs/sistemas/datos.md`.
+1. Rojo ya corre solo: tarea de Windows "Rojo Horror" (`tools/rojo/instalar.ps1`, al iniciar sesión). Solo comprobar `http://localhost:34872/api/rojo`; si no responde, `Start-ScheduledTask "Rojo Horror"`. **Nunca pararlo ni lanzar otro** (pedido por el usuario: cada reinicio desconecta Studio). El lobby (`lobby.project.json`, puerto 34873) sí se sirve a mano. Cambiar `juego.project.json` obliga a reiniciarla: evitarlo, meter lo nuevo en carpetas que ya estén en el proyecto. Estructura en `docs/sistemas/datos.md`.
 2. `list_roblox_studios` para el `studio_id` (sale con el nombre del lugar abierto, no del proyecto; reconocerlo por algún módulo propio).
 3. Si Studio no está conectado al puerto, pedir a Sergio que pulse Rojo → Connect.
 
@@ -47,6 +47,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 
 - El código vive en `src/` y Rojo lo sincroniza. Editar siempre los archivos, nunca los scripts dentro de Studio. El MCP de Studio solo para probar (play, consola, captura).
 - El mapa y la iluminación se generan por código; borrar al arrancar las piezas sueltas que no sean del código (una placa sin anclar llegó a tapar el cielo).
+- Ver el mapa sin Play (pedido por el usuario, para mover cosas a mano): plugin `tools/plugin/VistaMapa.lua` (se instala con `instalar.ps1`), barra "Juego de terror": VER MAPA, CAMBIOS (escribe en la Salida lo movido) y QUITAR MAPA. Lo que mueva Sergio se pasa luego al código: leer los cambios con `execute_luau` (atributo `Origen` de cada pieza o modelo).
 - Arquitectura que funcionó:
   - Un sistema nuevo = un módulo con `start()`, registrado en el `init` del servidor o del cliente. Librerías sin `start()` para lo compartido.
   - `Config` con todos los números (el equilibrio se toca solo ahí). Un módulo `Stats` como única fuente de daño, suertes y multiplicadores, válido en servidor y cliente. Un módulo `Remotes` con todos los RemoteEvents.

@@ -1,8 +1,15 @@
 # Tareas
 
-Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Sergio pide pasos enteros ("paso 10"): se hacen todas sus tareas seguidas, en orden, en una sola rama, con un commit por tarea (pedido por el usuario). Estados: `hecho`, `en curso`, `pendiente`. Al acabar una tarea se marca aquí en el mismo commit.
+Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Sergio pide pasos enteros ("paso 10"): se hacen todas sus tareas seguidas, en orden, en una sola rama, con un commit por tarea (pedido por el usuario). Estados: `hecho`, `en curso`, `pendiente`. Al acabar una tarea se marca aquí en el mismo commit. Todo lo que queda por hacer está en este archivo (pedido por el usuario: "apunta todo en task"); el detalle de cada sistema va en `docs/sistemas/`.
 
-## Hechas (pasos 1-9)
+## Lo siguiente, en orden
+
+1. 11.8.3 a 11.8.13: el interior, una sala por chat (sigue la galería; vestíbulo, salón, comedor, cocina, pasillo con baño y trastero, y dormitorio de abajo, hechos).
+2. 11.6: que Sergio vea la fachada (se puede meter en cualquier chat de sala).
+3. 12.1 Pistas → 12.2 La Bestia.
+4. 11.5 Pueblo amueblado, 11.2 Monstruos (casi al final), 13 Lanzamiento.
+
+## Hechas
 
 1. Base: Rojo con los dos lugares, `Config`, `Lang`, `Remotes`, `Datos` con candado, Lune y modo de pruebas — hecho
 2. El corazón: casa gris, día y noche, Golpeador, persianas, esconderse y morir — hecho
@@ -13,108 +20,57 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 7. Llaves, salas cerradas, pueblo y vendedor — hecho
 8. Taller, coche y final de la huida — hecho
 9. Trepador, Imitador y Acechador — hecho
+10. Monedas, clases, tienda de la gasolinera, revivir y compras con Robux — hecho (`docs/sistemas/clases.md`, `tienda.md`, `compras.md`; faltan los Id de Roblox al publicar, 13.2)
+11. Arte ya hecho:
+    - 11.1 Casa y bosque con Blender — hecho (`docs/sistemas/arte.md`)
+    - 11.3 Sonidos con ElevenLabs — hecho (`docs/sistemas/sonidos.md`)
+    - 11.4 Cortinas en vez de persianas — hecho (`docs/sistemas/corazon.md`)
+    - 11.5 Casa más grande con muebles del Creator Store: la casa — hecho (`docs/sistemas/casa-grande.md`); el pueblo sigue abajo
+    - 11.6 Casa nueva con el plano aprobado, ensanchada para correr, y fachada victoriana (`Fachada.luau`) — hecho (`docs/sistemas/casa-nueva.md`); falta que Sergio vea la fachada
+    - Plugin VistaMapa para mover cosas a mano sin Play — hecho
+    - Paso previo del interior: papel, molduras, techos y muebles más apagados y sucios; techos rotos; mecedora nueva; burro de serrar en X; quitadas la mesa de la cocina y la silla volcada; sillas del comedor orientadas — hecho
 
-## 10. Clases, monedas, tienda, revivir y compras
+## 11. Arte (lo que queda)
 
-### 10.1 Monedas que se ganan
-- **Descripción:** monedas por noche superada, final, logro y premio diario. Se guardan en cada jugador al amanecer aunque la partida no se guarde.
-- **Archivos probables:** `src/juego/servidor/Recompensas.luau` (nuevo), `Partida.luau`, `src/comun/servidor/Datos.luau`, `Config.luau`, `tests/regressions.luau`.
-- **Criterios:**
-  - Al amanecer cada jugador vivo o muerto suma lo de `Config` y el atributo `Monedas` cambia.
-  - Un mismo amanecer no paga dos veces (prueba de Lune).
-  - El premio diario solo una vez cada 24 h por jugador, contado en el servidor.
-  - Aviso de una línea, sin desgloses.
-- **Estado:** hecho
+### 11.6 Fachada: que la vea Sergio
+- **Qué:** enseñarle la fachada victoriana en Studio y cambiar lo que no le guste.
+- **Estado:** en curso — hecha, falta que la vea
 
-### 10.2 Clases
-- **Descripción:** Leñador, Corredor, Fotógrafo, Mecánico, Carpintero y Explorador; una por jugador y partida; la primera gratis. Sus ventajas pasan por un módulo `Stats` (única fuente de multiplicadores).
-- **Archivos probables:** `src/shared/Stats.luau` (nuevo), `Config.luau`, `Recursos.luau`, `Raspador.luau`, `Casa.luau`, `Coche.luau`, `Llaves.luau`, lobby.
-- **Criterios:**
-  - Elegida en el lobby, llega al juego con los datos del jugador (DataStore con candado), nunca por datos de teletransporte.
-  - Cada ventaja se nota al probarla en Studio y sale solo de `Stats`.
-  - El servidor rechaza una clase que el jugador no tiene.
-  - Lista de clases al final de `Config` sin reordenar.
-- **Estado:** hecho (ver `docs/sistemas/clases.md`)
+### 11.8 Interior realista, sala por sala (pedido por el usuario: "la casa por dentro es un ñordo gordo", muebles "demasiado simples")
+- **Qué:** cambiar los muebles de la tienda de Roblox y los hechos con bloques por modelos de Poly Haven (CC0, uso comercial libre), pasados por Blender a Roblox con sus texturas (`SurfaceAppearance`). Lo que no haya, en Blender por script, nunca bloques.
+- **Cómo (pedido por el usuario: una sala por chat y bien hecha, sin pasar a la siguiente hasta que la apruebe):** los 7 pasos de cada sala, la lista de muebles de cada una y la tubería están en `docs/plan-salas.md`. Blender abierto.
+- **Incluye lo que quedaba de la 11.6** (salas menos vacías, que no parezcan cajas: arcos, columnas, techos y suelos distintos, balaustrada de verdad) **y la 11.7** (cada mueble mirando a la sala, apoyado y de tamaño creíble; los sospechosos están puestos en su sala).
+- **Reglas que no cambian (pedido por el usuario):** ninguna ventana tapada, el centro libre, vanos anchos, nada que estorbe al correr; Moderate como máximo.
+- **Criterios:** realista y abandonado de día y de noche; móvil a 30 fps o más (unos 5.000 triángulos por mueble, texturas de 512-1024); escondites, ventanas atacables, puertas con llave y objetos de `Mapa.objetos` siguen funcionando. Si se mueve una ventana o puerta, avisar: las partidas viejas la pierden.
 
-### 10.3 Tienda en la gasolinera
-- **Descripción:** comprar clases y cosméticos con monedas dentro de la gasolinera del lobby.
-- **Archivos probables:** `src/lobby/servidor/Tienda.luau`, `src/lobby/cliente/TiendaUi.luau` (nuevos), `Lang`/`LangEs`.
-- **Criterios:**
-  - El servidor comprueba precio y monedas; pulsar muchas veces seguidas no compra dos veces ni deja monedas en negativo (prueba de Lune).
-  - Interfaz oscura de libreta, textos por `Lang`, se usa en móvil.
-- **Estado:** hecho (ver `docs/sistemas/tienda.md`)
+| Tarea | Sala | Además revisar | Estado |
+|---|---|---|---|
+| 11.8.0 | Tubería Poly Haven → Roblox (`docs/sistemas/polyhaven.md`), probada con la butaca | — | hecho |
+| 11.8.1 | Vestíbulo (aprobado por el usuario: "ha quedado muy bien") | dónde aparece el jugador | hecho |
+| 11.8.2 | Salón (aprobado por el usuario: "esta bien") | sofá, tele encogida al 70 %; chimenea del Trepador sin tocar | hecho |
+| 11.8.3 | Comedor (aprobado por el usuario: "me convence") | — | hecho |
+| 11.8.4 | Cocina (aprobado por el usuario: "esta guay"; nevera de los 50 hecha aquí, pedido por el usuario) | sillas, cocina de hierro | hecho |
+| 11.8.5 | Pasillo, baño y trastero (aprobado por el usuario: "esta bien") | bañera y váter; puerta del sótano | hecho |
+| 11.8.6 | Dormitorio de abajo (aprobado por el usuario) | cama de hierro (escondite) y armario | hecho |
+| 11.8.7 | Galería | balaustrada de verdad sobre el hueco | hecho |
+| 11.8.8 | Dormitorio grande | cama y armario (escondites); salida al balcón | hecho |
+| 11.8.9 | Habitación del rico | lámpara del escritorio; sitio de las pistas (12.1) | hecho |
+| 11.8.10 | Cuarto de los niños | cuna y juguetes | pendiente |
+| 11.8.11 | Escalera del desván y desván | baúles; cuarto de revelado | pendiente |
+| 11.8.12 | Lavadero, garaje y cobertizo | enchufe del móvil, coche, generador | pendiente |
+| 11.8.13 | Sótano | banco del taller (la reja de la 12.2) | pendiente |
 
-### 10.4 Revivir y compras con Robux
-- **Descripción:** revivir de noche (~25 R$, también a un amigo, máx. 1 por noche), paquetes de monedas y 3-4 pases (mochila grande, más ranuras, linterna mejor, paquete de inicio) por ventajas (`perks`).
-- **Archivos probables:** `src/comun/servidor/Compras.luau` (nuevo), `Muerte.luau`, `Mochila.luau`, `Config.luau`.
-- **Criterios:**
-  - `ProcessReceipt` guarda el `PurchaseId` y no entrega dos veces (prueba de Lune).
-  - Revivir solo de noche, solo a un muerto y solo una vez por noche.
-  - El código pregunta por la ventaja, nunca por un pase concreto.
-  - Lo que solo funciona publicado se apunta como no probado.
-- **Estado:** hecho (ver `docs/sistemas/compras.md`; faltan los Id de Roblox al publicar, 13.2)
+En todas: telarañas que flotan o se meten en la pared.
 
-## 11. Arte
-
-### 11.1 Casa y bosque con Blender
-- **Descripción:** sustituir los bloques grises por modelos por script (`tools/blender/`), con mallas `<Pieza>_<Papel>`.
-- **Criterios:** la jugabilidad no cambia (mismas colisiones y sitios); vistas `.png` revisadas; rendimiento aceptable en móvil.
-- **Estado:** hecho (ver `docs/sistemas/arte.md`)
+### 11.5 Pueblo amueblado
+- **Qué:** lo mismo que se hizo en la casa (salas grandes, muebles contra las paredes, puertas solo donde hacen falta), con el estilo de la casa nueva.
+- **Modelos:** borrar todo script y lo que no sea pieza, malla o textura (en la prueba, 2 de 6 traían virus); descartar los sacados de otros juegos. Mejor Poly Haven, como en la 11.8.
+- **Estado:** pendiente — después del interior de la casa
 
 ### 11.2 Monstruos con IA
 - **Descripción:** Golpeador, Raspador, Trepador, Imitador y Acechador desde dibujos de Sergio, pasados por IA de imagen a 3D, con esqueleto y animaciones por código.
 - **Criterios:** licencia comercial comprobada; no pasa de Moderate (se ven en penumbra o un instante); animados.
 - **Estado:** pendiente — necesita los dibujos de Sergio; se deja para casi el final (pedido por el usuario)
-
-### 11.3 Sonidos con ElevenLabs
-- **Descripción:** golpes, chirridos, pasos por suelo, casa que cruje, latido, ambiente por capas.
-- **Criterios:** Sergio los elige en `escuchar.html`; volumen igualado con `medir.mjs`; precargados en `SoundService`; sonidos 3D desde su ventana.
-- **Estado:** en curso — elegidos (ver `docs/sistemas/sonidos.md`); falta el flash. PENDIENTE AL VOLVER A CASA: subir `tools/sonidos/pendiente/FlashYT.mp3` al grupo con `subir.mjs` (este PC no tiene la clave), poner su id en `Config.Sonidos.Flash`, probar en Studio y borrar la carpeta `pendiente`.
-
-### 11.4 Cortinas en vez de persianas (pedido por el usuario)
-- **Descripción:** en todo el juego las ventanas tienen cortinas, no persianas: modelo, textos, sonido y nombres que ve el jugador. La mecánica de cerrar y abrir la ventana se queda igual.
-- **Criterios:** ningún texto del jugador dice persiana; el Golpeador y el Raspador se juegan igual; partidas guardadas de antes siguen cargando.
-- **Estado:** hecho (ver `docs/sistemas/corazon.md`)
-
-### 11.5 Casa más grande, amueblada con modelos del Creator Store (pedido por el usuario)
-- **Descripción:** habitaciones más grandes y realistas (la cocina de prueba pasó de 20×16 a 30×24) para moverse rápido y con fluidez dentro de la casa. Muebles del Creator Store; lo que no haya (encimeras viejas), con piezas. Después, igual con el pueblo.
-- **Reglas (pedido por el usuario):** ninguna ventana tapada por muebles ni nada (los muebles van en las paredes sin ventana); pasillos anchos alrededor de mesas y muebles; nada que estorbe al correr. Puertas solo donde hacen falta (principal, que ataca el Golpeador, y las de llave: sótano, desván, habitación del rico, garaje); las demás (cocina–salón, dormitorio, baño, limpieza, dormitorio de arriba) pasan a vanos abiertos con marco de madera, más anchos (5-6 studs). Los bichos ya no abren esas puertas: revisar `Caza`.
-- **Estilo (referencias en `docs/referencias/casa/`, pedido por el usuario: "así más o menos, pero más vieja y abandonada"):** salas grandes y despejadas, con los muebles contra las paredes y el centro libre; papel pintado (damasco dorado o marrón en el salón, rayas en la cocina) con moldura blanca en el techo y zócalo oscuro; vanos anchos con marco de madera oscura y cortinas oscuras a los lados; cocina con suelo de damas blanco y negro y azulejo blanco a media pared; suelo de madera oscura en el resto; lámparas de globo colgando y lámparas de mesa; muebles de los años 50-60 (butacas, sofá, tele de tubo, piano, aparadores). Lo abandonado: papel despegado y manchado, polvo, telarañas, muebles rotos o volcados, tablas, basura por el suelo y algo de sangre (sin pasar de Moderate), sin estorbar el paso.
-- **Modelos:** borrar todo script y lo que no sea pieza, malla o textura (en la prueba, 2 de 6 traían virus, uno cifrado en la mesa). Descartar los sacados de otros juegos (Fallout, Garry's Mod, DOORS…). Elegidos en la prueba: nevera 14662571622, fregadero 88887125500659, cocina de hierro 4693256798, cocina oxidada 251322323, mesa 127957098225412, silla 16041491017.
-- **Criterios:** colisiones, escondites, ventanas de los bichos y sitios de objetos siguen funcionando (revisar `Config` y bichos si cambian distancias); se ve bien en móvil.
-- **Estado:** en curso — casa hecha (ver `docs/sistemas/casa-grande.md`); falta el pueblo
-
-### 11.6 La casa por fuera (pedido por el usuario: "arreglar el modelo de la casa en sí")
-- **Cómo está ahora:** una caja de tablas oscuras con ventanas pequeñas, un tejado tan bajo que casi no se ve y un porche de dos palos. Por dentro gusta ("está guay la casa, mola"): no tocar el interior.
-- **Idea:** casa de campo vieja de madera, de los años 50, abandonada en el bosque, que se reconozca de lejos y dé miedo antes de entrar.
-- **Plan, por orden (en `Mapa`, con piezas y texturas; Blender solo si hace falta algún adorno):**
-  1. Tejado: aleros que sobresalgan con canalones torcidos, tejas oscuras con textura, hastiales de tablas con un ventanuco redondo del desván y la chimenea de ladrillo asomando por fuera. Misma pendiente o, si se cambia, actualizar `TEJADO` y el Trepador (`CUMBRE`, `PARED`).
-  2. Fachada: tablas horizontales con textura de madera vieja y pintura desconchada, esquineras, zócalo de piedra abajo y una franja entre las dos plantas.
-  3. Ventanas: marcos gruesos con dintel y alféizar, contraventanas (alguna rota o colgando) y algún cristal roto. Mismas ventanas y sitios: no cambiar las 11 que ataca el Golpeador.
-  4. Porche ancho a lo largo de la fachada: suelo de tablas, columnas, barandilla rota, escalones y tejadillo; un farol apagado y una mecedora.
-  5. Abandono fuera: hiedra subiendo por una esquina, tablas clavadas en una ventana de arriba, manchas de humedad, un buzón torcido y un trozo de valla caída.
-  6. Garaje y cobertizo con el mismo estilo (chapa oxidada y tablas).
-- **Antes de empezar, de Sergio:** 2-4 capturas de referencia de casas por fuera que le gusten (como las de dentro en `docs/referencias/casa/`).
-- **Criterios:** ventanas, puertas, Trepador (tejado y chimenea) y bichos siguen funcionando; nada nuevo que estorbe al correr alrededor de la casa; se ve bien de día y de noche, y en móvil.
-- **Estado:** pendiente — plan hecho; se hace en otro chat (pedido por el usuario, para gastar menos)
-
-### 11.7 Repasar los muebles de la casa (pedido por el usuario: "algunos muebles están mal orientados")
-- **Qué:** que cada mueble mire hacia la sala, esté apoyado en el suelo o la pared y tenga un tamaño creíble. Sin cambiar el plano ni las reglas de la 11.5: nada delante de las ventanas y el centro de las salas libre.
-- **Cómo:**
-  1. Recorrer la casa sala por sala con capturas a cámara fija, con las luces encendidas, y apuntar qué falla en cada mueble. Sergio dice cuáles ve mal.
-  2. Si un mueble está mal en el archivo (el frente no mira a -Z, la escala o el pivote mal), se arregla en `ServerStorage.Muebles` y se vuelve a guardar `src/muebles/Muebles.rbxm` (pasos en `docs/sistemas/casa-grande.md`).
-  3. Si solo está mal en un sitio, se arregla su `tienda`/`contraPared` en `Mapa`.
-- **Sospechosos:**
-  - El sofá del salón.
-  - Las sillas de la cocina y la volcada.
-  - La bañera y el váter.
-  - La cocina de hierro.
-  - La tele (encogida al 70 % sobre el aparador).
-  - Las lámparas de mesa (la del escritorio del rico).
-  - Las telarañas: las que flotan o se meten en la pared.
-  - La cama y los armarios de Blender junto a los muebles nuevos.
-- **Criterios:** escondites, ventanas y objetos siguen funcionando; ningún mueble atraviesa una pared ni sale por fuera de la casa.
-- **Estado:** pendiente — se hace en otro chat (pedido por el usuario)
 
 ## 12. Final difícil e historia
 
