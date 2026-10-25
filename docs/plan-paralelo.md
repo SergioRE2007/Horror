@@ -47,6 +47,11 @@ uno con su Studio. Aprobado por el usuario reiniciar una vez la tarea "Rojo Horr
    `nueva-sala.ps1` con la misma sala y puerto: solo arranca su Rojo.
 3. Comprobar antes de nada que dos Studios conectan a la vez a puertos distintos (`datos.md` avisa de que el plugin de
    Rojo a veces se queda en el 34872). Si no se puede, decirlo y parar.
+   Comprobado (26-10-2026): sí se puede. Trampas: había dos plugins de Rojo (`Plugins\Rojo.rbxm` viejo, movido a
+   `Plugins-respaldo`; queda `RojoManagedPlugin.rbxm`); al abrir una copia Rojo avisa "Project 'Juego' is serving at
+   localhost:34872" → Dismiss, nunca Connect; en el panel, cajita izquierda `localhost` y derecha el puerto. Las
+   conexiones al 34872 que se ven en `netstat` son ese aviso, no sincronizan. Las ventanas las abre/cierra Claude
+   (`Start-Process` del `.rbxl`); Connect solo lo puede pulsar el usuario.
 4. Primeras tres: 11.8.7 galería, 11.8.8 dormitorio grande y 11.8.9 habitación del rico (arriba, salas distintas).
 
 ## Reglas para cada chat de sala
