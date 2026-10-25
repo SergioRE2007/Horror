@@ -46,3 +46,12 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - `a_mano.py`: `PlantaSeca`, tallos secos y hojas arrugadas para meter en `MacetaPH` (`planter_pot_clay` a `--escala 8`).
 - **Guardar `Muebles.rbxm`:** `PostAsync` no deja mandar más de 1024 KB (lo mide antes de su Gzip, así que `compress` no ayuda). Comprimir con `EncodingService:CompressBuffer(datos, Enum.CompressionAlgorithm.Zstd, 9)` antes del Base64 y mandar la cabecera `X-Comprimido: zstd`: `tools/receptor.mjs` lo descomprime.
 - Subir otra vez una textura cambiada: añadir `?v=2` a la URL de `upload_image` (si no, puede devolver el id viejo).
+
+## Cocina (11.8.4)
+
+- `a_mano.py`: muebles de cocina por módulos de 3 de ancho (`EncimeraCocina`, `EncimeraAbierta`, `FregaderoCocina`, `AlacenaCocina`, `AlacenaAbierta`): cuerpo hueco con interior oscuro y puertas de cuarterones que se pueden dejar abiertas (`puerta_cocina`, giro en la bisagra). `MUEBLES_LIMPIOS`: muebles enteros sin las manchas grandes (en la madera pintada clara parecían camuflaje). Con la puerta abierta el `Tam` crece hacia delante, pero la espalda sigue en la pared: `contraPared` los pone bien.
+- Paredes y techos lisos (`painted_plaster_wall`, `plastered_wall_04`) con `textura_ph.py --limpia`: con manchas parecían camuflaje. Las damas de `checkered_pavement_tiles`, a `StudsPerTile` 16.
+- Alturas de las baldas de un mueble de Poly Haven: los rayos de Studio chocan con su caja (no se puede cambiar `CollisionFidelity` desde un script en Edit); medirlas en Blender con las caras que miran arriba.
+- `wooden_bookshelf_worn` a `--alto 8.5` sirve de despensa; `painted_wooden_shelves` es un estante pequeño de pared (no despensa); `ceramic_pot` es una tinaja grande para el suelo; `fish_knife` sale de pie (tumbarlo con 90° en X).
+- **Guardar `Muebles.rbxm` en trozos:** con la cocina pasa de 1024 KB aun con Zstd. Partir el texto en Base64 en trozos de 900 KB y mandar cada uno con la cabecera `X-Trozo: k/n`: `tools/receptor.mjs` los junta y escribe al llegar el último.
+- El resumen de las texturas subidas (pieza → id) se sirve a Studio como `.json` desde el servidor local del puerto 8777 (`HttpService:GetAsync`), en vez de pegarlo en el código.

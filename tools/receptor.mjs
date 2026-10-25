@@ -6,11 +6,28 @@ import http from "node:http";
 import zlib from "node:zlib";
 
 const [archivo, modo] = process.argv.slice(2);
+// Lo que pasa de 1024 KB aun comprimido (Muebles.rbxm, desde la cocina) llega en varios envíos con la cabecera
+// X-Trozo: "k/n" (el texto partido, de 1 a n); se juntan en orden y se escribe al llegar el último.
+const recibidos = [];
 const servidor = http.createServer((peticion, respuesta) => {
 	const trozos = [];
 	peticion.on("data", (trozo) => trozos.push(trozo));
 	peticion.on("end", () => {
-		const cuerpo = Buffer.concat(trozos);
+		const trozo = (peticion.headers["x-trozo"] || "1/1").split("/").map(Number);
+		// Un trozo mal numerado dejaría un hueco y un archivo roto: se rechaza.
+		const [k, n] = trozo;
+		if (!Number.isInteger(k) || !Number.isInteger(n) || k < 1 || k > n || (recibidos.total && recibidos.total !== n)) {
+			respuesta.statusCode = 400;
+			respuesta.end("trozo mal numerado");
+			return;
+		}
+		recibidos.total = n;
+		recibidos[k - 1] = Buffer.concat(trozos);
+		if (recibidos.filter(Boolean).length < trozo[1]) {
+			respuesta.end("trozo " + trozo[0]);
+			return;
+		}
+		const cuerpo = Buffer.concat(recibidos);
 		let datos = modo === "--base64" ? Buffer.from(cuerpo.toString("utf8"), "base64") : cuerpo;
 		// Studio solo deja mandar 1024 KB (mira el tamaño antes de su Gzip): lo grande (Muebles.rbxm, desde el comedor)
 		// llega comprimido con EncodingService:CompressBuffer (Zstd) y la cabecera X-Comprimido.

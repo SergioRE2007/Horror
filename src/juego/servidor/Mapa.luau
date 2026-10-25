@@ -747,7 +747,9 @@ local SALAS = {
 	-- diagonal y techo de gotelé, propios de la sala.
 	{ x1 = -39, x2 = -12, z1 = -33, z2 = 3, y = ABAJO, papel = "PapelComedor", suelo = "SueloComedor", techo = "TechoComedor", zocalo = "ZocaloComedor" },
 	{ x1 = -43, x2 = -39, z1 = -17, z2 = -3, y = ABAJO, papel = "PapelComedor", suelo = "SueloComedor", techo = "TechoComedor", zocalo = "ZocaloComedor" },
-	{ x1 = -39, x2 = -12, z1 = 3, z2 = 33, y = ABAJO, papel = "Cocina", suelo = "Damas", techo = true }, -- cocina
+	-- Cocina (11.8.4): pintura verde menta sucia sobre azulejo blanco alargado a media pared, damas sucias y techo
+	-- ahumado, propios de la sala.
+	{ x1 = -39, x2 = -12, z1 = 3, z2 = 33, y = ABAJO, papel = "PapelCocina", suelo = "SueloCocina", techo = "TechoCocina", azulejo = "AzulejoCocina" },
 	{ x1 = -26, x2 = -12, z1 = 33, z2 = 45, y = ABAJO, papel = "Claro", suelo = "Azulejo", techo = true }, -- lavadero
 	{ x1 = 12, x2 = 39, z1 = -33, z2 = 9, y = ARRIBA, papel = "Rojo", suelo = "Madera", techo = true }, -- dormitorio grande
 	{ x1 = 12, x2 = 39, z1 = 9, z2 = 33, y = ARRIBA, papel = "Claro" }, -- cuarto de la escalera del desván
@@ -756,14 +758,13 @@ local SALAS = {
 	{ x1 = -39, x2 = -12, z1 = -33, z2 = 9, y = ARRIBA, papel = "Salon", suelo = "Madera", techo = true }, -- habitación del rico
 	{ x1 = -39, x2 = -12, z1 = 9, z2 = 33, y = ARRIBA, papel = "Claro", suelo = "Madera", techo = true }, -- cuarto de los niños
 }
--- Papel pintado (imágenes del Creator Store, teñidas): damasco mostaza en el salón, rayas en la cocina.
+-- Papel pintado (imágenes del Creator Store, teñidas): damasco mostaza en el salón.
 -- Colores apagados y sucios (pedido por el usuario: el mostaza chillón parecía un juego de niños, no una casa
 -- abandonada).
 local PAPEL = {
 	Salon = { id = "rbxassetid://1587307732", color = Color3.fromRGB(104, 84, 54), tam = 7 },
 	Pasillo = { id = "rbxassetid://1587307732", color = Color3.fromRGB(88, 70, 50), tam = 7 },
 	Vestibulo = { id = "rbxassetid://1587307732", color = Color3.fromRGB(58, 68, 54), tam = 7 },
-	Cocina = { id = "rbxassetid://7518481506", color = Color3.fromRGB(132, 122, 98), tam = 6 },
 	Rojo = { id = "rbxassetid://18672898655", color = Color3.fromRGB(98, 66, 60), tam = 7 },
 	Claro = { id = "rbxassetid://1587307732", color = Color3.fromRGB(116, 110, 92), tam = 6 },
 }
@@ -825,9 +826,9 @@ local function vestirParedes()
 					variante(hoja, sala.papel)
 				end
 				if math.abs(bajo - sala.y) < 0.5 then -- Separar las engorda un poco
-					if sala.papel == "Cocina" then
+					if sala.azulejo then
 						local azulejo = math.min(4.5, alto - bajo) -- bajo una ventana, hasta la repisa
-						tira(azulejo, bajo + azulejo / 2, 0.12, Color3.fromRGB(196, 192, 180), Enum.Material.CeramicTiles)
+						variante(tira(azulejo, bajo + azulejo / 2, 0.12, Color3.fromRGB(196, 192, 180), Enum.Material.CeramicTiles), sala.azulejo)
 						if azulejo == 4.5 then
 							tira(0.25, bajo + 4.62, 0.2, Color3.fromRGB(60, 58, 54), Enum.Material.SmoothPlastic, 0.02)
 						end
@@ -853,7 +854,7 @@ local function vestirParedes()
 	end
 end
 
--- Suelos y techos de cada sala: madera oscura, damas blancas y negras en la cocina, azulejo en el baño, techo de yeso.
+-- Suelos y techos de cada sala: madera oscura, azulejo en el baño, techo de yeso (o los propios de cada sala).
 local function vestirSuelos()
 	local azar = Random.new(41) -- siempre igual en todos los servidores
 	for _, s in SALAS do
@@ -865,18 +866,7 @@ local function vestirSuelos()
 		elseif s.suelo == "Azulejo" then
 			lamina(Vector3.new(ancho, 0.06, fondo), CFrame.new(centro + Vector3.new(0, 0.03, 0)), Color3.fromRGB(150, 148, 138),
 				Enum.Material.CeramicTiles)
-		elseif s.suelo == "Damas" then
-			local filas, columnas = math.round(ancho / 3), math.round(fondo / 3)
-			local ladoX, ladoZ = ancho / filas, fondo / columnas
-			for i = 0, filas - 1 do
-				for j = 0, columnas - 1 do
-					local blanca = (i + j) % 2 == 0
-					local pos = Vector3.new(s.x1 + 0.5 + (i + 0.5) * ladoX, s.y + 0.03, s.z1 + 0.5 + (j + 0.5) * ladoZ)
-					lamina(Vector3.new(ladoX, 0.06, ladoZ), CFrame.new(pos),
-						if blanca then Color3.fromRGB(170, 166, 156) else Color3.fromRGB(28, 27, 26), Enum.Material.Marble)
-				end
-			end
-		elseif s.suelo then -- un MaterialVariant propio de la sala (el último: si no, se comía azulejo y damas)
+		elseif s.suelo then -- un MaterialVariant propio de la sala (el último: si no, se comía el azulejo)
 			variante(lamina(Vector3.new(ancho, 0.06, fondo), CFrame.new(centro + Vector3.new(0, 0.03, 0)), Color3.fromRGB(46, 32, 24),
 				Enum.Material.WoodPlanks), s.suelo)
 		end
@@ -1102,6 +1092,20 @@ local function vestirComedor()
 	mancha(Vector3.new(-12.58, ABAJO + 4.6, -12.6), -Vector3.xAxis, 3, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 120, 115), 0)
 	luzLuna(Vector3.new(-24, ABAJO + 8, -32.4), Vector3.new(-24, ABAJO, -22), 1.5, 26)
 	luzLuna(Vector3.new(-42.4, ABAJO + 8, -10), Vector3.new(-32, ABAJO, -10), 1.2, 22)
+end
+
+-- Lo que cuenta la historia de la cocina (11.8.4): alguien cortaba verdura cuando se lo llevaron a rastras hacia la
+-- puerta del garaje (unas gotas junto a la tabla, el arrastre por el suelo y la mano en el marco). Pintura desconchada
+-- y luna por la ventana del fondo. Moderate como máximo.
+local function vestirCocina()
+	for _, d in { { -12.58, ABAJO + 9, 8, -Vector3.xAxis, 3 }, { -31, ABAJO + 9.5, 3.58, Vector3.zAxis, 3.5 },
+		{ -27, ABAJO + 8.5, 32.42, -Vector3.zAxis, 2.5 } } do
+		mancha(Vector3.new(d[1], d[2], d[3]), d[4], d[5], SANGRE_VESTIBULO.Desconchon, Color3.fromRGB(170, 175, 160), d[2] % 3)
+	end
+	mancha(Vector3.new(-36.2, ABAJO + 3.52, 24.4), Vector3.yAxis, 1.2, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 110, 110), 0.5)
+	mancha(Vector3.new(-35.6, ABAJO + 0.08, 20.6), Vector3.yAxis, 3, SANGRE_VESTIBULO.Arrastre, Color3.new(1, 1, 1), 2.2, 6)
+	mancha(Vector3.new(-38.42, ABAJO + 4.4, 21.1), Vector3.xAxis, 3, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 120, 115), 0)
+	luzLuna(Vector3.new(-34, ABAJO + 8, 32.4), Vector3.new(-30, ABAJO, 22), 1.5, 24)
 end
 
 -- Torre de la esquina de delante a la izquierda, mirando la casa desde el camino (pedido por el usuario): un octógono
@@ -1509,25 +1513,78 @@ local function construirCasa(mapa: Folder)
 		tienda("MacetaPH", CFrame.new(-41.3, ABAJO, z), true)
 		tienda("PlantaSeca", CFrame.new(-41.3, ABAJO + 1.45, z) * CFrame.Angles(0, z, 0), true)
 	end
-	-- Cocina (como la prueba aprobada por el usuario): encimeras viejas hechas con piezas y el fregadero en medio contra
-	-- la pared de atrás, la nevera contra la del garaje, las dos cocinas contra la del comedor. Sin mesa en medio (la
-	-- quitó el usuario): libre para correr.
-	contraPared("Nevera", -38.5, ABAJO, 25, ESTE)
-	for _, tramo in { { -31, -28 }, { -25, -21.5 } } do
-		local x1, x2 = tramo[1], tramo[2]
-		local mx = (x1 + x2) / 2
-		bloque("Encimera", Vector3.new(x2 - x1, 3.2, 2.4), CFrame.new(mx, ABAJO + 1.6, 31.3), Color3.fromRGB(64, 50, 40))
-		bloque("Encimera", Vector3.new(x2 - x1 + 0.2, 0.3, 2.6), CFrame.new(mx, ABAJO + 3.35, 31.25), Color3.fromRGB(104, 98, 90),
-			Enum.Material.Marble)
-		bloque("Alacena", Vector3.new(x2 - x1, 2.6, 1.4), CFrame.new(mx, ABAJO + 8.3, 31.8), Color3.fromRGB(64, 50, 40))
-		for x = x1 + 2, x2 - 1, 2 do -- rendijas de las puertas
-			adorno(Vector3.new(0.1, 2.8, 0.06), CFrame.new(x, ABAJO + 1.6, 30.08)).Color = Color3.fromRGB(30, 24, 20)
-			adorno(Vector3.new(0.1, 2.2, 0.06), CFrame.new(x, ABAJO + 8.3, 31.08)).Color = Color3.fromRGB(30, 24, 20)
+	-- Cocina (11.8.4, opción A del usuario, "cocina en L"): una cocina de los 50 abandonada a medio cocinar. Encimeras
+	-- con alacenas en L, en el fondo (fregadero en medio, sin tapar la ventana) y en la pared del garaje; nevera y cocina
+	-- de hierro, con la olla al fuego, junto al comedor; mesa con dos sillas en la pared del comedor y despensa con
+	-- latas y tarros en la del pasillo. El centro, libre para correr.
+	for i, z in { 23, 26, 29 } do -- pared del garaje
+		contraPared("EncimeraCocina", -38.3, ABAJO, z, ESTE)
+		contraPared(if i == 3 then "AlacenaAbierta" else "AlacenaCocina", -38.3, ABAJO + 6.3, z, ESTE, true)
+	end
+	contraPared("EncimeraCocina", -29.9, ABAJO, 32.3, DELANTE) -- fondo
+	contraPared("AlacenaCocina", -29.9, ABAJO + 6.3, 32.3, DELANTE, true)
+	local fregadero = contraPared("FregaderoCocina", -26.4, ABAJO, 32.3, DELANTE)
+	contraPared("EncimeraAbierta", -22.9, ABAJO, 32.3, DELANTE)
+	contraPared("AlacenaCocina", -22.9, ABAJO + 6.3, 32.3, DELANTE, true)
+	if fregadero then -- platos sucios en la pila y dos de pie en el escurridor
+		local f = fregadero:GetPivot()
+		tienda("PlatoPH", f * CFrame.new(-0.5, 2.83, -0.1), true)
+		tienda("PlatoPH", f * CFrame.new(-0.4, 2.93, -0.15) * CFrame.Angles(0.1, 1, 0), true)
+		for _, x in { 1.35, 1.6 } do
+			tienda("PlatoPH", f * CFrame.new(x, 4.1, 0.04) * CFrame.Angles(0, 0, math.pi / 2), true)
 		end
 	end
-	contraPared("Fregadero", -26.5, ABAJO + 1.3, 32.5, DELANTE, true)
-	contraPared("CocinaHierro", -15, ABAJO, 3.5, DETRAS)
-	contraPared("CocinaOxidada", -20, ABAJO, 3.5, DETRAS)
+	-- A medio cocinar: la tabla con el cuchillo y la verdura a medio cortar, y la cesta de verdura en el rincón.
+	local tablero = ABAJO + 3.5
+	tienda("TablaPH", CFrame.new(-37, tablero, 23.4) * CFrame.Angles(0, math.pi / 2 + 0.2, 0), true)
+	tienda("CuchilloPH", CFrame.new(-36.8, tablero + 0.2, 23.1) * CFrame.Angles(0, 0.4, 0) * CFrame.Angles(math.pi / 2, 0, 0), true)
+	tienda("CebollaPH", CFrame.new(-37.2, tablero + 0.17, 23.9), true)
+	tienda("BoniatoPH", CFrame.new(-37.4, tablero, 25.2) * CFrame.Angles(math.pi / 2, 0, 0.5) * CFrame.new(0, -0.12, 0), true)
+	tienda("CestaPH", CFrame.new(-37.3, ABAJO, 31.4), true)
+	for k, cosa in { { "CebollaPH", -0.4, 0.1 }, { "BoniatoPH", 0.2, -0.2 }, { "CebollaPH", 0.4, 0.25 } } do
+		tienda(cosa[1], CFrame.new(-37.3 + cosa[2], ABAJO + 0.12, 31.4 + cosa[3]) * CFrame.Angles(0, k, 0), true)
+	end
+	-- Apartadas del rincón del comedor: la nevera allí estrechaba el vano (vanos anchos, pedido por el usuario).
+	local hierro = contraPared("CocinaHierro", -38.3, ABAJO, 8, ESTE)
+	contraPared("Nevera", -38.3, ABAJO, 12.7, ESTE)
+	if hierro then
+		tienda("OllaPH", hierro:GetPivot() * CFrame.new(-1, 3.42, 0.1), true)
+		tienda("SartenPH", hierro:GetPivot() * CFrame.new(1.1, 3.42, 0) * CFrame.Angles(0, 0.5, 0), true)
+	end
+	-- Mesa de diario contra la pared del comedor, con una silla apartada y torcida; estante con latas encima.
+	local mesa = contraPared("MesaCocinaPH", -19.5, ABAJO, 3.7, DETRAS)
+	if mesa then
+		local m = mesa:GetPivot()
+		tienda("PlatoPH", m * CFrame.new(1.2, 3.84, 0.3), true)
+		tienda("BoniatoPH", m * CFrame.new(1.2, 3.92, 0.3) * CFrame.Angles(math.pi / 2, 0, 0) * CFrame.new(0, -0.12, 0), true)
+		tienda("LataOxidadaPH", m * CFrame.new(-1.8, 3.84, 0.9), true)
+	end
+	tienda("SillaCocinaPH", CFrame.lookAt(Vector3.new(-15.1, ABAJO, 6), Vector3.new(-19.5, ABAJO, 6)))
+	tienda("SillaCocinaPH", CFrame.lookAt(Vector3.new(-24.6, ABAJO, 7.4), Vector3.new(-19.5, ABAJO, 6)) * CFrame.Angles(0, math.rad(35), 0))
+	local estante = contraPared("EstanteCocinaPH", -19.5, ABAJO + 5.2, 3.7, DETRAS, true)
+	if estante then
+		local e = estante:GetPivot()
+		tienda("LatasPH", e * CFrame.new(0, 1.45, 0.1), true)
+		tienda("CebollaPH", e * CFrame.new(-0.3, 0.1, 0), true)
+		tienda("CebollaPH", e * CFrame.new(0.25, 0.1, 0.1), true)
+	end
+	-- Despensa: latas, tarros y una olla por las baldas (a 0,44, 1,61, 2,77, 3,96, 5,26 y 6,85 del suelo), con huecos.
+	local despensa = contraPared("DespensaPH", -12.7, ABAJO, 9.8, OESTE)
+	if despensa then
+		local d = despensa:GetPivot()
+		for k, c in {
+			{ "LataOxidadaPH", 1.2, 0.44 }, { "LataOxidadaPH", 1.8, 0.44 }, { "CestaPH", -1.3, 0.44 },
+			{ "LatasPH", -1.8, 1.61 }, { "LatasPH", -0.9, 1.61 }, { "OllaPH", 0.6, 1.61 }, { "LatasPH", 1.9, 1.61 },
+			{ "LatasPH", -1.5, 2.77 }, { "SartenPH", 1.2, 2.77 },
+			{ "LataOxidadaPH", -1.9, 3.96 }, { "LataOxidadaPH", -1.3, 3.96 }, { "LatasPH", 0.9, 3.96 },
+			{ "LatasPH", -0.4, 5.26 }, { "CestaPH", 0.8, 6.85 },
+		} do
+			tienda(c[1], d * CFrame.new(c[2], c[3], 0.1) * CFrame.Angles(0, (k % 3 - 1) * 0.3, 0), true)
+		end
+		-- Una lata volcada en la de en medio.
+		tienda("LataOxidadaPH", d * CFrame.new(0.2, 3.96 + 0.25, 0) * CFrame.Angles(0, 0.7, math.pi / 2), true)
+	end
+	contraPared("TarroPH", -12.7, ABAJO, 14.5, OESTE)
 	-- Dormitorio: cama con el cabecero contra la pared de atrás, mesilla con lámpara y armario.
 	bloque("Mesilla", Vector3.new(2, 2.4, 2), CFrame.new(30.6, ABAJO + 1.2, 31.4), COLOR.Mueble)
 	contraPared("LamparaMesa", 30.6, ABAJO + 2.4, 32.5, DELANTE, true)
@@ -1804,6 +1861,7 @@ function Mapa.start()
 	vestirVestibulo()
 	vestirSalon()
 	vestirComedor()
+	vestirCocina()
 	abandonar()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).

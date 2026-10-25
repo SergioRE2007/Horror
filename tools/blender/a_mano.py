@@ -2,7 +2,8 @@
 # polyhaven.py (una malla por material, texturas envejecidas, <nombre>_piezas.json, .fbx y vista .png).
 # Uso: blender -b --factory-startup --python tools/blender/a_mano.py -- --nombre Perchero
 # Muebles: Perchero (con abrigo y paraguas), Cartas (sobres tirados), AlfombraLarga (la del vestíbulo); del salón,
-# SofaTapado, Piano, Banqueta, Repisa, LamparaPie, AlfombraSalon y CortinaVano (la de los vanos de toda la casa).
+# SofaTapado, Piano, Banqueta, Repisa, LamparaPie, AlfombraSalon y CortinaVano (la de los vanos de toda la casa); de la
+# cocina, EncimeraCocina, EncimeraAbierta, FregaderoCocina, AlacenaCocina y AlacenaAbierta.
 import argparse
 import json
 import math
@@ -23,6 +24,8 @@ from geometria import OUT_DIR, R, S, T, box, cyl, lathe, limb, render, sphere  #
 BAJADOS = os.path.join(OUT_DIR, "polyhaven", "_bajados")
 ARRIBA = {"Alfombra", "Papel"}  # papeles hechos de láminas de una sola cara
 LIMPIOS = {"Sabana"}  # telas claras: las manchas grandes del envejecido las hacían parecer piedra
+# Muebles enteros sin esas manchas: en la madera pintada clara de la cocina parecían camuflaje (la textura ya trae óxido).
+MUEBLES_LIMPIOS = {"EncimeraCocina", "EncimeraAbierta", "FregaderoCocina", "AlacenaCocina", "AlacenaAbierta"}
 
 
 def a_blender(v):
@@ -497,6 +500,128 @@ def planta_seca(m, rng):
         m.add("Hoja", sphere(0.22, 6, 4), T(1.05 * math.cos(a), 1.72, 1.05 * math.sin(a)) @ R("Y", math.degrees(a)) @ S(1, 0.15, 0.55))
 
 
+# ---------- Cocina (11.8.4): muebles de los 50, de 3 de ancho (en Roblox se estiran a lo largo), frente a -Z ----------
+
+def puerta_cocina(m, ancho, alto, centro, bisagra, abierta=0.0):
+    """Puerta de cuarterones (marco, tablero hundido y pomo) con la bisagra a un lado (-1 izquierda, 1 derecha):
+    `centro` es el de la puerta cerrada, `abierta` en grados."""
+    x, y, z = centro
+    eje = T(x + bisagra * ancho / 2, y, z) @ R("Y", -bisagra * abierta) @ T(-bisagra * ancho / 2, 0, 0)
+    for lado in (-1, 1):
+        m.add("Madera", box(0.2, alto, 0.08), eje @ T(lado * (ancho / 2 - 0.1), 0, 0))
+        m.add("Madera", box(ancho - 0.4, 0.2, 0.08), eje @ T(0, lado * (alto / 2 - 0.1), 0))
+    m.add("Madera", box(ancho - 0.4, alto - 0.4, 0.04), eje @ T(0, 0, 0.02))
+    # Pomo arriba en las de abajo y abajo en las de pared.
+    m.add("Metal", sphere(0.07, 8, 5), eje @ T(-bisagra * (ancho / 2 - 0.2), (alto / 2 - 0.45) * (1 if alto < 2.5 else -1), -0.08))
+
+
+def caja_cocina(m, ancho, alto, fondo, y0, techo=True):
+    """Cuerpo hueco (costados, fondo, techo, suelo y una balda) con el interior oscuro; el frente, abierto, en -fondo/2."""
+    for lado in (-1, 1):
+        m.add("Madera", box(0.1, alto, fondo), T(lado * (ancho / 2 - 0.05), y0 + alto / 2, 0))
+    m.add("Madera", box(ancho, 0.1, fondo), T(0, y0 + 0.05, 0))
+    if techo:  # sin él en el fregadero: taparía la pila
+        m.add("Madera", box(ancho, 0.1, fondo), T(0, y0 + alto - 0.05, 0))
+    m.add("Interior", box(ancho - 0.2, alto - 0.2, 0.05), T(0, y0 + alto / 2, fondo / 2 - 0.05))
+    m.add("Interior", box(ancho - 0.2, 0.06, fondo - 0.2), T(0, y0 + alto / 2, 0.05))
+
+
+def tarros(m, rng, x0, x1, y, z):
+    # Tarros de cristal con tapa, en fila sobre una balda (en la alacena abierta).
+    x = x0
+    while x < x1:
+        r, h = rng.uniform(0.16, 0.22), rng.uniform(0.45, 0.65)
+        m.add("Cristal", lathe([(0, 0), (r, 0), (r, h * 0.85), (r * 0.8, h)], 10), T(x, y, z))
+        m.add("Metal", cyl(r * 0.85, 0.07, 10), T(x, y + h, z))
+        x += r * 2 + 0.1
+
+
+def encimera_cocina(m, rng, ancho=3.0, abierta=0.0, puertas=True):
+    # Mueble bajo: zócalo hundido, cuerpo hueco, cajón con tirador, dos puertas y encimera de madera encima (3,5 de
+    # alto, 2,4 de fondo con el vuelo).
+    fondo = 2.2
+    m.add("Interior", box(ancho, 0.35, fondo - 0.4), T(0, 0.175, 0.3))
+    caja_cocina(m, ancho, 3.0, fondo, 0.35)
+    z = -fondo / 2 - 0.04
+    m.add("Madera", box(ancho - 0.12, 0.55, 0.08), T(0, 2.95, z))
+    m.add("Metal", box(0.7, 0.08, 0.1), T(0, 2.95, z - 0.08))
+    if puertas:
+        hoja = (ancho - 0.12) / 2
+        for k, lado in enumerate((-1, 1)):
+            puerta_cocina(m, hoja - 0.04, 2.15, (lado * hoja / 2, 1.5, z), lado, abierta if k == 1 else 0)
+    m.add("Encimera", box(ancho + 0.02, 0.2, fondo + 0.2), T(0, 3.4, -0.1))
+
+
+def encimera_abierta(m, rng):
+    encimera_cocina(m, rng, abierta=65)
+    # Dentro, a la vista por la puerta abierta: una olla volcada y un par de tarros.
+    tarros(m, rng, 0.3, 1.2, 1.9 + 0.03, 0.2)
+    m.add("Metal", cyl(0.4, 0.5, 12), T(0.7, 0.45, 0.1) @ R("Z", 80))
+
+
+def fregadero_cocina(m, rng):
+    # Mueble del fregadero (4 de ancho): pila de loza honda en la encimera, grifo de pared de dos llaves y escurridor.
+    ancho, fondo = 4.0, 2.2
+    m.add("Interior", box(ancho, 0.35, fondo - 0.4), T(0, 0.175, 0.3))
+    caja_cocina(m, ancho, 3.0, fondo, 0.35, techo=False)
+    z = -fondo / 2 - 0.04
+    m.add("Madera", box(ancho - 0.12, 0.55, 0.08), T(0, 2.95, z))
+    hoja = (ancho - 0.12) / 2
+    for lado in (-1, 1):
+        puerta_cocina(m, hoja - 0.04, 2.15, (lado * hoja / 2, 1.5, z), lado)
+    # Encimera con el hueco de la pila (2,6 × 1,5, algo hacia delante).
+    pila_x, pila_z, pila_a = 2.6, 1.5, -0.25
+    m.add("Encimera", box(ancho + 0.02, 0.2, 0.5), T(0, 3.4, 0.75))
+    m.add("Encimera", box(ancho + 0.02, 0.2, 0.2), T(0, 3.4, -1.1))
+    for lado in (-1, 1):
+        m.add("Encimera", box((ancho - pila_x) / 2, 0.2, pila_z), T(lado * (ancho + pila_x) / 4, 3.4, pila_a))
+    m.add("Esmalte", box(pila_x, 0.08, pila_z), T(0, 2.75, pila_a))
+    for lado in (-1, 1):
+        m.add("Esmalte", box(0.08, 0.75, pila_z), T(lado * (pila_x / 2 - 0.04), 3.1, pila_a))
+        m.add("Esmalte", box(pila_x, 0.75, 0.08), T(0, 3.1, pila_a + lado * (pila_z / 2 - 0.04)))
+    m.add("Interior", cyl(0.12, 0.02, 10), T(0, 2.79, pila_a))
+    # Grifo: dos llaves y el caño curvo, saliendo de la pared de atrás.
+    for lado in (-1, 1):
+        m.rama("Metal", (lado * 0.35, 4.3, 1.1), (lado * 0.35, 4.3, 0.85), 0.05, 0.05)
+        m.add("Metal", box(0.35, 0.06, 0.06), T(lado * 0.35, 4.3, 0.85))
+    for a, b in (((0, 4.3, 1.1), (0, 4.3, 0.6)), ((0, 4.3, 0.6), (0, 4.0, 0.25)), ((0, 4.0, 0.25), (0, 3.75, 0.2))):
+        m.rama("Metal", a, b, 0.06, 0.05)
+    m.add("Metal", box(1.2, 0.08, 0.06), T(0, 4.3, 1.08))
+    # Escurridor de madera a la derecha, con dos platos de pie.
+    for k in range(5):
+        m.add("Madera", box(0.06, 0.45, 1.0), T(1.25 + k * 0.12, 3.75, -0.1))
+    m.add("Madera", box(0.7, 0.05, 1.1), T(1.5, 3.52, -0.1))
+
+
+def alacena_cocina(m, rng, abierta=0.0):
+    # Alacena de pared (3 de ancho, 3 de alto, 1,4 de fondo) con dos puertas y moldura abajo; la abierta, con tarros.
+    ancho, alto, fondo = 3.0, 3.0, 1.4
+    caja_cocina(m, ancho, alto, fondo, 0)
+    z = -fondo / 2 - 0.04
+    hoja = (ancho - 0.06) / 2
+    for k, lado in enumerate((-1, 1)):
+        puerta_cocina(m, hoja - 0.04, alto - 0.1, (lado * hoja / 2, alto / 2, z), lado, abierta if k == 0 else 0)
+    m.add("Madera", box(ancho + 0.1, 0.15, fondo + 0.1), T(0, 0.075, -0.05))
+    m.add("Madera", box(ancho + 0.2, 0.18, fondo + 0.15), T(0, alto - 0.09, -0.07))
+    if abierta:
+        tarros(m, rng, -1.3, -0.2, 0.1, 0.1)
+        tarros(m, rng, -1.3, -0.1, alto / 2 + 0.03, 0.1)
+
+
+def alacena_abierta(m, rng):
+    alacena_cocina(m, rng, 110)
+
+
+COCINA = {"Madera": "distressed_painted_planks", "Encimera": "kitchen_wood", "Interior": ("liso", (0.07, 0.055, 0.045)),
+          "Metal": ("liso", (0.36, 0.34, 0.31)), "Esmalte": ("liso", (0.72, 0.7, 0.64)),
+          "Cristal": ("liso", (0.3, 0.34, 0.22))}
+TESELAS_COCINA = {"Madera": 3, "Encimera": 3, "Interior": 1, "Metal": 1, "Esmalte": 1, "Cristal": 1}
+
+
+def solo(papeles):
+    return {p: COCINA[p] for p in papeles}, {p: TESELAS_COCINA[p] for p in papeles}
+
+
 MUEBLES = {
     # nombre: (función, {papel: textura de Poly Haven o None = papel_viejo}, {papel: studs por baldosa},
     #          {papel: tinte}, papeles suaves)
@@ -523,6 +648,12 @@ MUEBLES = {
                       {"Alfombra": 10, "Borde": 1}, {}, ()),
     "CortinaVano": (cortina_vano, {"Tela": "velour_velvet", "Cordon": ("liso", (0.45, 0.34, 0.16))},
                     {"Tela": 2.5, "Cordon": 1}, {"Tela": (0.6, 0.3, 0.3)}, ("Tela", "Cordon")),
+    # Cocina (11.8.4).
+    "EncimeraCocina": (encimera_cocina, *solo(("Madera", "Encimera", "Interior", "Metal")), {}, ()),
+    "EncimeraAbierta": (encimera_abierta, *solo(("Madera", "Encimera", "Interior", "Metal", "Cristal")), {}, ()),
+    "FregaderoCocina": (fregadero_cocina, *solo(("Madera", "Encimera", "Interior", "Metal", "Esmalte")), {}, ()),
+    "AlacenaCocina": (alacena_cocina, *solo(("Madera", "Interior", "Metal")), {}, ()),
+    "AlacenaAbierta": (alacena_abierta, *solo(("Madera", "Interior", "Metal", "Cristal")), {}, ()),
     # Comedor (11.8.3).
     "PlantaSeca": (planta_seca, {"Tallo": ("liso", (0.3, 0.22, 0.14)), "Hoja": ("liso", (0.3, 0.21, 0.11)),
                                  "Tierra": ("liso", (0.12, 0.09, 0.07))},
@@ -562,7 +693,7 @@ def main():
         papel = obj.name
         obj.name = obj.data.name = "%s_%d" % (args.nombre, k) if len(objetos) > 1 else args.nombre
         tinte = np.array(tintes.get(papel, (1, 1, 1)), dtype=np.float32) * args.oscurecer
-        piezas.append(polyhaven.pieza(obj, base + ("_%d" % k if len(objetos) > 1 else ""), tinte, papel not in LIMPIOS))
+        piezas.append(polyhaven.pieza(obj, base + ("_%d" % k if len(objetos) > 1 else ""), tinte, papel not in LIMPIOS and args.nombre not in MUEBLES_LIMPIOS))
     with open(base + "_piezas.json", "w", encoding="utf-8") as archivo:
         json.dump(piezas, archivo, indent=1)
     bpy.ops.export_scene.fbx(filepath=base + ".fbx", object_types={"MESH"}, axis_forward="-Z", axis_up="Y",
