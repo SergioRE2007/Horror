@@ -478,6 +478,25 @@ def cortina_vano(m, rng):
     m.rama("Cordon", (0.3, atada, -0.1), (0.38, atada - 1.1, -0.18), 0.06, 0.09, 6)
 
 
+def planta_seca(m, rng):
+    # Planta muerta para la maceta (MacetaPH, 1,75 de alto): tallos secos que salen de la tierra y se doblan hacia fuera,
+    # con hojas arrugadas en las puntas y alguna caída sobre el borde.
+    m.add("Tierra", cyl(0.95, 0.12, 14), T(0, 1.5, 0))
+    for k in range(11):
+        a = k * 2.4 + rng.uniform(-0.3, 0.3)
+        alto, caida = rng.uniform(1.3, 3.0), rng.uniform(0.4, 1.3)
+        base = (0.35 * rng.random() * math.cos(a), 1.55, 0.35 * rng.random() * math.sin(a))
+        codo = (base[0] + 0.3 * caida * math.cos(a), 1.55 + alto, base[2] + 0.3 * caida * math.sin(a))
+        punta = (codo[0] + caida * math.cos(a), codo[1] - caida * rng.uniform(0.6, 1.2), codo[2] + caida * math.sin(a))
+        m.rama("Tallo", base, codo, 0.045, 0.03, 6)
+        m.rama("Tallo", codo, punta, 0.03, 0.015, 6)
+        for d in (codo, punta):
+            m.add("Hoja", sphere(0.22, 6, 4), T(*d) @ R("Z", rng.uniform(-60, 60)) @ S(1, 0.15, 0.55))
+    for k in range(3):
+        a = rng.uniform(0, 2 * math.pi)
+        m.add("Hoja", sphere(0.22, 6, 4), T(1.05 * math.cos(a), 1.72, 1.05 * math.sin(a)) @ R("Y", math.degrees(a)) @ S(1, 0.15, 0.55))
+
+
 MUEBLES = {
     # nombre: (función, {papel: textura de Poly Haven o None = papel_viejo}, {papel: studs por baldosa},
     #          {papel: tinte}, papeles suaves)
@@ -504,6 +523,10 @@ MUEBLES = {
                       {"Alfombra": 10, "Borde": 1}, {}, ()),
     "CortinaVano": (cortina_vano, {"Tela": "velour_velvet", "Cordon": ("liso", (0.45, 0.34, 0.16))},
                     {"Tela": 2.5, "Cordon": 1}, {"Tela": (0.6, 0.3, 0.3)}, ("Tela", "Cordon")),
+    # Comedor (11.8.3).
+    "PlantaSeca": (planta_seca, {"Tallo": ("liso", (0.3, 0.22, 0.14)), "Hoja": ("liso", (0.3, 0.21, 0.11)),
+                                 "Tierra": ("liso", (0.12, 0.09, 0.07))},
+                   {"Tallo": 1, "Hoja": 1, "Tierra": 1}, {}, ("Tallo", "Hoja")),
 }
 
 

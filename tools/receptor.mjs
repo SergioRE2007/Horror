@@ -3,6 +3,7 @@
 // Ejemplo en docs/sistemas/polyhaven.md (guardar ServerStorage.Muebles en src/muebles/Muebles.rbxm).
 import fs from "node:fs";
 import http from "node:http";
+import zlib from "node:zlib";
 
 const [archivo, modo] = process.argv.slice(2);
 const servidor = http.createServer((peticion, respuesta) => {
@@ -10,7 +11,10 @@ const servidor = http.createServer((peticion, respuesta) => {
 	peticion.on("data", (trozo) => trozos.push(trozo));
 	peticion.on("end", () => {
 		const cuerpo = Buffer.concat(trozos);
-		const datos = modo === "--base64" ? Buffer.from(cuerpo.toString("utf8"), "base64") : cuerpo;
+		let datos = modo === "--base64" ? Buffer.from(cuerpo.toString("utf8"), "base64") : cuerpo;
+		// Studio solo deja mandar 1024 KB (mira el tamaño antes de su Gzip): lo grande (Muebles.rbxm, desde el comedor)
+		// llega comprimido con EncodingService:CompressBuffer (Zstd) y la cabecera X-Comprimido.
+		if (peticion.headers["x-comprimido"] === "zstd") datos = zlib.zstdDecompressSync(datos);
 		// A un temporal y luego renombrar: un envío cortado no deja el archivo a medias.
 		fs.writeFileSync(archivo + ".tmp", datos);
 		fs.renameSync(archivo + ".tmp", archivo);

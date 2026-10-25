@@ -37,3 +37,12 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - Envejecer: la textura de color sale menos saturada, amarillenta, más oscura y con manchas grandes y grano (`manchas()`, misma semilla siempre). Las telas claras siguen viéndose claras de noche: para ellas, `--oscurecer 0.7`.
 - `Mapa.tienda` apaga el color de las piezas, pero con `SurfaceAppearance` eso no cambia nada: el envejecido va en la textura.
 - Rendimiento: unos 5.000 triángulos y 4 texturas de 1024 por mueble. Las cosas pequeñas, con `--res 1k` y `--tris 1500` o menos.
+
+## Comedor (11.8.3)
+
+- **Techos tapados (arreglado para toda la casa):** `Separar` engorda 0,15 el suelo de arriba (`Piso`) y el techo de yeso de cada sala, a `ALTO - 0,03`, quedaba dentro: se veían las tablas del suelo de arriba en todas las salas, también en el salón y la torre. Ahora van a `ALTO - BAJO_TECHO` (0,2), con el roto, los rosetones y las arañas.
+- **Alargar un mueble:** el `Size` del `MeshPart` se puede estirar en un solo eje (la mesa del comedor, de 9 a 13 de largo, con su `Tam` al día). Un mueble muy pequeño o desproporcionado se rehace con `--escala` o `--alto` (el aparador es un arcón bajo, `gallinera_table`, a `--escala 7.5`).
+- **Lo que no vale:** `WoodenChair_01` es un trono de 2,3 m (no sirve de silla de cabecera); `wine_bottles_01` sale en 8 piezas con sus texturas (demasiadas subidas para unas botellas); `wooden_candlestick` trae 213.000 triángulos y a 700 se deshace (a 3.000 bien).
+- `a_mano.py`: `PlantaSeca`, tallos secos y hojas arrugadas para meter en `MacetaPH` (`planter_pot_clay` a `--escala 8`).
+- **Guardar `Muebles.rbxm`:** `PostAsync` no deja mandar más de 1024 KB (lo mide antes de su Gzip, así que `compress` no ayuda). Comprimir con `EncodingService:CompressBuffer(datos, Enum.CompressionAlgorithm.Zstd, 9)` antes del Base64 y mandar la cabecera `X-Comprimido: zstd`: `tools/receptor.mjs` lo descomprime.
+- Subir otra vez una textura cambiada: añadir `?v=2` a la URL de `upload_image` (si no, puede devolver el id viejo).
