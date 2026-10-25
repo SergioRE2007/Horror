@@ -1,11 +1,15 @@
 // Recibe una vez lo que Studio manda con HttpService:PostAsync a http://localhost:8766 y lo escribe en un archivo.
-// Uso: node tools/receptor.mjs <archivo> [--base64]   (con --base64 decodifica el cuerpo: así llegan los .rbxm)
+// Uso: node tools/receptor.mjs <archivo> [--base64] [--puerto 8767]   (con --base64 decodifica el cuerpo: así llegan
+// los .rbxm; cada copia de sala usa su puerto para no chocar con otro chat: plan-paralelo.md)
 // Ejemplo en docs/sistemas/polyhaven.md (guardar ServerStorage.Muebles en src/muebles/Muebles.rbxm).
 import fs from "node:fs";
 import http from "node:http";
 import zlib from "node:zlib";
 
-const [archivo, modo] = process.argv.slice(2);
+const argumentos = process.argv.slice(2);
+const iPuerto = argumentos.indexOf("--puerto");
+const puerto = iPuerto >= 0 ? Number(argumentos.splice(iPuerto, 2)[1]) : 8766;
+const [archivo, modo] = argumentos;
 // Lo que pasa de 1024 KB aun comprimido (Muebles.rbxm, desde la cocina) llega en varios envíos con la cabecera
 // X-Trozo: "k/n" (el texto partido, de 1 a n); se juntan en orden y se escribe al llegar el último.
 const recibidos = [];
@@ -45,4 +49,4 @@ const servidor = http.createServer((peticion, respuesta) => {
 	});
 });
 // Solo desde este equipo: nadie de la red puede mandarle nada.
-servidor.listen(8766, "127.0.0.1", () => console.log("Esperando en http://localhost:8766"));
+servidor.listen(puerto, "127.0.0.1", () => console.log(`Esperando en http://localhost:${puerto}`));

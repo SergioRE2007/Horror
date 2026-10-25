@@ -27,8 +27,10 @@ uno con su Studio. Aprobado por el usuario reiniciar una vez la tarea "Rojo Horr
    `src/muebles/<Sala>.rbxm`; no se vuelve a guardar `Muebles.rbxm`.
 5. `tools/receptor.mjs` con `--puerto` (8766 por defecto) y el servidor de texturas con su puerto, para que cada chat
    use el suyo.
-6. Reiniciar la tarea: `Stop-ScheduledTask "Rojo Horror"; Start-ScheduledTask "Rojo Horror"` y pedir al usuario
-   Rojo → Connect.
+6. Reiniciar la tarea y pedir al usuario Rojo → Connect. Hecho (25-10-2026): `Stop-ScheduledTask` no basta (el
+   `rojo.exe` de Rokit deja un `rojo.exe` hijo sirviendo lo viejo) y a Claude no le dejan `Stop-Process`: lo lanzó el
+   usuario con `! powershell -NoProfile -Command "Stop-Process -Name rojo -Force; Start-ScheduledTask 'Rojo Horror'"`.
+   Ojo: eso para también los Rojo de las copias de sala (volver a lanzar su `nueva-sala.ps1`).
 7. Probar: contar los modelos de `Mapa.Casa` en Play antes y después del cambio (tienen que salir los mismos), sin
    errores en la consola; `selene src` y Lune. Commit.
 
@@ -40,6 +42,9 @@ uno con su Studio. Aprobado por el usuario reiniciar una vez la tarea "Rojo Horr
    carpeta. `tools/paralelo/quitar-sala.ps1 -Sala Galeria` para el Rojo de esa copia y quita la copia (después de
    juntarla).
 2. Puertos de cada sala: Rojo 34874, 34875, 34876…; receptor 8767, 8768, 8769…; texturas 8778, 8779, 8780…
+   Quedan en `sala.json` de cada copia. Receptor: `node tools/receptor.mjs <archivo> --base64 --puerto <receptor>`;
+   texturas: `node tools/servir.mjs <carpeta> --puerto <texturas>`. Tras reiniciar el PC, volver a lanzar
+   `nueva-sala.ps1` con la misma sala y puerto: solo arranca su Rojo.
 3. Comprobar antes de nada que dos Studios conectan a la vez a puertos distintos (`datos.md` avisa de que el plugin de
    Rojo a veces se queda en el 34872). Si no se puede, decirlo y parar.
 4. Primeras tres: 11.8.7 galería, 11.8.8 dormitorio grande y 11.8.9 habitación del rico (arriba, salas distintas).

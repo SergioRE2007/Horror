@@ -15,8 +15,24 @@ local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
 local Fachada = require(script.Parent.Fachada)
 local Lugares = require(script.Parent.Lugares)
 
--- Muebles del Creator Store (src/muebles/Muebles.rbxm).
-local MUEBLES = game:GetService("ServerStorage"):FindFirstChild("Muebles")
+-- Muebles del Creator Store y de Poly Haven: una carpeta por archivo de src/muebles (Muebles.rbxm, lo de antes, y un
+-- <Sala>.rbxm por sala, para hacer salas en paralelo: plan-paralelo.md). Tabla nombre -> molde mirando solo los hijos
+-- de cada carpeta: dentro de cada modelo hay MeshParts con su mismo nombre.
+local MUEBLES: { [string]: Model } = {}
+do
+	local carpeta = game:GetService("ServerStorage"):FindFirstChild("Muebles")
+	for _, sala in (if carpeta then carpeta:GetChildren() else {}) do
+		for _, molde in sala:GetChildren() do
+			local otro = MUEBLES[molde.Name]
+			-- En Studio a veces sale un mueble repetido en la misma carpeta (tres Mecedora): solo se avisa entre salas.
+			if otro and otro.Parent ~= sala then
+				warn(`[Mapa] Mueble repetido: {molde.Name} en {otro.Parent.Name} y en {sala.Name}`)
+			elseif not otro and molde:IsA("Model") then
+				MUEBLES[molde.Name] = molde
+			end
+		end
+	end
+end
 -- Materiales con texturas de Poly Haven para paredes, suelos y techos de cada sala (src/materiales).
 local MATERIALES = game:GetService("MaterialService"):FindFirstChild("Materiales")
 
@@ -164,7 +180,7 @@ end
 -- pivote abajo en el centro; su tamaño en el atributo Tam) en `cf`. Solo se ve: choca una caja invisible un poco más
 -- pequeña, que no tapa la vista de los bichos. Sin la carpeta (lugar sin Rojo) no pone nada.
 local function tienda(nombre: string, cf: CFrame, sinChoque: boolean?): Model?
-	local molde = MUEBLES and MUEBLES:FindFirstChild(nombre)
+	local molde = MUEBLES[nombre]
 	if not molde then
 		return nil
 	end
@@ -242,7 +258,7 @@ end
 
 -- Un mueble de la tienda contra la pared: (x, y, z) = un punto de la cara de la pared; `frente` = hacia la sala.
 local function contraPared(nombre: string, x: number, y: number, z: number, frente: Vector3, sinChoque: boolean?): Model?
-	local molde = MUEBLES and MUEBLES:FindFirstChild(nombre)
+	local molde = MUEBLES[nombre]
 	if not molde then
 		return nil
 	end
@@ -947,7 +963,7 @@ local function abandonar()
 		{ -10, ARRIBA + ALTO - BAJO_TECHO, -31, Vector3.new(1, 0, 1) },
 	} do
 		local nombre = if azar:NextNumber() < 0.5 then "Telarana" else "TelaranaTecho"
-		local molde = MUEBLES and MUEBLES:FindFirstChild(nombre)
+		local molde = MUEBLES[nombre]
 		if molde then
 			local pos = Vector3.new(t[1], t[2] - (molde:GetAttribute("Tam") :: Vector3).Y * 0.45, t[3])
 			local tela = tienda(nombre, CFrame.lookAt(pos, pos + t[4]), true) :: Model
@@ -1398,7 +1414,7 @@ local function construirCasa(mapa: Folder)
 	-- Choca invisible y se ven barrotes torneados como los de la escalera, con pasamanos y un poste en cada punta.
 	for _, x in { -8.1, 8.1 } do
 		local barandilla = bloque("Barandilla", Vector3.new(6.8, 3.5, 0.4), CFrame.new(x, ARRIBA + 1.75, 0.2), COLOR.Mueble)
-		if MUEBLES and MUEBLES:FindFirstChild("Balaustre") then
+		if MUEBLES.Balaustre then
 			barandilla.Transparency = 1
 			for k = 0, 7 do
 				tienda("Balaustre", CFrame.new(x - 3 + k * 6 / 7, ARRIBA, 0.2), true)
