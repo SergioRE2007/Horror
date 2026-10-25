@@ -4,6 +4,9 @@
 /*.rbxl.lock
 /*.rbxlx.lock
 
+# Puertos de una copia de sala (tools/paralelo/nueva-sala.ps1)
+/sala.json
+
 sourcemap.json
 node_modules/
 graphify-out/

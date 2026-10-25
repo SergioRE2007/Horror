@@ -12,7 +12,7 @@
 
     "ServerStorage": {
       "Muebles": {
-        "$path": "src/muebles/Muebles.rbxm"
+        "$path": "src/muebles"
       }
     },
 
