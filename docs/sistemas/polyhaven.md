@@ -76,3 +76,13 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - `textura_ph.py --flores`: papel de florecillas encima de `decrepit_wallpaper`, con `--limpia` (con las manchas del envejecido parecía camuflaje, como en la cocina).
 - `old_bed_frame` es de hospital: 0,9 × 2 m, somier de malla a 2,25 del suelo (a `--escala 4.6`) y la cabecera a +Z. `cama()` de `Mapa` acepta un mueble (`aspecto`) y su colcha (`ropa`) con su ancho y largo: los bloques que chocan se hacen a esa medida y quedan invisibles.
 - El suelo de las salas (la lámina del `MaterialVariant`) tiene la cara de arriba a `ABAJO + 0,06`: una alfombra fina a `ABAJO + 0,02` parpadeaba con él (va a `+ 0,075`).
+
+## Dormitorio grande (11.8.8)
+
+- `GothicBed_01` a `--escala 4.5`: 6,7 × 9,2, cabecera a +Z, postes en x ±2,93 y z ±4,42 (6,91 los de la cabecera y 5,62 los de los pies), colchón a 2,5–2,7, largueros de 0,5 a 2,08 y el pie de 1,11 a 3,67 (medido en Blender con un script que lee los vértices del `.fbx`). Debajo del pie queda una rendija de 1,1: la `Vista` del escondite se cambia en `vestirDormitorioGrande` para mirar por ahí, a un lado del baúl (en medio, el baúl la tapaba).
+- `a_mano.py`: `DoselCama` (bastidor, cielo, faldón, cortina de fondo y cortinas recogidas en los postes), `ColchaDosel` (arrancada hacia un lado, con `punto_camino()` para seguir una línea quebrada), `RopaTirada` y `CosasTocador` (colores lisos). Van con el CFrame de la cama o del tocador más el desfase que imprime (`ABAJO` y `CENTRO`).
+- `textura_ph.py --damasco`: papel de damasco (ojivas con una flor de lis, tono sobre tono) encima de `decrepit_wallpaper`, con `--limpia`. Las volutas redondas de los lados parecían ojos: quitadas.
+- `alarm_clock_01` trae el cristal de delante como pieza aparte (`_2`) con una textura oscura que tapa la esfera: cristal transparente sin `SurfaceAppearance`, como los marcos de fotos.
+- `GothicCabinet_01` a escala normal es un mueble de 2,4 m: a `--alto 5.2` sirve de tocador con el espejo encima. `GreenChair_01`, a la escala normal.
+- En esta sala el `Piso` de arriba no se engorda (su cara queda a `ARRIBA`, medido en Play) y la lámina del suelo queda a `ARRIBA + 0,06`, como abajo: los muebles van a esa altura. En la galería sí se engorda (`sueloArriba`, rama `sala-galeria`).
+- Los muebles de la sala se ponen en `vestirDormitorioGrande` (después de `Separar`); en `construirCasa` solo quedan la cama y el armario de escondite.
