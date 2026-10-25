@@ -52,9 +52,9 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 | 11.8.4 | Cocina (aprobado por el usuario: "esta guay"; nevera de los 50 hecha aquí, pedido por el usuario) | sillas, cocina de hierro | hecho |
 | 11.8.5 | Pasillo, baño y trastero (aprobado por el usuario: "esta bien") | bañera y váter; puerta del sótano | hecho |
 | 11.8.6 | Dormitorio de abajo (aprobado por el usuario) | cama de hierro (escondite) y armario | hecho |
-| 11.8.7 | Galería | balaustrada de verdad sobre el hueco | pendiente |
-| 11.8.8 | Dormitorio grande | cama y armario (escondites); salida al balcón | pendiente |
-| 11.8.9 | Habitación del rico | lámpara del escritorio; sitio de las pistas (12.1) | pendiente |
+| 11.8.7 | Galería | balaustrada de verdad sobre el hueco | hecho |
+| 11.8.8 | Dormitorio grande | cama y armario (escondites); salida al balcón | hecho |
+| 11.8.9 | Habitación del rico | lámpara del escritorio; sitio de las pistas (12.1) | hecho |
 | 11.8.10 | Cuarto de los niños | cuna y juguetes | pendiente |
 | 11.8.11 | Escalera del desván y desván | baúles; cuarto de revelado | pendiente |
 | 11.8.12 | Lavadero, garaje y cobertizo | enchufe del móvil, coche, generador | pendiente |

@@ -68,3 +68,10 @@ uno con su Studio. Aprobado por el usuario reiniciar una vez la tarea "Rojo Horr
 - Juntar cada rama `sala-*` en `paso-11-fin` de una en una, arreglando los choques de `Mapa.luau` y de los `.md`.
 - Play con todo junto: cada sala con sus muebles, sin errores, escondites funcionando. Marcar en `TASKS.md` lo aprobado.
 - `quitar-sala.ps1` de cada copia.
+
+### Integración recuperada (26-10-2026)
+
+- Galería, dormitorio grande y habitación del rico unidos en `paso-11-fin`; las tres salas ya estaban aprobadas por Sergio y están marcadas en `TASKS.md`.
+- Resueltos los conflictos de `Mapa.luau`, los scripts de Blender y la documentación, conservando los tres archivos de muebles y los dos diseños de damasco (`--damasco-estilo galeria|dormitorio`). El rico toma la altura real de la lámina del suelo después de `Separar`.
+- Validado: construcción de Rojo, 579 comprobaciones Lune, Selene sin errores (tres avisos previos en otros módulos), sintaxis de los scripts de Blender y revisión de código sin hallazgos graves. En Studio se cargan las tres salas, sin errores de scripts; entrada y salida de cama y armario del dormitorio comprobadas. La corrección final del suelo del rico se construyó, sin repetir Play a petición de Sergio.
+- Se conservan las copias de las salas y sus Studios: contienen los lugares locales y pueden tener cambios de vista sin guardar. No se ha reiniciado Rojo.

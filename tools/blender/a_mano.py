@@ -8,6 +8,8 @@
 # AlfombraTrapo, CosasMesilla, Zapatillas, RopaSilla y MantaMecedora; de la galería, BalaustradaGaleria y AlfombraGaleria.
 # Del dormitorio grande, DoselCama, ColchaDosel,
 # RopaTirada y CosasTocador.
+# De la habitación del rico, EscritorioRico,
+# LamparaBanquero, CosasEscritorio, GloboTerraqueo, TableroHilos, CuernosCiervo, CajaFuerte y Licores.
 import argparse
 import json
 import math
@@ -83,6 +85,7 @@ class Mueble:
 
     def __init__(self):
         self.partes = {}
+        self.uv = {}  # papel -> f(x, y, z) en ejes del juego -> (u, v): UV propia en vez de la de caja (atlas)
 
     def add(self, papel, forma, m=None):
         verts, caras = forma
@@ -113,6 +116,11 @@ class Mueble:
                         cara.normal_flip()
             uv = bm.loops.layers.uv.new("UVMap")
             for cara in bm.faces:
+                if papel in self.uv:
+                    for loop in cara.loops:
+                        x, y, z = loop.vert.co
+                        loop[uv].uv = self.uv[papel](-x, z, y)
+                    continue
                 eje = max(range(3), key=lambda i: abs(cara.normal[i]))
                 a, b = [i for i in range(3) if i != eje]
                 for loop in cara.loops:
@@ -1252,6 +1260,309 @@ def cosas_tocador(m, rng):
     m.add("Platillo", cyl(0.25, 0.04, 12), T(0.2, y, 0.5))
     m.add("Vela", cyl(0.08, 0.3, 10), T(0.2, y + 0.04, 0.5))
 
+# ---------- Habitación del rico (11.8.9) ----------
+
+LIMPIOS |= {"Foto", "Escrito"}  # fotos, mapa y letra: con las manchas grandes del envejecido no se distinguían
+
+
+def escritorio_rico(m, rng):
+    # Escritorio de dos cajoneras (6,8 × 3,4, tablero a 2,6) con tapete de cuero verde. Delante (-Z), los paneles que
+    # miran a la sala; detrás (+Z), los cajones y el hueco de las piernas, del lado del sillón.
+    m.add("Madera", box(6.8, 0.14, 3.4), T(0, 2.53, 0))
+    m.add("Cuero", box(5.9, 0.02, 2.6), T(0, 2.605, 0.05))
+    for lado in (-1, 1):
+        x = lado * 2.35
+        m.add("Madera", box(2.0, 0.22, 3.2), T(x, 0.11, 0))
+        m.add("Madera", box(1.9, 2.24, 3.1), T(x, 1.34, 0))
+        m.add("Madera", box(1.55, 1.75, 0.05), T(x, 1.3, -1.57))
+        for y, h in ((0.62, 0.7), (1.37, 0.7), (2.08, 0.54)):
+            m.add("Madera", box(1.7, h - 0.06, 0.06), T(x, y, 1.57))
+            m.add("Laton", sphere(0.06, 8, 4), T(x, y, 1.64))
+    m.add("Madera", box(2.8, 1.85, 0.12), T(0, 1.5, -1.42))  # faldón entre las cajoneras
+    m.add("Madera", box(2.4, 1.4, 0.04), T(0, 1.55, -1.5))
+    m.add("Madera", box(2.8, 0.36, 0.06), T(0, 2.27, 1.55))  # cajón del centro
+    m.add("Laton", sphere(0.06, 8, 4), T(0, 2.27, 1.62))
+
+
+def lampara_banquero(m, rng):
+    # Lámpara de banquero del escritorio (la luz de la sala): pie de latón y pantalla de cristal verde, una media caña
+    # gruesa a lo largo de x (la bombilla va debajo, en Mapa, a 1,1), y la cadenita.
+    m.add("Laton", lathe([(0.34, 0), (0.34, 0.05), (0.26, 0.1), (0.1, 0.16)], 16))
+    m.add("Laton", cyl(0.04, 0.85, 8), T(0, 0.15, 0))
+    m.add("Laton", box(0.04, 0.04, 0.56), T(0, 1.0, 0))
+    n, largo, y0 = 14, 0.6, 1.06
+    angulos = [math.radians(-15 + 210 * k / n) for k in range(n + 1)]
+    verts = [(x, y0 + r * 0.75 * math.sin(a), r * math.cos(a)) for x in (-largo, largo) for r in (0.3, 0.27) for a in angulos]
+    N = n + 1
+
+    def i(lado, capa, k):
+        return lado * 2 * N + capa * N + k
+
+    caras = []
+    for k in range(n):
+        caras.append((i(0, 0, k), i(0, 0, k + 1), i(1, 0, k + 1), i(1, 0, k)))
+        caras.append((i(0, 1, k), i(1, 1, k), i(1, 1, k + 1), i(0, 1, k + 1)))
+    for k in (0, n):
+        caras.append((i(0, 0, k), i(1, 0, k), i(1, 1, k), i(0, 1, k)))
+    for lado in (0, 1):
+        caras.append(tuple([i(lado, 0, k) for k in range(N)] + [i(lado, 1, k) for k in reversed(range(N))]))
+    m.add("Pantalla", (verts, caras))
+    m.add("Laton", cyl(0.012, 0.3, 4), T(0.35, 0.72, -0.15))
+    m.add("Laton", sphere(0.035, 6, 4), T(0.35, 0.72, -0.15))
+
+
+def escritura(w=512):
+    """Papel viejo con renglones escritos a mano en tinta (el diario y los papeles del rico): baldosa de 1,2 studs."""
+    azar = np.random.default_rng(13)
+    X, Y = np.meshgrid(np.arange(w, dtype=np.float32) / w, np.arange(w, dtype=np.float32) / w)
+    rgb = np.ones((w, w, 3), dtype=np.float32) * np.array([0.76, 0.7, 0.56], dtype=np.float32)
+    rgb *= (1 - azar.random((w, w, 1)).astype(np.float32) * 0.08)
+    f = np.floor(Y * 16)
+    centro = (f + 0.5) / 16
+    trazo = centro + 0.006 * np.sin(X * 140 + f * 1.7) + 0.004 * np.sin(X * 410 + f * 5.1)
+    palabras = np.sin(X * 23 + f * 2.3) + 0.6 * np.sin(X * 57 + f) > -0.6
+    margen = (X > 0.08) & (X < 0.94) & (Y > 0.05) & (Y < 0.95)
+    tinta = (np.abs(Y - trazo) < 0.0035 + 0.0025 * (np.sin(X * 300 + f) > 0.6)) & palabras & margen
+    tinta |= (np.sin(X * 260 + f * 3) > 0.92) & (np.abs(Y - centro) < 0.014) & palabras & margen  # letras altas
+    rgb[tinta] = np.array([0.12, 0.1, 0.12])
+    ruta = os.path.join(BAJADOS, "escritura.png")
+    polyhaven.guardar("escritura", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def cosas_escritorio(m, rng):
+    # Lo de encima del escritorio (mismo CFrame que EscritorioRico; tablero a 2,615): el diario abierto del lado del
+    # sillón (la pista 11), papeles sueltos, tintero con pluma, cenicero con un puro y un vaso con un dedo de whisky.
+    y = 2.615
+    m.add("Cuero", box(1.9, 0.04, 1.25), T(-0.2, y + 0.02, 0.75) @ R("Y", 5))
+    for lado in (-1, 1):
+        m.add("Escrito", box(0.88, 0.05, 1.15), T(-0.2, y + 0.06, 0.75) @ R("Y", 5) @ T(lado * 0.46, 0, 0) @ R("Z", -lado * 3))
+    for k, (x, z, giro) in enumerate(((1.3, 0.2, 14), (1.75, 0.5, -8), (1.55, -0.45, 31))):
+        m.add("Escrito", box(0.85, 0.008, 1.1), T(x, y + 0.004 + k * 0.009, z) @ R("Y", giro))
+    m.add("Cristal", lathe([(0.15, 0), (0.17, 0.12), (0.08, 0.2), (0.06, 0.25)], 12), T(-1.2, y, -0.5))
+    m.add("Tinta", cyl(0.12, 0.1, 12), T(-1.2, y + 0.01, -0.5))
+    m.rama("Tinta", (-1.0, y + 0.03, -0.25), (-0.4, y + 0.03, 0.05), 0.025, 0.018, 6)
+    m.add("Cristal", lathe([(0.32, 0), (0.34, 0.08), (0.28, 0.09), (0.24, 0.03)], 16), T(2.5, y, 1.15))
+    m.add("Ceniza", cyl(0.25, 0.04, 12), T(2.5, y + 0.02, 1.15))
+    m.rama("Puro", (2.35, y + 0.1, 1.15), (2.85, y + 0.06, 1.4), 0.05, 0.045, 8)
+    m.add("Cristal", lathe([(0.16, 0), (0.17, 0.36)], 12, caps=False), T(-2.0, y, 0.75))
+    m.add("Licor", cyl(0.155, 0.1, 12), T(-2.0, y + 0.01, 0.75))
+
+
+def mapamundi(w=1024):
+    """Mapamundi viejo inventado para el globo: mar verdoso desvaído, tierras ocres con la costa oscura y la rejilla de
+    meridianos y paralelos. Senos de frecuencia entera: la baldosa casa por los bordes."""
+    X, Y = np.meshgrid(np.arange(w, dtype=np.float32) / w, np.arange(w, dtype=np.float32) / w)
+    p = 2 * np.pi
+    n = (0.5 * np.sin(p * 2 * X + 1.3) * np.cos(p * Y + 0.4) + 0.3 * np.sin(p * (3 * X + 2 * Y) + 2)
+         + 0.2 * np.sin(p * (5 * X - 4 * Y) + 0.7) + 0.12 * np.sin(p * (9 * X + 7 * Y)))
+    rgb = np.ones((w, w, 3), dtype=np.float32) * np.array([0.5, 0.56, 0.46], dtype=np.float32)
+    rgb[n > 0.25] = np.array([0.66, 0.52, 0.3])
+    rgb[np.abs(n - 0.25) < 0.015] = np.array([0.28, 0.2, 0.14])
+    rejilla = (np.abs((X * 8) % 1 - 0.5) > 0.493) | (np.abs((Y * 8) % 1 - 0.5) > 0.493)
+    rgb[rejilla] *= 0.7
+    rgb *= (1 - np.random.default_rng(4).random((w, w, 1)).astype(np.float32) * 0.12)
+    ruta = os.path.join(BAJADOS, "mapamundi.png")
+    polyhaven.guardar("mapamundi", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def globo_terraqueo(m, rng):
+    # Globo terráqueo de pie (3,9 de alto): trípode de madera, aro del horizonte, meridiano de latón y la bola inclinada.
+    yc, r = 3.0, 0.85
+    eje = T(0, yc, 0) @ R("Z", 23)
+    for k in range(3):
+        a = math.radians(90 + 120 * k)
+        c, s = math.cos(a), math.sin(a)
+        m.rama("Madera", (1.0 * c, 0, 1.0 * s), (0.25 * c, 1.9, 0.25 * s), 0.07, 0.09, 8)
+        m.rama("Madera", (0.25 * c, 1.9, 0.25 * s), (1.02 * c, yc - 0.02, 1.02 * s), 0.05, 0.05, 6)
+    m.add("Madera", lathe([(0.3, 1.8), (0.32, 1.95), (0.12, 2.1), (0.06, 2.2)], 12))
+    for k in range(24):
+        a0, a1 = 2 * math.pi * k / 24, 2 * math.pi * (k + 1) / 24
+        m.rama("Madera", (1.02 * math.cos(a0), yc, 1.02 * math.sin(a0)), (1.02 * math.cos(a1), yc, 1.02 * math.sin(a1)),
+               0.06, 0.06, 6)
+    for k in range(28):
+        a0, a1 = 2 * math.pi * k / 28, 2 * math.pi * (k + 1) / 28
+        p0 = eje @ Vector((0.93 * math.sin(a0), 0.93 * math.cos(a0), 0))
+        p1 = eje @ Vector((0.93 * math.sin(a1), 0.93 * math.cos(a1), 0))
+        m.rama("Laton", tuple(p0), tuple(p1), 0.025, 0.025, 5)
+    m.add("Laton", cyl(0.03, 2.0, 6), eje @ T(0, -1.0, 0))
+    m.add("Globo", sphere(r, 24, 14), eje)
+
+
+# Lo clavado en el corcho del tablero de hilos: (x0, y0, ancho, alto, casilla del atlas). El atlas es de 2048 × 1024:
+# el mapa en la mitad izquierda y una casilla de 256 por foto o recorte en la derecha (4 × 4).
+TABLERO = [(-1.3, 0.55, 2.6, 2.6, "mapa")]
+TABLERO += [(x, y, 0.85, 1.05, k) for k, (x, y) in enumerate(((-3.25, 3.2), (-3.25, 1.9), (2.4, 3.2), (2.4, 1.9), (-0.42, 3.3)))]
+TABLERO += [(x, y, 0.85, 1.05, 5 + k) for k, (x, y) in enumerate(((-3.25, 0.5), (2.4, 0.5), (-2.25, 0.85)))]
+
+
+def uv_tablero(x, y, z):
+    """UV del atlas para un punto de lo clavado (de frente, la derecha es -x)."""
+    for x0, y0, w, h, casilla in TABLERO:
+        if x0 - 0.04 <= x <= x0 + w + 0.04 and y0 - 0.04 <= y <= y0 + h + 0.04:
+            u, v = min(max((x0 + w - x) / w, 0), 1), min(max((y - y0) / h, 0), 1)
+            if casilla == "mapa":
+                return (u * 0.5, v)
+            col, fila = casilla % 4, casilla // 4
+            return ((1024 + col * 256 + 24 + u * 208) / 2048, (fila * 256 + v * 256) / 1024)
+    return (0, 0)
+
+
+def atlas_tablero(w=2048, h=1024):
+    """Imagen de lo clavado: mapa del bosque con la casa en medio y los túneles que llegan a ella; fotos de los
+    vigilantes que mandó el rico (tachadas con rojo, la última con un círculo) y recortes de periódico."""
+    azar = np.random.default_rng(21)
+    rgb = np.ones((h, w, 3), dtype=np.float32) * 0.8
+    # Mapa (1024 × 1024, a la izquierda).
+    X, Y = np.meshgrid(np.arange(1024, dtype=np.float32) / 1024, np.arange(1024, dtype=np.float32) / 1024)
+    mapa = np.ones((1024, 1024, 3), dtype=np.float32) * np.array([0.78, 0.74, 0.6], dtype=np.float32)
+    bosque = (np.sin(X * 19 + 1) * np.sin(Y * 17 + 2) + 0.5 * np.sin(X * 43 - Y * 37)) > 0.1
+    mapa[bosque] = np.array([0.5, 0.56, 0.42])
+    arboles = (np.sin(X * 300) * np.sin(Y * 300) > 0.7) & bosque
+    mapa[arboles] = np.array([0.3, 0.38, 0.26])
+    rio = np.abs(Y - 0.25 - 0.08 * np.sin(X * 9)) < 0.012
+    mapa[rio] = np.array([0.35, 0.45, 0.5])
+    for k in range(3):  # caminos
+        camino = np.abs(X - 0.2 - 0.3 * k - 0.06 * np.sin(Y * 7 + k)) < 0.005
+        mapa[camino] = np.array([0.45, 0.33, 0.2])
+    rejilla = (np.abs((X * 10) % 1 - 0.5) > 0.495) | (np.abs((Y * 10) % 1 - 0.5) > 0.495)
+    mapa[rejilla] *= 0.85
+    cx, cy = X - 0.5, Y - 0.5
+    for k in range(7):  # túneles a trazos de la casa hacia fuera, en rojo oscuro
+        a = 2 * np.pi * k / 7 + 0.3
+        largo = cx * np.cos(a) + cy * np.sin(a)
+        lejos = np.abs(-cx * np.sin(a) + cy * np.cos(a) - 0.03 * np.sin(largo * 30))
+        mapa[(lejos < 0.006) & (largo > 0.05) & (largo < 0.47) & ((largo * 40) % 1 < 0.6)] = np.array([0.45, 0.06, 0.05])
+    for px, py in ((0.2, 0.75), (0.78, 0.7), (0.72, 0.2), (0.22, 0.3)):  # sitios rodeados (pueblo, granja, aserradero…)
+        d = np.hypot(X - px, Y - py)
+        mapa[np.abs(d - 0.07) < 0.006] = np.array([0.55, 0.05, 0.05])
+    casa = (np.abs(cx) < 0.03) & (np.abs(cy) < 0.025)
+    mapa[casa] = np.array([0.1, 0.08, 0.07])
+    mapa[np.abs(np.hypot(cx, cy) - 0.06) < 0.008] = np.array([0.6, 0.04, 0.04])
+    rgb[:, :1024] = mapa * (1 - azar.random((1024, 1024, 1)).astype(np.float32) * 0.1)
+    # Fotos y recortes (casillas de 256; lo que se ve son los 208 del medio).
+    U, V = np.meshgrid(np.arange(208, dtype=np.float32) / 208, np.arange(256, dtype=np.float32) / 256)
+    for casilla in range(8):
+        x0, y0 = 1024 + (casilla % 4) * 256 + 24, (casilla // 4) * 256
+        if casilla < 5:
+            sepia = np.array([0.62, 0.5, 0.36], dtype=np.float32) * (0.75 + 0.35 * V[:, :, None])
+            foto = np.ones((256, 208, 3), dtype=np.float32) * sepia
+            hx = 0.2 + 0.25 * azar.random()
+            casa_f = (U > hx) & (U < hx + 0.5) & (V > 0.35) & (V < 0.6 + 0.15 * (1 - np.abs(U - hx - 0.25) * 4).clip(0))
+            foto[casa_f] *= 0.6
+            foto[V < 0.35] *= 0.7
+            px = 0.35 + 0.3 * azar.random()
+            cabeza = np.hypot((U - px) * 0.81, V - 0.62) < 0.06
+            cuerpo = (np.abs(U - px) < 0.07 + (0.56 - V) * 0.25) & (V < 0.56) & (V > 0.18)
+            foto[cabeza | cuerpo] = np.array([0.18, 0.14, 0.1])
+            foto[cabeza] = np.array([0.55, 0.45, 0.35])
+            if casilla < 4:  # tachado con rojo
+                for signo in (1, -1):
+                    foto[np.abs((V - 0.5) - signo * (U - 0.5) * 1.23) < 0.035] = np.array([0.55, 0.04, 0.04])
+            else:  # el último: un círculo rojo alrededor
+                foto[np.abs(np.hypot((U - px) * 0.81, V - 0.55) - 0.2) < 0.02] = np.array([0.55, 0.04, 0.04])
+            borde = (U < 0.06) | (U > 0.94) | (V < 0.14) | (V > 0.95)
+            foto[borde] = np.array([0.84, 0.8, 0.7])
+        else:
+            foto = np.ones((256, 208, 3), dtype=np.float32) * np.array([0.72, 0.7, 0.62], dtype=np.float32)
+            titular = (V > 0.82) & (V < 0.93) & (U > 0.08) & (U < 0.92) & (np.sin(U * 40) > -0.7)
+            foto[titular] = np.array([0.15, 0.15, 0.15])
+            renglon = ((V * 40) % 1 < 0.35) & (V < 0.76) & (V > 0.06) & (np.abs(U - 0.5) > 0.02) & (np.abs(U - 0.5) < 0.42)
+            foto[renglon] = np.array([0.4, 0.4, 0.38])
+            foto[(U > 0.1) & (U < 0.46) & (V > 0.45) & (V < 0.74)] = np.array([0.25, 0.24, 0.22])
+        rgb[y0:y0 + 256, x0:x0 + 208] = foto * (1 - azar.random((256, 208, 1)).astype(np.float32) * 0.12)
+    ruta = os.path.join(BAJADOS, "atlas_tablero.png")
+    polyhaven.guardar("atlas_tablero", rgb, w, h, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def corcho(w=512):
+    """Corcho de tablero: marrón claro con grano a motas."""
+    azar = np.random.default_rng(8)
+    rgb = np.ones((w, w, 3), dtype=np.float32) * np.array([0.56, 0.4, 0.25], dtype=np.float32)
+    rgb *= (0.75 + azar.random((w, w, 1)).astype(np.float32) * 0.4)
+    ruta = os.path.join(BAJADOS, "corcho.png")
+    polyhaven.guardar("corcho", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def tablero_hilos(m, rng):
+    # Tablero de corcho del rico (7,2 × 4,6, de pie en la pared por +Z): el mapa del bosque, fotos de los vigilantes y
+    # recortes, con chinchetas y hilos rojos de cada foto a la casa del mapa.
+    m.add("Corcho", box(7.0, 4.4, 0.12), T(0, 2.3, 0))
+    for x, y, sx, sy in ((0, 0.05, 7.2, 0.1), (0, 4.55, 7.2, 0.1), (-3.55, 2.3, 0.1, 4.6), (3.55, 2.3, 0.1, 4.6)):
+        m.add("Marco", box(sx, sy, 0.2), T(x, y, -0.02))
+    casa = (0, 1.85, -0.1)
+    for x0, y0, w, h, casilla in TABLERO:
+        m.add("Foto", box(w, h, 0.01), T(x0 + w / 2, y0 + h / 2, -0.07) @ R("Z", rng.uniform(-1.5, 1.5) if casilla != "mapa" else 0))
+        pin = (x0 + w / 2, y0 + h - 0.12, -0.1)
+        m.add("Chincheta", sphere(0.05, 6, 4), T(*pin))
+        if casilla != "mapa" and casilla < 5:
+            m.rama("Hilo", pin, casa, 0.012, 0.012, 4)
+        elif casilla != "mapa":
+            m.rama("Hilo", pin, (x0 + w / 2 + (1.2 if x0 < 0 else -1.2), y0 + 1.4, -0.1), 0.012, 0.012, 4)
+    m.add("Chincheta", sphere(0.06, 6, 4), T(*casa))
+    m.uv["Foto"] = uv_tablero
+
+
+def cuernos_ciervo(m, rng):
+    # Trofeo de la pared: escudo de madera con el cráneo y la cornamenta de un ciervo (2,3 de ancho, 3,4 de alto).
+    from geometria import blob
+    escudo = [(0, 0), (0.45, 0.15), (0.6, 0.6), (0.62, 1.3), (0.4, 1.65), (0, 1.75), (-0.4, 1.65), (-0.62, 1.3),
+              (-0.6, 0.6), (-0.45, 0.15)]
+    m.add("Madera", extruir(escudo, -0.18, 0.0))
+    m.add("Madera", extruir([(x * 0.8, y * 0.85 + 0.12) for x, y in escudo], -0.24, -0.18))
+    m.add("Hueso", blob((0.28, 0.32, 0.22), 4, 10, 6, 0.08), T(0, 1.15, -0.4))
+    m.add("Hueso", blob((0.13, 0.4, 0.13), 5, 8, 5, 0.08), T(0, 0.8, -0.5) @ R("X", 25))
+    for lado in (-1, 1):
+        puntos = [Vector((lado * 0.2, 1.35, -0.45))]
+        for dx, dy, dz in ((0.35, 0.25, -0.05), (0.35, 0.45, 0.0), (0.2, 0.5, 0.05), (0.05, 0.45, 0.0), (-0.1, 0.35, 0.0)):
+            puntos.append(puntos[-1] + Vector((lado * dx, dy, dz)))
+        radios = (0.11, 0.09, 0.075, 0.06, 0.045, 0.02)
+        for k in range(len(puntos) - 1):
+            m.rama("Cuerno", tuple(puntos[k]), tuple(puntos[k + 1]), radios[k], radios[k + 1], 6)
+            if 1 <= k <= 3:  # puntas hacia arriba y hacia dentro
+                fin = puntos[k] + Vector((-lado * rng.uniform(0.05, 0.2), rng.uniform(0.35, 0.5), -rng.uniform(0.1, 0.2)))
+                m.rama("Cuerno", tuple(puntos[k]), tuple(fin), radios[k] * 0.8, 0.01, 5)
+        m.rama("Cuerno", tuple(puntos[0]), tuple(puntos[0] + Vector((lado * 0.1, 0.25, -0.4))), 0.04, 0.01, 5)
+
+
+def caja_fuerte(m, rng):
+    # Caja fuerte empotrada detrás del retrato del rico (2,3 × 2,3; sale 0,3 de la pared por -Z): marco, puerta de acero
+    # con la rueda de la combinación, el tirador de tres brazos y las bisagras.
+    m.add("Interior", box(2.3, 2.3, 0.05), T(0, 1.15, -0.03))
+    for x, y, sx, sy in ((0, 0.1, 2.3, 0.2), (0, 2.2, 2.3, 0.2), (-1.05, 1.15, 0.2, 2.3), (1.05, 1.15, 0.2, 2.3)):
+        m.add("Metal", box(sx, sy, 0.3), T(x, y, -0.15))
+    m.add("Metal", box(1.8, 1.8, 0.12), T(0, 1.15, -0.22))
+    m.add("Metal", box(1.55, 1.55, 0.03), T(0, 1.15, -0.295))
+    m.add("Laton", cyl(0.26, 0.06, 20), T(0.25, 1.4, -0.31) @ R("X", -90))
+    m.add("Metal", cyl(0.16, 0.08, 20), T(0.25, 1.4, -0.37) @ R("X", -90))
+    for k in range(3):
+        a = math.radians(90 + 120 * k)
+        punta = (-0.35 + 0.3 * math.cos(a), 0.85 + 0.3 * math.sin(a), -0.34)
+        m.rama("Laton", (-0.35, 0.85, -0.34), punta, 0.03, 0.03, 6)
+        m.add("Laton", sphere(0.05, 8, 4), T(*punta))
+    m.add("Laton", cyl(0.07, 0.06, 10), T(-0.35, 0.85, -0.3) @ R("X", -90))
+    for y in (0.5, 1.8):
+        m.add("Metal", cyl(0.06, 0.4, 8), T(0.92, y - 0.2, -0.3))
+
+
+def licores(m, rng):
+    # Bandeja de licores encima del mueble (LicoresPH): licorera de cristal tallado con su tapón, dos botellas y tres
+    # vasos, uno tumbado.
+    m.add("Laton", lathe([(0.75, 0), (0.78, 0.05), (0.8, 0.08), (0.72, 0.06)], 24), S(1.4, 1, 0.9))
+    y = 0.06
+    m.add("Cristal", lathe([(0.2, 0), (0.28, 0.1), (0.3, 0.4), (0.2, 0.65), (0.09, 0.75), (0.09, 0.85), (0.11, 0.88)], 8),
+          T(-0.5, y, 0))
+    m.add("Licor", lathe([(0.18, 0.01), (0.26, 0.1), (0.27, 0.35)], 8), T(-0.5, y, 0))
+    m.add("Cristal", sphere(0.12, 8, 5), T(-0.5, y + 0.98, 0))
+    for x, z in ((0.2, -0.3), (0.65, 0.0)):
+        m.add("Vidrio", lathe([(0.17, 0), (0.17, 0.75), (0.06, 0.95), (0.05, 1.2), (0.06, 1.22)], 12), T(x, y, z))
+    for x, z in ((0.1, 0.35), (-0.95, -0.35)):
+        m.add("Cristal", lathe([(0.13, 0), (0.14, 0.3)], 12, caps=False), T(x, y, z))
+    m.add("Cristal", lathe([(0.13, 0), (0.14, 0.3)], 12, caps=False), T(0.75, y + 0.14, 0.45) @ R("Z", 90) @ R("Y", 30))
+
 
 COCINA = {"Madera": "distressed_painted_planks", "Encimera": "kitchen_wood", "Interior": ("liso", (0.07, 0.055, 0.045)),
           "Metal": ("liso", (0.36, 0.34, 0.31)), "Esmalte": ("liso", (0.72, 0.7, 0.64)),
@@ -1351,6 +1662,32 @@ MUEBLES = {
                                      "Vela": ("liso", (0.78, 0.74, 0.62))},
                      {p: 1 for p in ("Cristal", "Tapon", "Joyero", "Interior", "Perla", "Madera", "Cerdas", "Platillo", "Vela")},
                      {}, ("Cristal", "Tapon", "Perla", "Platillo", "Vela")),
+
+    # Habitación del rico (11.8.9).
+    "EscritorioRico": (escritorio_rico, {"Madera": "dark_wood", "Cuero": "brown_leather", "Laton": ("liso", (0.5, 0.38, 0.18))},
+                       {"Madera": 2, "Cuero": 2, "Laton": 1}, {"Cuero": (0.42, 0.58, 0.42)}, ("Laton",)),
+    "LamparaBanquero": (lampara_banquero, {"Laton": ("liso", (0.5, 0.38, 0.18)), "Pantalla": ("liso", (0.1, 0.38, 0.18))},
+                        {"Laton": 1, "Pantalla": 1}, {}, ("Laton", "Pantalla")),
+    "CosasEscritorio": (cosas_escritorio, {"Cuero": ("liso", (0.22, 0.13, 0.08)), "Escrito": escritura,
+                                           "Cristal": ("liso", (0.62, 0.66, 0.64)), "Tinta": ("liso", (0.03, 0.03, 0.05)),
+                                           "Ceniza": ("liso", (0.3, 0.29, 0.28)), "Puro": ("liso", (0.33, 0.2, 0.1)),
+                                           "Licor": ("liso", (0.45, 0.24, 0.05))},
+                        {"Cuero": 1, "Escrito": 1.2, "Cristal": 1, "Tinta": 1, "Ceniza": 1, "Puro": 1, "Licor": 1}, {},
+                        ("Cristal", "Tinta", "Puro", "Licor")),
+    "GloboTerraqueo": (globo_terraqueo, {"Madera": "dark_wood", "Laton": ("liso", (0.5, 0.38, 0.18)), "Globo": mapamundi},
+                       {"Madera": 2, "Laton": 1, "Globo": 1.7}, {}, ("Madera", "Laton", "Globo")),
+    "TableroHilos": (tablero_hilos, {"Corcho": corcho, "Marco": "dark_wood", "Foto": atlas_tablero,
+                                     "Chincheta": ("liso", (0.6, 0.06, 0.05)), "Hilo": ("liso", (0.55, 0.04, 0.04))},
+                     {"Corcho": 2, "Marco": 2, "Foto": 1, "Chincheta": 1, "Hilo": 1}, {}, ("Chincheta",)),
+    "CuernosCiervo": (cuernos_ciervo, {"Madera": "dark_wood", "Hueso": ("liso", (0.6, 0.55, 0.46)),
+                                       "Cuerno": ("liso", (0.45, 0.37, 0.28))},
+                      {"Madera": 2, "Hueso": 1, "Cuerno": 1}, {}, ("Hueso", "Cuerno")),
+    "CajaFuerte": (caja_fuerte, {"Metal": ("liso", (0.17, 0.18, 0.19)), "Laton": ("liso", (0.5, 0.38, 0.18)),
+                                 "Interior": ("liso", (0.03, 0.03, 0.03))},
+                   {"Metal": 1, "Laton": 1, "Interior": 1}, {}, ("Laton",)),
+    "Licores": (licores, {"Laton": ("liso", (0.5, 0.38, 0.18)), "Cristal": ("liso", (0.62, 0.66, 0.64)),
+                          "Licor": ("liso", (0.45, 0.24, 0.05)), "Vidrio": ("liso", (0.12, 0.22, 0.12))},
+                {"Laton": 1, "Cristal": 1, "Licor": 1, "Vidrio": 1}, {}, ("Laton", "Cristal", "Licor", "Vidrio")),
 }
 
 
