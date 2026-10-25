@@ -1503,7 +1503,11 @@ local function construirCasa(mapa: Folder)
 	-- sombrero: de noche parece alguien quieto), las cartas tiradas junto a la puerta y la alfombra larga algo torcida;
 	-- el reloj de pie, el banco y la consola con espejo, al fondo bajo la galería, que se ven al rodear la escalera.
 	-- Cuadros torcidos a la entrada, junto a la escalera y en lo alto del hueco. Muebles de Poly Haven (polyhaven.md).
-	tienda("Perchero", CFrame.new(6.5, ABAJO, -31) * CFrame.Angles(0, math.rad(-20), 0))
+	local perchero = tienda("Perchero", CFrame.new(6.5, ABAJO, -31) * CFrame.Angles(0, math.rad(-20), 0))
+	local abrigo = perchero and perchero:FindFirstChild("Perchero_1") :: BasePart?
+	if abrigo then -- el abrigo, algo separado del perchero (movido por el usuario)
+		abrigo.CFrame = CFrame.new(6.77, ABAJO + 4.81, -30.14) * CFrame.Angles(0, math.rad(-19), 0)
+	end
 	tienda("AlfombraLarga", CFrame.new(0.4, ABAJO + 0.05, -24.8) * CFrame.Angles(0, math.rad(3), 0), true)
 	tienda("Cartas", CFrame.new(-5, ABAJO + 0.07, -30.6) * CFrame.Angles(0, math.rad(15), 0), true)
 	contraPared("RelojPiePH", 10, ABAJO, 8.5, DELANTE)
@@ -1580,7 +1584,7 @@ local function construirCasa(mapa: Folder)
 	end
 	-- Una foto boca abajo en la vitrina.
 	tienda("FotoPH1", CFrame.new(18.4, ABAJO + 3.3, -30.8) * CFrame.Angles(math.pi / 2, math.rad(15), 0) * CFrame.new(0, -0.5, 0), true)
-	contraPared("CuadroPH2", 12.5, ABAJO + 4.6, -27.5, ESTE, true)
+	contraPared("CuadroPH2", 12.5, ABAJO + 4.6, -30.07, ESTE, true) -- corrido por el usuario
 	-- Repisa: reloj parado en medio, un candelero a cada lado, una foto y el cuadro encima, algo torcido.
 	contraPared("Repisa", 36, ABAJO, -1, OESTE, true)
 	for _, cosa in { { "RelojRepisaPH", -1 }, { "CandeleroPH", -4 }, { "CandeleroPH", 2 }, { "FotoPH2", 0.8 } } do
@@ -1640,9 +1644,10 @@ local function construirCasa(mapa: Folder)
 		tienda("JarraPH", CFrame.new(x + 0.2, ABAJO + 3.66, -4.6) * CFrame.Angles(0, math.rad(-70), 0), true)
 	end
 	contraPared("RelojPiePH", -12.7, ABAJO, -30, OESTE)
-	for _, z in { -4.6, -15.4 } do
-		tienda("MacetaPH", CFrame.new(-41.3, ABAJO, z), true)
-		tienda("PlantaSeca", CFrame.new(-41.3, ABAJO + 1.45, z) * CFrame.Angles(0, z, 0), true)
+	-- { maceta x, z, planta x, z, giro }, como las dejó el usuario.
+	for _, m in { { -41.11, -4.96, -41.26, -5.11, -4.6 }, { -41.03, -15.05, -41.46, -14.95, -15.4 } } do
+		tienda("MacetaPH", CFrame.new(m[1], ABAJO, m[2]), true)
+		tienda("PlantaSeca", CFrame.new(m[3], ABAJO + 1.45, m[4]) * CFrame.Angles(0, m[5], 0), true)
 	end
 	-- Cocina (11.8.4, opción A del usuario, "cocina en L"): una cocina de los 50 abandonada a medio cocinar. Encimeras
 	-- con alacenas en L, en el fondo (fregadero en medio, sin tapar la ventana) y en la pared del garaje; nevera y cocina
@@ -1725,7 +1730,7 @@ local function construirCasa(mapa: Folder)
 	contraPared("MesillaPH", 37.4, ABAJO, 32.5, DELANTE)
 	tienda("CosasMesilla", CFrame.new(37.4, ABAJO + 2.47, 31.5) * CFrame.Angles(0, 0.3, 0), true)
 	tienda("AlfombraTrapo", CFrame.new(30, ABAJO + 0.075, 26.5) * CFrame.Angles(0, math.pi / 2, 0), true)
-	tienda("Zapatillas", CFrame.new(30.7, ABAJO + 0.115, 26.9) * CFrame.Angles(0, -math.pi / 2 + 0.2, 0), true)
+	tienda("Zapatillas", CFrame.new(30.7, ABAJO + 0.115, 26.9) * CFrame.Angles(0, math.pi / 2 + 0.2, 0), true) -- giradas por el usuario
 	local silla = contraPared("SillaDormitorioPH", 38.5, ABAJO, 20.6, OESTE)
 	if silla then -- la ropa, con el mismo CFrame que la silla (su caja empieza en el asiento)
 		tienda("RopaSilla", silla:GetPivot() * CFrame.new(0, 2.32, 0.42), true)
