@@ -4,7 +4,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
-1. 11.8.3 a 11.8.13: el interior, una sala por chat (sigue el pasillo, baño y trastero; vestíbulo, salón, comedor y cocina, hechos).
+1. 11.8.3 a 11.8.13: el interior, una sala por chat (sigue la galería; vestíbulo, salón, comedor, cocina, pasillo con baño y trastero, y dormitorio de abajo, hechos).
 2. 11.6: que Sergio vea la fachada (se puede meter en cualquier chat de sala).
 3. 12.1 Pistas → 12.2 La Bestia.
 4. 11.5 Pueblo amueblado, 11.2 Monstruos (casi al final), 13 Lanzamiento.
@@ -51,7 +51,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 | 11.8.3 | Comedor (aprobado por el usuario: "me convence") | — | hecho |
 | 11.8.4 | Cocina (aprobado por el usuario: "esta guay"; nevera de los 50 hecha aquí, pedido por el usuario) | sillas, cocina de hierro | hecho |
 | 11.8.5 | Pasillo, baño y trastero (aprobado por el usuario: "esta bien") | bañera y váter; puerta del sótano | hecho |
-| 11.8.6 | Dormitorio de abajo | cama y armario de Blender (escondites) | pendiente |
+| 11.8.6 | Dormitorio de abajo (aprobado por el usuario) | cama de hierro (escondite) y armario | hecho |
 | 11.8.7 | Galería | balaustrada de verdad sobre el hueco | pendiente |
 | 11.8.8 | Dormitorio grande | cama y armario (escondites); salida al balcón | pendiente |
 | 11.8.9 | Habitación del rico | lámpara del escritorio; sitio de las pistas (12.1) | pendiente |
