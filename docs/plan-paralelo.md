@@ -75,3 +75,9 @@ uno con su Studio. Aprobado por el usuario reiniciar una vez la tarea "Rojo Horr
 - Resueltos los conflictos de `Mapa.luau`, los scripts de Blender y la documentación, conservando los tres archivos de muebles y los dos diseños de damasco (`--damasco-estilo galeria|dormitorio`). El rico toma la altura real de la lámina del suelo después de `Separar`.
 - Validado: construcción de Rojo, 579 comprobaciones Lune, Selene sin errores (tres avisos previos en otros módulos), sintaxis de los scripts de Blender y revisión de código sin hallazgos graves. En Studio se cargan las tres salas, sin errores de scripts; entrada y salida de cama y armario del dormitorio comprobadas. La corrección final del suelo del rico se construyó, sin repetir Play a petición de Sergio.
 - Se conservan las copias de las salas y sus Studios: contienen los lugares locales y pueden tener cambios de vista sin guardar. No se ha reiniciado Rojo.
+
+### Integración recuperada (01-11-2026)
+
+- Niños, desván y lavadero/garaje/cobertizo ya tenían un commit por sala. Se reúnen en `codex/integrar-salas-pendientes` conservando sus muebles, materiales y scripts de Blender; resueltos los conflictos de `Mapa.luau`, `a_mano.py` y la documentación.
+- Pedido por el usuario: integrar en `main` y omitir la prueba conjunta en Studio en esta recuperación. No había ningún Studio conectado. Se conservan las tres copias locales y no se reinicia Rojo.
+- Validación: construcción de Rojo, 579 comprobaciones Lune y Selene sin errores (tres avisos previos en otros módulos). Las tres salas se marcan hechas; queda el sótano (11.8.13).

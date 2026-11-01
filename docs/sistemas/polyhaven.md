@@ -103,3 +103,31 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - `Model:ScaleTo` sirve para dejar un molde a otro tamaño (ajedrez a 0,75 para que quepa en la mesita; el retrato, el marco de `CuadroPH2` a 1,4), con su `Tam` al día.
 - En la integración, los muebles del rico van sobre la lámina del suelo: `sueloArriba(centro) + 0,06` (en la prueba conjunta, `Piso` a 14,15 y lámina a 14,21). Se mide después de `Separar` en vez de fijarlo a `ARRIBA + 0,18`, y la moldura del zócalo sale 0,25 de la pared: las caras útiles de esta sala son z 8,15 y -32,25 y x -38,05 y -12,85.
 - `GothicCabinet_01` a `--alto 4.2` (a la escala normal es un armario de 9,4); `GreenChair_01` sirve de sillón de despacho tal cual; `bull_head` y `lion_head` son bustos de bronce con peana, no cabezas de pared.
+
+
+## Cuarto de los niños (11.8.10)
+
+- Casi no hay juguetes en Poly Haven: todo en `a_mano.py`. `CamaNino` (4,27 × 7,05, cabecera a +Z, colcha de retales que cae hasta 1,3: escondite con `cama(..., "CamaNino", nil, 4.27, 7.05)`), `CunaNino` (a lo largo de x; el gancho del móvil a 6,1 del suelo) y `MovilCuna` (su arriba a 1,57 de su origen: se pone a `cuna * CFrame.new(0, 6.1 - 1.57, 0)`; centrado, se podría girar), `Caballito` (la cabeza a -Z), `BaulJuguetes` (ya volcado, la boca a -Z y los juguetes por delante), `MesaTe` (asientos a 1,0 de alto y 1,75 del centro; la silla vacía a +X), `Muneca`, `Osito` y `Conejo` (sentados, mirando a -Z, origen abajo), `LamparaNino` (bombilla en `Mapa` a 1,35) y `DibujosNinos` (seis hojas con un atlas de dibujos de cera, `DIBUJOS` y `uv_dibujos`, como el tablero del rico). Helpers: `poste_torneado`, `barrote`, `retales()`, `estrella()`.
+- `wood_peeling_paint_weathered` sale madera oscura: la madera pintada clara es `distressed_painted_planks` (la de la cocina), con `MUEBLES_LIMPIOS`.
+- Piezas de color liso: no se suben. Su color es el medio de su `_color.png` (`ffmpeg -vf scale=1:1 -f rawvideo -pix_fmt rgb24`). Pero `tienda` apaga otra vez el color (×0,7): los muñecos salían casi negros; se aclararon ×1,6. `Fabric` en piezas pequeñas y oscuras se veía como camuflaje: `SmoothPlastic`.
+- Aquí `Separar` sí engorda el `Piso` (cara a `ARRIBA + 0,15`): la lámina y los muebles a `ARRIBA + 0,21` (`sueloArriba` en `vestirNinos`). Caras de las paredes con el papel: z 9,6 y 32,42, x -38,3 y -12,6.
+- `textura_ph.py --infantil`: patitos y globos sobre `decrepit_wallpaper` con `--limpia`, a `StudsPerTile` 5. Con colores vivos "se leía alegre e infantil" (revisión con cámaras): muy apagados y con más del papel viejo debajo.
+- Al guardar `Ninos.rbxm` por primera vez, Rojo crea su carpeta `Ninos` y queda también la hecha a mano en Studio: borrar la vieja (si no, dos carpetas con los mismos nombres).
+
+## Escalera del desván y desván (11.8.11)
+
+- Los muebles hechos a mano de esta sala van en `tools/blender/desvan.py`: importa `a_mano.py`, añade los suyos a `a_mano.MUEBLES` y llama a su `main()` (así los chats de sala no se pisan en `a_mano.py`). Mismo uso: `--nombre Maniqui`.
+- `tapado()` generaliza el sofá tapado del salón (cajas, remallado y pliegues): `ButacaTapada`, `ComodaTapada` y `EspejoTapado`. Las fotos con atlas (`FotosTendidas`, `FotosVigilantes`) llevan UV propia por esquinas (`uv_fotos`).
+- **Láminas de una cara:** dos caras opuestas sin grueso salían del revés en Roblox y no se veían: las fotos son cajas cerradas de 0,03.
+- **`tienda` con choque en algo hueco:** el bloque de choque es la caja entera del mueble y tapaba la trampilla con la barandilla: `sinChoque` y tablas invisibles a mano.
+- Al montar en Studio, ordenar las piezas por su número (`_10` va antes que `_2` como texto). Lo liso de `a_mano` no se sube: color × 0,85 en la MeshPart.
+- `Camera_01` (cámara de carrete) cabe en la mesa a escala 4; `spinning_wheel_01` es una rueca de 3,9 de alto; `vintage_crutches_01`, dos muletas de 6,4.
+
+## Lavadero, garaje y cobertizo (11.8.12)
+
+- `a_mano.py`: `BancoTaller` (banco largo con el tablero perforado, `tablero_taller()` pinta los agujeros y las siluetas blancas; falta el martillo), `PilaLavar`, `LavadoraVieja` (de rodillos, con `esmalte_nevera`), `Tendedero`, `CuerdaRopa` (11,6 de largo a lo largo de X; sus puntas, 3,65 por encima del pivote) y `EnchufeViejo` (espalda en z = 0, la pared). Su papel es `ParedGaraje`, `SueloGaraje`, `PapelLavadero`, `AzulejoLavadero`, `SueloLavadero`, `ParedCobertizo` y `SueloCobertizo` (`textura_ph.py`).
+- **El coche** (`CocheViejo`, sedán de 6,6 × 14,3) va por piezas: carrocería, `CapoCoche`, `MotorCoche`, `RuedaCoche`, `BateriaCoche` y `RadiadorCoche`. `lado()` extruye un contorno de lado (z, y) a lo ancho y `arco()` hace los pasos de rueda. En `Mapa.construirCoche` los bloques de siempre siguen siendo lo que choca y el sitio de cada pieza; con la malla se vuelven invisibles y cada pieza lleva su malla dentro (`ConMalla`): `Coche.publicar` enseña o esconde las mallas. El capó es la propia malla con el nombre `Capo`: `HuidaVista` lo cierra sin cambiarle el tamaño y esconde el motor y la batería de la copia (asoman).
+- **El generador** (`portable_generator` a `--alto 3.4 --oscurecer 0.6`): sus mallas van sueltas dentro del modelo `Generador` (`TrabajoVista` hace temblar los hijos directos); `Cuerpo` y `Escape` quedan invisibles y `Cuerda`, `Indicador` y `Nivel` siguen siendo bloques.
+- Salas "en bruto" (`bruto = true` en `SALAS`): solo papel, sin rodapié ni moldura (garaje y cobertizo).
+- Poly Haven: `compost_bags` son tres sacos esparcidos (a escala 4,5 miden 8 de ancho: en `Mapa`, `ScaleTo` 0,5 y su caja de choque a mano); `wicker_basket_01` es una bandeja baja; `bleach_bottle` y `all_purpose_cleaner` son de plástico moderno de colores (a `--oscurecer 0.5`); `wooden_ladder` es una escalera de tijera abierta; `hanging_industrial_lamp` trae 5,4 de cadena.
+- `upload_image` con 45 imágenes tarda más de dos minutos (sigue en segundo plano). Los ids se guardaron en `_garaje_tex*.json` dentro de la carpeta servida y Studio los lee con `HttpService:GetAsync`.

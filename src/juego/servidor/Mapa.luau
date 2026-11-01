@@ -530,22 +530,30 @@ local function construirCobertizo()
 	local gen = Instance.new("Model")
 	gen.Name = "Generador"
 	gen.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-	local base = CFrame.new(-50, ABAJO, 41.5)
+	-- Contra la pared del fondo (11.8.12, opción B elegida por el usuario): el de Poly Haven, con el frente a la entrada.
+	-- Los bloques que chocan (cuerpo y escape) son invisibles si está la malla; la cuerda y el indicador, en su frente.
+	local base = CFrame.new(-51.6, ABAJO, 41.25)
 	local function trozo(nombre: string, tamano: Vector3, offset: CFrame, color: Color3, material: Enum.Material?)
 		return bloque(nombre, tamano, base * offset, color, material or Enum.Material.Metal, gen)
 	end
-	trozo("Cuerpo", Vector3.new(4, 2.4, 2.6), CFrame.new(0, 1.5, 0), Color3.fromRGB(96, 40, 32))
-	trozo("Patas", Vector3.new(4.4, 0.3, 2.9), CFrame.new(0, 0.15, 0), COLOR.Oscuro)
-	trozo("Deposito", Vector3.new(2.4, 0.8, 1.9), CFrame.new(-0.5, 3.1, 0), Color3.fromRGB(110, 46, 36))
-	trozo("Tapon", Vector3.new(0.5, 0.3, 0.5), CFrame.new(-1.2, 3.6, 0), COLOR.Oscuro)
-	trozo("Escape", Vector3.new(0.35, 1.6, 0.35), CFrame.new(-1.7, 3.3, -1), COLOR.Oscuro)
-	trozo("Motor", Vector3.new(1.4, 1.6, 1.8), CFrame.new(1.4, 1.6, 0), Color3.fromRGB(60, 60, 62), Enum.Material.DiamondPlate)
-	trozo("Cuerda", Vector3.new(0.25, 0.25, 0.9), CFrame.new(2.3, 2, 0.3), COLOR.Oscuro, Enum.Material.Plastic)
+	local cuerpo = trozo("Cuerpo", Vector3.new(3.2, 3.3, 4.7), CFrame.new(0, 1.65, 0), Color3.fromRGB(96, 40, 32))
+	local escape = trozo("Escape", Vector3.new(0.35, 0.4, 0.35), CFrame.new(-0.6, 3.2, -1.9), COLOR.Oscuro)
+	trozo("Cuerda", Vector3.new(0.25, 0.25, 0.9), CFrame.new(1.75, 1.6, -1.2), COLOR.Oscuro, Enum.Material.Plastic)
 	-- Indicador de gasolina en el frente: el cliente sube y baja el Nivel.
-	trozo("Indicador", Vector3.new(0.1, 1.6, 0.3), CFrame.new(2.05, 1.5, -1.1), Color3.fromRGB(30, 28, 26))
-	trozo("Nivel", Vector3.new(0.1, 1.4, 0.18), CFrame.new(2.11, 1.5, -1.1), Color3.fromRGB(170, 140, 60), Enum.Material.SmoothPlastic)
-	mando(base * CFrame.new(3.4, 2.4, 0), gen)
-	gen:SetAttribute("Tapon", base * CFrame.new(-1.2, 3.8, 0)) -- donde cae la gasolina
+	trozo("Indicador", Vector3.new(0.1, 1.2, 0.3), CFrame.new(1.72, 2.1, 1.5), Color3.fromRGB(30, 28, 26))
+	trozo("Nivel", Vector3.new(0.1, 1, 0.18), CFrame.new(1.78, 2.1, 1.5), Color3.fromRGB(170, 140, 60), Enum.Material.SmoothPlastic)
+	mando(base * CFrame.new(3, 2.4, 0), gen)
+	gen:SetAttribute("Tapon", base * CFrame.new(0, 3.6, 0.8)) -- donde cae la gasolina
+	-- La malla, suelta dentro del modelo: TrabajoVista hace temblar las piezas que cuelgan de él.
+	local malla = tienda("GeneradorPH", base * CFrame.Angles(0, -math.pi / 2, 0), true)
+	if malla then
+		for _, pieza in malla:GetChildren() do
+			pieza.Parent = gen
+		end
+		malla:Destroy()
+		cuerpo.Transparency = 1
+		escape.Transparency = 1
+	end
 	CollectionService:AddTag(gen, "Generador")
 	gen.Parent = casa
 end
@@ -627,53 +635,99 @@ local function construirCoche(base: CFrame)
 	local coche = Instance.new("Model")
 	coche.Name = "Coche"
 	coche.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-	local PINTURA, CRISTAL = Color3.fromRGB(78, 88, 96), Color3.fromRGB(120, 135, 140)
+	-- El de Blender (CocheViejo, 11.8.12): un sedán de los setenta de 6,6 × 14,3. Los bloques son lo que choca y el sitio
+	-- de cada pieza; si está la malla, son invisibles y cada pieza lleva dentro la suya (Coche enseña las mallas).
+	local PINTURA = Color3.fromRGB(78, 88, 96)
 	local function trozo(nombre: string, tamano: Vector3, offset: CFrame, color: Color3, material: Enum.Material?): Part
 		return bloque(nombre, tamano, base * offset, color, material or Enum.Material.Metal, coche)
 	end
-	trozo("Chasis", Vector3.new(6.4, 1.6, 12), CFrame.new(0, 1.9, 0), PINTURA)
-	trozo("Cabina", Vector3.new(6, 2.4, 5.6), CFrame.new(0, 3.9, 1.4), PINTURA)
-	local parabrisas = trozo("Parabrisas", Vector3.new(5.6, 2, 0.2), CFrame.new(0, 3.8, -1.45) * CFrame.Angles(math.rad(-20), 0, 0),
-		CRISTAL, Enum.Material.Glass)
-	parabrisas.Transparency = 0.5
+	local cuerpo = {
+		trozo("Chasis", Vector3.new(6.4, 2.1, 13.6), CFrame.new(0, 2, 0), PINTURA),
+		trozo("Cabina", Vector3.new(6.2, 1.8, 6), CFrame.new(0, 4, 1.4), PINTURA),
+	}
+	-- Los faros: HuidaVista los enciende en la huida (con la malla, solo la luz).
 	for _, lado in { -1, 1 } do
-		local ventanilla = trozo("Ventanilla", Vector3.new(0.2, 1.6, 4), CFrame.new(3.02 * lado, 4.1, 1.4), CRISTAL, Enum.Material.Glass)
-		ventanilla.Transparency = 0.5
-		trozo("Faro", Vector3.new(1.2, 0.6, 0.1), CFrame.new(2.2 * lado, 2.2, -6.05), Color3.fromRGB(200, 195, 170),
-			Enum.Material.SmoothPlastic)
+		table.insert(cuerpo, trozo("Faro", Vector3.new(0.7, 0.7, 0.1), CFrame.new(2.3 * lado, 2.3, -6.95), Color3.fromRGB(200, 195, 170),
+			Enum.Material.SmoothPlastic))
 	end
-	-- Arañazos del bicho en el lado del conductor.
-	for i = 1, 3 do
-		trozo("Arañazo", Vector3.new(0.1, 0.15, 3.4), CFrame.new(-3.22, 2.3 + i * 0.35, 1) * CFrame.Angles(math.rad(-14), 0, 0),
-			Color3.fromRGB(70, 20, 18), Enum.Material.SmoothPlastic)
-	end
-	-- Capó abierto (la bisagra junto al parabrisas): deja ver el hueco del motor.
-	trozo("Capo", Vector3.new(6.2, 0.3, 4.2), CFrame.new(0, 2.8, -1.7) * CFrame.Angles(math.rad(65), 0, 0) * CFrame.new(0, 0, -2.1),
+	-- Capó abierto (la bisagra junto al parabrisas): deja ver el hueco del motor. HuidaVista lo cierra.
+	local capo = trozo("Capo", Vector3.new(6.2, 0.3, 4.4), CFrame.new(0, 3.1, -2) * CFrame.Angles(math.rad(65), 0, 0) * CFrame.new(0, 0, -2.2),
 		PINTURA)
 	-- Las piezas: Motor, Rueda1..4 (las 1 y 2, las de atrás, ya están), Bateria y Radiador.
-	trozo("Motor", Vector3.new(3.2, 2.2, 2.4), CFrame.new(0, 2.4, -4), Color3.fromRGB(70, 72, 75), Enum.Material.DiamondPlate)
-	for i, sitio in { { 1, 4 }, { -1, 4 }, { 1, -4 }, { -1, -4 } } do
-		local rueda = trozo("Rueda" .. i, Vector3.new(1, 2.6, 2.6), CFrame.new(3.45 * sitio[1], 1.3, sitio[2]), Color3.fromRGB(32, 32, 34),
+	local piezas = { Motor = "MotorCoche", Bateria = "BateriaCoche", Radiador = "RadiadorCoche" }
+	trozo("Motor", Vector3.new(3.1, 2.2, 2.4), CFrame.new(0, 2.45, -4.2), Color3.fromRGB(70, 72, 75), Enum.Material.DiamondPlate)
+	for i, sitio in { { 1, 4.3 }, { -1, 4.3 }, { 1, -4.4 }, { -1, -4.4 } } do
+		local rueda = trozo("Rueda" .. i, Vector3.new(0.94, 2.6, 2.6), CFrame.new(2.75 * sitio[1], 1.3, sitio[2]), Color3.fromRGB(32, 32, 34),
 			Enum.Material.Rubber)
 		rueda.Shape = Enum.PartType.Cylinder
+		piezas[rueda.Name] = "RuedaCoche"
 		if i > 2 then
-			trozo("Ladrillos" .. (i - 2), Vector3.new(1.2, 1.1, 1.6), CFrame.new(2.6 * sitio[1], 0.55, sitio[2]), Color3.fromRGB(120, 60, 48),
+			trozo("Ladrillos" .. (i - 2), Vector3.new(1, 1.1, 1.6), CFrame.new(2.4 * sitio[1], 0.55, sitio[2]), Color3.fromRGB(120, 60, 48),
 				Enum.Material.Brick)
 		end
 	end
-	trozo("Bateria", Vector3.new(1.4, 1, 0.9), CFrame.new(-2.2, 3.2, -5.3), Color3.fromRGB(40, 40, 42), Enum.Material.SmoothPlastic)
-	trozo("Radiador", Vector3.new(3, 1.4, 0.3), CFrame.new(0, 2, -6.2), Color3.fromRGB(150, 150, 148))
-	mando(base * CFrame.new(0, 2.6, -6.6), coche) -- reparar, delante del capó
-	local conducir = mando(base * CFrame.new(-3.8, 3, 0.6), coche) -- huir, en la puerta del conductor
+	trozo("Bateria", Vector3.new(1.4, 1.07, 0.9), CFrame.new(-1.9, 1.885, -2.5), Color3.fromRGB(40, 40, 42), Enum.Material.SmoothPlastic)
+	trozo("Radiador", Vector3.new(3, 1.55, 0.3), CFrame.new(0, 2.125, -6.15), Color3.fromRGB(150, 150, 148))
+	mando(base * CFrame.new(0, 2.6, -7.6), coche) -- reparar, delante del parachoques
+	local conducir = mando(base * CFrame.new(-3.9, 3, 0.6), coche) -- huir, en la puerta del conductor
 	conducir.Name = "Conducir"
-	coche:SetAttribute("Tapon", base * CFrame.new(3.25, 2.4, -1.5)) -- donde cae la gasolina (cerca del capó, para el R)
+	coche:SetAttribute("Tapon", base * CFrame.new(3.3, 2.6, -1.5)) -- donde cae la gasolina (cerca del capó, para el R)
+	local carroceria = tienda("CocheViejo", base * CFrame.new(0, 0.95, 0), true)
+	if carroceria then
+		for _, pieza in carroceria:GetChildren() do
+			pieza.Parent = coche
+		end
+		carroceria:Destroy()
+		for _, b in cuerpo do
+			b.Transparency = 1
+		end
+		-- El capó de verdad es la malla, con el nombre del bloque (HuidaVista la busca).
+		local tapa = tienda("CapoCoche", capo.CFrame * CFrame.new(0, -0.125, 0), true)
+		if tapa then
+			local malla = tapa:FindFirstChildWhichIsA("MeshPart")
+			if malla then
+				malla.Name = "Capo"
+				malla.Parent = coche
+				capo:Destroy()
+			end
+			tapa:Destroy()
+		end
+		-- Cada pieza, con su malla dentro (de pie sobre el fondo del bloque).
+		for nombre, molde in piezas do
+			local parte = coche:FindFirstChild(nombre) :: BasePart
+			local m = tienda(molde, parte.CFrame * CFrame.new(0, -parte.Size.Y / 2, 0), true)
+			if m then
+				for _, pieza in m:GetChildren() do
+					pieza.Parent = parte
+				end
+				m:Destroy()
+				parte.Transparency = 1
+				parte:SetAttribute("ConMalla", true)
+			end
+		end
+		-- Arañazos del bicho en la puerta del conductor (MARCAS.Aranazos).
+		local marcas = trozo("Marcas", Vector3.new(0.05, 2, 5), CFrame.new(-3.25, 2.4, 0.8), PINTURA)
+		marcas.Transparency = 1
+		marcas.CanCollide = false
+		marcas.CanQuery = false
+		local d = Instance.new("Decal")
+		d.Texture = "rbxassetid://72113309993798"
+		d.Color3 = Color3.fromRGB(150, 120, 110)
+		d.Face = Enum.NormalId.Left
+		d.Parent = marcas
+	else
+		for i = 1, 3 do -- sin la malla, tres rayas
+			trozo("Arañazo", Vector3.new(0.1, 0.15, 3.4), CFrame.new(-3.22, 2.3 + i * 0.35, 1) * CFrame.Angles(math.rad(-14), 0, 0),
+				Color3.fromRGB(70, 20, 18), Enum.Material.SmoothPlastic)
+		end
+	end
 	coche:SetAttribute("Sitio", base)
 	CollectionService:AddTag(coche, "Coche")
 	coche.Parent = casa
 end
 
 -- Desván bajo el tejado (suelo en y = 27, encima del techo; de alto, 13 en la cumbrera): se sube por la escalera del
--- cuarto cerrado de arriba. Hastiales en los dos lados y el cuarto de revelado del rico.
+-- cuarto cerrado de arriba. Hastiales en los dos lados; el cuarto de revelado del rico y lo demás, en vestirDesvan.
 local function construirDesvan()
 	local alto = TEJADO.pendiente * 33.5
 	for _, x in { -39, 39 } do
@@ -689,10 +743,7 @@ local function construirDesvan()
 			cuna.Parent = casa
 		end
 	end
-	bloque("MesaRevelado", Vector3.new(6, 3, 3), CFrame.new(10, 28.5, 0), COLOR.Mueble)
-	bloque("Cubeta", Vector3.new(1.6, 0.3, 1.2), CFrame.new(9, 30.15, 0), COLOR.Oscuro, Enum.Material.SmoothPlastic)
-	bloque("Cuerda", Vector3.new(14, 0.1, 0.1), CFrame.new(10, 32.5, -3), COLOR.Oscuro, Enum.Material.Fabric) -- fotos tendidas
-	lampara(Vector3.new(4, 34.5, 0))
+	-- Lo de dentro (cuarto de revelado, muebles tapados, vigas…), en vestirDesvan.
 end
 
 -- Sótano bajo el patio de atrás: de la puerta del fondo del pasillo (z = 33) baja una escalera tapada (x -3..3) hasta
@@ -748,13 +799,21 @@ local function construirGaraje()
 	muro(-59, 3, -59, 33, ABAJO, { v(4, 4, 3, 9, false) }, OESTE)
 	muro(-59, 33, -39, 33, ABAJO, {}, Vector3.new(0, 0, 1))
 	Fachada.chapa(bloque("Techo", Vector3.new(21, 1, 31), CFrame.new(-49.5, ABAJO + ALTO + 0.5, 18), COLOR.Oscuro, Enum.Material.CorrodedMetal))
-	lampara(Vector3.new(-49, ABAJO + ALTO - 0.3, 18))
 	construirCoche(CFrame.new(-49, ABAJO, 18))
-	banco("Garaje", CFrame.lookAt(Vector3.new(-57.2, ABAJO, 27), Vector3.new(-47, ABAJO, 27)))
+	-- El taller, en la pared del fondo frente al portón (11.8.12, opción B elegida por el usuario): el banco de Blender
+	-- (BancoTaller, en vestirGaraje) tapa los bloques del de siempre, que siguen chocando y siendo el Banco del Taller.
+	banco("Garaje", CFrame.lookAt(Vector3.new(-49.5, ABAJO, 31.1), Vector3.new(-49.5, ABAJO, 20)))
+	if MUEBLES.BancoTaller then
+		for _, b in (casa:FindFirstChild("BancoGaraje") :: Model):GetChildren() do
+			if b:IsA("BasePart") then
+				b.Transparency = 1
+			end
+		end
+	end
 	table.insert(Mapa.pesados, { tipo = "Rueda", cf = CFrame.new(-56, ABAJO + 0.5, 8) * CFrame.Angles(0, 0, math.pi / 2) })
-	table.insert(Mapa.pesados, { tipo = "Bidon", cf = CFrame.new(-41.5, ABAJO + 1.2, 30.5) })
-	for _, z in { 24.5, 29.5 } do
-		table.insert(Mapa.objetos, { tipo = "Chatarra", cf = CFrame.new(-57.2, ABAJO + 3.7, z) * CFrame.Angles(0, math.pi / 2, 0) })
+	table.insert(Mapa.pesados, { tipo = "Bidon", cf = CFrame.new(-41.2, ABAJO + 1.2, 25.3) })
+	for _, x in { -52, -47.8 } do
+		table.insert(Mapa.objetos, { tipo = "Chatarra", cf = CFrame.new(x, ABAJO + 3.7, 30.3) })
 	end
 end
 
@@ -785,11 +844,18 @@ local SALAS = {
 	-- Cocina (11.8.4): pintura verde menta sucia sobre azulejo blanco alargado a media pared, damas sucias y techo
 	-- ahumado, propios de la sala.
 	{ x1 = -39, x2 = -12, z1 = 3, z2 = 33, y = ABAJO, papel = "PapelCocina", suelo = "SueloCocina", techo = "TechoCocina", azulejo = "AzulejoCocina" },
-	{ x1 = -26, x2 = -12, z1 = 33, z2 = 45, y = ABAJO, papel = "Claro", suelo = "Azulejo", techo = true }, -- lavadero
+	-- Lavadero (11.8.12): pintura que se pela sobre azulejo blanco a media pared, baldosa gastada y el techo ahumado de la
+	-- cocina. Garaje y cobertizo, "en bruto" (sin rodapié ni moldura): bloques de hormigón y suelo de garaje con manchas;
+	-- tablas viejas y suelo de tierra. Sus techos son la chapa.
+	{ x1 = -26, x2 = -12, z1 = 33, z2 = 45, y = ABAJO, papel = "PapelLavadero", suelo = "SueloLavadero", techo = "TechoCocina", azulejo = "AzulejoLavadero", medir = true },
+	{ x1 = -59, x2 = -39, z1 = 3, z2 = 33, y = ABAJO, papel = "ParedGaraje", suelo = "SueloGaraje", bruto = true, medir = true },
+	{ x1 = -54, x2 = -44, z1 = 37, z2 = 45.5, y = ABAJO, papel = "ParedCobertizo", suelo = "SueloCobertizo", bruto = true, medir = true },
 	-- Dormitorio grande, el de los dueños (11.8.8): papel de damasco azul grisáceo sobre papel viejo, rodapié oscuro,
 	-- parqué de tiras oscuro y el techo de yeso del salón.
 	{ x1 = 12, x2 = 39, z1 = -33, z2 = 9, y = ARRIBA, papel = "PapelDormitorioGrande", suelo = "SueloDormitorioGrande", techo = "TechoSalon", rodapie = "MaderaOscura" },
-	{ x1 = 12, x2 = 39, z1 = 9, z2 = 33, y = ARRIBA, papel = "Claro" }, -- cuarto de la escalera del desván
+	-- Escalera del desván (11.8.11): papel viejo ocre sin dibujo, rodapié oscuro y las tablas viejas de la galería (el techo,
+	-- de tablas con el hueco de la escalera, en vestirDesvan).
+	{ x1 = 12, x2 = 39, z1 = 9, z2 = 33, y = ARRIBA, papel = "PapelEscaleraDesvan", suelo = "SueloGaleria", rodapie = "MaderaOscura" },
 	-- Galería (11.8.7): damasco azul pizarra y oro viejo sobre el zócalo de paneles del vestíbulo, tablas viejas y el
 	-- techo agrietado del vestíbulo (se ven juntos desde el hueco).
 	{ x1 = -12, x2 = 12, z1 = 0, z2 = 33, y = ARRIBA, papel = "PapelGaleria", suelo = "SueloGaleria", techo = "TechoVestibulo", zocalo = "PanelVestibulo" },
@@ -797,7 +863,9 @@ local SALAS = {
 	-- Habitación del rico (11.8.9): papel azul marino de rayas con hilo dorado sobre zócalo alto de paneles de caoba,
 	-- parquet oscuro y el techo de yeso del salón.
 	{ x1 = -39, x2 = -12, z1 = -33, z2 = 9, y = ARRIBA, papel = "PapelRico", suelo = "SueloRico", techo = "TechoSalon", zocalo = "ZocaloRico" },
-	{ x1 = -39, x2 = -12, z1 = 9, z2 = 33, y = ARRIBA, papel = "Claro", suelo = "Madera", techo = true }, -- cuarto de los niños
+	-- Cuarto de los niños (11.8.10): papel de patitos y globos desteñido sobre papel viejo, rodapié oscuro, tablas viejas
+	-- y el techo de yeso del salón.
+	{ x1 = -39, x2 = -12, z1 = 9, z2 = 33, y = ARRIBA, papel = "PapelNinos", suelo = "SueloNinos", techo = "TechoSalon", rodapie = "MaderaOscura" },
 }
 -- Papel pintado (imágenes del Creator Store, teñidas): damasco mostaza en el salón.
 -- Colores apagados y sucios (pedido por el usuario: el mostaza chillón parecía un juego de niños, no una casa
@@ -866,6 +934,9 @@ local function vestirParedes()
 				else -- papel propio de la sala (un MaterialVariant)
 					variante(hoja, sala.papel)
 				end
+				if sala.bruto then -- garaje y cobertizo: solo la pared
+					continue
+				end
 				if math.abs(bajo - sala.y) < 0.5 then -- Separar las engorda un poco
 					if sala.azulejo then
 						local azulejo = math.min(4.5, alto - bajo) -- bajo una ventana, hasta la repisa
@@ -897,14 +968,16 @@ end
 
 -- Suelos y techos de cada sala: madera oscura, azulejo en el baño, techo de yeso (o los propios de cada sala).
 -- Cara de arriba del suelo de arriba (Piso) en `punto`: Separar lo engorda y queda por encima de ARRIBA (tapaba el suelo
--- propio de la galería, 11.8.7). Abajo no se mira: allí no crece y las salas ya hechas siguen igual.
-local function sueloArriba(punto: Vector3): number
-	local alto = ARRIBA
+-- propio de la galería, 11.8.7). Abajo solo se mira en las salas con `medir` (el lavadero: su Piso también crece y
+-- tapaba la baldosa, 11.8.12); las demás siguen igual. `nivel` = la altura sin engordar (ARRIBA si no se dice).
+local function sueloArriba(punto: Vector3, nivel: number?): number
+	local base = nivel or ARRIBA
+	local alto = base
 	for _, piso in casa:GetChildren() do
 		if piso.Name == "Piso" and piso:IsA("BasePart") then
 			local d = piso.CFrame:PointToObjectSpace(punto)
 			local cara = piso.Position.Y + piso.Size.Y / 2
-			if math.abs(d.X) < piso.Size.X / 2 and math.abs(d.Z) < piso.Size.Z / 2 and math.abs(cara - ARRIBA) < 0.5 then
+			if math.abs(d.X) < piso.Size.X / 2 and math.abs(d.Z) < piso.Size.Z / 2 and math.abs(cara - base) < 0.5 then
 				alto = math.max(alto, cara)
 			end
 		end
@@ -918,7 +991,7 @@ local function vestirSuelos()
 		local ancho, fondo = s.x2 - s.x1 - 1, s.z2 - s.z1 - 1
 		local centro = Vector3.new((s.x1 + s.x2) / 2, s.y, (s.z1 + s.z2) / 2)
 		-- El suelo de verdad (arriba lo sube Separar): ahí van la lámina y los cascotes; el techo sigue saliendo de centro.
-		local pisa = if s.y == ARRIBA then sueloArriba(centro) else s.y
+		local pisa = if s.y == ARRIBA then sueloArriba(centro) elseif s.medir then sueloArriba(centro, s.y) else s.y
 		local lamSuelo = CFrame.new(centro.X, pisa + 0.03, centro.Z)
 		if s.suelo == "Madera" then
 			lamina(Vector3.new(ancho, 0.06, fondo), lamSuelo, Color3.fromRGB(46, 32, 24),
@@ -1452,6 +1525,203 @@ local function vestirDormitorioGrande()
 	luzLuna(Vector3.new(43.6, ARRIBA + 8, -37.6), Vector3.new(37, ARRIBA, -29), 1.2, 18)
 end
 
+-- Lavadero, garaje y cobertizo (11.8.12, opción B elegida por el usuario: "el taller del padre"). En el garaje, el coche
+-- en medio y el taller entero en la pared del fondo, frente al portón (se ve nada más abrirlo); estanterías de metal al
+-- oeste; neumáticos, escalera, bidones y carro de herramientas en la pared de la cocina. Lo que pasó: al padre lo
+-- arrastraron del coche al banco (arrastre y gotas) e intentó salir por el portón (arañazos por dentro). En el lavadero,
+-- la pila al oeste (lejos de la ventana), la estantería de botes junto a la entrada, la lavadora al lado del armario,
+-- el tendedero junto a la entrada y una cuerda de ropa en diagonal, en lo alto. En el cobertizo, el generador contra el
+-- fondo (construirCobertizo), sacos, la pala y la regadera. Caras de las paredes, ya con el papel y el azulejo.
+local function vestirGaraje()
+	local blanco = Color3.new(1, 1, 1)
+	local ESTE_V, OESTE_V, NORTE_V, SUR_V = Vector3.xAxis, -Vector3.xAxis, Vector3.zAxis, -Vector3.zAxis
+	local function suelto(nombre: string, cf: CFrame)
+		return tienda(nombre, cf, true)
+	end
+	-- Lámpara de taller colgada del techo de chapa, con su bombilla (la enciende el generador). Sin la malla, la de siempre.
+	local function lamparaTaller(x: number, z: number, alcance: number, sombras: boolean)
+		local techo = ABAJO + ALTO
+		local molde = MUEBLES.LamparaTallerPH
+		if not molde then
+			lampara(Vector3.new(x, techo - 0.3, z))
+			return
+		end
+		local abajo = techo - (molde:GetAttribute("Tam") :: Vector3).Y
+		suelto("LamparaTallerPH", CFrame.new(x, abajo, z))
+		local bombilla = bloque("Lampara", Vector3.new(0.4, 0.4, 0.4), CFrame.new(x, abajo + 0.45, z), COLOR.Lampara, Enum.Material.SmoothPlastic)
+		bombilla.Shape = Enum.PartType.Ball
+		bombilla.CanCollide = false
+		bombilla.CastShadow = false
+		local luz = Instance.new("PointLight")
+		luz.Color = COLOR.Lampara
+		luz.Brightness = 1.1
+		luz.Range = alcance
+		luz.Shadows = sombras
+		luz.Enabled = false
+		luz.Parent = bombilla
+		table.insert(Mapa.lamparas, bombilla)
+	end
+	local function telarana(pos: Vector3, hacia: Vector3)
+		local molde = MUEBLES.Telarana
+		if molde then
+			local tela = suelto("Telarana", CFrame.lookAt(pos, pos + hacia) - Vector3.new(0, (molde:GetAttribute("Tam") :: Vector3).Y * 0.45, 0))
+			if tela then
+				tela:ScaleTo(tela:GetScale() * 0.45)
+			end
+		end
+	end
+
+	-- ===== Garaje (x -59..-39, z 3..33) =====
+	local G_OESTE, G_ESTE, G_FONDO = -58.45, -39.55, 32.55
+	-- El taller: banco largo con el tablero de herramientas (falta el martillo), tornillo, llave grifa y la sierra colgada.
+	suelto("BancoTaller", CFrame.new(-49.5, ABAJO, G_FONDO - 1.43))
+	suelto("TornilloBancoPH", CFrame.new(-54.2, ABAJO + 3.5, 30.2))
+	suelto("LlaveGrifaPH", CFrame.new(-50.2, ABAJO + 3.57, 30.3) * CFrame.Angles(0, 0.4, 0) * CFrame.Angles(math.pi / 2, 0, 0))
+	suelto("SerruchoPH", CFrame.new(-47.3, ABAJO + 6.24, 32.3) * CFrame.Angles(0, math.pi / 2, 0))
+	suelto("PalancaPH", CFrame.new(-56.2, ABAJO, 32.05) * CFrame.Angles(-0.12, 0.3, 0))
+	lamparaTaller(-49.5, 28.6, 16, false)
+	lamparaTaller(-49, 18, 26, true)
+	-- Estanterías de metal al oeste (la ventana, z 10..14, libre), con cajas, latas, aceite, un cubo y bidones.
+	for i, z in { 17.2, 21.7, 26.2 } do
+		contraPared("EstanteriaMetalPH", G_OESTE, ABAJO, z, ESTE_V)
+		local x = G_OESTE + 1.06
+		local function balda(nombre: string, y: number, dz: number, giro: number?)
+			suelto(nombre, CFrame.new(x, ABAJO + y, z + dz) * CFrame.Angles(0, (giro or 0) - math.pi / 2, 0))
+		end
+		if i == 1 then
+			balda("CajaCartonPH", 0.5, 0, math.pi / 2)
+			balda("AceitePH", 2.6, -1.2, 0.3)
+			balda("AceitePH", 2.6, -0.4, -0.2)
+			balda("AceitePH", 2.6, 0.6, 0.1)
+			balda("LataOxidadaPH", 4.6, -1, 0)
+			balda("LatasPH", 4.6, 0.8, 0.2)
+			balda("CajaCartonPH", 6.6, 0.3, math.pi / 2 + 0.1)
+		elseif i == 2 then
+			balda("BidonGasolinaPH", 0.5, -1, 0)
+			balda("BidonGasolinaPH", 0.5, 0.9, 0.15)
+			balda("CuboPH", 2.6, -0.6, 0.4)
+			balda("AceitePH", 4.6, 0.9, 0)
+			balda("LatasPH", 6.6, -0.5, -0.3)
+		else
+			balda("CajaCartonPH", 0.5, 0.2, math.pi / 2 - 0.1)
+			balda("TablaPH", 2.6, 0, 0.2)
+			balda("CajaCartonPH", 4.6, -0.4, math.pi / 2)
+			balda("LataOxidadaPH", 6.6, -0.9, 0)
+			balda("LataOxidadaPH", 6.6, 0.5, 1)
+		end
+	end
+	-- Pared de la cocina: neumáticos apilados junto al portón, la escalera de mano, bidones y el carro de herramientas.
+	local azar = Random.new(12)
+	for k = 0, 3 do
+		local centro = Vector3.new(-41.1 + azar:NextNumber(-0.15, 0.15), ABAJO + 0.33 + k * 0.66, 6.6 + azar:NextNumber(-0.15, 0.15))
+		suelto("NeumaticoPH", CFrame.new(centro) * CFrame.Angles(0, azar:NextNumber(0, math.pi), 0) * CFrame.Angles(math.pi / 2, 0, 0)
+			* CFrame.new(0, -1.2, 0))
+	end
+	local pila = bloque("Choque", Vector3.new(2.3, 2.6, 2.3), CFrame.new(-41.1, ABAJO + 1.3, 6.6))
+	pila.Transparency = 1
+	pila.CanQuery = false
+	contraPared("EscaleraManoPH", G_ESTE, ABAJO, 11, OESTE_V)
+	contraPared("BidonGasolinaPH", G_ESTE, ABAJO, 21.9, OESTE_V)
+	contraPared("BidonGasolinaPH", G_ESTE, ABAJO, 23.5, OESTE_V)
+	local carro = contraPared("CarroHerramientasPH", G_ESTE, ABAJO, 29.6, OESTE_V)
+	if carro then
+		suelto("AceitePH", CFrame.new(-41, ABAJO + 3.87, 28.4))
+		suelto("LatasPH", CFrame.new(-41.2, ABAJO + 3.87, 30.6) * CFrame.Angles(0, 0.7, 0))
+	end
+	-- Lo que pasó: aceite bajo el coche, el arrastre desde la puerta del conductor hasta el banco, gotas delante del banco
+	-- y arañazos por dentro del portón (en la hoja, que sube al abrirlo).
+	mancha(Vector3.new(-48.6, ABAJO + 0.08, 14.5), Vector3.yAxis, 5, SANGRE_VESTIBULO.Salpicadura, Color3.fromRGB(28, 24, 20), 0.4)
+	mancha(Vector3.new(-52.6, ABAJO + 0.09, 24), Vector3.yAxis, 3, SANGRE_VESTIBULO.Arrastre, blanco, math.pi / 2 - 0.17, 10.5)
+	mancha(Vector3.new(-51.2, ABAJO + 0.1, 28.9), Vector3.yAxis, 1.8, SANGRE_VESTIBULO.Gotas, blanco, 0.6)
+	mancha(Vector3.new(-53.9, ABAJO + 0.1, 20.5), Vector3.yAxis, 2.6, MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), math.pi / 2 + 0.1, 4)
+	local porton = casa:FindFirstChild("Porton")
+	local hoja = porton and porton:FindFirstChild("Hoja") :: BasePart?
+	if hoja then
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Back -- la cara de dentro
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 50
+		gui.LightInfluence = 1
+		gui.Parent = hoja
+		for _, m in {
+			{ MARCAS.Aranazos, 0.22, 0.5, 0.3, 0.38 }, { MARCAS.Aranazos, 0.5, 0.58, 0.26, 0.32 },
+			{ SANGRE_VESTIBULO.Gotas, 0.4, 0.42, 0.2, 0.22, Color3.fromRGB(130, 100, 95) },
+		} do
+			local imagen = Instance.new("ImageLabel")
+			imagen.BackgroundTransparency = 1
+			imagen.Image = m[1]
+			imagen.ImageColor3 = m[6] or Color3.fromRGB(150, 120, 110)
+			imagen.Position = UDim2.fromScale(m[2], m[3])
+			imagen.Size = UDim2.fromScale(m[4], m[5])
+			imagen.Parent = gui
+		end
+	end
+	-- Techo de tablas con vigas bajo la chapa (por debajo, la chapa se veía como un camuflaje), aquí y en el cobertizo.
+	local function techoTablas(x1: number, x2: number, z1: number, z2: number, alto: number)
+		local techo = lamina(Vector3.new(x2 - x1 - 1, 0.06, z2 - z1 - 1), CFrame.new((x1 + x2) / 2, alto - 0.05, (z1 + z2) / 2),
+			Color3.fromRGB(60, 46, 34), Enum.Material.WoodPlanks)
+		variante(techo, "ParedCobertizo")
+		for z = z1 + 2.5, z2 - 1.5, 4 do
+			local viga = adorno(Vector3.new(x2 - x1 - 1, 0.6, 0.5), CFrame.new((x1 + x2) / 2, alto - 0.38, z))
+			viga.Color = Color3.fromRGB(52, 38, 28)
+		end
+	end
+	techoTablas(-59, -39, 3, 33, ABAJO + ALTO)
+	techoTablas(-54, -44, 37, 45.5, ABAJO + 9)
+	telarana(Vector3.new(-57.2, ABAJO + ALTO - 0.1, 31.3), Vector3.new(1, 0, -1))
+	telarana(Vector3.new(-40.8, ABAJO + ALTO - 0.1, 4.7), Vector3.new(-1, 0, 1))
+	luzLuna(Vector3.new(-61, ABAJO + 6.5, 12), Vector3.new(-50, ABAJO, 14), 1.5, 30)
+
+	-- ===== Lavadero (x -26..-12, z 33..45) =====
+	local L_OESTE, L_ESTE, L_FONDO, L_SUR = -25.37, -12.63, 44.37, 33.63
+	local LY = sueloArriba(Vector3.new(-19, ABAJO, 39), ABAJO) + 0.06 -- la cara de la baldosa (su Piso crece con Separar)
+	contraPared("PilaLavar", L_OESTE, LY, 37.9, ESTE_V)
+	contraPared("LavadoraVieja", -16, LY, L_FONDO, SUR_V)
+	contraPared("Tendedero", L_ESTE, LY, 37.5, OESTE_V)
+	suelto("CestaPH", CFrame.new(-13.6, LY, 43.3) * CFrame.Angles(0, 0.3, 0))
+	-- Estantería de botes junto a la entrada: cesto, lejía y limpiadores, cubo, latas y una caja.
+	if contraPared("EstanteriaMetalPH", -23.2, LY, L_SUR, NORTE_V) then
+		local z = L_SUR + 1.06
+		for _, b in {
+			{ "CestoMimbrePH", -23.2, 0.5, 0.1 }, { "LejiaPH", -24.6, 2.6, 0.3 }, { "LimpiadorPH", -23.8, 2.6, -0.2 },
+			{ "LejiaPH", -22, 2.6, 0 }, { "CuboPH", -23.6, 4.6, 0.5 }, { "LatasPH", -21.9, 4.6, 0 },
+			{ "CajaCartonPH", -23.2, 6.6, math.pi / 2 },
+		} do
+			suelto(b[1], CFrame.new(b[2], LY + b[3], z) * CFrame.Angles(0, math.pi + b[4], 0))
+		end
+	end
+	-- La cuerda de tender, en diagonal y en lo alto (la ropa no baja de 6,5 sobre el suelo): de la pared de la entrada a la
+	-- del enchufe. Sus puntas, a 3,65 sobre el pivote (a_mano.py).
+	local a, b = Vector3.new(-22.1, 0, L_SUR + 0.07), Vector3.new(L_ESTE - 0.07, 0, 40.4)
+	local medio = (a + b) / 2
+	suelto("CuerdaRopa", CFrame.new(medio.X, ABAJO + 10.3 - 3.654, medio.Z) * CFrame.Angles(0, -math.atan2(b.Z - a.Z, b.X - a.X), 0))
+	-- El enchufe del móvil (los bloques que funcionan, en construirCasa): su espalda en el azulejo.
+	local enchufe = Vector3.new(L_ESTE - 0.488, ABAJO + 1.126, 41)
+	suelto("EnchufeViejo", CFrame.lookAt(enchufe, enchufe + OESTE_V))
+	mancha(Vector3.new(-20.5, LY + 0.03, 40.6), Vector3.yAxis, 1.6, SANGRE_VESTIBULO.Gotas, blanco, 2.1)
+	luzLuna(Vector3.new(-27.5, ABAJO + 6.5, 42), Vector3.new(-18, ABAJO, 40), 1.5, 24)
+
+	-- ===== Cobertizo (x -54..-44, z 37..45,5) =====
+	local C_NORTE, C_SUR = 44.95, 37.55
+	local sacos = suelto("SacosPH", CFrame.new(-47.6, ABAJO, C_NORTE - 1.09))
+	if sacos then
+		sacos:ScaleTo(sacos:GetScale() * 0.5)
+		local choque = bloque("Choque", Vector3.new(3.7, 1.4, 1.9), CFrame.new(-47.6, ABAJO + 0.7, C_NORTE - 1.09))
+		choque.Transparency = 1
+		choque.CanQuery = false
+	end
+	for k = 0, 2 do
+		suelto("SacoCementoPH", CFrame.new(-48.4, ABAJO + k * 0.72, C_SUR + 1.0) * CFrame.Angles(0, math.pi / 2 + (k - 1) * 0.12, 0))
+	end
+	local cemento = bloque("Choque", Vector3.new(2.6, 2.1, 1.8), CFrame.new(-48.4, ABAJO + 1.05, C_SUR + 1.0))
+	cemento.Transparency = 1
+	cemento.CanQuery = false
+	suelto("RegaderaPH", CFrame.new(-48.1, ABAJO + 2.16, C_SUR + 1.0) * CFrame.Angles(0, 0.5, 0))
+	suelto("PalaPH", CFrame.new(-52.9, ABAJO, C_SUR + 0.9) * CFrame.Angles(-0.2, 0.2, 0))
+	telarana(Vector3.new(-52.8, ABAJO + 8.9, 44.2), Vector3.new(1, 0, -1))
+	luzLuna(Vector3.new(-41.5, ABAJO + 6, 41.5), Vector3.new(-50, ABAJO, 41.5), 1.2, 22)
+end
+
 -- Habitación del rico (11.8.9, opción B del usuario, "despacho y trofeos"). Junto a la puerta, el despacho: escritorio
 -- contra la pared de los niños con la lámpara de banquero (la única luz de la sala, la enciende el generador) y el
 -- diario abierto (sitio de la pista 11, tarea 12.1), el sillón, el tablero de corcho con el mapa del bosque y las fotos
@@ -1557,6 +1827,363 @@ local function vestirHabitacionRico()
 	luzLuna(Vector3.new(-38.4, ARRIBA + 8, -15), Vector3.new(-30, ARRIBA, -15), 1.2, 20)
 end
 
+
+-- Cuarto de los niños (11.8.10, opción B del usuario, "la merienda de los muñecos"). Dos camas pequeñas de hermanos
+-- contra la pared del fondo, una a cada lado de la ventana (la del oeste es el escondite, en construirCasa), con la
+-- mesilla y su lámpara (la única luz de la sala, la enciende el generador). Junto a la puerta, la mesita de té con la
+-- muñeca, el osito y el conejo sentados y la silla vacía de cara a la puerta, con su trozo de tarta: falta uno. La cuna,
+-- sola en el rincón del oeste junto a la pared del rico, con el móvil y arañazos alrededor; el baúl de juguetes volcado en
+-- la pared de la ventana del oeste; dibujos de niño con la figura alta y negra en la pared del rico y, debajo, el caballito
+-- mirando a la puerta (junto a la ventana tapaba la vista desde debajo de la cama). El centro, libre para correr.
+local NINOS = {
+	-- La del oeste, el escondite (cabecera contra la pared del fondo), sobre la lámina del suelo: aquí Separar sí engorda
+	-- el Piso (su cara queda a ARRIBA + 0,15, medido en Play) y la lámina va 0,06 por encima.
+	cama = Vector3.new(-35.6, ARRIBA + 0.21, 28.9),
+}
+local function vestirNinos()
+	local Y = sueloArriba(Vector3.new(-25.5, ARRIBA, 21)) + 0.06
+	local NORTE, SUR, OESTE_X, ESTE_X = 9.6, 32.42, -38.3, -12.6 -- caras de las paredes, con el papel
+	local AL_SUR, AL_NORTE, AL_ESTE = -Vector3.zAxis, Vector3.zAxis, Vector3.xAxis
+	local blanco = Color3.new(1, 1, 1)
+
+	-- La otra cama (sin escondite), la mesilla y la lámpara.
+	tienda("CamaNino", CFrame.new(-20.4, Y, SUR - 3.55))
+	local mesilla = contraPared("MesillaPH", -16.4, Y, SUR, AL_SUR)
+	local alto = if mesilla then (mesilla:GetAttribute("Tam") :: Vector3).Y else 2.46
+	local lamparita = tienda("LamparaNino", CFrame.new(-16.4, Y + alto, SUR - 1.1) * CFrame.Angles(0, 0.4, 0), true)
+	if lamparita then
+		for _, d in lamparita:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.CastShadow = false -- que la pantalla no tape la luz
+			end
+		end
+		local bombilla = bloque("Lampara", Vector3.new(0.35, 0.35, 0.35), lamparita:GetPivot() * CFrame.new(0, 1.35, 0), COLOR.Lampara,
+			Enum.Material.SmoothPlastic)
+		bombilla.Shape = Enum.PartType.Ball
+		bombilla.CanCollide = false
+		bombilla.CastShadow = false
+		local luz = Instance.new("PointLight")
+		luz.Color = COLOR.Lampara
+		luz.Brightness = 0.9
+		luz.Range = 24
+		luz.Shadows = true
+		luz.Enabled = false -- la enciende el generador
+		luz.Parent = bombilla
+		table.insert(Mapa.lamparas, bombilla)
+	else
+		lampara(Vector3.new(-25, ARRIBA + ALTO - 0.3, 21))
+	end
+	tienda("AlfombraTrapo", CFrame.new(-26, Y + 0.015, 21) * CFrame.Angles(0, math.rad(84), 0), true)
+
+	-- La merienda: la silla vacía (la de +X del molde) queda al oeste, de cara a la puerta.
+	local mesa = CFrame.new(-16.9, Y, 13.3) * CFrame.Angles(0, math.pi, 0)
+	tienda("MesaTe", mesa)
+	local centro = mesa.Position + Vector3.new(0, 1, 0)
+	for _, s in { { "Muneca", Vector3.new(-1.85, 0, 0), 6 }, { "Osito", Vector3.new(0, 0, -1.85), -9 }, { "Conejo", Vector3.new(0, 0, 1.85), 4 } } do
+		local asiento = (mesa * CFrame.new(s[2])).Position + Vector3.new(0, 1, 0)
+		tienda(s[1], CFrame.lookAt(asiento, centro) * CFrame.Angles(0, math.rad(s[3]), 0), true)
+	end
+
+	-- La cuna en el rincón, con el móvil colgado de su gancho (a 6,1 del suelo), y arañazos de uñas alrededor.
+	local cuna = CFrame.new(OESTE_X + 2.75, Y, NORTE + 1.65)
+	tienda("CunaNino", cuna)
+	tienda("MovilCuna", cuna * CFrame.new(0, 6.1 - 1.57, 0) * CFrame.Angles(0, 0.5, 0), true)
+	mancha(Vector3.new(-32, Y + 0.09, 11.2), Vector3.yAxis, 2.6, MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), 1.2, 3.5)
+	mancha(Vector3.new(-35.4, Y + 0.09, 14.1), Vector3.yAxis, 2.4, MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), 0.3, 3)
+
+	-- Pared de la ventana del oeste: baúl volcado con los juguetes por el suelo.
+	local baul = Vector3.new(OESTE_X + 2.1, Y, 15.3)
+	tienda("BaulJuguetes", CFrame.lookAt(baul, baul + Vector3.new(1, 0, 0.15)))
+	-- Dibujos de niño en la pared del rico, entre la cuna y la merienda (más grandes, que se lean desde la puerta), y
+	-- debajo el caballito, mirando a la puerta.
+	local dibujos = contraPared("DibujosNinos", -26.5, Y + 2.1, NORTE, AL_NORTE, true)
+	if dibujos then
+		dibujos:ScaleTo(dibujos:GetScale() * 1.3)
+	end
+	local caballo = Vector3.new(-24.2, Y, NORTE + 2.1)
+	tienda("Caballito", CFrame.lookAt(caballo, caballo + Vector3.new(1, 0, 0.15)))
+
+	-- Abandono e historia (Moderate como máximo): desconchones, una mano de sangre que resbala por el marco del vano y
+	-- unas gotas en el suelo hacia la cuna.
+	for _, d in { { -30, Y + 9, SUR, AL_SUR, 3 }, { OESTE_X, Y + 8.5, 28, AL_ESTE, 2.5 }, { -15, Y + 9.5, NORTE, AL_NORTE, 3 } } do
+		mancha(Vector3.new(d[1], d[2], d[3]), d[4], d[5], SANGRE_VESTIBULO.Desconchon, Color3.fromRGB(170, 160, 145), d[1] % 3)
+	end
+	mancha(Vector3.new(ESTE_X, Y + 3.2, 26.6), -AL_ESTE, 3.2, SANGRE_VESTIBULO.Gotas, blanco, 0)
+	mancha(Vector3.new(-28, Y + 0.08, 14.8), Vector3.yAxis, 1.6, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 110, 110), 2.1)
+	mancha(Vector3.new(-31.6, Y + 0.08, 13.6), Vector3.yAxis, 1.4, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 110, 110), 0.7)
+	-- Telarañas: sobre la cuna y en la esquina de la merienda.
+	for _, t in { { -37, 11, Vector3.new(1, 0, 1) }, { -14, 11, Vector3.new(-1, 0, 1) } } do
+		local molde = MUEBLES.Telarana
+		if molde then
+			local pos = Vector3.new(t[1], ARRIBA + ALTO - BAJO_TECHO - (molde:GetAttribute("Tam") :: Vector3).Y * 0.45, t[2])
+			local tela = tienda("Telarana", CFrame.lookAt(pos, pos + t[3]), true)
+			if tela then
+				tela:ScaleTo(tela:GetScale() * 0.45)
+			end
+		end
+	end
+	luzLuna(Vector3.new(-26, ARRIBA + 8, 32.4), Vector3.new(-26, ARRIBA, 22), 1.2, 22)
+	luzLuna(Vector3.new(-38.4, ARRIBA + 8, 21), Vector3.new(-30, ARRIBA, 21), 1.2, 20)
+end
+-- Escalera del desván y desván (11.8.11, opción B del usuario, "al fondo, la luz roja"). Escalera: peldaños de madera
+-- gastada, la pared de al lado llena de fotos de los vigilantes que mandó el rico (tachadas; la última, sin cara), baúles
+-- y maletas (una abierta con ropa de hombre) contra la pared de la ventana del lado, espejo tapado y maniquí junto a la
+-- del dormitorio y una bombilla colgando. Desván: tablas y vigas a la vista bajo el tejado; desde la trampilla (con su
+-- barandilla) se ve al fondo, hacia el oeste, la luz roja del cuarto de revelado del rico, y para llegar se cruza el
+-- desván entero entre muebles tapados con sábanas, un maniquí, una rueca y cajas. Dentro: mesa con cubetas, ampliadora,
+-- la cámara, las fotos de flash tendidas, la nota (pista 10) y la pistola de bengalas (12.2). La luna entra por los dos
+-- ventanucos. El paso del centro, bajo la cumbrera, libre para correr. Moderate como máximo.
+local DESVAN = {
+	cumbre = 39.4, -- cara de abajo del tejado en la cumbrera (z = 0); baja TEJADO.pendiente por stud hacia los lados
+	revelado = { x1 = -30, x2 = -18, z = 6 }, -- el cuarto de revelado: de x1 a x2 y de -z a z (pequeño y agobiante)
+	hueco = { x1 = 13, x2 = 17, z1 = 15, z2 = 23 }, -- el hueco de la escalera en el suelo del desván
+}
+local function vestirDesvan()
+	local AL_ESTE, AL_OESTE, AL_NORTE, AL_SUR = Vector3.xAxis, -Vector3.xAxis, Vector3.zAxis, -Vector3.zAxis
+	local blanco = Color3.new(1, 1, 1)
+	-- Cara de arriba de la pieza `nombre` que hay en `punto` (Separar engorda suelos y techos).
+	local function cara(nombre: string, punto: Vector3, porDefecto: number): number
+		for _, pieza in casa:GetChildren() do
+			if pieza.Name == nombre and pieza:IsA("BasePart") then
+				local d = pieza.CFrame:PointToObjectSpace(punto)
+				local arriba = pieza.Position.Y + pieza.Size.Y / 2
+				if math.abs(d.X) < pieza.Size.X / 2 and math.abs(d.Z) < pieza.Size.Z / 2 and math.abs(arriba - porDefecto) < 0.5 then
+					return arriba
+				end
+			end
+		end
+		return porDefecto
+	end
+	-- Cara de abajo del tejado (y) a una distancia z de la cumbrera.
+	local function tejado(z: number): number
+		return DESVAN.cumbre - TEJADO.pendiente * math.abs(z)
+	end
+
+	-- ESCALERA (x 12..39, z 9..33 arriba). El vano del dormitorio grande llega a la esquina y su cortina de ese lado
+	-- atravesaba la pared y asomaba aquí: fuera.
+	for _, m in casa:GetChildren() do
+		local pos = m:IsA("Model") and m.Name == "CortinaVano" and m:GetPivot().Position
+		if pos and pos.X > 12 and pos.Z > 9 and pos.Z < 33 and math.abs(pos.Y - ARRIBA) < 1 then
+			m:Destroy()
+		end
+	end
+	-- Peldaños de madera gastada, como el suelo de la galería.
+	local Y = sueloArriba(Vector3.new(28, ARRIBA, 21)) + 0.06 -- cara de la lámina del suelo de la sala
+	for _, peldano in casa:GetChildren() do
+		if peldano.Name == "Peldano" and peldano:IsA("BasePart") and peldano.Position.Y > ARRIBA and math.abs(peldano.Position.X - 15) < 0.1 then
+			variante(peldano, "SueloGaleria")
+		end
+	end
+	-- Techo de tablas (como el suelo del desván por debajo), con el hueco de la escalera.
+	local alto = ARRIBA + ALTO - BAJO_TECHO
+	for _, r in { { 17, 38.5, 9.5, 32.5 }, { 12.5, 17, 9.5, 15 }, { 12.5, 17, 23, 32.5 } } do
+		variante(lamina(Vector3.new(r[2] - r[1], 0.06, r[4] - r[3]), CFrame.new((r[1] + r[2]) / 2, alto, (r[3] + r[4]) / 2),
+			Color3.fromRGB(62, 50, 40), Enum.Material.WoodPlanks), "TablasDesvan")
+	end
+	-- Las fotos de los vigilantes, en la pared de al lado de los peldaños (su cara de la sala, con el papel, en x 17,65).
+	tienda("FotosVigilantes", CFrame.lookAt(Vector3.new(17.66, Y, 21.4), Vector3.new(18.66, Y, 21.4)), true)
+	-- Baúles y maletas en la pared de la ventana del lado (x 39), sin taparla (z 17,5..22,5): el arcón con el baúl
+	-- encima, y al otro lado las dos maletas y la abierta, revuelta.
+	contraPared("ArconPH", 38.45, Y, 12.6, AL_OESTE)
+	local baul = contraPared("BaulPH", 38.45, Y + 2.5, 12.6, AL_OESTE, true)
+	if baul then
+		baul:PivotTo(baul:GetPivot() * CFrame.Angles(0, math.rad(6), 0))
+	end
+	contraPared("MaletaPH", 38.45, Y, 28.6, AL_OESTE)
+	tienda("MaletaAbierta", CFrame.new(34, Y, 27.2) * CFrame.Angles(0, math.rad(-75), 0))
+	contraPared("BaulPH", 33, Y, 32.4, AL_SUR)
+	-- Espejo tapado y maniquí junto a la pared del dormitorio grande (z 9).
+	contraPared("EspejoTapado", 22.5, Y, 9.55, AL_NORTE)
+	tienda("Maniqui", CFrame.lookAt(Vector3.new(30, Y, 11.4), Vector3.new(24, Y, 16)))
+	-- La bombilla: cuelga de un cable en medio del cuarto; la enciende el generador.
+	local abajo = alto - 2.6
+	local cable = adorno(Vector3.new(0.06, alto - abajo, 0.06), CFrame.new(28, (alto + abajo) / 2, 21), Enum.Material.SmoothPlastic)
+	cable.Color = Color3.fromRGB(20, 18, 16)
+	tienda("PortalamparasPH", CFrame.new(28, abajo - 0.66, 21), true)
+	local bombilla = bloque("Lampara", Vector3.new(0.45, 0.45, 0.45), CFrame.new(28, abajo - 0.45, 21), COLOR.Lampara, Enum.Material.SmoothPlastic)
+	bombilla.Shape = Enum.PartType.Ball
+	bombilla.CanCollide = false
+	bombilla.CastShadow = false
+	local luz = Instance.new("PointLight")
+	luz.Color = COLOR.Lampara
+	luz.Brightness = 1.1
+	luz.Range = 24
+	luz.Shadows = true
+	luz.Enabled = false
+	luz.Parent = bombilla
+	table.insert(Mapa.lamparas, bombilla)
+	-- Lo que cuenta: gotas que suben por los peldaños, una mano que resbala en la pared de las fotos y desconchones.
+	mancha(Vector3.new(15.2, ARRIBA + 3.03, 25.1), Vector3.yAxis, 1.2, SANGRE_VESTIBULO.Gotas, blanco, 0.4)
+	mancha(Vector3.new(14.8, ARRIBA + 8.03, 20.1), Vector3.yAxis, 1, SANGRE_VESTIBULO.Gotas, blanco, 2.1)
+	mancha(Vector3.new(17.66, ARRIBA + 3.4, 26), AL_ESTE, 2.4, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 120, 115), 0)
+	for _, d in { { 38.4, ARRIBA + 8.5, 26, AL_OESTE, 3 }, { 30, ARRIBA + 9, 32.4, AL_SUR, 3.5 }, { 20, ARRIBA + 7.5, 9.6, AL_NORTE, 2.8 } } do
+		mancha(Vector3.new(d[1], d[2], d[3]), d[4], d[5], SANGRE_VESTIBULO.Desconchon, Color3.fromRGB(170, 160, 145), d[2] % 3)
+	end
+	luzLuna(Vector3.new(38.4, ARRIBA + 7, 20), Vector3.new(30, ARRIBA, 20), 1.2, 20)
+	luzLuna(Vector3.new(26, ARRIBA + 7, 32.4), Vector3.new(26, ARRIBA, 25), 1.2, 18)
+
+	-- DESVÁN. Suelo de tablas sin barnizar con el hueco de la escalera.
+	local S = cara("Techo", Vector3.new(0, 27, 0), 27) + 0.06 -- cara de la lámina del suelo del desván
+	local h = DESVAN.hueco
+	for _, r in { { -38.5, h.x1, -33, 33 }, { h.x2, 38.5, -33, 33 }, { h.x1, h.x2, -33, h.z1 }, { h.x1, h.x2, h.z2, 33 } } do
+		variante(lamina(Vector3.new(r[2] - r[1], 0.06, r[4] - r[3]), CFrame.new((r[1] + r[2]) / 2, S - 0.03, (r[3] + r[4]) / 2),
+			Color3.fromRGB(80, 66, 52), Enum.Material.WoodPlanks), "SueloDesvan")
+	end
+	-- Abierta por -z, por donde se sube. Su bloque de choque tapaba el hueco entero: chocan tres tablas invisibles.
+	tienda("BarandillaTrampilla", CFrame.new((h.x1 + h.x2) / 2, S, (h.z1 + h.z2) / 2), true)
+	for _, t in { { Vector3.new(0.3, 3.4, 8.4), Vector3.new(h.x1 - 0.2, 0, (h.z1 + h.z2) / 2) }, { Vector3.new(0.3, 3.4, 8.4), Vector3.new(h.x2 + 0.2, 0, (h.z1 + h.z2) / 2) },
+		{ Vector3.new(4.7, 3.4, 0.3), Vector3.new((h.x1 + h.x2) / 2, 0, h.z2 + 0.2) } } do
+		local tabla = bloque("Choque", t[1], CFrame.new(t[2] + Vector3.new(0, S + 1.7, 0)))
+		tabla.Transparency = 1
+		tabla.CanQuery = false
+	end
+	-- Bajo el tejado: tablas, los pares (vigas inclinadas) cada 4, la viga de la cumbrera y tirantes altos cada 8.
+	local inclinacion = math.atan(TEJADO.pendiente)
+	local largo = 33.5 / math.cos(inclinacion)
+	for _, lado in { 1, -1 } do
+		local giro = CFrame.Angles(inclinacion * lado, 0, 0)
+		local medio = Vector3.new(0, (tejado(0) + tejado(33.5)) / 2, 16.75 * lado)
+		variante(lamina(Vector3.new(77, 0.06, largo), CFrame.new(medio - Vector3.new(0, 0.04, 0)) * giro, Color3.fromRGB(70, 56, 44),
+			Enum.Material.WoodPlanks), "TablasDesvan")
+		for x = -36, 36, 4 do
+			local par = adorno(Vector3.new(0.5, 0.7, largo), CFrame.new(Vector3.new(x, medio.Y, medio.Z)) * giro * CFrame.new(0, -0.42, 0))
+			par.Name = "Viga"
+			variante(par, "VigaDesvan")
+		end
+	end
+	local cumbrera = adorno(Vector3.new(77, 0.9, 0.7), CFrame.new(0, tejado(0) - 0.45, 0))
+	cumbrera.Name = "Viga"
+	variante(cumbrera, "VigaDesvan")
+	for x = -32, 32, 8 do
+		local y = S + 9.2
+		local mitad = (DESVAN.cumbre - y) / TEJADO.pendiente
+		local tirante = adorno(Vector3.new(0.5, 0.6, 2 * mitad), CFrame.new(x, y, 0))
+		tirante.Name = "Viga"
+		variante(tirante, "VigaDesvan")
+	end
+	-- Ventanucos redondos de los hastiales vistos por dentro: el cristal con algo de luna, su cruz y la luz que entra.
+	for _, signo in { -1, 1 } do
+		local c = Vector3.new(signo * 38.45, 27 + TEJADO.pendiente * 33.5 * 0.36, 0)
+		local cristal = adorno(Vector3.new(0.08, 3.6, 3.6), CFrame.new(c), Enum.Material.Glass)
+		cristal.Shape = Enum.PartType.Cylinder
+		cristal.Color = Color3.fromRGB(62, 74, 96)
+		local aro = adorno(Vector3.new(0.06, 4.6, 4.6), CFrame.new(c + Vector3.new(signo * 0.02, 0, 0)))
+		aro.Shape = Enum.PartType.Cylinder
+		adorno(Vector3.new(0.14, 3.6, 0.2), CFrame.new(c))
+		adorno(Vector3.new(0.14, 0.2, 3.6), CFrame.new(c))
+		luzLuna(c - Vector3.new(signo * 0.4, 0, 0), Vector3.new(signo * 26, S, 0), 1.3, 26)
+	end
+
+	-- El cuarto de revelado al fondo: tabiques de tablas hasta el tejado (los de los lados, a lo largo de x, y los de las
+	-- puntas con su pico), la puerta con la cortina negra que deja una rendija y la luz roja de seguridad dentro, siempre
+	-- encendida: es lo que se ve desde la trampilla.
+	local rv = DESVAN.revelado
+	local altoLado = tejado(rv.z) - S
+	for _, z in { -rv.z, rv.z } do
+		variante(bloque("Tabique", Vector3.new(rv.x2 - rv.x1, altoLado, 0.3), CFrame.new((rv.x1 + rv.x2) / 2, S + altoLado / 2, z)), "TablasDesvan")
+	end
+	local pico = tejado(0) - tejado(rv.z)
+	for _, x in { rv.x1, rv.x2 } do
+		local trozos = if x == rv.x2 then { { -rv.z, -2.3 }, { 2.3, rv.z } } else { { -rv.z, rv.z } }
+		for _, t in trozos do
+			variante(bloque("Tabique", Vector3.new(0.3, altoLado, t[2] - t[1]), CFrame.new(x, S + altoLado / 2, (t[1] + t[2]) / 2)), "TablasDesvan")
+		end
+		if x == rv.x2 then -- encima de la puerta
+			variante(bloque("Tabique", Vector3.new(0.3, altoLado - 7.7, 4.6), CFrame.new(x, S + 7.7 + (altoLado - 7.7) / 2, 0)), "TablasDesvan")
+		end
+		for _, lado in { -1, 1 } do -- el pico, hasta la cumbrera (un poco más bajo: por la rendija de arriba sale algo de rojo)
+			local cuna = Instance.new("WedgePart")
+			cuna.Name = "Tabique"
+			cuna.Anchored = true
+			cuna.Size = Vector3.new(0.3, pico - 0.3, rv.z)
+			cuna.CFrame = CFrame.new(x, S + altoLado + (pico - 0.3) / 2, lado * rv.z / 2) * (if lado < 0 then CFrame.identity else CFrame.Angles(0, math.pi, 0))
+			cuna.Parent = casa
+			variante(cuna, "TablasDesvan")
+		end
+	end
+	tienda("CortinaNegra", CFrame.lookAt(Vector3.new(rv.x2 + 0.25, S, 0), Vector3.new(rv.x2 + 5, S, 0)), true)
+	local mesa = CFrame.lookAt(Vector3.new(rv.x1 + 1.75, S, 0), Vector3.new(rv.x2, S, 0))
+	tienda("MesaRevelado", mesa)
+	tienda("CosasRevelado", mesa, true)
+	tienda("CamaraPH", mesa * CFrame.new(-0.3, 3.2, 0.5) * CFrame.Angles(0, math.rad(160), 0), true)
+	for _, x in { rv.x1 + 4.5, rv.x1 + 8 } do -- las fotos, a la altura de los ojos
+		tienda("FotosTendidas", CFrame.lookAt(Vector3.new(x, S + 6.4, 0), Vector3.new(x + 1, S + 6.4, 0)), true)
+	end
+	tienda("Banqueta", CFrame.lookAt(Vector3.new(rv.x1 + 4.4, S, 1.2), Vector3.new(rv.x1, S, 0.5)), true)
+	tienda("CuboPH", CFrame.new(rv.x1 + 1.2, S, -4.6), true)
+	tienda("CajaCartonPH", CFrame.new(rv.x1 + 1.4, S, 4.4) * CFrame.Angles(0, 0.3, 0))
+	local roja = bloque("LuzRoja", Vector3.new(0.3, 0.1, 0.3), mesa * CFrame.new(-0.9, 5.9, 0.55), Color3.fromRGB(150, 12, 8), Enum.Material.Neon)
+	roja.CanCollide = false
+	roja.CanQuery = false
+	roja.CastShadow = false
+	roja.Transparency = 1
+	local rojo = Instance.new("PointLight")
+	rojo.Color = Color3.fromRGB(255, 40, 28)
+	rojo.Brightness = 1.6
+	rojo.Range = 18
+	rojo.Shadows = true
+	rojo.Parent = roja
+	-- Lo que se escapa por la rendija de la cortina y tiñe el suelo de delante: lo que se ve desde la trampilla.
+	local rendija = rojo:Clone()
+	rendija.Brightness = 0.8
+	rendija.Range = 9
+	rendija.Shadows = false
+	rendija.Parent = adorno(Vector3.new(0.2, 0.2, 0.2), CFrame.new(rv.x2 + 0.6, S + 2.5, 1.2))
+	rendija.Parent.Transparency = 1
+	-- Arañazos en la tabla de al lado de la puerta, por fuera (algo quiso entrar), y gotas delante de la mesa.
+	mancha(Vector3.new(rv.x2 + 0.17, S + 2.6, -4.2), AL_ESTE, 2.6, MARCAS.Aranazos, Color3.fromRGB(120, 70, 60), 0.15)
+	mancha(Vector3.new(rv.x1 + 4.5, S + 0.03, -1), Vector3.yAxis, 1.3, SANGRE_VESTIBULO.Gotas, blanco, 1.2)
+
+	-- Muebles tapados y trastos bajo los faldones, a los lados del paso de la cumbrera (|z| < 6, libre).
+	tienda("SofaTapado", CFrame.lookAt(Vector3.new(-3, S, 12.2), Vector3.new(-3, S, 0)))
+	contraPared("ComodaTapada", 6.5, S, 11.8, AL_SUR)
+	tienda("Maniqui", CFrame.lookAt(Vector3.new(-10.5, S, 8.6), Vector3.new(14, S, 14)))
+	tienda("ButacaTapada", CFrame.lookAt(Vector3.new(-7, S, -10.8), Vector3.new(-5, S, 0)))
+	tienda("EspejoTapado", CFrame.lookAt(Vector3.new(6.5, S, -10.2), Vector3.new(6.5, S, 0)) * CFrame.Angles(math.rad(-6), 0, 0))
+	tienda("RuecaPH", CFrame.lookAt(Vector3.new(1, S, -10.5), Vector3.new(0, S, 0)))
+	tienda("MecedoraPH", CFrame.lookAt(Vector3.new(-35.4, S, 3), Vector3.new(-39, S, 0))) -- detrás del cuarto, mirando el ventanuco
+	tienda("BaulPH", CFrame.lookAt(Vector3.new(-1.5, S, -13.4), Vector3.new(-1.5, S, 0)))
+	tienda("MuletasPH", CFrame.lookAt(Vector3.new(35.4, S, 2.6), Vector3.new(30, S, 2.6)) * CFrame.Angles(math.rad(-8), 0, 0), true)
+	tienda("ArconPH", CFrame.lookAt(Vector3.new(28, S, -12.2), Vector3.new(28, S, 0)))
+	tienda("MaletaPH", CFrame.lookAt(Vector3.new(32.5, S, -13.3), Vector3.new(32.5, S, 0)))
+	-- Cajas apiladas: { mueble, x, z, giro (grados), encima de otra }.
+	for _, c in {
+		{ "CajonPH", -12, -12.6, 10 }, { "CajaCartonPH", -12.3, -12.4, 25, true }, { "CajaCartonPH", -9.6, -13.2, -15 },
+		{ "CajonPH", 10.5, 12.4, -5 }, { "CajaCartonPH", 25, 12.8, 30 }, { "CajonPH", 30, 12.6, 0 }, { "CajaCartonPH", 30.2, 12.5, -20, true },
+		{ "CajaCartonPH", -14, 11.5, 5 }, { "CajonPH", -36, -10.5, 90 }, { "CajaCartonPH", -36, 11, 70 },
+	} do
+		local cajon = MUEBLES.CajonPH
+		local base = if c[5] and cajon then S + (cajon:GetAttribute("Tam") :: Vector3).Y else S
+		tienda(c[1], CFrame.new(c[2], base, c[3]) * CFrame.Angles(0, math.rad(c[4]), 0), c[5] == true)
+	end
+	-- La bombilla del desván, colgando de la cumbrera junto a la trampilla; la enciende el generador.
+	local foco = Vector3.new(9, tejado(0) - 3.4, 3)
+	local hilo = adorno(Vector3.new(0.06, 2.5, 0.06), CFrame.new(foco + Vector3.new(0, 1.9, 0)), Enum.Material.SmoothPlastic)
+	hilo.Color = Color3.fromRGB(20, 18, 16)
+	tienda("PortalamparasPH", CFrame.new(foco - Vector3.new(0, 0.21, 0)), true)
+	local bombillaDesvan = bloque("Lampara", Vector3.new(0.45, 0.45, 0.45), CFrame.new(foco), COLOR.Lampara, Enum.Material.SmoothPlastic)
+	bombillaDesvan.Shape = Enum.PartType.Ball
+	bombillaDesvan.CanCollide = false
+	bombillaDesvan.CastShadow = false
+	local luzDesvan = luz:Clone()
+	luzDesvan.Range = 22
+	luzDesvan.Shadows = false -- con la de la escalera debajo, dos con sombras pesan en móvil
+	luzDesvan.Parent = bombillaDesvan
+	table.insert(Mapa.lamparas, bombillaDesvan)
+	-- Telarañas grandes en los rincones de los hastiales con el tejado, en diagonal (de canto parecían una mancha):
+	-- { x, z, hacia dónde mira }.
+	local tela = MUEBLES.Telarana
+	if tela then
+		local altoRed = (tela:GetAttribute("Tam") :: Vector3).Y * 0.55
+		for _, t in { { -38.3, -10.5, Vector3.new(1, 0, 1) }, { -38.3, 11, Vector3.new(1, 0, -1) }, { 38.3, -9.5, Vector3.new(-1, 0, 1) }, { 38.3, 10.5, Vector3.new(-1, 0, -1) } } do
+			local pos = Vector3.new(t[1], tejado(t[2]) - 0.2 - altoRed, t[2])
+			local red = tienda("Telarana", CFrame.lookAt(pos, pos + t[3]), true) :: Model
+			red:ScaleTo(red:GetScale() * 0.55)
+		end
+	end
+
+end
+
 -- Torre de la esquina de delante a la izquierda, mirando la casa desde el camino (pedido por el usuario): un octógono
 -- de 8 de apotema centrado en la esquina de la casa (x 39, z -33), en las dos plantas. Abajo es el mirador del salón y
 -- arriba, del dormitorio grande: las caras que caen dentro de la casa no se hacen y la torre se abre a la sala. La cara
@@ -1585,29 +2212,6 @@ local function construirTorre(y0: number, ventanas, sinSuelo: boolean?)
 		disco.Shape = Enum.PartType.Cylinder
 		CollectionService:AddTag(disco, "EnMapa")
 	end
-end
-
--- Cuna del cuarto de los niños: barrotes alrededor de un colchón. Choca una caja invisible. `cf` = el centro a ras del
--- suelo, a lo largo de x.
-local function cuna(cf: CFrame)
-	local largo, ancho, alto = 5, 2.8, 3.4
-	bloque("Colchon", Vector3.new(largo - 0.4, 0.5, ancho - 0.4), cf * CFrame.new(0, 1.6, 0), Color3.fromRGB(120, 112, 100), Enum.Material.Fabric)
-	for _, z in { -ancho / 2, ancho / 2 } do
-		adorno(Vector3.new(largo, 0.25, 0.25), cf * CFrame.new(0, alto, z))
-		adorno(Vector3.new(largo, 0.25, 0.25), cf * CFrame.new(0, 1.3, z))
-		for x = -largo / 2, largo / 2 + 0.01, largo / 10 do
-			adorno(Vector3.new(0.15, alto - 1.3, 0.15), cf * CFrame.new(x, (alto + 1.3) / 2, z))
-		end
-	end
-	for _, x in { -largo / 2, largo / 2 } do
-		for _, z in { -ancho / 2, ancho / 2 } do
-			adorno(Vector3.new(0.3, alto + 0.3, 0.3), cf * CFrame.new(x, (alto + 0.3) / 2, z))
-		end
-		adorno(Vector3.new(0.25, 0.25, ancho), cf * CFrame.new(x, alto, 0))
-	end
-	local choque = bloque("Choque", Vector3.new(largo, alto, ancho), cf * CFrame.new(0, alto / 2, 0))
-	choque.Transparency = 1
-	choque.CanQuery = false
 end
 
 -- La casa nueva (11.6, plano aprobado por el usuario en docs/referencias/casa-fuera/plano-nuevo.png; izquierda y
@@ -1785,14 +2389,7 @@ local function construirCasa(mapa: Folder)
 		bloque("Peldano", Vector3.new(4, i, 1), CFrame.new(15, ARRIBA + i / 2, 28 - (i - 0.5)), COLOR.Piso)
 	end
 	bloque("Muro", Vector3.new(0.6, ALTO, 12), CFrame.new(17.3, ARRIBA + ALTO / 2, 21))
-	-- Baúles viejos contra las paredes (que no sea una sala vacía).
-	for _, b in { { 37, 14, 0.2 }, { 37, 25, -0.1 }, { 30, 31.8, 1.57 } } do
-		local cf = CFrame.new(b[1], ARRIBA, b[2]) * CFrame.Angles(0, b[3], 0)
-		bloque("Baul", Vector3.new(2.2, 2, 4), cf * CFrame.new(0, 1, 0), Color3.fromRGB(70, 50, 36))
-		bloque("Tapa", Vector3.new(2.4, 0.3, 4.2), cf * CFrame.new(0, 2.15, 0), Color3.fromRGB(48, 36, 28))
-		adorno(Vector3.new(2.45, 2.1, 0.25), cf * CFrame.new(0, 1.05, 1.2), Enum.Material.Metal).Color = COLOR.Oscuro
-		adorno(Vector3.new(2.45, 2.1, 0.25), cf * CFrame.new(0, 1.05, -1.2), Enum.Material.Metal).Color = COLOR.Oscuro
-	end
+	-- Baúles, maletas y lo demás del cuarto, en vestirDesvan.
 
 	-- Chimenea del salón (Chimenea, y por ella baja el Trepador): el tiro sube por el dormitorio grande hasta salir por
 	-- el tejado. Está en x = 37,5 y z = -1: el Trepador va a ella por el tejado.
@@ -2128,20 +2725,10 @@ local function construirCasa(mapa: Folder)
 	contraPared("EspejoPH", 21.3, ABAJO + 4.6, 30.9, OESTE, true)
 	tienda("BotiquinPH", CFrame.new(19.4, ABAJO, 28.6) * CFrame.Angles(0, 0.5, 0), true)
 	tienda("Toallas", CFrame.new(15.2, ABAJO, 24.6) * CFrame.Angles(0, 0.4, 0), true)
-	-- Lavadero: estantería, armario y el enchufe del móvil (más abajo).
-	mueble("Estanteria", CFrame.new(-24.75, ABAJO, 36.6) * CFrame.Angles(0, -math.pi / 2, 0),
-		{ bloque("Estanteria", Vector3.new(1.5, 7, 6), CFrame.new(-24.75, ABAJO + 3.5, 36.6), COLOR.Mueble) })
+	-- Lavadero: el armario y el enchufe del móvil, más abajo; lo demás, en vestirGaraje (11.8.12).
 	-- Arriba: dormitorio grande y habitación del rico se amueblan después de Separar (11.8.8 y 11.8.9).
 	-- Aquí solo quedan los escondites, más abajo.
-	-- Cuarto de los niños: cuna, caja de juguetes con algunos por el suelo y aparador con lámpara.
-	cuna(CFrame.new(-33, ARRIBA, 31))
-	bloque("Juguetes", Vector3.new(3, 2, 2), CFrame.new(-16, ARRIBA + 1, 31.4), Color3.fromRGB(96, 70, 52))
-	for i, j in { { -15, 28, Color3.fromRGB(110, 52, 46) }, { -18, 27, Color3.fromRGB(60, 78, 96) }, { -30, 25, Color3.fromRGB(150, 140, 110) } } do
-		local cubo = adorno(Vector3.new(0.8, 0.8, 0.8), CFrame.new(j[1], ARRIBA + 0.4, j[2]) * CFrame.Angles(0, i, 0), Enum.Material.SmoothPlastic)
-		cubo.Color = j[3]
-	end
-	contraPared("Aparador", -25.5, ARRIBA, 9.5, DETRAS)
-	contraPared("LamparaMesa", -23, ARRIBA + 3.4, 9.7, DETRAS, true)
+	-- Cuarto de los niños: se amuebla después de Separar (11.8.10, vestirNinos); aquí solo el escondite, más abajo.
 	for _, cuadro in {
 		-- los del vestíbulo y el salón son de Poly Haven (arriba)
 		{ -25, ARRIBA, 8.4, -Vector3.zAxis },
@@ -2163,19 +2750,20 @@ local function construirCasa(mapa: Folder)
 	for _, pesado in {
 		{ "Tronco", CFrame.new(10, 0.7, -47) * CFrame.Angles(0, 0.4, 0) }, { "Tronco", CFrame.new(-10, 0.7, -48) },
 		{ "Tablon", CFrame.new(14, 0.15, -45) * CFrame.Angles(0, -0.3, 0) }, { "Bidon", CFrame.new(-14, 1.2, -46) },
-		{ "Bidon", CFrame.new(-52, ABAJO + 1.2, 44) }, -- en el cobertizo
+		{ "Bidon", CFrame.new(-45.6, ABAJO + 1.2, 38.4) }, -- en el cobertizo, en la esquina de la entrada
 		{ "Motor", CFrame.new(20, 1.1, -52) },
 	} do
 		table.insert(Mapa.pesados, { tipo = pesado[1], cf = pesado[2] })
 	end
 
-	-- Escondites: las camas de los dos dormitorios y los armarios (dormitorios, trastero y lavadero).
+	-- Escondites: las camas de los dos dormitorios y la de los niños, y los armarios (dormitorios, trastero y lavadero).
 	cama(Vector3.new(34.2, ABAJO, 27.85), DETRAS, 1, "CamaHierroPH", "ColchaCama", 4, 8.8) -- la de hierro de la abuela
 	armario(Vector3.new(24, ABAJO + 4, 12), ESTE)
 	armario(Vector3.new(20, ABAJO + 4, 12), OESTE) -- trastero
 	armario(Vector3.new(-21, ABAJO + 4, 43), DELANTE) -- lavadero
 	cama(DORMITORIO_GRANDE.cama, DETRAS, 1, "CamaDoselPH", nil, 6.7, 9.2) -- la gótica con dosel de los dueños
 	armario(Vector3.new(35, DORMITORIO_GRANDE.suelo + 4, 7), DELANTE)
+	cama(NINOS.cama, Vector3.zAxis, -1, "CamaNino", nil, 4.27, 7.05) -- la cama pequeña del oeste en el cuarto de los niños
 
 	-- Luces (las enciende el generador) y salas por las que ronda el Golpeador.
 	for _, sala in {
@@ -2189,7 +2777,7 @@ local function construirCasa(mapa: Folder)
 		Vector3.new(0, ABAJO, 4.5), Vector3.new(25, ABAJO, -20), -- en el salón, además, la lámpara de pie; en el pasillo, la bombilla
 		Vector3.new(17, ABAJO, 12), Vector3.new(17, ABAJO, 26), -- en el comedor, la araña (abajo); en el dormitorio, la lámpara de la mesilla
 		Vector3.new(-25.5, ABAJO, 18), Vector3.new(-19, ABAJO, 39), Vector3.new(42, ABAJO, -36),
-		Vector3.new(0, ARRIBA, 18), Vector3.new(25, ARRIBA, -14), Vector3.new(-25, ARRIBA, 21), -- la del rico, en su escritorio
+		Vector3.new(0, ARRIBA, 18), Vector3.new(25, ARRIBA, -14), -- la del rico, en su escritorio; la de los niños, en su mesilla
 		Vector3.new(27, ARRIBA, 21), Vector3.new(42, ARRIBA, -36),
 	} do
 		lampara(luz + Vector3.new(0, ALTO - 0.3, 0))
@@ -2210,13 +2798,19 @@ local function construirCasa(mapa: Folder)
 	local enchufe = Instance.new("Model")
 	enchufe.Name = "Enchufe"
 	enchufe.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-	bloque("Placa", Vector3.new(0.15, 0.8, 0.6), CFrame.new(-12.55, ABAJO + 2.6, 41), Color3.fromRGB(190, 185, 170),
+	-- Delante del azulejo del lavadero (su cara, en x = -12,62). Con el de Blender (EnchufeViejo, en vestirGaraje), la
+	-- placa y la repisa no se ven; la lucecita sí, sobre su placa.
+	local placa = bloque("Placa", Vector3.new(0.15, 0.8, 0.6), CFrame.new(-12.7, ABAJO + 2.6, 41), Color3.fromRGB(190, 185, 170),
 		Enum.Material.SmoothPlastic, enchufe)
-	bloque("Repisa", Vector3.new(1.1, 0.2, 1.4), CFrame.new(-13.05, ABAJO + 1.9, 41), COLOR.Mueble, nil, enchufe)
-	bloque("Luz", Vector3.new(0.1, 0.12, 0.12), CFrame.new(-12.64, ABAJO + 3.15, 41), COLOR.Oscuro, Enum.Material.SmoothPlastic,
+	local repisa = bloque("Repisa", Vector3.new(1.1, 0.2, 1.4), CFrame.new(-13.17, ABAJO + 1.9, 41), COLOR.Mueble, nil, enchufe)
+	bloque("Luz", Vector3.new(0.1, 0.12, 0.12), CFrame.new(-12.79, ABAJO + 2.75, 41.2), COLOR.Oscuro, Enum.Material.SmoothPlastic,
 		enchufe)
-	mando(CFrame.new(-13.4, ABAJO + 2.4, 41), enchufe)
-	enchufe:SetAttribute("Sitio", CFrame.new(-13.05, ABAJO + 2.15, 41)) -- donde se queda el móvil cargando
+	if MUEBLES.EnchufeViejo then
+		placa.Transparency = 1
+		repisa.Transparency = 1
+	end
+	mando(CFrame.new(-13.5, ABAJO + 2.4, 41), enchufe)
+	enchufe:SetAttribute("Sitio", CFrame.new(-13.17, ABAJO + 2.15, 41)) -- donde se queda el móvil cargando
 	CollectionService:AddTag(enchufe, "Enchufe")
 	enchufe.Parent = casa
 
@@ -2384,6 +2978,11 @@ function Mapa.start()
 	vestirGaleria()
 	vestirDormitorioGrande()
 	vestirHabitacionRico()
+
+	vestirNinos()
+	vestirDesvan()
+
+	vestirGaraje()
 	abandonar()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
