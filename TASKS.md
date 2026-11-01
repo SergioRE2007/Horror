@@ -4,7 +4,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
-1. 11.8.3 a 11.8.13: el interior, una sala por chat (sigue la galería; vestíbulo, salón, comedor, cocina, pasillo con baño y trastero, y dormitorio de abajo, hechos).
+1. 11.8.10 a 11.8.13: las 4 salas que quedan del interior, en paralelo (varios chats y Studios, `docs/plan-paralelo.md`).
 2. 11.6: que Sergio vea la fachada (se puede meter en cualquier chat de sala).
 3. 12.1 Pistas → 12.2 La Bestia.
 4. 11.5 Pueblo amueblado, 11.2 Monstruos (casi al final), 13 Lanzamiento.
