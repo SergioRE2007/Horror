@@ -797,7 +797,9 @@ local SALAS = {
 	-- Habitación del rico (11.8.9): papel azul marino de rayas con hilo dorado sobre zócalo alto de paneles de caoba,
 	-- parquet oscuro y el techo de yeso del salón.
 	{ x1 = -39, x2 = -12, z1 = -33, z2 = 9, y = ARRIBA, papel = "PapelRico", suelo = "SueloRico", techo = "TechoSalon", zocalo = "ZocaloRico" },
-	{ x1 = -39, x2 = -12, z1 = 9, z2 = 33, y = ARRIBA, papel = "Claro", suelo = "Madera", techo = true }, -- cuarto de los niños
+	-- Cuarto de los niños (11.8.10): papel de patitos y globos desteñido sobre papel viejo, rodapié oscuro, tablas viejas
+	-- y el techo de yeso del salón.
+	{ x1 = -39, x2 = -12, z1 = 9, z2 = 33, y = ARRIBA, papel = "PapelNinos", suelo = "SueloNinos", techo = "TechoSalon", rodapie = "MaderaOscura" },
 }
 -- Papel pintado (imágenes del Creator Store, teñidas): damasco mostaza en el salón.
 -- Colores apagados y sucios (pedido por el usuario: el mostaza chillón parecía un juego de niños, no una casa
@@ -1557,6 +1559,104 @@ local function vestirHabitacionRico()
 	luzLuna(Vector3.new(-38.4, ARRIBA + 8, -15), Vector3.new(-30, ARRIBA, -15), 1.2, 20)
 end
 
+-- Cuarto de los niños (11.8.10, opción B del usuario, "la merienda de los muñecos"). Dos camas pequeñas de hermanos
+-- contra la pared del fondo, una a cada lado de la ventana (la del oeste es el escondite, en construirCasa), con la
+-- mesilla y su lámpara (la única luz de la sala, la enciende el generador). Junto a la puerta, la mesita de té con la
+-- muñeca, el osito y el conejo sentados y la silla vacía de cara a la puerta, con su trozo de tarta: falta uno. La cuna,
+-- sola en el rincón del oeste junto a la pared del rico, con el móvil y arañazos alrededor; el baúl de juguetes volcado en
+-- la pared de la ventana del oeste; dibujos de niño con la figura alta y negra en la pared del rico y, debajo, el caballito
+-- mirando a la puerta (junto a la ventana tapaba la vista desde debajo de la cama). El centro, libre para correr.
+local NINOS = {
+	-- La del oeste, el escondite (cabecera contra la pared del fondo), sobre la lámina del suelo: aquí Separar sí engorda
+	-- el Piso (su cara queda a ARRIBA + 0,15, medido en Play) y la lámina va 0,06 por encima.
+	cama = Vector3.new(-35.6, ARRIBA + 0.21, 28.9),
+}
+local function vestirNinos()
+	local Y = sueloArriba(Vector3.new(-25.5, ARRIBA, 21)) + 0.06
+	local NORTE, SUR, OESTE_X, ESTE_X = 9.6, 32.42, -38.3, -12.6 -- caras de las paredes, con el papel
+	local AL_SUR, AL_NORTE, AL_ESTE = -Vector3.zAxis, Vector3.zAxis, Vector3.xAxis
+	local blanco = Color3.new(1, 1, 1)
+
+	-- La otra cama (sin escondite), la mesilla y la lámpara.
+	tienda("CamaNino", CFrame.new(-20.4, Y, SUR - 3.55))
+	local mesilla = contraPared("MesillaPH", -16.4, Y, SUR, AL_SUR)
+	local alto = if mesilla then (mesilla:GetAttribute("Tam") :: Vector3).Y else 2.46
+	local lamparita = tienda("LamparaNino", CFrame.new(-16.4, Y + alto, SUR - 1.1) * CFrame.Angles(0, 0.4, 0), true)
+	if lamparita then
+		for _, d in lamparita:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.CastShadow = false -- que la pantalla no tape la luz
+			end
+		end
+		local bombilla = bloque("Lampara", Vector3.new(0.35, 0.35, 0.35), lamparita:GetPivot() * CFrame.new(0, 1.35, 0), COLOR.Lampara,
+			Enum.Material.SmoothPlastic)
+		bombilla.Shape = Enum.PartType.Ball
+		bombilla.CanCollide = false
+		bombilla.CastShadow = false
+		local luz = Instance.new("PointLight")
+		luz.Color = COLOR.Lampara
+		luz.Brightness = 0.9
+		luz.Range = 24
+		luz.Shadows = true
+		luz.Enabled = false -- la enciende el generador
+		luz.Parent = bombilla
+		table.insert(Mapa.lamparas, bombilla)
+	else
+		lampara(Vector3.new(-25, ARRIBA + ALTO - 0.3, 21))
+	end
+	tienda("AlfombraTrapo", CFrame.new(-26, Y + 0.015, 21) * CFrame.Angles(0, math.rad(84), 0), true)
+
+	-- La merienda: la silla vacía (la de +X del molde) queda al oeste, de cara a la puerta.
+	local mesa = CFrame.new(-16.9, Y, 13.3) * CFrame.Angles(0, math.pi, 0)
+	tienda("MesaTe", mesa)
+	local centro = mesa.Position + Vector3.new(0, 1, 0)
+	for _, s in { { "Muneca", Vector3.new(-1.85, 0, 0), 6 }, { "Osito", Vector3.new(0, 0, -1.85), -9 }, { "Conejo", Vector3.new(0, 0, 1.85), 4 } } do
+		local asiento = (mesa * CFrame.new(s[2])).Position + Vector3.new(0, 1, 0)
+		tienda(s[1], CFrame.lookAt(asiento, centro) * CFrame.Angles(0, math.rad(s[3]), 0), true)
+	end
+
+	-- La cuna en el rincón, con el móvil colgado de su gancho (a 6,1 del suelo), y arañazos de uñas alrededor.
+	local cuna = CFrame.new(OESTE_X + 2.75, Y, NORTE + 1.65)
+	tienda("CunaNino", cuna)
+	tienda("MovilCuna", cuna * CFrame.new(0, 6.1 - 1.57, 0) * CFrame.Angles(0, 0.5, 0), true)
+	mancha(Vector3.new(-32, Y + 0.09, 11.2), Vector3.yAxis, 2.6, MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), 1.2, 3.5)
+	mancha(Vector3.new(-35.4, Y + 0.09, 14.1), Vector3.yAxis, 2.4, MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), 0.3, 3)
+
+	-- Pared de la ventana del oeste: baúl volcado con los juguetes por el suelo.
+	local baul = Vector3.new(OESTE_X + 2.1, Y, 15.3)
+	tienda("BaulJuguetes", CFrame.lookAt(baul, baul + Vector3.new(1, 0, 0.15)))
+	-- Dibujos de niño en la pared del rico, entre la cuna y la merienda (más grandes, que se lean desde la puerta), y
+	-- debajo el caballito, mirando a la puerta.
+	local dibujos = contraPared("DibujosNinos", -26.5, Y + 2.1, NORTE, AL_NORTE, true)
+	if dibujos then
+		dibujos:ScaleTo(dibujos:GetScale() * 1.3)
+	end
+	local caballo = Vector3.new(-24.2, Y, NORTE + 2.1)
+	tienda("Caballito", CFrame.lookAt(caballo, caballo + Vector3.new(1, 0, 0.15)))
+
+	-- Abandono e historia (Moderate como máximo): desconchones, una mano de sangre que resbala por el marco del vano y
+	-- unas gotas en el suelo hacia la cuna.
+	for _, d in { { -30, Y + 9, SUR, AL_SUR, 3 }, { OESTE_X, Y + 8.5, 28, AL_ESTE, 2.5 }, { -15, Y + 9.5, NORTE, AL_NORTE, 3 } } do
+		mancha(Vector3.new(d[1], d[2], d[3]), d[4], d[5], SANGRE_VESTIBULO.Desconchon, Color3.fromRGB(170, 160, 145), d[1] % 3)
+	end
+	mancha(Vector3.new(ESTE_X, Y + 3.2, 26.6), -AL_ESTE, 3.2, SANGRE_VESTIBULO.Gotas, blanco, 0)
+	mancha(Vector3.new(-28, Y + 0.08, 14.8), Vector3.yAxis, 1.6, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 110, 110), 2.1)
+	mancha(Vector3.new(-31.6, Y + 0.08, 13.6), Vector3.yAxis, 1.4, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 110, 110), 0.7)
+	-- Telarañas: sobre la cuna y en la esquina de la merienda.
+	for _, t in { { -37, 11, Vector3.new(1, 0, 1) }, { -14, 11, Vector3.new(-1, 0, 1) } } do
+		local molde = MUEBLES.Telarana
+		if molde then
+			local pos = Vector3.new(t[1], ARRIBA + ALTO - BAJO_TECHO - (molde:GetAttribute("Tam") :: Vector3).Y * 0.45, t[2])
+			local tela = tienda("Telarana", CFrame.lookAt(pos, pos + t[3]), true)
+			if tela then
+				tela:ScaleTo(tela:GetScale() * 0.45)
+			end
+		end
+	end
+	luzLuna(Vector3.new(-26, ARRIBA + 8, 32.4), Vector3.new(-26, ARRIBA, 22), 1.2, 22)
+	luzLuna(Vector3.new(-38.4, ARRIBA + 8, 21), Vector3.new(-30, ARRIBA, 21), 1.2, 20)
+end
+
 -- Torre de la esquina de delante a la izquierda, mirando la casa desde el camino (pedido por el usuario): un octógono
 -- de 8 de apotema centrado en la esquina de la casa (x 39, z -33), en las dos plantas. Abajo es el mirador del salón y
 -- arriba, del dormitorio grande: las caras que caen dentro de la casa no se hacen y la torre se abre a la sala. La cara
@@ -1585,29 +1685,6 @@ local function construirTorre(y0: number, ventanas, sinSuelo: boolean?)
 		disco.Shape = Enum.PartType.Cylinder
 		CollectionService:AddTag(disco, "EnMapa")
 	end
-end
-
--- Cuna del cuarto de los niños: barrotes alrededor de un colchón. Choca una caja invisible. `cf` = el centro a ras del
--- suelo, a lo largo de x.
-local function cuna(cf: CFrame)
-	local largo, ancho, alto = 5, 2.8, 3.4
-	bloque("Colchon", Vector3.new(largo - 0.4, 0.5, ancho - 0.4), cf * CFrame.new(0, 1.6, 0), Color3.fromRGB(120, 112, 100), Enum.Material.Fabric)
-	for _, z in { -ancho / 2, ancho / 2 } do
-		adorno(Vector3.new(largo, 0.25, 0.25), cf * CFrame.new(0, alto, z))
-		adorno(Vector3.new(largo, 0.25, 0.25), cf * CFrame.new(0, 1.3, z))
-		for x = -largo / 2, largo / 2 + 0.01, largo / 10 do
-			adorno(Vector3.new(0.15, alto - 1.3, 0.15), cf * CFrame.new(x, (alto + 1.3) / 2, z))
-		end
-	end
-	for _, x in { -largo / 2, largo / 2 } do
-		for _, z in { -ancho / 2, ancho / 2 } do
-			adorno(Vector3.new(0.3, alto + 0.3, 0.3), cf * CFrame.new(x, (alto + 0.3) / 2, z))
-		end
-		adorno(Vector3.new(0.25, 0.25, ancho), cf * CFrame.new(x, alto, 0))
-	end
-	local choque = bloque("Choque", Vector3.new(largo, alto, ancho), cf * CFrame.new(0, alto / 2, 0))
-	choque.Transparency = 1
-	choque.CanQuery = false
 end
 
 -- La casa nueva (11.6, plano aprobado por el usuario en docs/referencias/casa-fuera/plano-nuevo.png; izquierda y
@@ -2133,15 +2210,7 @@ local function construirCasa(mapa: Folder)
 		{ bloque("Estanteria", Vector3.new(1.5, 7, 6), CFrame.new(-24.75, ABAJO + 3.5, 36.6), COLOR.Mueble) })
 	-- Arriba: dormitorio grande y habitación del rico se amueblan después de Separar (11.8.8 y 11.8.9).
 	-- Aquí solo quedan los escondites, más abajo.
-	-- Cuarto de los niños: cuna, caja de juguetes con algunos por el suelo y aparador con lámpara.
-	cuna(CFrame.new(-33, ARRIBA, 31))
-	bloque("Juguetes", Vector3.new(3, 2, 2), CFrame.new(-16, ARRIBA + 1, 31.4), Color3.fromRGB(96, 70, 52))
-	for i, j in { { -15, 28, Color3.fromRGB(110, 52, 46) }, { -18, 27, Color3.fromRGB(60, 78, 96) }, { -30, 25, Color3.fromRGB(150, 140, 110) } } do
-		local cubo = adorno(Vector3.new(0.8, 0.8, 0.8), CFrame.new(j[1], ARRIBA + 0.4, j[2]) * CFrame.Angles(0, i, 0), Enum.Material.SmoothPlastic)
-		cubo.Color = j[3]
-	end
-	contraPared("Aparador", -25.5, ARRIBA, 9.5, DETRAS)
-	contraPared("LamparaMesa", -23, ARRIBA + 3.4, 9.7, DETRAS, true)
+	-- Cuarto de los niños: se amuebla después de Separar (11.8.10, vestirNinos); aquí solo el escondite, más abajo.
 	for _, cuadro in {
 		-- los del vestíbulo y el salón son de Poly Haven (arriba)
 		{ -25, ARRIBA, 8.4, -Vector3.zAxis },
@@ -2169,13 +2238,14 @@ local function construirCasa(mapa: Folder)
 		table.insert(Mapa.pesados, { tipo = pesado[1], cf = pesado[2] })
 	end
 
-	-- Escondites: las camas de los dos dormitorios y los armarios (dormitorios, trastero y lavadero).
+	-- Escondites: las camas de los dos dormitorios y la de los niños, y los armarios (dormitorios, trastero y lavadero).
 	cama(Vector3.new(34.2, ABAJO, 27.85), DETRAS, 1, "CamaHierroPH", "ColchaCama", 4, 8.8) -- la de hierro de la abuela
 	armario(Vector3.new(24, ABAJO + 4, 12), ESTE)
 	armario(Vector3.new(20, ABAJO + 4, 12), OESTE) -- trastero
 	armario(Vector3.new(-21, ABAJO + 4, 43), DELANTE) -- lavadero
 	cama(DORMITORIO_GRANDE.cama, DETRAS, 1, "CamaDoselPH", nil, 6.7, 9.2) -- la gótica con dosel de los dueños
 	armario(Vector3.new(35, DORMITORIO_GRANDE.suelo + 4, 7), DELANTE)
+	cama(NINOS.cama, Vector3.zAxis, -1, "CamaNino", nil, 4.27, 7.05) -- la cama pequeña del oeste en el cuarto de los niños
 
 	-- Luces (las enciende el generador) y salas por las que ronda el Golpeador.
 	for _, sala in {
@@ -2189,7 +2259,7 @@ local function construirCasa(mapa: Folder)
 		Vector3.new(0, ABAJO, 4.5), Vector3.new(25, ABAJO, -20), -- en el salón, además, la lámpara de pie; en el pasillo, la bombilla
 		Vector3.new(17, ABAJO, 12), Vector3.new(17, ABAJO, 26), -- en el comedor, la araña (abajo); en el dormitorio, la lámpara de la mesilla
 		Vector3.new(-25.5, ABAJO, 18), Vector3.new(-19, ABAJO, 39), Vector3.new(42, ABAJO, -36),
-		Vector3.new(0, ARRIBA, 18), Vector3.new(25, ARRIBA, -14), Vector3.new(-25, ARRIBA, 21), -- la del rico, en su escritorio
+		Vector3.new(0, ARRIBA, 18), Vector3.new(25, ARRIBA, -14), -- la del rico, en su escritorio; la de los niños, en su mesilla
 		Vector3.new(27, ARRIBA, 21), Vector3.new(42, ARRIBA, -36),
 	} do
 		lampara(luz + Vector3.new(0, ALTO - 0.3, 0))
@@ -2384,6 +2454,7 @@ function Mapa.start()
 	vestirGaleria()
 	vestirDormitorioGrande()
 	vestirHabitacionRico()
+	vestirNinos()
 	abandonar()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
