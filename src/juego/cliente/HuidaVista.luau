@@ -37,7 +37,7 @@ local function camino(desde: Vector3): ({ Vector3 }, { number })
 	end
 	table.insert(puntos, desde)
 	for z = desde.Z - 1, -30, -1 do
-		table.insert(puntos, Vector3.new(desde.X, if z > -14 then desde.Y else y, z))
+		table.insert(puntos, Vector3.new(desde.X, if z > 3 then desde.Y else y, z)) -- el portón del garaje, en z = 3 (Mapa)
 	end
 	cubica(Vector3.new(desde.X, y, -30), Vector3.new(desde.X, y, -55), Vector3.new(0, y, -40), Vector3.new(0, y, -72), 60)
 	for z = -73, -520, -1 do
