@@ -2027,6 +2027,322 @@ def dibujos_ninos(m, rng):
         for dx in (-w * 0.35, w * 0.35):
             m.add("Cinta", box(0.28, 0.12, 0.012), centro @ T(dx, h / 2 - 0.02, -0.004) @ R("Z", rng.uniform(-20, 20)))
     m.uv["Dibujo"] = uv_dibujos
+# ---------- Lavadero, garaje y cobertizo (11.8.12) ----------
+
+def lado(pts, x0, x1):
+    """Pieza de canto recto a partir de un contorno de lado (z, y), de x0 a x1 (la carrocería del coche)."""
+    n = len(pts)
+    verts = [(x0, y, z) for z, y in pts] + [(x1, y, z) for z, y in pts]
+    caras = [tuple(range(n)), tuple(range(2 * n - 1, n - 1, -1))]
+    caras += [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)]
+    return verts, caras
+
+
+def arco(cz, cy, r, n=8):
+    """Puntos (z, y) de un paso de rueda: medio círculo por arriba, de delante (-z) a detrás."""
+    return [(cz - r * math.cos(math.pi * k / n), cy + r * math.sin(math.pi * k / n)) for k in range(n + 1)]
+
+
+def tablero_taller(w=1024):
+    """Tablero perforado de taller (10,6 × 4,2): masonita marrón con agujeros y las siluetas blancas de las herramientas.
+    Falta el martillo grande del medio (solo queda su silueta). Una imagen para todo el tablero (UV propia); (0, 0) es
+    arriba a la izquierda visto de frente, en studs."""
+    azar = np.random.default_rng(12)
+    h = int(w * 4.2 / 10.6)
+    v, u = np.mgrid[0:h, 0:w].astype(np.float32)
+    rgb = np.ones((h, w, 3), dtype=np.float32) * np.array([0.42, 0.3, 0.2], dtype=np.float32)
+    rgb *= (0.85 + azar.random((h, w, 1)).astype(np.float32) * 0.2)
+    s = w / 10.6  # píxeles por stud
+    paso = s * 0.5  # un agujero cada 0,5 studs
+    hueco = ((u % paso - paso / 2) ** 2 + (v % paso - paso / 2) ** 2) < (paso * 0.13) ** 2
+    rgb[hueco] = (0.06, 0.05, 0.04)
+    pinta = np.array([0.78, 0.76, 0.7], dtype=np.float32)
+
+    def caja(x0, y0, x1, y1):
+        m = (u >= x0 * s) & (u < x1 * s) & (v >= y0 * s) & (v < y1 * s)
+        rgb[m & ~hueco] = pinta
+
+    def bola(cx, cy, r):
+        m = (u - cx * s) ** 2 + (v - cy * s) ** 2 < (r * s) ** 2
+        rgb[m & ~hueco] = pinta
+    caja(4.9, 0.9, 5.15, 3.6)  # el martillo que falta
+    caja(4.45, 0.7, 5.6, 1.15)
+    for x in (1.0, 1.6):  # llaves
+        caja(x, 0.9, x + 0.18, 3.0)
+        bola(x + 0.09, 0.85, 0.22)
+    for k in range(5):  # destornilladores (falta uno)
+        caja(7.0 + k * 0.45, 1.3, 7.1 + k * 0.45, 2.5)
+        caja(7.03 + k * 0.45, 0.6, 7.07 + k * 0.45, 1.3)
+    caja(2.6, 1.0, 4.0, 1.6)  # sierra pequeña
+    caja(2.2, 0.95, 2.6, 1.7)
+    caja(9.2, 0.8, 9.35, 2.4)  # alicates
+    caja(9.45, 0.8, 9.6, 2.4)
+    rgb *= (0.8 + 0.2 * np.clip(1 - v / h, 0, 1))[..., None]  # mugre abajo
+    ruta = os.path.join(BAJADOS, "tablero_taller.png")
+    polyhaven.guardar("tablero", rgb[::-1].copy(), w, h, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def banco_taller(m, rng):
+    # Banco largo del taller (11 × 2,8, tablero a 3,5) contra la pared del fondo del garaje: tablero de tablones gruesos,
+    # patas de 4 × 4 con travesaños, balda de abajo, cajonera a la derecha y, detrás, el tablero perforado de las
+    # herramientas (10,6 × 4,2, de 3,7 a 7,9) con una repisa encima. Delante (-Z), el que trabaja.
+    for k in range(4):
+        m.add("Madera", box(11.0, 0.3, 0.68), T(0, 3.35, -1.02 + k * 0.69) @ R("Z", rng.uniform(-0.3, 0.3)))
+    for x in (-5.2, 5.2, -0.4):
+        for z in (-1.15, 1.15):
+            m.add("Madera", box(0.4, 3.2, 0.4), T(x, 1.6, z))
+    for z in (-1.15, 1.15):
+        m.add("Madera", box(10.8, 0.3, 0.25), T(0, 0.7, z))
+    m.add("Madera", box(10.6, 0.12, 2.2), T(0, 0.85, 0))
+    m.add("Madera", box(3.4, 2.2, 2.4), T(3.4, 2.05, 0.05))
+    for y in (1.35, 2.05, 2.75):
+        m.add("Madera", box(3.2, 0.6, 0.06), T(3.4, y, -1.17))
+        m.add("Metal", box(0.6, 0.08, 0.08), T(3.4, y, -1.24))
+    m.add("Tablero", box(10.6, 4.2, 0.1), T(0, 5.8, 1.32))
+    for x in (-5.35, 5.35):
+        m.add("Madera", box(0.25, 4.6, 0.3), T(x, 5.8, 1.3))
+    m.add("Madera", box(11.0, 0.15, 1.0), T(0, 8.1, 0.95))
+    for x in (-4.5, 0, 4.5):
+        m.add("Metal", box(0.08, 0.6, 0.7), T(x, 7.75, 1.0) @ R("X", 45))
+    # Herramientas colgadas sobre sus siluetas: dos llaves y cuatro destornilladores (la sierra y la palanca, de Mapa).
+    for x in (4.21, 3.61):
+        m.add("Metal", box(0.14, 2.0, 0.05), T(x, 5.95, 1.22))
+        m.add("Metal", cyl(0.2, 0.06, 10), T(x, 7.05, 1.25) @ R("X", 90))
+    for k in range(4):
+        x = -1.75 - k * 0.45
+        m.add("Mango", cyl(0.07, 1.2, 8), T(x, 5.4, 1.18))
+        m.add("Metal", cyl(0.025, 0.7, 6), T(x, 6.6, 1.18))
+    m.uv["Tablero"] = lambda x, y, z: ((5.3 - x) / 10.6, (y - 3.7) / 4.2)
+
+
+def pila_lavar(m, rng):
+    # Pila de lavar de cemento (3,8 × 2,4, borde a 3): el pilón a la izquierda con agua sucia y la tabla de frotar de
+    # estrías a la derecha, sobre un pie macizo; grifo de latón que sale de la pared (+Z).
+    m.add("Piedra", box(3.4, 1.8, 2.0), T(0, 0.9, 0.1))
+    m.add("Piedra", box(3.8, 0.3, 2.4), T(0, 1.95, 0))
+    for x, sx in ((-1.8, 0.2), (0.15, 0.2)):
+        m.add("Piedra", box(sx, 1.1, 2.4), T(x, 2.55, 0))
+    for z in (-1.1, 1.1):
+        m.add("Piedra", box(2.15, 1.1, 0.2), T(-0.83, 2.55, z))
+    m.add("Agua", box(1.75, 0.04, 2.0), T(-0.83, 2.55, 0))
+    tabla = T(1.0, 2.55, 0) @ R("X", 8)
+    m.add("Piedra", box(1.7, 0.3, 2.4), tabla)
+    for k in range(9):
+        m.add("Piedra", box(1.5, 0.1, 0.12), tabla @ T(0, 0.18, -0.95 + k * 0.24))
+    m.add("Piedra", box(3.8, 1.2, 0.2), T(0, 3.6, 1.1))
+    m.rama("Metal", (-0.8, 4.0, 1.2), (-0.8, 4.0, 0.5), 0.07, 0.07)
+    m.rama("Metal", (-0.8, 4.0, 0.5), (-0.8, 3.65, 0.35), 0.07, 0.05)
+    m.add("Metal", cyl(0.12, 0.1, 10), T(-0.8, 4.2, 0.75))
+
+
+def lavadora_vieja(m, rng):
+    # Lavadora antigua de rodillos: tina de esmalte sobre cuatro patas con ruedas, tapa y, encima, el escurridor de dos
+    # rodillos de goma con su manivela.
+    m.add("Esmalte", lathe([(1.15, 1.0), (1.25, 1.2), (1.25, 3.0), (1.3, 3.1)], 24))
+    m.add("Metal", lathe([(1.32, 3.1), (1.3, 3.25), (0.3, 3.35)], 24))
+    for k in range(4):
+        a = math.radians(45 + 90 * k)
+        x, z = 0.95 * math.cos(a), 0.95 * math.sin(a)
+        m.rama("Metal", (x, 1.2, z), (x * 1.15, 0.25, z * 1.15), 0.08, 0.06)
+        m.add("Goma", cyl(0.15, 0.12, 10), T(x * 1.15, 0.15, z * 1.15) @ R("Z", 90) @ T(0, -0.06, 0))
+    for x in (-1.0, 1.0):
+        m.add("Metal", box(0.15, 1.3, 0.25), T(x, 3.9, 0.9))
+    for y in (4.05, 4.4):
+        m.add("Goma", cyl(0.18, 1.85, 12), T(-0.92, y, 0.9) @ R("Z", -90))
+    m.add("Metal", box(2.2, 0.15, 0.3), T(0, 4.65, 0.9))
+    m.rama("Metal", (1.05, 4.4, 0.9), (1.45, 4.4, 0.9), 0.05, 0.05)
+    m.rama("Metal", (1.45, 4.4, 0.9), (1.45, 4.0, 0.5), 0.05, 0.05)
+    m.add("Goma", cyl(0.06, 0.4, 8), T(1.45, 4.0, 0.5) @ R("Z", -90))
+
+
+def tendedero(m, rng):
+    # Tendedero plegable de madera (4 × 2,2, 3,8 de alto) con ropa vieja: una sábana doblada sobre el travesaño de arriba,
+    # una camisa y unos trapos.
+    for z0 in (-1.1, 1.1):
+        for x in (-1.9, 1.9):
+            m.rama("Madera", (x, 0, z0), (x, 3.7, 0), 0.07, 0.06)
+        for y in (1.4, 2.3):
+            z = z0 * (1 - y / 3.7)
+            m.rama("Madera", (-1.9, y, z), (1.9, y, z), 0.04, 0.04)
+    m.rama("Madera", (-1.9, 3.7, 0), (1.9, 3.7, 0), 0.05, 0.05)
+
+    def colgada(x0, ancho, y, z, caida, papel, semilla):
+        def f(u, v):
+            x = x0 + u * ancho
+            if v < 0.5:  # baja por delante
+                return (x, y - v * 2 * caida + 0.03 * math.sin(9 * u + semilla), z - 0.08 - 0.3 * v)
+            return (x, y - (1 - v) * 2 * caida * 0.8, z + 0.08 + 0.25 * (1 - v))
+        tela(m, papel, f, 10, 10, 0.04)
+    colgada(-1.8, 3.4, 3.78, 0, 1.6, "Ropa", 1.0)
+    colgada(-1.6, 1.4, 2.35, -0.43, 0.9, "Ropa2", 2.0)
+    colgada(0.6, 1.0, 1.45, 0.68, 0.6, "Ropa2", 3.0)
+
+
+def cuerda_ropa(m, rng):
+    # Cuerda de tender de 11,6 de largo (a lo largo de X) algo combada, con pinzas y ropa colgando: dos camisas, una
+    # sábana larga y unos calcetines.
+    largo = 11.6
+
+    def alto(x):
+        return -0.45 * (1 - (2 * x / largo) ** 2)
+    pasos = 16
+    for k in range(pasos):
+        x0, x1 = -largo / 2 + largo * k / pasos, -largo / 2 + largo * (k + 1) / pasos
+        m.rama("Cuerda", (x0, alto(x0), 0), (x1, alto(x1), 0), 0.035, 0.035, 5)
+    for x in (-largo / 2, largo / 2):
+        m.add("Metal", box(0.15, 0.3, 0.3), T(x, 0, 0))
+
+    def prenda(xc, ancho, caida, papel, semilla):
+        def f(u, v):
+            x = xc + (u - 0.5) * ancho
+            return (x, alto(x) - 0.05 - v * caida * (1 + 0.08 * math.sin(5 * u + semilla)),
+                    0.06 * math.sin(4 * v + 6 * u + semilla))
+        tela(m, papel, f, 8, 10, 0.04)
+        for x in (xc - ancho * 0.4, xc + ancho * 0.4):
+            m.add("Pinza", box(0.08, 0.3, 0.12), T(x, alto(x) - 0.05, 0))
+    prenda(-3.9, 1.6, 1.9, "Ropa2", 1.0)
+    prenda(-1.0, 3.2, 3.0, "Ropa", 2.0)
+    prenda(1.6, 1.5, 1.8, "Ropa2", 3.0)
+    for x in (3.2, 3.6):
+        prenda(x, 0.3, 0.8, "Ropa2", x)
+
+
+def enchufe_viejo(m, rng):
+    # Enchufe del móvil: placa de baquelita con dos agujeros y su interruptor, el cable por fuera de la pared hasta el
+    # techo y la repisita de madera con escuadras donde se deja el móvil. La espalda en z = 0 (la pared, a +Z); la placa
+    # con su centro a 2,6 del suelo y la repisa con la cara de arriba a 2.
+    m.add("Baquelita", box(0.6, 0.8, 0.12), T(0, 2.6, -0.06))
+    for x in (-0.11, 0.11):
+        m.add("Interior", cyl(0.05, 0.02, 8), T(x, 2.5, -0.12) @ R("X", -90))
+    m.add("Baquelita", box(0.12, 0.2, 0.06), T(0, 2.82, -0.14))
+    m.add("Baquelita", box(0.1, 6.5, 0.1), T(0, 6.25, -0.05))
+    m.add("Madera", box(1.4, 0.2, 1.1), T(0, 1.9, -0.55))
+    for x in (-0.5, 0.5):
+        m.add("Madera", box(0.1, 0.6, 0.6), T(x, 1.55, -0.3) @ R("X", 45))
+
+
+# El coche: cada pieza que se monta (Coche) es un mueble aparte que se pone en el sitio de su bloque de
+# Mapa.construirCoche. Delante = -Z (al portón).
+COCHE_ANCHO, COCHE_LARGO = 6.4, 13.6
+RUEDA_DETRAS, RUEDA_DELANTE = 4.3, -4.4
+
+
+def pintura_coche(w=512):
+    """Pintura azul grisácea de un coche viejo: grano, chorretones de óxido y desconchones."""
+    azar = np.random.default_rng(21)
+    v, u = np.mgrid[0:w, 0:w].astype(np.float32) / w
+    rgb = np.ones((w, w, 3), dtype=np.float32) * np.array([0.27, 0.33, 0.38], dtype=np.float32)
+    rgb *= (0.9 + azar.random((w, w, 1)).astype(np.float32) * 0.12)
+    oxido = np.array([0.36, 0.2, 0.11], dtype=np.float32)
+    for _ in range(26):
+        cu, cv, r = azar.random(), azar.random(), azar.uniform(0.01, 0.05)
+        ang = np.arctan2(v - cv, u - cu)
+        borde = r * (1 + 0.35 * np.sin(5 * ang + azar.uniform(0, 6)))
+        d = np.sqrt((u - cu) ** 2 + (v - cv) ** 2)
+        rgb[d < borde] = oxido * azar.uniform(0.7, 1.1)
+        chorro = (np.abs(u - cu) < r * 0.3) & (v < cv) & (v > cv - azar.uniform(0.05, 0.2))
+        rgb[chorro] = rgb[chorro] * 0.5 + oxido * 0.5
+    ruta = os.path.join(BAJADOS, "pintura_coche.png")
+    polyhaven.guardar("pintura", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def coche_viejo(m, rng):
+    # Sedán de los setenta destrozado (6,4 × 13,6, 4,9 de alto): carrocería de la cabina hacia atrás con el paso de la
+    # rueda de atrás, aletas delanteras con su paso, el hueco del motor a la vista (el capó es aparte,
+    # CapoCoche), cristales, asientos, volante, parachoques cromados, faros y pilotos. Ruedas, motor, batería y
+    # radiador son muebles aparte (Coche los enseña al montarlos).
+    an, la = COCHE_ANCHO / 2, COCHE_LARGO / 2
+    fuego = -2.0  # el cortafuegos, entre el motor y la cabina
+    bajo = [(fuego, 0.95)] + arco(RUEDA_DETRAS, 0.95, 1.6) + [(la - 0.15, 0.95), (la, 1.3), (la, 2.55), (la - 0.25, 2.95),
+                                                            (4.9, 3.1), (fuego, 3.1)]
+    m.add("Pintura", lado(bajo, -an, an))
+    # Cabina: techo, montantes y cristales.
+    m.add("Pintura", lado([(-0.5, 4.75), (3.4, 4.75), (3.45, 4.9), (-0.55, 4.9)], -an + 0.05, an - 0.05))
+    for x in (-an + 0.12, an - 0.12):
+        m.rama("Pintura", (x, 3.1, fuego + 0.1), (x, 4.8, -0.5), 0.1, 0.1, 6)
+        m.rama("Pintura", (x, 3.1, 1.5), (x, 4.8, 1.5), 0.1, 0.1, 6)
+        m.add("Pintura", lado([(4.9, 3.1), (4.3, 3.1), (2.9, 4.8), (3.3, 4.8)], x - 0.1, x + 0.1))
+    m.add("Cristal", lado([(fuego + 0.05, 3.1), (4.85, 3.1), (3.42, 4.76), (-0.48, 4.76)], -an + 0.15, an - 0.15))
+    # Asientos y volante (se ven por los cristales; la carrocería es maciza hasta la cintura).
+    for x in (-1.5, 1.5):
+        m.add("Asiento", box(2.4, 0.4, 1.8), T(x, 3.3, 0.2))
+        m.add("Asiento", box(2.4, 1.6, 0.5), T(x, 4.0, 1.2) @ R("X", -12))
+    m.add("Asiento", box(5.6, 1.4, 0.5), T(0, 3.8, 4.0) @ R("X", -15))
+    m.add("Interior", box(5.8, 0.6, 0.9), T(0, 3.4, fuego + 0.5))
+    m.add("Interior", lathe([(0.55, 0), (0.6, 0.05), (0.55, 0.1)], 16, caps=False), T(-1.5, 3.9, -0.8) @ R("X", -70))
+    m.rama("Interior", (-1.5, 3.9, -0.8), (-1.5, 3.55, -1.3), 0.07, 0.07)
+    # Delante: suelo y cortafuegos del hueco del motor, aletas con el paso de la rueda, frontal con parrilla y faros.
+    m.add("Interior", box(COCHE_ANCHO - 1.6, 0.4, la + fuego), T(0, 1.15, (fuego - la) / 2))
+    m.add("Interior", box(COCHE_ANCHO - 1.4, 2.0, 0.15), T(0, 2.1, fuego + 0.08))
+    aleta = [(-la, 1.3), (-la + 0.15, 0.95)] + arco(RUEDA_DELANTE, 0.95, 1.6) + [(fuego, 0.95), (fuego, 3.1),
+                                                                                   (-la + 0.3, 2.85), (-la, 2.55)]
+    for x0, x1 in ((-an, -an + 0.55), (an - 0.55, an)):
+        m.add("Pintura", lado(aleta, x0, x1))
+    m.add("Pintura", box(COCHE_ANCHO - 1.1, 1.0, 0.2), T(0, 1.8, -la + 0.1))
+    for k in range(5):
+        m.add("Cromo", box(2.6, 0.06, 0.08), T(0, 1.95 + k * 0.13, -la - 0.02))
+    for x in (-2.3, 2.3):
+        m.add("Cromo", cyl(0.42, 0.12, 14), T(x, 2.3, -la) @ R("X", -90))
+        m.add("Faro", cyl(0.34, 0.06, 14), T(x, 2.3, -la - 0.1) @ R("X", -90))
+        m.add("Piloto", box(0.9, 0.5, 0.06), T(x, 2.2, la + 0.02))
+    for z in (-la - 0.2, la + 0.2):
+        m.add("Cromo", box(COCHE_ANCHO + 0.2, 0.35, 0.3), T(0, 1.45, z))
+    for z in (RUEDA_DETRAS, RUEDA_DELANTE):  # pasos de rueda oscuros por dentro
+        for x in (-an + 0.65, an - 0.65):
+            m.add("Interior", box(0.1, 1.5, 3.0), T(x, 1.9, z))
+
+
+def capo_coche(m, rng):
+    # Capó (6,2 × 4,4): chapa algo combada con el borde doblado. Va aparte del coche: Mapa lo pone abierto y en la huida
+    # se cierra (HuidaVista). La bisagra, en +Z.
+    for k in range(5):
+        z = -2.2 + k * 0.88
+        m.add("Pintura", box(6.2, 0.12, 0.9), T(0, 0.06 + 0.05 * math.sin(math.pi * (k + 0.5) / 5), z + 0.44))
+    for x in (-3.05, 3.05):
+        m.add("Pintura", box(0.1, 0.2, 4.4), T(x, 0.02, 0))
+    m.add("Pintura", box(6.2, 0.2, 0.1), T(0, 0.02, -2.15))
+
+
+def motor_coche(m, rng):
+    # Motor de cuatro cilindros (unos 3,2 × 2,2 × 2,4): bloque, culata con la tapa de balancines, filtro del aire
+    # redondo, poleas delante y el colector a un lado.
+    m.add("Bloque", box(2.4, 1.3, 2.2), T(0, 0.65, 0))
+    m.add("Bloque", box(2.0, 0.5, 2.1), T(0, 1.55, 0))
+    m.add("Tapa", box(1.6, 0.3, 1.9), T(0, 1.95, 0))
+    m.add("Tapa", cyl(0.6, 0.2, 18), T(0.2, 2.0, -0.2))
+    m.add("Bloque", cyl(0.42, 0.12, 14), T(0, 0.9, -1.1) @ R("X", -90))
+    m.add("Bloque", cyl(0.25, 0.12, 12), T(0.6, 1.4, -1.05) @ R("X", -90))
+    for k in range(4):
+        m.rama("Bloque", (-1.0, 1.4, -0.75 + k * 0.5), (-1.55, 1.0, -0.5 + k * 0.25), 0.12, 0.12, 6)
+    m.add("Bloque", box(0.3, 0.8, 2.3), T(1.3, 0.9, 0))
+
+
+def rueda_coche(m, rng):
+    # Rueda (radio 1,3, 0,9 de ancho) con el eje a lo largo de X: neumático y tapacubos por los dos lados.
+    perfil = [(0.85, -0.45), (1.2, -0.45), (1.3, -0.3), (1.3, 0.3), (1.2, 0.45), (0.85, 0.45)]
+    m.add("Goma", lathe(perfil, 28, caps=False), R("Z", 90))
+    m.add("Llanta", lathe([(0.87, -0.38), (0.6, -0.42), (0.25, -0.46), (0, -0.47)], 20), R("Z", 90))
+    m.add("Llanta", lathe([(0, 0.47), (0.25, 0.46), (0.6, 0.42), (0.87, 0.38)], 20), R("Z", 90))
+
+
+def bateria_coche(m, rng):
+    # Batería (1,4 × 1 × 0,9) con sus dos bornes.
+    m.add("Caja", box(1.4, 0.9, 0.9), T(0, 0.45, 0))
+    m.add("Caja", box(1.3, 0.08, 0.8), T(0, 0.94, 0))
+    for x, papel in ((-0.45, "Rojo"), (0.45, "Plomo")):
+        m.add(papel, cyl(0.09, 0.12, 8), T(x, 0.95, -0.2))
+
+
+def radiador_coche(m, rng):
+    # Radiador (3 × 1,4 × 0,3): marco con el panal de aletas y el tapón arriba.
+    for y in (0.05, 1.35):
+        m.add("Marco", box(3.0, 0.1, 0.3), T(0, y, 0))
+    for x in (-1.45, 1.45):
+        m.add("Marco", box(0.1, 1.4, 0.3), T(x, 0.7, 0))
+    m.add("Panal", box(2.8, 1.2, 0.2), T(0, 0.7, 0))
+    m.add("Marco", cyl(0.12, 0.15, 10), T(0.9, 1.4, 0))
 
 
 COCINA = {"Madera": "distressed_painted_planks", "Encimera": "kitchen_wood", "Interior": ("liso", (0.07, 0.055, 0.045)),
@@ -2195,6 +2511,42 @@ MUEBLES = {
                     {"Loza": 1, "Laton": 1, "Pantalla": 1.5}, {"Pantalla": (0.95, 0.85, 0.65)}, ("Loza", "Laton", "Pantalla")),
     "DibujosNinos": (dibujos_ninos, {"Dibujo": atlas_dibujos, "Cinta": ("liso", (0.8, 0.78, 0.65))},
                      {"Dibujo": 1, "Cinta": 1}, {}, ()),
+    # Lavadero, garaje y cobertizo (11.8.12).
+    "BancoTaller": (banco_taller, {"Madera": "worn_planks", "Tablero": tablero_taller, "Metal": ("liso", (0.32, 0.31, 0.3)),
+                                   "Mango": ("liso", (0.45, 0.12, 0.08))},
+                    {"Madera": 3, "Tablero": 1, "Metal": 1, "Mango": 1}, {"Madera": (0.8, 0.72, 0.62)}, ("Mango",)),
+    "PilaLavar": (pila_lavar, {"Piedra": "rough_concrete", "Agua": ("liso", (0.16, 0.12, 0.08)),
+                               "Metal": ("liso", (0.45, 0.36, 0.2))},
+                  {"Piedra": 3, "Agua": 1, "Metal": 1}, {"Piedra": (0.7, 0.71, 0.7)}, ("Metal",)),
+    "LavadoraVieja": (lavadora_vieja, {"Esmalte": esmalte_nevera, "Metal": ("liso", (0.4, 0.4, 0.38)),
+                                       "Goma": ("liso", (0.08, 0.08, 0.08))},
+                      {"Esmalte": 3.2, "Metal": 1, "Goma": 1}, {}, ("Esmalte", "Metal", "Goma")),
+    "Tendedero": (tendedero, {"Madera": "dark_wood", "Ropa": "rough_linen", "Ropa2": "poly_wool_herringbone"},
+                  {"Madera": 2, "Ropa": 1.5, "Ropa2": 1.5}, {"Ropa": (0.78, 0.74, 0.66), "Ropa2": (0.5, 0.55, 0.6)},
+                  ("Madera", "Ropa", "Ropa2")),
+    "CuerdaRopa": (cuerda_ropa, {"Cuerda": ("liso", (0.55, 0.5, 0.4)), "Metal": ("liso", (0.3, 0.3, 0.3)),
+                                 "Ropa": "rough_linen", "Ropa2": "poly_wool_herringbone", "Pinza": ("liso", (0.5, 0.4, 0.28))},
+                   {"Cuerda": 1, "Metal": 1, "Ropa": 1.5, "Ropa2": 1.5, "Pinza": 1},
+                   {"Ropa": (0.8, 0.76, 0.68), "Ropa2": (0.6, 0.5, 0.45)}, ("Cuerda", "Ropa", "Ropa2")),
+    "EnchufeViejo": (enchufe_viejo, {"Baquelita": ("liso", (0.16, 0.1, 0.07)), "Interior": ("liso", (0.02, 0.02, 0.02)),
+                                     "Madera": "dark_wood"},
+                     {"Baquelita": 1, "Interior": 1, "Madera": 2}, {}, ()),
+    "CocheViejo": (coche_viejo, {"Pintura": pintura_coche, "Cristal": ("liso", (0.2, 0.24, 0.24)),
+                                 "Asiento": "brown_leather", "Interior": ("liso", (0.06, 0.055, 0.05)),
+                                 "Cromo": ("liso", (0.5, 0.5, 0.48)), "Faro": ("liso", (0.7, 0.68, 0.58)),
+                                 "Piloto": ("liso", (0.35, 0.05, 0.04))},
+                   {"Pintura": 6, "Cristal": 1, "Asiento": 2, "Interior": 1, "Cromo": 1, "Faro": 1, "Piloto": 1},
+                   {"Asiento": (0.6, 0.45, 0.35)}, ("Cromo", "Faro", "Interior")),
+    "CapoCoche": (capo_coche, {"Pintura": pintura_coche}, {"Pintura": 6}, {}, ()),
+    "MotorCoche": (motor_coche, {"Bloque": "rusty_painted_metal", "Tapa": ("liso", (0.3, 0.12, 0.1))},
+                   {"Bloque": 2, "Tapa": 1}, {"Bloque": (0.55, 0.55, 0.55)}, ("Tapa",)),
+    "RuedaCoche": (rueda_coche, {"Goma": ("liso", (0.07, 0.07, 0.07)), "Llanta": ("liso", (0.45, 0.45, 0.44))},
+                   {"Goma": 1, "Llanta": 1}, {}, ("Goma", "Llanta")),
+    "BateriaCoche": (bateria_coche, {"Caja": ("liso", (0.1, 0.1, 0.11)), "Rojo": ("liso", (0.5, 0.08, 0.06)),
+                                     "Plomo": ("liso", (0.45, 0.45, 0.45))},
+                     {"Caja": 1, "Rojo": 1, "Plomo": 1}, {}, ("Rojo", "Plomo")),
+    "RadiadorCoche": (radiador_coche, {"Marco": ("liso", (0.3, 0.3, 0.3)), "Panal": ("liso", (0.42, 0.33, 0.2))},
+                      {"Marco": 1, "Panal": 1}, {}, ()),
 }
 
 
