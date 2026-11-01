@@ -104,6 +104,7 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - En la integración, los muebles del rico van sobre la lámina del suelo: `sueloArriba(centro) + 0,06` (en la prueba conjunta, `Piso` a 14,15 y lámina a 14,21). Se mide después de `Separar` en vez de fijarlo a `ARRIBA + 0,18`, y la moldura del zócalo sale 0,25 de la pared: las caras útiles de esta sala son z 8,15 y -32,25 y x -38,05 y -12,85.
 - `GothicCabinet_01` a `--alto 4.2` (a la escala normal es un armario de 9,4); `GreenChair_01` sirve de sillón de despacho tal cual; `bull_head` y `lion_head` son bustos de bronce con peana, no cabezas de pared.
 
+
 ## Cuarto de los niños (11.8.10)
 
 - Casi no hay juguetes en Poly Haven: todo en `a_mano.py`. `CamaNino` (4,27 × 7,05, cabecera a +Z, colcha de retales que cae hasta 1,3: escondite con `cama(..., "CamaNino", nil, 4.27, 7.05)`), `CunaNino` (a lo largo de x; el gancho del móvil a 6,1 del suelo) y `MovilCuna` (su arriba a 1,57 de su origen: se pone a `cuna * CFrame.new(0, 6.1 - 1.57, 0)`; centrado, se podría girar), `Caballito` (la cabeza a -Z), `BaulJuguetes` (ya volcado, la boca a -Z y los juguetes por delante), `MesaTe` (asientos a 1,0 de alto y 1,75 del centro; la silla vacía a +X), `Muneca`, `Osito` y `Conejo` (sentados, mirando a -Z, origen abajo), `LamparaNino` (bombilla en `Mapa` a 1,35) y `DibujosNinos` (seis hojas con un atlas de dibujos de cera, `DIBUJOS` y `uv_dibujos`, como el tablero del rico). Helpers: `poste_torneado`, `barrote`, `retales()`, `estrella()`.
@@ -112,3 +113,13 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - Aquí `Separar` sí engorda el `Piso` (cara a `ARRIBA + 0,15`): la lámina y los muebles a `ARRIBA + 0,21` (`sueloArriba` en `vestirNinos`). Caras de las paredes con el papel: z 9,6 y 32,42, x -38,3 y -12,6.
 - `textura_ph.py --infantil`: patitos y globos sobre `decrepit_wallpaper` con `--limpia`, a `StudsPerTile` 5. Con colores vivos "se leía alegre e infantil" (revisión con cámaras): muy apagados y con más del papel viejo debajo.
 - Al guardar `Ninos.rbxm` por primera vez, Rojo crea su carpeta `Ninos` y queda también la hecha a mano en Studio: borrar la vieja (si no, dos carpetas con los mismos nombres).
+
+## Escalera del desván y desván (11.8.11)
+
+- Los muebles hechos a mano de esta sala van en `tools/blender/desvan.py`: importa `a_mano.py`, añade los suyos a `a_mano.MUEBLES` y llama a su `main()` (así los chats de sala no se pisan en `a_mano.py`). Mismo uso: `--nombre Maniqui`.
+- `tapado()` generaliza el sofá tapado del salón (cajas, remallado y pliegues): `ButacaTapada`, `ComodaTapada` y `EspejoTapado`. Las fotos con atlas (`FotosTendidas`, `FotosVigilantes`) llevan UV propia por esquinas (`uv_fotos`).
+- **Láminas de una cara:** dos caras opuestas sin grueso salían del revés en Roblox y no se veían: las fotos son cajas cerradas de 0,03.
+- **`tienda` con choque en algo hueco:** el bloque de choque es la caja entera del mueble y tapaba la trampilla con la barandilla: `sinChoque` y tablas invisibles a mano.
+- Al montar en Studio, ordenar las piezas por su número (`_10` va antes que `_2` como texto). Lo liso de `a_mano` no se sube: color × 0,85 en la MeshPart.
+- `Camera_01` (cámara de carrete) cabe en la mesa a escala 4; `spinning_wheel_01` es una rueca de 3,9 de alto; `vintage_crutches_01`, dos muletas de 6,4.
+
