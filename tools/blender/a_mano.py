@@ -10,6 +10,8 @@
 # RopaTirada y CosasTocador.
 # De la habitación del rico, EscritorioRico,
 # LamparaBanquero, CosasEscritorio, GloboTerraqueo, TableroHilos, CuernosCiervo, CajaFuerte y Licores.
+# Del cuarto de los niños, CamaNino, CunaNino, MovilCuna, Caballito, BaulJuguetes, MesaTe, Muneca, Osito, Conejo,
+# LamparaNino y DibujosNinos.
 import argparse
 import json
 import math
@@ -25,14 +27,14 @@ from mathutils import Matrix, Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import polyhaven  # noqa: E402
-from geometria import OUT_DIR, R, S, T, box, cyl, lathe, limb, render, sphere  # noqa: E402
+from geometria import OUT_DIR, R, S, T, blob, box, cyl, lathe, limb, render, sphere  # noqa: E402
 
 BAJADOS = os.path.join(OUT_DIR, "polyhaven", "_bajados")
 ARRIBA = {"Alfombra", "Papel"}  # papeles hechos de láminas de una sola cara
 LIMPIOS = {"Sabana"}  # telas claras: las manchas grandes del envejecido las hacían parecer piedra
 # Muebles enteros sin esas manchas: en la madera pintada clara de la cocina parecían camuflaje (la textura ya trae óxido).
 MUEBLES_LIMPIOS = {"EncimeraCocina", "EncimeraAbierta", "FregaderoCocina", "AlacenaCocina", "AlacenaAbierta",
-                   "NeveraVieja"}
+                   "NeveraVieja", "CamaNino", "CunaNino", "Caballito", "MesaTe"}
 
 
 def a_blender(v):
@@ -1564,6 +1566,785 @@ def licores(m, rng):
     m.add("Cristal", lathe([(0.13, 0), (0.14, 0.3)], 12, caps=False), T(0.75, y + 0.14, 0.45) @ R("Z", 90) @ R("Y", 30))
 
 
+# ---------- Cuarto de los niños (11.8.10) ----------
+def poste_torneado(m, papel, x, z, alto, r=0.13):
+    """Poste de cama o cuna con bolas torneadas arriba."""
+    m.add(papel, lathe([(r, 0), (r, alto - 0.55), (r * 1.35, alto - 0.45), (r * 0.8, alto - 0.3), (r * 1.3, alto - 0.15),
+                        (r * 0.6, alto - 0.02), (0, alto)], 10), T(x, 0, z))
+
+
+def barrote(m, papel, x, z, y0, y1, r=0.05):
+    """Barrote torneado de y0 a y1."""
+    h = y1 - y0
+    m.add(papel, lathe([(r, y0), (r * 1.5, y0 + h * 0.12), (r, y0 + h * 0.25), (r * 0.9, y0 + h * 0.5), (r, y0 + h * 0.75),
+                        (r * 1.5, y0 + h * 0.88), (r, y1)], 6), T(x, 0, z))
+
+
+def retales(w=512):
+    """Colcha de retales de niño: 4 × 4 cuadros por baldosa de colores desvaídos (unos lisos, otros de rayas o
+    lunares), con pespuntes oscuros entre cuadros."""
+    paleta = np.array([(0.55, 0.62, 0.72), (0.78, 0.6, 0.6), (0.8, 0.74, 0.5), (0.6, 0.7, 0.55), (0.82, 0.78, 0.7),
+                       (0.62, 0.52, 0.66)], dtype=np.float32)
+    yy, xx = np.mgrid[0:w, 0:w].astype(np.float32) / w * 4
+    ci, cj = np.floor(xx).astype(int), np.floor(yy).astype(int)
+    u, v = xx % 1, yy % 1
+    k = (ci * 5 + cj * 3) % 6
+    rgb = paleta[k]
+    dibujo = (ci + cj * 2) % 3
+    rayas = (dibujo == 1) & ((u * 6) % 1 < 0.35)
+    lunares = (dibujo == 2) & (np.hypot((u * 4) % 1 - 0.5, (v * 4) % 1 - 0.5) < 0.18)
+    rgb[rayas | lunares] = rgb[rayas | lunares] * 0.72
+    pespunte = ((u < 0.02) | (u > 0.98) | (v < 0.02) | (v > 0.98))
+    rgb[pespunte] = rgb[pespunte] * 0.45
+    azar = np.random.default_rng(17)
+    rgb *= (1 - azar.random((w, w, 1)).astype(np.float32) * 0.12)
+    ruta = os.path.join(BAJADOS, "retales.png")
+    polyhaven.guardar("retales", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def cama_nino(m, rng):
+    # Cama pequeña de madera pintada (4 × 7, cabecera de barrotes a +Z, más alta que los pies) con colchón, colcha de
+    # retales que cae por los lados hasta 1,3 (debajo queda oscuro: el escondite) y almohada.
+    a, l = 2.0, 3.5
+    for x in (-a + 0.14, a - 0.14):
+        poste_torneado(m, "Madera", x, l - 0.14, 4.8)
+        poste_torneado(m, "Madera", x, -l + 0.14, 3.2)
+        m.add("Madera", box(0.12, 0.45, 2 * l - 0.3), T(x, 1.55, 0))  # largueros
+    for z, alto in ((l - 0.14, 4.8), (-l + 0.14, 3.2)):
+        m.add("Madera", box(2 * a - 0.3, 0.3, 0.14), T(0, 1.45, z))
+        m.add("Madera", box(2 * a - 0.3, 0.32, 0.18), T(0, alto - 0.75, z))
+        for k in range(7):
+            barrote(m, "Madera", -a + 0.14 + (2 * a - 0.28) * (k + 1) / 8, z, 1.6, alto - 0.9)
+    m.add("Madera", box(2 * a - 0.4, 0.12, 2 * l - 0.4), T(0, 1.6, 0))  # somier de tablas
+    m.add("Colchon", cojin(a - 0.2, 0.28, l - 0.25, 0.15), T(0, 1.95, 0))
+    caida, arriba, ancho = 1.3, 2.3, a - 0.05
+    lado = arriba - caida
+    total = 2 * lado + 2 * ancho
+
+    def f(u, v):
+        s = u * total
+        if s < lado:
+            x, y = -ancho - 0.1 * (1 - s / lado), caida + s
+        elif s < lado + 2 * ancho:
+            x, y = -ancho + (s - lado), arriba + 0.04 * math.sin((s - lado) * 3.1)
+        else:
+            t = s - lado - 2 * ancho
+            x, y = ancho + 0.1 * (t / lado), arriba - t
+        z = -l + 0.15 + v * (2 * l - 1.6)
+        if abs(x) > ancho - 0.01:
+            x += math.copysign(0.06 * math.sin(z * 2.7) * (1 - min(y - caida, 1)), x)
+        return (x, y, z)
+
+    tela(m, "Colcha", f, 26, 30, 0.05)
+    m.add("Almohada", cojin(1.3, 0.25, 0.5, 0.35), T(0, 2.45, l - 0.8) @ R("X", -8))
+
+
+def cuna_nino(m, rng):
+    # Cuna de barrotes torneados (5 × 2,8, 3,9 de alto, a lo largo de x, el frente a -Z): colchón, mantita arrugada y
+    # almohadita; un barrote del frente roto y otro doblado. El palo del móvil sale del poste de +x y su gancho queda a
+    # (0, 6,1, 0): MovilCuna cuelga de ahí.
+    lx, lz, alto = 2.5, 1.4, 3.6
+    for x in (-lx, lx):
+        for z in (-lz, lz):
+            poste_torneado(m, "Madera", x, z, alto + 0.3, 0.12)
+    for z in (-lz, lz):
+        m.add("Madera", box(2 * lx, 0.16, 0.14), T(0, alto - 0.1, z))
+        m.add("Madera", box(2 * lx, 0.2, 0.14), T(0, 1.0, z))
+        for k in range(1, 16):
+            x = -lx + 2 * lx * k / 16
+            if z < 0 and k == 6:
+                barrote(m, "Madera", x, z, 1.1, 1.7)  # roto: solo queda el trozo de abajo
+                barrote(m, "Madera", x, z, alto - 0.6, alto - 0.18)
+                continue
+            if z < 0 and k == 9:  # doblado hacia fuera
+                m.rama("Madera", (x, 1.1, z), (x + 0.05, 2.3, z - 0.28), 0.05, 0.05, 6)
+                m.rama("Madera", (x + 0.05, 2.3, z - 0.28), (x, alto - 0.18, z), 0.05, 0.05, 6)
+                continue
+            barrote(m, "Madera", x, z, 1.1, alto - 0.18)
+    for x in (-lx, lx):
+        m.add("Madera", box(0.14, 0.16, 2 * lz), T(x, alto - 0.1, 0))
+        m.add("Madera", box(0.14, 0.2, 2 * lz), T(x, 1.0, 0))
+        for k in range(1, 9):
+            barrote(m, "Madera", x, -lz + 2 * lz * k / 9, 1.1, alto - 0.18)
+    m.add("Madera", box(2 * lx - 0.1, 0.1, 2 * lz - 0.1), T(0, 1.05, 0))
+    m.add("Colchon", cojin(lx - 0.15, 0.2, lz - 0.12, 0.15), T(0, 1.3, 0))
+    m.add("Manta", cojin(1.2, 0.12, 1.1, 0.4), T(0.5, 1.55, -0.05) @ R("Y", 12) @ R("Z", 4))
+    m.add("Manta", cojin(0.5, 0.18, 0.9, 0.5), T(-0.35, 1.62, 0.1) @ R("Y", -20))
+    m.add("Almohada", cojin(0.55, 0.14, 0.75, 0.35), T(-1.8, 1.55, 0))
+    # Palo del móvil: sube por fuera del poste de +x, hace un arco hasta el medio y baja un gancho.
+    m.add("Madera", cyl(0.06, 2.6, 8), T(lx + 0.16, alto - 0.6, 0))
+    for k in range(10):
+        a0, a1 = math.pi / 2 * k / 10, math.pi / 2 * (k + 1) / 10
+        p0 = (lx + 0.16 - 0.3 * (1 - math.cos(a0)), alto + 2.0 + 0.3 * math.sin(a0), 0)
+        p1 = (lx + 0.16 - 0.3 * (1 - math.cos(a1)), alto + 2.0 + 0.3 * math.sin(a1), 0)
+        m.rama("Madera", p0, p1, 0.05, 0.05, 6)
+    m.rama("Madera", (lx - 0.14, alto + 2.3, 0), (0, alto + 2.6, 0), 0.05, 0.04, 6)
+    m.rama("Hilo", (0, alto + 2.6, 0), (0, alto + 2.5, 0), 0.02, 0.02, 4)
+
+
+def estrella(r0, r1, n=5):
+    return [(math.sin(2 * math.pi * k / (2 * n)) * (r0 if k % 2 == 0 else r1),
+             math.cos(2 * math.pi * k / (2 * n)) * (r0 if k % 2 == 0 else r1)) for k in range(2 * n)]
+
+
+def movil_cuna(m, rng):
+    # Móvil de la cuna (cuelga del gancho de CunaNino): aro y cruz de madera arriba (y 1,45) y cuatro figuras colgando
+    # de hilos (estrella, luna, pajarito y nube), de 0,4 a 0,9 más abajo. Centrado en x, z: se puede girar sobre su eje.
+    top = 1.45
+    m.rama("Hilo", (0, top + 0.12, 0), (0, top, 0), 0.02, 0.02, 4)
+    for k in range(4):
+        a = math.pi / 2 * k
+        m.rama("Madera", (0, top, 0), (0.75 * math.cos(a), top - 0.05, 0.75 * math.sin(a)), 0.035, 0.03, 6)
+    figuras = [("Estrella", 0.85), ("Luna", 0.55), ("Pajaro", 0.75), ("Nube", 0.45)]
+    for k, (figura, largo) in enumerate(figuras):
+        a = math.pi / 2 * k
+        x, z = 0.75 * math.cos(a), 0.75 * math.sin(a)
+        y = top - 0.05 - largo
+        m.rama("Hilo", (x, top - 0.05, z), (x, y + 0.25, z), 0.012, 0.012, 4)
+        giro = T(x, y, z) @ R("Y", rng.uniform(-40, 40))
+        if figura == "Estrella":
+            m.add("Amarillo", extruir(estrella(0.25, 0.11), -0.04, 0.04), giro)
+        elif figura == "Luna":
+            pts = [(0.24 * math.sin(t), 0.24 * math.cos(t)) for t in np.linspace(0.3, 2 * math.pi - 0.3, 14)]
+            pts += [(0.1 + 0.18 * math.sin(t), 0.18 * math.cos(t)) for t in np.linspace(2 * math.pi - 0.6, 0.6, 10)]
+            m.add("Amarillo", extruir(pts, -0.04, 0.04), giro @ R("Z", 90))
+        elif figura == "Pajaro":
+            m.add("Azul", cojin(0.2, 0.12, 0.1, 0.8), giro)
+            m.add("Azul", sphere(0.09, 8, 5), giro @ T(0.17, 0.08, 0))
+            m.add("Amarillo", cyl(0.03, 0.08, 5, 0.0), giro @ T(0.25, 0.08, 0) @ R("Z", -90))
+            m.add("Azul", box(0.18, 0.02, 0.22), giro @ T(-0.02, 0.12, 0.12) @ R("X", -25))
+            m.add("Azul", box(0.18, 0.02, 0.22), giro @ T(-0.02, 0.12, -0.12) @ R("X", 25))
+        else:
+            for dx, dy, r in ((-0.12, 0, 0.11), (0.0, 0.05, 0.14), (0.13, 0, 0.1)):
+                m.add("Blanco", sphere(r, 8, 5), giro @ T(dx, dy, 0) @ S(1, 1, 0.5))
+
+
+def caballito(m, rng):
+    # Caballito de balancín de madera pintada (1,3 × 3,4 × 4,2, la cabeza a -Z): dos balancines curvos, patas, cuerpo,
+    # cuello, cabeza con asa, crin y cola de lana oscura y una silla roja.
+    def balancin(z):
+        return 0.12 + 7.0 - math.sqrt(49.0 - z * z)
+
+    for x in (-0.55, 0.55):
+        zs = np.linspace(-2.1, 2.1, 13)
+        for z0, z1 in zip(zs[:-1], zs[1:]):
+            y0, y1 = balancin(z0), balancin(z1)
+            a = math.degrees(math.atan2(y1 - y0, z1 - z0))
+            m.add("Madera", box(0.14, 0.24, math.hypot(z1 - z0, y1 - y0) + 0.02), T(x, (y0 + y1) / 2, (z0 + z1) / 2) @ R("X", -a))
+    for z in (-1.4, 1.4):
+        m.add("Madera", box(1.24, 0.12, 0.2), T(0, balancin(z) + 0.1, z))
+    for x in (-0.55, 0.55):
+        for z, zc in ((-1.35, -0.75), (1.35, 0.75)):
+            m.rama("Pintura", (x, balancin(z) + 0.1, z), (x * 0.5, 2.05, zc), 0.1, 0.13, 8)
+    m.add("Pintura", cojin(0.42, 0.42, 1.05, 0.8, 14, 9), T(0, 2.2, 0))
+    m.rama("Pintura", (0, 2.35, -0.75), (0, 3.15, -1.2), 0.3, 0.22, 10)
+    cabeza = T(0, 3.25, -1.45) @ R("X", 35)
+    m.add("Pintura", cojin(0.21, 0.24, 0.5, 0.8, 12, 8), cabeza)
+    for x in (-0.12, 0.12):
+        m.add("Pintura", cyl(0.07, 0.25, 6, 0.0), T(x, 3.45, -1.3) @ R("X", -15))
+        m.add("Ojo", sphere(0.05, 8, 5), T(x * 1.6, 3.38, -1.5))
+    m.add("Laton", cyl(0.04, 0.9, 8), T(-0.45, 3.3, -1.28) @ R("Z", -90))
+    for k in range(9):  # crin
+        t = k / 8
+        p = (0, 2.6 + 0.75 * t, -0.65 - 0.55 * t)
+        m.add("Crin", box(0.08, 0.32, 0.16), T(*p) @ T(0, 0.12, 0.08) @ R("X", rng.uniform(-15, 15)))
+    for dx in (-0.06, 0.0, 0.06):  # cola
+        m.rama("Crin", (dx, 2.35, 1.0), (dx * 3, 1.5, 1.35 + rng.uniform(-0.05, 0.1)), 0.06, 0.03, 5)
+    m.add("Silla", cojin(0.46, 0.07, 0.45, 0.3), T(0, 2.63, 0.15))
+    m.add("Silla", box(0.04, 0.5, 0.06), T(-0.46, 2.35, 0.15))
+    m.add("Silla", box(0.04, 0.5, 0.06), T(0.46, 2.35, 0.15))
+
+
+def baul_juguetes(m, rng):
+    # Baúl de juguetes volcado hacia delante (-Z): la boca mira a la sala, la tapa arrancada al lado y los juguetes
+    # desparramados por el suelo delante (cubos de letras, pelota, trenecito y un soldadito). 3,2 de ancho.
+    w, p, h, g = 3.2, 1.8, 1.9, 0.1  # ancho, fondo (ahora de alto), alto (ahora de fondo), grueso
+    m.add("Madera", box(w, g, h), T(0, p - g / 2, h / 2))  # la espalda, arriba
+    m.add("Madera", box(w, g, h), T(0, g / 2, h / 2))  # el frente, en el suelo
+    m.add("Madera", box(g, p, h), T(-w / 2 + g / 2, p / 2, h / 2))
+    m.add("Madera", box(g, p, h), T(w / 2 - g / 2, p / 2, h / 2))
+    m.add("Madera", box(w, p, g), T(0, p / 2, h - g / 2))  # el fondo, contra la pared
+    m.add("Interior", box(w - 2 * g - 0.02, p - 2 * g - 0.02, 0.02), T(0, p / 2, h - g - 0.02))
+    m.add("Madera", box(w + 0.1, 0.1, p + 0.1), T(-0.3, 0.05, -1.6) @ R("Y", 18))  # la tapa, tirada
+    juguetes = [("Rojo", -1.2, -0.5), ("Azul", -0.5, -1.1), ("Amarillo", 0.4, -0.6), ("Azul", 1.3, -1.6),
+                ("Rojo", 1.0, -0.3), ("Amarillo", -1.4, -2.3), ("Rojo", 0.3, 0.6), ("Azul", -0.6, 0.8)]
+    for papel, x, z in juguetes:  # cubos de letras (de canto algunos)
+        m.add(papel, box(0.4, 0.4, 0.4), T(x, 0.2 + (0.1 if z > 0 else 0), z) @ R("Y", rng.uniform(0, 90)) @ R("X", rng.choice((0, 0, 35))))
+    m.add("Rojo", sphere(0.38, 14, 9), T(0.9, 0.38, -2.2))
+    m.add("Amarillo", box(0.04, 0.6, 0.04), T(0.9, 0.38, -2.2))  # raya de la pelota
+    tren = T(-0.2, 0, -2.6) @ R("Y", 65)
+    m.add("Azul", box(0.5, 0.45, 1.0), tren @ T(0, 0.38, 0))
+    m.add("Rojo", box(0.5, 0.35, 0.4), tren @ T(0, 0.78, 0.25))
+    m.add("Rojo", cyl(0.08, 0.3, 8), tren @ T(0, 0.6, -0.35))
+    for x in (-0.28, 0.28):
+        for z in (-0.3, 0.3):
+            m.add("Rueda", cyl(0.15, 0.08, 10), tren @ T(x, 0.15, z) @ R("Z", 90))
+    soldado = T(1.7, 0.12, -0.9) @ R("Y", 30) @ R("X", 90)  # tumbado
+    m.add("Rojo", cyl(0.1, 0.45, 8), soldado)
+    m.add("Azul", cyl(0.09, 0.35, 8), soldado @ T(0, -0.35, 0))
+    m.add("Interior", cyl(0.09, 0.3, 8), soldado @ T(0, 0.45, 0))
+
+
+def mesa_te(m, rng):
+    # Mesita de té de los muñecos (mesa redonda de 1,2 de radio a 1,7 de alto y cuatro sillitas, una vacía a +X con un
+    # trozo de tarta en su plato): tetera, azucarero, tazas y platos. Asientos a 1,0 de alto y 1,75 del centro, a -X, -Z y
+    # +Z (los muñecos van ahí, mirando al centro).
+    m.add("Madera", cyl(1.2, 0.12, 24), T(0, 1.58, 0))
+    for k in range(4):
+        a = math.pi / 4 + math.pi / 2 * k
+        m.rama("Madera", (0.75 * math.cos(a), 1.58, 0.75 * math.sin(a)), (0.85 * math.cos(a), 0, 0.85 * math.sin(a)), 0.07, 0.06, 6)
+    for k in range(4):
+        a = math.pi / 2 * k  # 0 = +X (la vacía)
+        c, s = math.cos(a), math.sin(a)
+        silla = T(1.75 * c, 0, 1.75 * s) @ R("Y", 90 - math.degrees(a))  # su frente (-Z) mira al centro
+        m.add("Madera", box(0.85, 0.1, 0.8), silla @ T(0, 0.95, 0))
+        m.add("Madera", box(0.85, 1.0, 0.08), silla @ T(0, 1.5, 0.38))
+        for x in (-0.36, 0.36):
+            m.add("Madera", box(0.08, 1.95, 0.08), silla @ T(x, 0.975, 0.38))
+            m.add("Madera", box(0.08, 0.95, 0.08), silla @ T(x, 0.475, -0.34))
+        plato = (0.8 * c, 1.71, 0.8 * s)
+        m.add("Loza", cyl(0.24, 0.03, 16, 0.28), T(*plato))
+        taza = (0.62 * c - 0.3 * s, 1.72, 0.62 * s + 0.3 * c)
+        m.add("Loza", cyl(0.14, 0.02, 12, 0.16), T(*taza))
+        if k == 1:  # una taza volcada
+            m.add("Loza", lathe([(0.07, 0), (0.09, 0.16)], 10), T(taza[0], taza[1] + 0.09, taza[2]) @ R("X", 90))
+        else:
+            m.add("Loza", lathe([(0.07, 0.02), (0.09, 0.18)], 10), T(*taza))
+            m.add("Te", cyl(0.08, 0.01, 10), T(taza[0], 1.86, taza[2]))
+        if k == 0:  # la tarta de la silla vacía, podrida
+            pts = [(0, 0), (0.22, -0.1), (0.22, 0.1)]
+            m.add("Tarta", extruir(pts, -0.08, 0.08), T(*plato) @ T(0, 0.11, 0) @ R("X", -90))
+            m.add("Moho", sphere(0.05, 6, 4), T(plato[0] + 0.1, 1.85, plato[2] + 0.02))
+    m.add("Loza", lathe([(0, 1.64), (0.2, 1.66), (0.28, 1.8), (0.26, 1.98), (0.12, 2.06), (0.05, 2.12), (0.06, 2.16), (0, 2.18)], 14))
+    m.rama("Loza", (0.25, 1.82, 0), (0.45, 2.02, 0), 0.04, 0.025, 6)
+    m.rama("Loza", (-0.25, 1.95, 0), (-0.32, 1.8, 0), 0.03, 0.03, 5)
+    m.add("Loza", lathe([(0, 1.64), (0.12, 1.66), (0.14, 1.82), (0.06, 1.86), (0, 1.88)], 10), T(-0.35, 0, 0.45))
+
+
+def muneca(m, rng):
+    # Muñeca de porcelana sentada (1,3 de alto, mirando a -Z): vestido azul desvaído, pelo castaño con dos coletas,
+    # la cara rajada.
+    m.add("Vestido", lathe([(0.34, 0.02), (0.3, 0.3), (0.16, 0.5), (0.15, 0.75), (0.08, 0.82)], 12))
+    for x in (-0.11, 0.11):
+        m.rama("Cara", (x, 0.08, -0.15), (x, 0.06, -0.62), 0.06, 0.05, 6)
+        m.add("Zapato", cojin(0.07, 0.06, 0.1, 0.4), T(x, 0.06, -0.66))
+        m.rama("Vestido", (x * 1.5, 0.72, 0), (x * 2.3, 0.45, -0.12), 0.05, 0.045, 6)
+        m.rama("Cara", (x * 2.3, 0.45, -0.12), (x * 2.2, 0.32, -0.22), 0.04, 0.035, 5)
+    m.add("Cara", sphere(0.22, 12, 8), T(0, 1.02, 0))
+    m.add("Pelo", sphere(0.235, 12, 8), T(0, 1.06, 0.04) @ S(1, 1, 0.95))
+    for x in (-0.2, 0.2):
+        m.add("Pelo", cojin(0.07, 0.17, 0.07, 0.8), T(x, 0.88, 0.05))
+        m.add("Ojo", sphere(0.035, 6, 4), T(x * 0.4, 1.04, -0.2))
+    m.add("Grieta", box(0.012, 0.18, 0.012), T(0.06, 1.0, -0.215) @ R("Z", 25))
+    m.add("Grieta", box(0.012, 0.1, 0.012), T(0.1, 0.92, -0.2) @ R("Z", -30))
+
+
+def osito(m, rng):
+    # Osito de peluche sentado (1,15 de alto, mirando a -Z): le falta un ojo y tiene un descosido con el relleno fuera.
+    m.add("Peluche", cojin(0.3, 0.34, 0.26, 0.8), T(0, 0.36, 0))
+    m.add("Peluche", sphere(0.25, 12, 8), T(0, 0.87, 0))
+    m.add("Hocico", cojin(0.11, 0.08, 0.09, 0.8), T(0, 0.82, -0.22))
+    m.add("Ojo", sphere(0.04, 6, 4), T(0, 0.86, -0.3))  # la nariz
+    m.add("Ojo", sphere(0.04, 6, 4), T(0.1, 0.95, -0.22))  # solo un ojo
+    for x in (-0.2, 0.2):
+        m.add("Peluche", sphere(0.09, 8, 5), T(x, 1.07, 0.02) @ S(1, 1, 0.6))
+        m.rama("Peluche", (x * 0.9, 0.12, -0.1), (x * 1.0, 0.1, -0.48), 0.11, 0.1, 8)
+        m.rama("Peluche", (x * 1.2, 0.58, 0), (x * 1.6, 0.32, -0.15), 0.09, 0.08, 8)
+    m.add("Relleno", blob((0.07, 0.06, 0.05), 3, 7, 5, 0.3), T(-0.18, 0.45, -0.22))
+
+
+def conejo(m, rng):
+    # Conejo de trapo sentado (1,5 de alto con las orejas, mirando a -Z): una oreja de pie y la otra caída, rota.
+    m.add("Peluche", cojin(0.26, 0.32, 0.22, 0.8), T(0, 0.33, 0))
+    m.add("Peluche", cojin(0.2, 0.2, 0.19, 0.8), T(0, 0.8, 0))
+    m.add("Ojo", sphere(0.035, 6, 4), T(-0.08, 0.84, -0.17))
+    m.add("Ojo", sphere(0.035, 6, 4), T(0.08, 0.84, -0.17))
+    m.add("Hocico", sphere(0.04, 6, 4), T(0, 0.77, -0.19))
+    m.add("Peluche", cojin(0.06, 0.28, 0.025, 0.8), T(-0.08, 1.22, 0.02) @ R("Z", 8))
+    m.add("Peluche", cojin(0.06, 0.26, 0.025, 0.8), T(0.2, 0.78, -0.06) @ R("Z", 150) @ R("X", -25))  # la rota, caída
+    m.add("Relleno", blob((0.04, 0.04, 0.03), 5, 6, 4, 0.3), T(0.12, 0.95, 0.02))
+    for x in (-0.13, 0.13):
+        m.rama("Peluche", (x, 0.1, -0.08), (x, 0.08, -0.45), 0.08, 0.07, 8)
+        m.rama("Peluche", (x * 1.6, 0.55, 0), (x * 2.2, 0.3, -0.1), 0.06, 0.05, 6)
+
+
+def lampara_nino(m, rng):
+    # Lámpara de mesilla de niño (1,9 de alto): pie de loza con forma de jarrón y pantalla de tela hueca (la bombilla, en
+    # Mapa a 1,35).
+    m.add("Loza", lathe([(0.32, 0), (0.34, 0.06), (0.22, 0.12), (0.3, 0.45), (0.26, 0.75), (0.1, 0.95), (0.06, 1.0)], 14))
+    m.add("Laton", cyl(0.025, 0.45, 6), T(0, 1.0, 0))
+    m.add("Pantalla", lathe([(0.78, 1.15), (0.45, 1.9), (0.43, 1.88), (0.75, 1.17), (0.78, 1.15)], 18, caps=False))
+
+
+# Dibujos de niño pegados en la pared (DibujosNinos): (x0, y0, ancho, alto, giro en grados, casilla del atlas).
+DIBUJOS = [(-3.3, 0.6, 1.35, 1.05, -4, 0), (-1.6, 1.0, 1.35, 1.05, 3, 5), (0.2, 0.4, 1.35, 1.05, -2, 1),
+           (1.9, 0.9, 1.35, 1.05, 5, 2), (-0.8, 2.0, 1.05, 1.35, 2, 3), (1.2, 2.25, 1.35, 1.05, -6, 4)]
+
+
+def uv_dibujos(x, y, z):
+    """UV del atlas de dibujos (de frente, la derecha es -x). Busca la hoja con el centro más cerca."""
+    mejor, d = None, 1e9
+    for hoja in DIBUJOS:
+        x0, y0, w, h, giro, casilla = hoja
+        dd = math.hypot(x - (x0 + w / 2), y - (y0 + h / 2))
+        if dd < d:
+            mejor, d = hoja, dd
+    x0, y0, w, h, giro, casilla = mejor
+    cx, cy = x0 + w / 2, y0 + h / 2
+    a = math.radians(-giro)
+    lx = (x - cx) * math.cos(a) - (y - cy) * math.sin(a)
+    ly = (x - cx) * math.sin(a) + (y - cy) * math.cos(a)
+    u, v = min(max(0.5 - lx / w, 0), 1), min(max(0.5 + ly / h, 0), 1)
+    return ((casilla % 4 + u) / 4, (casilla // 4 + v) / 2)
+
+
+def atlas_dibujos(w=1024, h=512):
+    """Seis dibujos de niño con ceras en papel amarillento (casillas de 256): la familia y una figura alta y negra
+    detrás de la casa; los hermanos en sus camas y la figura en la ventana; el bosque con la figura entre los árboles;
+    la cuna con la figura asomada; todo tachado de negro con dos ojos rojos; y la familia con un niño tachado."""
+    azar = np.random.default_rng(23)
+    rgb = np.ones((h, w, 3), dtype=np.float32) * np.array([0.86, 0.82, 0.7], dtype=np.float32)
+    U, V = np.meshgrid((np.arange(256, dtype=np.float32) + 0.5) / 256, (np.arange(256, dtype=np.float32) + 0.5) / 256)
+    grano = azar.random((256, 256)).astype(np.float32)
+    C = {"rojo": (0.72, 0.14, 0.12), "azul": (0.22, 0.32, 0.68), "verde": (0.26, 0.52, 0.2), "amarillo": (0.88, 0.72, 0.16),
+         "negro": (0.07, 0.07, 0.07), "marron": (0.45, 0.28, 0.15), "rosa": (0.85, 0.55, 0.6)}
+
+    def trazo(img, pts, color, grosor=0.012):
+        mascara = np.zeros((256, 256), dtype=bool)
+        for (ax, ay), (bx, by) in zip(pts[:-1], pts[1:]):
+            dx, dy = bx - ax, by - ay
+            t = np.clip(((U - ax) * dx + (V - ay) * dy) / max(dx * dx + dy * dy, 1e-9), 0, 1)
+            mascara |= np.hypot(U - ax - t * dx, V - ay - t * dy) < grosor
+        img[mascara & (grano > 0.22)] = C[color]
+
+    def circulo(img, cx, cy, r, color, grosor=0.012, n=20):
+        trazo(img, [(cx + r * math.cos(2 * math.pi * k / n), cy + r * math.sin(2 * math.pi * k / n)) for k in range(n + 1)],
+              color, grosor)
+
+    def garabato(img, x0, y0, x1, y1, color, pasos=26, grosor=0.014):
+        pts = []
+        for k in range(pasos):
+            t = k / (pasos - 1)
+            pts.append((x0 + (x1 - x0) * t + azar.uniform(-0.02, 0.02), y0 if k % 2 == 0 else y1))
+        trazo(img, pts, color, grosor)
+
+    def persona(img, x, y, alto, color, ojos=None):
+        r = alto * 0.16
+        circulo(img, x, y + alto - r, r, color)
+        trazo(img, [(x, y + alto - 2 * r), (x, y + alto * 0.35)], color)
+        trazo(img, [(x - alto * 0.18, y), (x, y + alto * 0.35), (x + alto * 0.18, y)], color)
+        trazo(img, [(x - alto * 0.25, y + alto * 0.55), (x + alto * 0.25, y + alto * 0.55)], color)
+        if ojos:
+            for dx in (-r * 0.4, r * 0.4):
+                circulo(img, x + dx, y + alto - r, r * 0.15, ojos, 0.01, 8)
+
+    def sombra(img, x, y, alto, brazos=0.3):
+        """La figura alta y negra: cuerpo largo garabateado, brazos larguísimos y ojos rojos."""
+        garabato(img, x - 0.04, y, x + 0.04, y + alto * 0.8, "negro", 18)
+        circulo(img, x, y + alto * 0.88, alto * 0.08, "negro", 0.02)
+        trazo(img, [(x - brazos, y + alto * 0.2), (x, y + alto * 0.72), (x + brazos, y + alto * 0.2)], "negro", 0.012)
+        for dx in (-0.02, 0.02):
+            circulo(img, x + dx, y + alto * 0.89, 0.008, "rojo", 0.008, 6)
+
+    def casa(img, x, y, w, h):
+        trazo(img, [(x, y), (x + w, y), (x + w, y + h), (x, y + h), (x, y)], "marron")
+        trazo(img, [(x - 0.03, y + h), (x + w / 2, y + h * 1.6), (x + w + 0.03, y + h)], "rojo")
+        trazo(img, [(x + w * 0.4, y), (x + w * 0.4, y + h * 0.45), (x + w * 0.6, y + h * 0.45), (x + w * 0.6, y)], "marron")
+
+    dibujos = []
+    # 0: la familia; la figura alta detrás de la casa.
+    d = np.ones((256, 256, 3), dtype=np.float32) * rgb[0, 0]
+    trazo(d, [(0.02, 0.12), (0.98, 0.14)], "verde", 0.015)
+    casa(d, 0.08, 0.14, 0.3, 0.28)
+    circulo(d, 0.85, 0.85, 0.07, "amarillo", 0.02)
+    for k in range(8):
+        a = 2 * math.pi * k / 8
+        trazo(d, [(0.85 + 0.1 * math.cos(a), 0.85 + 0.1 * math.sin(a)), (0.85 + 0.15 * math.cos(a), 0.85 + 0.15 * math.sin(a))], "amarillo")
+    for x, alto, c in ((0.45, 0.32, "azul"), (0.56, 0.3, "rosa"), (0.65, 0.2, "azul"), (0.73, 0.19, "rojo")):
+        persona(d, x, 0.15, alto, c)
+    sombra(d, 0.3, 0.2, 0.7)
+    dibujos.append(d)
+    # 1: los hermanos en sus camas y la figura en la ventana.
+    d = np.ones((256, 256, 3), dtype=np.float32) * rgb[0, 0]
+    for x in (0.1, 0.62):
+        trazo(d, [(x, 0.15), (x, 0.35), (x + 0.28, 0.35), (x + 0.28, 0.15)], "marron")
+        circulo(d, x + 0.05, 0.4, 0.05, "rosa")
+        garabato(d, x + 0.1, 0.3, x + 0.27, 0.36, "azul", 10, 0.01)
+    trazo(d, [(0.4, 0.55), (0.6, 0.55), (0.6, 0.85), (0.4, 0.85), (0.4, 0.55)], "azul")
+    trazo(d, [(0.5, 0.55), (0.5, 0.85)], "azul")
+    garabato(d, 0.43, 0.6, 0.57, 0.82, "negro", 14)
+    for dx in (-0.03, 0.03):
+        circulo(d, 0.5 + dx, 0.74, 0.012, "rojo", 0.01, 8)
+    dibujos.append(d)
+    # 2: el bosque; la figura entre los árboles y un niño corriendo.
+    d = np.ones((256, 256, 3), dtype=np.float32) * rgb[0, 0]
+    for x in (0.1, 0.28, 0.62, 0.85):
+        trazo(d, [(x - 0.08, 0.2), (x, 0.65), (x + 0.08, 0.2), (x - 0.08, 0.2)], "verde")
+        trazo(d, [(x, 0.2), (x, 0.1)], "marron")
+    sombra(d, 0.45, 0.15, 0.75, 0.15)
+    persona(d, 0.75, 0.08, 0.18, "azul")
+    dibujos.append(d)
+    # 3: la cuna con la figura asomada (hoja de pie).
+    d = np.ones((256, 256, 3), dtype=np.float32) * rgb[0, 0]
+    trazo(d, [(0.15, 0.15), (0.85, 0.15)], "marron")
+    trazo(d, [(0.15, 0.45), (0.85, 0.45)], "marron")
+    for k in range(9):
+        trazo(d, [(0.15 + 0.7 * k / 8, 0.12), (0.15 + 0.7 * k / 8, 0.48)], "marron", 0.01)
+    trazo(d, [(0.25, 0.25), (0.75, 0.25)], "rosa", 0.03)
+    garabato(d, 0.45, 0.45, 0.62, 0.92, "negro", 16)
+    trazo(d, [(0.52, 0.7), (0.3, 0.5), (0.35, 0.4)], "negro", 0.014)
+    for dx in (-0.025, 0.025):
+        circulo(d, 0.54 + dx, 0.83, 0.012, "rojo", 0.01, 8)
+    dibujos.append(d)
+    # 4: todo tachado de negro con dos ojos rojos.
+    d = np.ones((256, 256, 3), dtype=np.float32) * rgb[0, 0]
+    for k in range(3):
+        garabato(d, 0.06, 0.06 + 0.02 * k, 0.94, 0.94 - 0.02 * k, "negro", 40, 0.02)
+    for x in (0.38, 0.62):
+        circulo(d, x, 0.6, 0.045, "rojo", 0.025, 12)
+    dibujos.append(d)
+    # 5: la familia con uno de los niños tachado.
+    d = np.ones((256, 256, 3), dtype=np.float32) * rgb[0, 0]
+    trazo(d, [(0.02, 0.12), (0.98, 0.12)], "verde", 0.015)
+    for x, alto, c in ((0.2, 0.42, "azul"), (0.38, 0.4, "rosa"), (0.58, 0.26, "azul"), (0.76, 0.24, "rojo")):
+        persona(d, x, 0.13, alto, c)
+    garabato(d, 0.66, 0.1, 0.86, 0.42, "negro", 22, 0.016)
+    dibujos.append(d)
+    for k, d in enumerate(dibujos):
+        x0, y0 = (k % 4) * 256, (k // 4) * 256
+        rgb[y0:y0 + 256, x0:x0 + 256] = d * (1 - azar.random((256, 256, 1)).astype(np.float32) * 0.08)
+    ruta = os.path.join(BAJADOS, "atlas_dibujos.png")
+    polyhaven.guardar("atlas_dibujos", rgb, w, h, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def dibujos_ninos(m, rng):
+    # Seis dibujos de niño pegados en la pared con cinta (de frente a -Z, la espalda en z 0; 8 × 3,6).
+    for x0, y0, w, h, giro, casilla in DIBUJOS:
+        centro = T(x0 + w / 2, y0 + h / 2, -0.01) @ R("Z", giro)
+        m.add("Dibujo", box(w, h, 0.01), centro)
+        for dx in (-w * 0.35, w * 0.35):
+            m.add("Cinta", box(0.28, 0.12, 0.012), centro @ T(dx, h / 2 - 0.02, -0.004) @ R("Z", rng.uniform(-20, 20)))
+    m.uv["Dibujo"] = uv_dibujos
+# ---------- Lavadero, garaje y cobertizo (11.8.12) ----------
+
+def lado(pts, x0, x1):
+    """Pieza de canto recto a partir de un contorno de lado (z, y), de x0 a x1 (la carrocería del coche)."""
+    n = len(pts)
+    verts = [(x0, y, z) for z, y in pts] + [(x1, y, z) for z, y in pts]
+    caras = [tuple(range(n)), tuple(range(2 * n - 1, n - 1, -1))]
+    caras += [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)]
+    return verts, caras
+
+
+def arco(cz, cy, r, n=8):
+    """Puntos (z, y) de un paso de rueda: medio círculo por arriba, de delante (-z) a detrás."""
+    return [(cz - r * math.cos(math.pi * k / n), cy + r * math.sin(math.pi * k / n)) for k in range(n + 1)]
+
+
+def tablero_taller(w=1024):
+    """Tablero perforado de taller (10,6 × 4,2): masonita marrón con agujeros y las siluetas blancas de las herramientas.
+    Falta el martillo grande del medio (solo queda su silueta). Una imagen para todo el tablero (UV propia); (0, 0) es
+    arriba a la izquierda visto de frente, en studs."""
+    azar = np.random.default_rng(12)
+    h = int(w * 4.2 / 10.6)
+    v, u = np.mgrid[0:h, 0:w].astype(np.float32)
+    rgb = np.ones((h, w, 3), dtype=np.float32) * np.array([0.42, 0.3, 0.2], dtype=np.float32)
+    rgb *= (0.85 + azar.random((h, w, 1)).astype(np.float32) * 0.2)
+    s = w / 10.6  # píxeles por stud
+    paso = s * 0.5  # un agujero cada 0,5 studs
+    hueco = ((u % paso - paso / 2) ** 2 + (v % paso - paso / 2) ** 2) < (paso * 0.13) ** 2
+    rgb[hueco] = (0.06, 0.05, 0.04)
+    pinta = np.array([0.78, 0.76, 0.7], dtype=np.float32)
+
+    def caja(x0, y0, x1, y1):
+        m = (u >= x0 * s) & (u < x1 * s) & (v >= y0 * s) & (v < y1 * s)
+        rgb[m & ~hueco] = pinta
+
+    def bola(cx, cy, r):
+        m = (u - cx * s) ** 2 + (v - cy * s) ** 2 < (r * s) ** 2
+        rgb[m & ~hueco] = pinta
+    caja(4.9, 0.9, 5.15, 3.6)  # el martillo que falta
+    caja(4.45, 0.7, 5.6, 1.15)
+    for x in (1.0, 1.6):  # llaves
+        caja(x, 0.9, x + 0.18, 3.0)
+        bola(x + 0.09, 0.85, 0.22)
+    for k in range(5):  # destornilladores (falta uno)
+        caja(7.0 + k * 0.45, 1.3, 7.1 + k * 0.45, 2.5)
+        caja(7.03 + k * 0.45, 0.6, 7.07 + k * 0.45, 1.3)
+    caja(2.6, 1.0, 4.0, 1.6)  # sierra pequeña
+    caja(2.2, 0.95, 2.6, 1.7)
+    caja(9.2, 0.8, 9.35, 2.4)  # alicates
+    caja(9.45, 0.8, 9.6, 2.4)
+    rgb *= (0.8 + 0.2 * np.clip(1 - v / h, 0, 1))[..., None]  # mugre abajo
+    ruta = os.path.join(BAJADOS, "tablero_taller.png")
+    polyhaven.guardar("tablero", rgb[::-1].copy(), w, h, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def banco_taller(m, rng):
+    # Banco largo del taller (11 × 2,8, tablero a 3,5) contra la pared del fondo del garaje: tablero de tablones gruesos,
+    # patas de 4 × 4 con travesaños, balda de abajo, cajonera a la derecha y, detrás, el tablero perforado de las
+    # herramientas (10,6 × 4,2, de 3,7 a 7,9) con una repisa encima. Delante (-Z), el que trabaja.
+    for k in range(4):
+        m.add("Madera", box(11.0, 0.3, 0.68), T(0, 3.35, -1.02 + k * 0.69) @ R("Z", rng.uniform(-0.3, 0.3)))
+    for x in (-5.2, 5.2, -0.4):
+        for z in (-1.15, 1.15):
+            m.add("Madera", box(0.4, 3.2, 0.4), T(x, 1.6, z))
+    for z in (-1.15, 1.15):
+        m.add("Madera", box(10.8, 0.3, 0.25), T(0, 0.7, z))
+    m.add("Madera", box(10.6, 0.12, 2.2), T(0, 0.85, 0))
+    m.add("Madera", box(3.4, 2.2, 2.4), T(3.4, 2.05, 0.05))
+    for y in (1.35, 2.05, 2.75):
+        m.add("Madera", box(3.2, 0.6, 0.06), T(3.4, y, -1.17))
+        m.add("Metal", box(0.6, 0.08, 0.08), T(3.4, y, -1.24))
+    m.add("Tablero", box(10.6, 4.2, 0.1), T(0, 5.8, 1.32))
+    for x in (-5.35, 5.35):
+        m.add("Madera", box(0.25, 4.6, 0.3), T(x, 5.8, 1.3))
+    m.add("Madera", box(11.0, 0.15, 1.0), T(0, 8.1, 0.95))
+    for x in (-4.5, 0, 4.5):
+        m.add("Metal", box(0.08, 0.6, 0.7), T(x, 7.75, 1.0) @ R("X", 45))
+    # Herramientas colgadas sobre sus siluetas: dos llaves y cuatro destornilladores (la sierra y la palanca, de Mapa).
+    for x in (4.21, 3.61):
+        m.add("Metal", box(0.14, 2.0, 0.05), T(x, 5.95, 1.22))
+        m.add("Metal", cyl(0.2, 0.06, 10), T(x, 7.05, 1.25) @ R("X", 90))
+    for k in range(4):
+        x = -1.75 - k * 0.45
+        m.add("Mango", cyl(0.07, 1.2, 8), T(x, 5.4, 1.18))
+        m.add("Metal", cyl(0.025, 0.7, 6), T(x, 6.6, 1.18))
+    m.uv["Tablero"] = lambda x, y, z: ((5.3 - x) / 10.6, (y - 3.7) / 4.2)
+
+
+def pila_lavar(m, rng):
+    # Pila de lavar de cemento (3,8 × 2,4, borde a 3): el pilón a la izquierda con agua sucia y la tabla de frotar de
+    # estrías a la derecha, sobre un pie macizo; grifo de latón que sale de la pared (+Z).
+    m.add("Piedra", box(3.4, 1.8, 2.0), T(0, 0.9, 0.1))
+    m.add("Piedra", box(3.8, 0.3, 2.4), T(0, 1.95, 0))
+    for x, sx in ((-1.8, 0.2), (0.15, 0.2)):
+        m.add("Piedra", box(sx, 1.1, 2.4), T(x, 2.55, 0))
+    for z in (-1.1, 1.1):
+        m.add("Piedra", box(2.15, 1.1, 0.2), T(-0.83, 2.55, z))
+    m.add("Agua", box(1.75, 0.04, 2.0), T(-0.83, 2.55, 0))
+    tabla = T(1.0, 2.55, 0) @ R("X", 8)
+    m.add("Piedra", box(1.7, 0.3, 2.4), tabla)
+    for k in range(9):
+        m.add("Piedra", box(1.5, 0.1, 0.12), tabla @ T(0, 0.18, -0.95 + k * 0.24))
+    m.add("Piedra", box(3.8, 1.2, 0.2), T(0, 3.6, 1.1))
+    m.rama("Metal", (-0.8, 4.0, 1.2), (-0.8, 4.0, 0.5), 0.07, 0.07)
+    m.rama("Metal", (-0.8, 4.0, 0.5), (-0.8, 3.65, 0.35), 0.07, 0.05)
+    m.add("Metal", cyl(0.12, 0.1, 10), T(-0.8, 4.2, 0.75))
+
+
+def lavadora_vieja(m, rng):
+    # Lavadora antigua de rodillos: tina de esmalte sobre cuatro patas con ruedas, tapa y, encima, el escurridor de dos
+    # rodillos de goma con su manivela.
+    m.add("Esmalte", lathe([(1.15, 1.0), (1.25, 1.2), (1.25, 3.0), (1.3, 3.1)], 24))
+    m.add("Metal", lathe([(1.32, 3.1), (1.3, 3.25), (0.3, 3.35)], 24))
+    for k in range(4):
+        a = math.radians(45 + 90 * k)
+        x, z = 0.95 * math.cos(a), 0.95 * math.sin(a)
+        m.rama("Metal", (x, 1.2, z), (x * 1.15, 0.25, z * 1.15), 0.08, 0.06)
+        m.add("Goma", cyl(0.15, 0.12, 10), T(x * 1.15, 0.15, z * 1.15) @ R("Z", 90) @ T(0, -0.06, 0))
+    for x in (-1.0, 1.0):
+        m.add("Metal", box(0.15, 1.3, 0.25), T(x, 3.9, 0.9))
+    for y in (4.05, 4.4):
+        m.add("Goma", cyl(0.18, 1.85, 12), T(-0.92, y, 0.9) @ R("Z", -90))
+    m.add("Metal", box(2.2, 0.15, 0.3), T(0, 4.65, 0.9))
+    m.rama("Metal", (1.05, 4.4, 0.9), (1.45, 4.4, 0.9), 0.05, 0.05)
+    m.rama("Metal", (1.45, 4.4, 0.9), (1.45, 4.0, 0.5), 0.05, 0.05)
+    m.add("Goma", cyl(0.06, 0.4, 8), T(1.45, 4.0, 0.5) @ R("Z", -90))
+
+
+def tendedero(m, rng):
+    # Tendedero plegable de madera (4 × 2,2, 3,8 de alto) con ropa vieja: una sábana doblada sobre el travesaño de arriba,
+    # una camisa y unos trapos.
+    for z0 in (-1.1, 1.1):
+        for x in (-1.9, 1.9):
+            m.rama("Madera", (x, 0, z0), (x, 3.7, 0), 0.07, 0.06)
+        for y in (1.4, 2.3):
+            z = z0 * (1 - y / 3.7)
+            m.rama("Madera", (-1.9, y, z), (1.9, y, z), 0.04, 0.04)
+    m.rama("Madera", (-1.9, 3.7, 0), (1.9, 3.7, 0), 0.05, 0.05)
+
+    def colgada(x0, ancho, y, z, caida, papel, semilla):
+        def f(u, v):
+            x = x0 + u * ancho
+            if v < 0.5:  # baja por delante
+                return (x, y - v * 2 * caida + 0.03 * math.sin(9 * u + semilla), z - 0.08 - 0.3 * v)
+            return (x, y - (1 - v) * 2 * caida * 0.8, z + 0.08 + 0.25 * (1 - v))
+        tela(m, papel, f, 10, 10, 0.04)
+    colgada(-1.8, 3.4, 3.78, 0, 1.6, "Ropa", 1.0)
+    colgada(-1.6, 1.4, 2.35, -0.43, 0.9, "Ropa2", 2.0)
+    colgada(0.6, 1.0, 1.45, 0.68, 0.6, "Ropa2", 3.0)
+
+
+def cuerda_ropa(m, rng):
+    # Cuerda de tender de 11,6 de largo (a lo largo de X) algo combada, con pinzas y ropa colgando: dos camisas, una
+    # sábana larga y unos calcetines.
+    largo = 11.6
+
+    def alto(x):
+        return -0.45 * (1 - (2 * x / largo) ** 2)
+    pasos = 16
+    for k in range(pasos):
+        x0, x1 = -largo / 2 + largo * k / pasos, -largo / 2 + largo * (k + 1) / pasos
+        m.rama("Cuerda", (x0, alto(x0), 0), (x1, alto(x1), 0), 0.035, 0.035, 5)
+    for x in (-largo / 2, largo / 2):
+        m.add("Metal", box(0.15, 0.3, 0.3), T(x, 0, 0))
+
+    def prenda(xc, ancho, caida, papel, semilla):
+        def f(u, v):
+            x = xc + (u - 0.5) * ancho
+            return (x, alto(x) - 0.05 - v * caida * (1 + 0.08 * math.sin(5 * u + semilla)),
+                    0.06 * math.sin(4 * v + 6 * u + semilla))
+        tela(m, papel, f, 8, 10, 0.04)
+        for x in (xc - ancho * 0.4, xc + ancho * 0.4):
+            m.add("Pinza", box(0.08, 0.3, 0.12), T(x, alto(x) - 0.05, 0))
+    prenda(-3.9, 1.6, 1.9, "Ropa2", 1.0)
+    prenda(-1.0, 3.2, 3.0, "Ropa", 2.0)
+    prenda(1.6, 1.5, 1.8, "Ropa2", 3.0)
+    for x in (3.2, 3.6):
+        prenda(x, 0.3, 0.8, "Ropa2", x)
+
+
+def enchufe_viejo(m, rng):
+    # Enchufe del móvil: placa de baquelita con dos agujeros y su interruptor, el cable por fuera de la pared hasta el
+    # techo y la repisita de madera con escuadras donde se deja el móvil. La espalda en z = 0 (la pared, a +Z); la placa
+    # con su centro a 2,6 del suelo y la repisa con la cara de arriba a 2.
+    m.add("Baquelita", box(0.6, 0.8, 0.12), T(0, 2.6, -0.06))
+    for x in (-0.11, 0.11):
+        m.add("Interior", cyl(0.05, 0.02, 8), T(x, 2.5, -0.12) @ R("X", -90))
+    m.add("Baquelita", box(0.12, 0.2, 0.06), T(0, 2.82, -0.14))
+    m.add("Baquelita", box(0.1, 6.5, 0.1), T(0, 6.25, -0.05))
+    m.add("Madera", box(1.4, 0.2, 1.1), T(0, 1.9, -0.55))
+    for x in (-0.5, 0.5):
+        m.add("Madera", box(0.1, 0.6, 0.6), T(x, 1.55, -0.3) @ R("X", 45))
+
+
+# El coche: cada pieza que se monta (Coche) es un mueble aparte que se pone en el sitio de su bloque de
+# Mapa.construirCoche. Delante = -Z (al portón).
+COCHE_ANCHO, COCHE_LARGO = 6.4, 13.6
+RUEDA_DETRAS, RUEDA_DELANTE = 4.3, -4.4
+
+
+def pintura_coche(w=512):
+    """Pintura azul grisácea de un coche viejo: grano, chorretones de óxido y desconchones."""
+    azar = np.random.default_rng(21)
+    v, u = np.mgrid[0:w, 0:w].astype(np.float32) / w
+    rgb = np.ones((w, w, 3), dtype=np.float32) * np.array([0.27, 0.33, 0.38], dtype=np.float32)
+    rgb *= (0.9 + azar.random((w, w, 1)).astype(np.float32) * 0.12)
+    oxido = np.array([0.36, 0.2, 0.11], dtype=np.float32)
+    for _ in range(26):
+        cu, cv, r = azar.random(), azar.random(), azar.uniform(0.01, 0.05)
+        ang = np.arctan2(v - cv, u - cu)
+        borde = r * (1 + 0.35 * np.sin(5 * ang + azar.uniform(0, 6)))
+        d = np.sqrt((u - cu) ** 2 + (v - cv) ** 2)
+        rgb[d < borde] = oxido * azar.uniform(0.7, 1.1)
+        chorro = (np.abs(u - cu) < r * 0.3) & (v < cv) & (v > cv - azar.uniform(0.05, 0.2))
+        rgb[chorro] = rgb[chorro] * 0.5 + oxido * 0.5
+    ruta = os.path.join(BAJADOS, "pintura_coche.png")
+    polyhaven.guardar("pintura", rgb, w, w, ruta)
+    return bpy.data.images.load(ruta)
+
+
+def coche_viejo(m, rng):
+    # Sedán de los setenta destrozado (6,4 × 13,6, 4,9 de alto): carrocería de la cabina hacia atrás con el paso de la
+    # rueda de atrás, aletas delanteras con su paso, el hueco del motor a la vista (el capó es aparte,
+    # CapoCoche), cristales, asientos, volante, parachoques cromados, faros y pilotos. Ruedas, motor, batería y
+    # radiador son muebles aparte (Coche los enseña al montarlos).
+    an, la = COCHE_ANCHO / 2, COCHE_LARGO / 2
+    fuego = -2.0  # el cortafuegos, entre el motor y la cabina
+    bajo = [(fuego, 0.95)] + arco(RUEDA_DETRAS, 0.95, 1.6) + [(la - 0.15, 0.95), (la, 1.3), (la, 2.55), (la - 0.25, 2.95),
+                                                            (4.9, 3.1), (fuego, 3.1)]
+    m.add("Pintura", lado(bajo, -an, an))
+    # Cabina: techo, montantes y cristales.
+    m.add("Pintura", lado([(-0.5, 4.75), (3.4, 4.75), (3.45, 4.9), (-0.55, 4.9)], -an + 0.05, an - 0.05))
+    for x in (-an + 0.12, an - 0.12):
+        m.rama("Pintura", (x, 3.1, fuego + 0.1), (x, 4.8, -0.5), 0.1, 0.1, 6)
+        m.rama("Pintura", (x, 3.1, 1.5), (x, 4.8, 1.5), 0.1, 0.1, 6)
+        m.add("Pintura", lado([(4.9, 3.1), (4.3, 3.1), (2.9, 4.8), (3.3, 4.8)], x - 0.1, x + 0.1))
+    m.add("Cristal", lado([(fuego + 0.05, 3.1), (4.85, 3.1), (3.42, 4.76), (-0.48, 4.76)], -an + 0.15, an - 0.15))
+    # Asientos y volante (se ven por los cristales; la carrocería es maciza hasta la cintura).
+    for x in (-1.5, 1.5):
+        m.add("Asiento", box(2.4, 0.4, 1.8), T(x, 3.3, 0.2))
+        m.add("Asiento", box(2.4, 1.6, 0.5), T(x, 4.0, 1.2) @ R("X", -12))
+    m.add("Asiento", box(5.6, 1.4, 0.5), T(0, 3.8, 4.0) @ R("X", -15))
+    m.add("Interior", box(5.8, 0.6, 0.9), T(0, 3.4, fuego + 0.5))
+    m.add("Interior", lathe([(0.55, 0), (0.6, 0.05), (0.55, 0.1)], 16, caps=False), T(-1.5, 3.9, -0.8) @ R("X", -70))
+    m.rama("Interior", (-1.5, 3.9, -0.8), (-1.5, 3.55, -1.3), 0.07, 0.07)
+    # Delante: suelo y cortafuegos del hueco del motor, aletas con el paso de la rueda, frontal con parrilla y faros.
+    m.add("Interior", box(COCHE_ANCHO - 1.6, 0.4, la + fuego), T(0, 1.15, (fuego - la) / 2))
+    m.add("Interior", box(COCHE_ANCHO - 1.4, 2.0, 0.15), T(0, 2.1, fuego + 0.08))
+    aleta = [(-la, 1.3), (-la + 0.15, 0.95)] + arco(RUEDA_DELANTE, 0.95, 1.6) + [(fuego, 0.95), (fuego, 3.1),
+                                                                                   (-la + 0.3, 2.85), (-la, 2.55)]
+    for x0, x1 in ((-an, -an + 0.55), (an - 0.55, an)):
+        m.add("Pintura", lado(aleta, x0, x1))
+    m.add("Pintura", box(COCHE_ANCHO - 1.1, 1.0, 0.2), T(0, 1.8, -la + 0.1))
+    for k in range(5):
+        m.add("Cromo", box(2.6, 0.06, 0.08), T(0, 1.95 + k * 0.13, -la - 0.02))
+    for x in (-2.3, 2.3):
+        m.add("Cromo", cyl(0.42, 0.12, 14), T(x, 2.3, -la) @ R("X", -90))
+        m.add("Faro", cyl(0.34, 0.06, 14), T(x, 2.3, -la - 0.1) @ R("X", -90))
+        m.add("Piloto", box(0.9, 0.5, 0.06), T(x, 2.2, la + 0.02))
+    for z in (-la - 0.2, la + 0.2):
+        m.add("Cromo", box(COCHE_ANCHO + 0.2, 0.35, 0.3), T(0, 1.45, z))
+    for z in (RUEDA_DETRAS, RUEDA_DELANTE):  # pasos de rueda oscuros por dentro
+        for x in (-an + 0.65, an - 0.65):
+            m.add("Interior", box(0.1, 1.5, 3.0), T(x, 1.9, z))
+
+
+def capo_coche(m, rng):
+    # Capó (6,2 × 4,4): chapa algo combada con el borde doblado. Va aparte del coche: Mapa lo pone abierto y en la huida
+    # se cierra (HuidaVista). La bisagra, en +Z.
+    for k in range(5):
+        z = -2.2 + k * 0.88
+        m.add("Pintura", box(6.2, 0.12, 0.9), T(0, 0.06 + 0.05 * math.sin(math.pi * (k + 0.5) / 5), z + 0.44))
+    for x in (-3.05, 3.05):
+        m.add("Pintura", box(0.1, 0.2, 4.4), T(x, 0.02, 0))
+    m.add("Pintura", box(6.2, 0.2, 0.1), T(0, 0.02, -2.15))
+
+
+def motor_coche(m, rng):
+    # Motor de cuatro cilindros (unos 3,2 × 2,2 × 2,4): bloque, culata con la tapa de balancines, filtro del aire
+    # redondo, poleas delante y el colector a un lado.
+    m.add("Bloque", box(2.4, 1.3, 2.2), T(0, 0.65, 0))
+    m.add("Bloque", box(2.0, 0.5, 2.1), T(0, 1.55, 0))
+    m.add("Tapa", box(1.6, 0.3, 1.9), T(0, 1.95, 0))
+    m.add("Tapa", cyl(0.6, 0.2, 18), T(0.2, 2.0, -0.2))
+    m.add("Bloque", cyl(0.42, 0.12, 14), T(0, 0.9, -1.1) @ R("X", -90))
+    m.add("Bloque", cyl(0.25, 0.12, 12), T(0.6, 1.4, -1.05) @ R("X", -90))
+    for k in range(4):
+        m.rama("Bloque", (-1.0, 1.4, -0.75 + k * 0.5), (-1.55, 1.0, -0.5 + k * 0.25), 0.12, 0.12, 6)
+    m.add("Bloque", box(0.3, 0.8, 2.3), T(1.3, 0.9, 0))
+
+
+def rueda_coche(m, rng):
+    # Rueda (radio 1,3, 0,9 de ancho) con el eje a lo largo de X: neumático y tapacubos por los dos lados.
+    perfil = [(0.85, -0.45), (1.2, -0.45), (1.3, -0.3), (1.3, 0.3), (1.2, 0.45), (0.85, 0.45)]
+    m.add("Goma", lathe(perfil, 28, caps=False), R("Z", 90))
+    m.add("Llanta", lathe([(0.87, -0.38), (0.6, -0.42), (0.25, -0.46), (0, -0.47)], 20), R("Z", 90))
+    m.add("Llanta", lathe([(0, 0.47), (0.25, 0.46), (0.6, 0.42), (0.87, 0.38)], 20), R("Z", 90))
+
+
+def bateria_coche(m, rng):
+    # Batería (1,4 × 1 × 0,9) con sus dos bornes.
+    m.add("Caja", box(1.4, 0.9, 0.9), T(0, 0.45, 0))
+    m.add("Caja", box(1.3, 0.08, 0.8), T(0, 0.94, 0))
+    for x, papel in ((-0.45, "Rojo"), (0.45, "Plomo")):
+        m.add(papel, cyl(0.09, 0.12, 8), T(x, 0.95, -0.2))
+
+
+def radiador_coche(m, rng):
+    # Radiador (3 × 1,4 × 0,3): marco con el panal de aletas y el tapón arriba.
+    for y in (0.05, 1.35):
+        m.add("Marco", box(3.0, 0.1, 0.3), T(0, y, 0))
+    for x in (-1.45, 1.45):
+        m.add("Marco", box(0.1, 1.4, 0.3), T(x, 0.7, 0))
+    m.add("Panal", box(2.8, 1.2, 0.2), T(0, 0.7, 0))
+    m.add("Marco", cyl(0.12, 0.15, 10), T(0.9, 1.4, 0))
+
+
 COCINA = {"Madera": "distressed_painted_planks", "Encimera": "kitchen_wood", "Interior": ("liso", (0.07, 0.055, 0.045)),
           "Metal": ("liso", (0.36, 0.34, 0.31)), "Esmalte": ("liso", (0.72, 0.7, 0.64)),
           "Cristal": ("liso", (0.3, 0.34, 0.22))}
@@ -1688,6 +2469,84 @@ MUEBLES = {
     "Licores": (licores, {"Laton": ("liso", (0.5, 0.38, 0.18)), "Cristal": ("liso", (0.62, 0.66, 0.64)),
                           "Licor": ("liso", (0.45, 0.24, 0.05)), "Vidrio": ("liso", (0.12, 0.22, 0.12))},
                 {"Laton": 1, "Cristal": 1, "Licor": 1, "Vidrio": 1}, {}, ("Laton", "Cristal", "Licor", "Vidrio")),
+    # Cuarto de los niños (11.8.10). La madera pintada clara de cama, cuna y caballito, con el mismo tinte: una sola subida.
+    "CamaNino": (cama_nino, {"Madera": "distressed_painted_planks", "Colcha": retales, "Almohada": "rough_linen",
+                             "Colchon": ("liso", (0.6, 0.56, 0.48))},
+                 {"Madera": 2, "Colcha": 3, "Almohada": 1.5, "Colchon": 1},
+                 {"Madera": (0.95, 0.92, 0.84), "Almohada": (0.85, 0.8, 0.7)}, ("Colcha", "Almohada", "Colchon")),
+    "CunaNino": (cuna_nino, {"Madera": "distressed_painted_planks", "Almohada": "rough_linen",
+                             "Colchon": ("liso", (0.6, 0.56, 0.48)), "Manta": ("liso", (0.72, 0.58, 0.6)),
+                             "Hilo": ("liso", (0.3, 0.3, 0.3))},
+                 {"Madera": 2, "Almohada": 1.5, "Colchon": 1, "Manta": 1, "Hilo": 1},
+                 {"Madera": (0.95, 0.92, 0.84), "Almohada": (0.85, 0.8, 0.7)}, ("Almohada", "Colchon", "Manta")),
+    "MovilCuna": (movil_cuna, {"Madera": ("liso", (0.8, 0.76, 0.68)), "Hilo": ("liso", (0.3, 0.3, 0.3)),
+                               "Amarillo": ("liso", (0.85, 0.72, 0.35)), "Azul": ("liso", (0.5, 0.6, 0.75)),
+                               "Blanco": ("liso", (0.85, 0.84, 0.8))},
+                  {p: 1 for p in ("Madera", "Hilo", "Amarillo", "Azul", "Blanco")}, {}, ("Azul", "Blanco")),
+    "Caballito": (caballito, {"Madera": "dark_wood", "Pintura": "distressed_painted_planks",
+                              "Crin": ("liso", (0.15, 0.1, 0.08)), "Silla": ("liso", (0.5, 0.12, 0.1)),
+                              "Ojo": ("liso", (0.03, 0.03, 0.03)), "Laton": ("liso", (0.5, 0.38, 0.18))},
+                  {"Madera": 2, "Pintura": 2, "Crin": 1, "Silla": 1, "Ojo": 1, "Laton": 1},
+                  {"Pintura": (0.95, 0.92, 0.84)}, ("Pintura", "Crin", "Silla", "Ojo", "Laton")),
+    "BaulJuguetes": (baul_juguetes, {"Madera": "blue_painted_planks", "Interior": ("liso", (0.05, 0.045, 0.04)),
+                                     "Rojo": ("liso", (0.62, 0.2, 0.16)), "Azul": ("liso", (0.25, 0.35, 0.6)),
+                                     "Amarillo": ("liso", (0.8, 0.65, 0.25)), "Rueda": ("liso", (0.08, 0.08, 0.08))},
+                     {"Madera": 2, "Interior": 1, "Rojo": 1, "Azul": 1, "Amarillo": 1, "Rueda": 1},
+                     {"Madera": (0.8, 0.85, 0.9)}, ()),
+    "MesaTe": (mesa_te, {"Madera": "distressed_painted_planks", "Loza": loza, "Te": ("liso", (0.3, 0.18, 0.08)),
+                         "Tarta": ("liso", (0.55, 0.45, 0.35)), "Moho": ("liso", (0.35, 0.42, 0.3))},
+               {"Madera": 2, "Loza": 1, "Te": 1, "Tarta": 1, "Moho": 1}, {"Madera": (0.95, 0.92, 0.84)}, ("Loza", "Moho")),
+    "Muneca": (muneca, {"Vestido": ("liso", (0.45, 0.52, 0.62)), "Cara": ("liso", (0.88, 0.8, 0.72)),
+                        "Zapato": ("liso", (0.1, 0.08, 0.08)), "Pelo": ("liso", (0.35, 0.22, 0.12)),
+                        "Ojo": ("liso", (0.05, 0.05, 0.07)), "Grieta": ("liso", (0.15, 0.12, 0.1))},
+               {p: 1 for p in ("Vestido", "Cara", "Zapato", "Pelo", "Ojo", "Grieta")}, {},
+               ("Vestido", "Cara", "Zapato", "Pelo", "Ojo")),
+    "Osito": (osito, {"Peluche": ("liso", (0.5, 0.36, 0.22)), "Hocico": ("liso", (0.75, 0.65, 0.5)),
+                      "Ojo": ("liso", (0.03, 0.03, 0.03)), "Relleno": ("liso", (0.85, 0.83, 0.78))},
+              {p: 1 for p in ("Peluche", "Hocico", "Ojo", "Relleno")}, {}, ("Peluche", "Hocico", "Ojo", "Relleno")),
+    "Conejo": (conejo, {"Peluche": ("liso", (0.7, 0.62, 0.62)), "Hocico": ("liso", (0.6, 0.35, 0.38)),
+                        "Ojo": ("liso", (0.03, 0.03, 0.03)), "Relleno": ("liso", (0.85, 0.83, 0.78))},
+               {p: 1 for p in ("Peluche", "Hocico", "Ojo", "Relleno")}, {}, ("Peluche", "Hocico", "Ojo", "Relleno")),
+    "LamparaNino": (lampara_nino, {"Loza": loza, "Laton": ("liso", (0.5, 0.38, 0.18)), "Pantalla": "rough_linen"},
+                    {"Loza": 1, "Laton": 1, "Pantalla": 1.5}, {"Pantalla": (0.95, 0.85, 0.65)}, ("Loza", "Laton", "Pantalla")),
+    "DibujosNinos": (dibujos_ninos, {"Dibujo": atlas_dibujos, "Cinta": ("liso", (0.8, 0.78, 0.65))},
+                     {"Dibujo": 1, "Cinta": 1}, {}, ()),
+    # Lavadero, garaje y cobertizo (11.8.12).
+    "BancoTaller": (banco_taller, {"Madera": "worn_planks", "Tablero": tablero_taller, "Metal": ("liso", (0.32, 0.31, 0.3)),
+                                   "Mango": ("liso", (0.45, 0.12, 0.08))},
+                    {"Madera": 3, "Tablero": 1, "Metal": 1, "Mango": 1}, {"Madera": (0.8, 0.72, 0.62)}, ("Mango",)),
+    "PilaLavar": (pila_lavar, {"Piedra": "rough_concrete", "Agua": ("liso", (0.16, 0.12, 0.08)),
+                               "Metal": ("liso", (0.45, 0.36, 0.2))},
+                  {"Piedra": 3, "Agua": 1, "Metal": 1}, {"Piedra": (0.7, 0.71, 0.7)}, ("Metal",)),
+    "LavadoraVieja": (lavadora_vieja, {"Esmalte": esmalte_nevera, "Metal": ("liso", (0.4, 0.4, 0.38)),
+                                       "Goma": ("liso", (0.08, 0.08, 0.08))},
+                      {"Esmalte": 3.2, "Metal": 1, "Goma": 1}, {}, ("Esmalte", "Metal", "Goma")),
+    "Tendedero": (tendedero, {"Madera": "dark_wood", "Ropa": "rough_linen", "Ropa2": "poly_wool_herringbone"},
+                  {"Madera": 2, "Ropa": 1.5, "Ropa2": 1.5}, {"Ropa": (0.78, 0.74, 0.66), "Ropa2": (0.5, 0.55, 0.6)},
+                  ("Madera", "Ropa", "Ropa2")),
+    "CuerdaRopa": (cuerda_ropa, {"Cuerda": ("liso", (0.55, 0.5, 0.4)), "Metal": ("liso", (0.3, 0.3, 0.3)),
+                                 "Ropa": "rough_linen", "Ropa2": "poly_wool_herringbone", "Pinza": ("liso", (0.5, 0.4, 0.28))},
+                   {"Cuerda": 1, "Metal": 1, "Ropa": 1.5, "Ropa2": 1.5, "Pinza": 1},
+                   {"Ropa": (0.8, 0.76, 0.68), "Ropa2": (0.6, 0.5, 0.45)}, ("Cuerda", "Ropa", "Ropa2")),
+    "EnchufeViejo": (enchufe_viejo, {"Baquelita": ("liso", (0.16, 0.1, 0.07)), "Interior": ("liso", (0.02, 0.02, 0.02)),
+                                     "Madera": "dark_wood"},
+                     {"Baquelita": 1, "Interior": 1, "Madera": 2}, {}, ()),
+    "CocheViejo": (coche_viejo, {"Pintura": pintura_coche, "Cristal": ("liso", (0.2, 0.24, 0.24)),
+                                 "Asiento": "brown_leather", "Interior": ("liso", (0.06, 0.055, 0.05)),
+                                 "Cromo": ("liso", (0.5, 0.5, 0.48)), "Faro": ("liso", (0.7, 0.68, 0.58)),
+                                 "Piloto": ("liso", (0.35, 0.05, 0.04))},
+                   {"Pintura": 6, "Cristal": 1, "Asiento": 2, "Interior": 1, "Cromo": 1, "Faro": 1, "Piloto": 1},
+                   {"Asiento": (0.6, 0.45, 0.35)}, ("Cromo", "Faro", "Interior")),
+    "CapoCoche": (capo_coche, {"Pintura": pintura_coche}, {"Pintura": 6}, {}, ()),
+    "MotorCoche": (motor_coche, {"Bloque": "rusty_painted_metal", "Tapa": ("liso", (0.3, 0.12, 0.1))},
+                   {"Bloque": 2, "Tapa": 1}, {"Bloque": (0.55, 0.55, 0.55)}, ("Tapa",)),
+    "RuedaCoche": (rueda_coche, {"Goma": ("liso", (0.07, 0.07, 0.07)), "Llanta": ("liso", (0.45, 0.45, 0.44))},
+                   {"Goma": 1, "Llanta": 1}, {}, ("Goma", "Llanta")),
+    "BateriaCoche": (bateria_coche, {"Caja": ("liso", (0.1, 0.1, 0.11)), "Rojo": ("liso", (0.5, 0.08, 0.06)),
+                                     "Plomo": ("liso", (0.45, 0.45, 0.45))},
+                     {"Caja": 1, "Rojo": 1, "Plomo": 1}, {}, ("Rojo", "Plomo")),
+    "RadiadorCoche": (radiador_coche, {"Marco": ("liso", (0.3, 0.3, 0.3)), "Panal": ("liso", (0.42, 0.33, 0.2))},
+                      {"Marco": 1, "Panal": 1}, {}, ()),
 }
 
 
