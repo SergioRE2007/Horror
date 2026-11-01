@@ -197,7 +197,17 @@ local function escena(segundos: number, devolver: { () -> () })
 	end
 	copia.WorldPivot = sitio
 	local capo = copia:FindFirstChild("Capo") :: BasePart?
-	if capo then -- arreglado, ya con el capó cerrado
+	if capo and capo:IsA("MeshPart") then -- el de Blender (Mapa, 11.8.12): cerrado sobre el hueco del motor
+		capo.CFrame = sitio * CFrame.new(0, 3.12, -4.2)
+		for _, nombre in { "Motor", "Bateria" } do -- asoman por encima del capó cerrado
+			local pieza = copia:FindFirstChild(nombre)
+			for _, d in if pieza then pieza:GetDescendants() else {} do
+				if d:IsA("BasePart") then
+					d.Transparency = 1
+				end
+			end
+		end
+	elseif capo then -- arreglado, ya con el capó cerrado
 		capo.Size = Vector3.new(6.2, 1.2, 4.3) -- tapa también el motor y la batería, que asoman
 		capo.CFrame = sitio * CFrame.new(0, 3.3, -3.9)
 	end
@@ -238,7 +248,7 @@ local function escena(segundos: number, devolver: { () -> () })
 		local piloto = Instance.new("Part")
 		piloto.Name = "Piloto"
 		piloto.Size = Vector3.new(1, 0.4, 0.1)
-		piloto.CFrame = sitio * CFrame.new(2.4 * lado, 2.3, 6.05)
+		piloto.CFrame = sitio * CFrame.new(2.3 * lado, 2.2, 6.86) -- sobre los del coche de Blender (Mapa)
 		piloto.Color = Color3.fromRGB(150, 20, 20)
 		piloto.Material = Enum.Material.SmoothPlastic
 		piloto.Anchored = true
