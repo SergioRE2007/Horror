@@ -103,3 +103,12 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - `Model:ScaleTo` sirve para dejar un molde a otro tamaño (ajedrez a 0,75 para que quepa en la mesita; el retrato, el marco de `CuadroPH2` a 1,4), con su `Tam` al día.
 - En la integración, los muebles del rico van sobre la lámina del suelo: `sueloArriba(centro) + 0,06` (en la prueba conjunta, `Piso` a 14,15 y lámina a 14,21). Se mide después de `Separar` en vez de fijarlo a `ARRIBA + 0,18`, y la moldura del zócalo sale 0,25 de la pared: las caras útiles de esta sala son z 8,15 y -32,25 y x -38,05 y -12,85.
 - `GothicCabinet_01` a `--alto 4.2` (a la escala normal es un armario de 9,4); `GreenChair_01` sirve de sillón de despacho tal cual; `bull_head` y `lion_head` son bustos de bronce con peana, no cabezas de pared.
+
+## Escalera del desván y desván (11.8.11)
+
+- Los muebles hechos a mano de esta sala van en `tools/blender/desvan.py`: importa `a_mano.py`, añade los suyos a `a_mano.MUEBLES` y llama a su `main()` (así los chats de sala no se pisan en `a_mano.py`). Mismo uso: `--nombre Maniqui`.
+- `tapado()` generaliza el sofá tapado del salón (cajas, remallado y pliegues): `ButacaTapada`, `ComodaTapada` y `EspejoTapado`. Las fotos con atlas (`FotosTendidas`, `FotosVigilantes`) llevan UV propia por esquinas (`uv_fotos`).
+- **Láminas de una cara:** dos caras opuestas sin grueso salían del revés en Roblox y no se veían: las fotos son cajas cerradas de 0,03.
+- **`tienda` con choque en algo hueco:** el bloque de choque es la caja entera del mueble y tapaba la trampilla con la barandilla: `sinChoque` y tablas invisibles a mano.
+- Al montar en Studio, ordenar las piezas por su número (`_10` va antes que `_2` como texto). Lo liso de `a_mano` no se sube: color × 0,85 en la MeshPart.
+- `Camera_01` (cámara de carrete) cabe en la mesa a escala 4; `spinning_wheel_01` es una rueca de 3,9 de alto; `vintage_crutches_01`, dos muletas de 6,4.
