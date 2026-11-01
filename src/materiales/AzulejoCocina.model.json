@@ -1,0 +1,10 @@
+{
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "CeramicTiles",
+    "StudsPerTile": 6,
+    "ColorMap": "rbxassetid://136491096266563",
+    "NormalMap": "rbxassetid://83210181273903",
+    "RoughnessMap": "rbxassetid://78456225604756"
+  }
+}
