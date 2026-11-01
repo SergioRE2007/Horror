@@ -22,6 +22,7 @@ parser.add_argument("--oscurecer", type=float, default=0.85)
 parser.add_argument("--limpia", action="store_true", help="sin manchas (en suelos se ven en cuadrícula)")
 parser.add_argument("--rayas", action="store_true", help="papel de rayas verticales (salón)")
 parser.add_argument("--flores", action="store_true", help="papel de florecillas (dormitorio de abajo)")
+parser.add_argument("--infantil", action="store_true", help="papel de patitos y globos (cuarto de los niños)")
 parser.add_argument("--damasco", action="store_true", help="papel de damasco (galería o dormitorio grande)")
 parser.add_argument("--damasco-estilo", choices=("galeria", "dormitorio"), default="galeria",
                     help="con --damasco: medallones dorados de galería u ojivas del dormitorio grande")
@@ -91,6 +92,48 @@ if args.flores:
     rgb = rgb * 0.35 + luz * color * rgb.mean() * 1.15
     polyhaven.guardar("flores", rgb, w, h, ruta)
     print("FLORES", args.nombre)
+
+# --infantil: papel de cuarto de niños desteñido (11.8.10), encima del papel viejo de Poly Haven: filas alternas de
+# patitos amarillos mirando a un lado y globos azules y rosas con su cuerda, sobre azul pálido; 4 por fila por baldosa.
+# Colores muy apagados: más vivos se leía "alegre e infantil" (revisión con cámaras).
+if args.infantil:
+    import bpy
+
+    ruta = os.path.join(salida, args.nombre) + "_color.png"
+    imagen = bpy.data.images.load(ruta)
+    w, h = imagen.size
+    pixeles = np.empty(w * h * 4, dtype=np.float32)
+    imagen.pixels.foreach_get(pixeles)
+    rgb = pixeles.reshape(h, w, 4)[:, :, :3]
+    luz = rgb.mean(axis=2, keepdims=True) / max(rgb.mean(), 1e-3)
+    n = 4
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    fila = np.floor(yy / h * n)
+    u = (xx / w * n + 0.5 * (fila % 2)) % 1 - 0.5
+    v = (yy / h * n) % 1 - 0.5  # en la imagen +v es arriba
+    columna = np.floor((xx / w * n + 0.5 * (fila % 2)) % n)
+    fondo, amarillo, pico, azul, rosa, cuerda = (np.array(c, dtype=np.float32) for c in
+                                                 ((0.6, 0.67, 0.72), (0.76, 0.68, 0.46), (0.66, 0.5, 0.38),
+                                                  (0.5, 0.57, 0.64), (0.68, 0.54, 0.54), (0.45, 0.45, 0.45)))
+    color = np.ones((h, w, 3), dtype=np.float32) * fondo
+    patito = fila % 2 == 0
+    # Patito: cuerpo ovalado, cabeza redonda delante y arriba, pico y ojo.
+    cuerpo = ((u + 0.03) / 0.2) ** 2 + ((v + 0.08) / 0.12) ** 2 < 1
+    cabeza = np.hypot(u - 0.13, v - 0.08) < 0.085
+    pic = (np.abs(v - 0.07) < 0.024) & (u > 0.2) & (u < 0.28)
+    ojo = np.hypot(u - 0.15, v - 0.1) < 0.016
+    color[patito & (cuerpo | cabeza)] = amarillo
+    color[patito & pic] = pico
+    color[patito & ojo] = cuerda
+    # Globo: óvalo con la cuerda ondulada hacia abajo; azul y rosa alternos.
+    globo = (u / 0.13) ** 2 + ((v - 0.12) / 0.17) ** 2 < 1
+    hilo = (np.abs(u - 0.015 * np.sin(v * 60)) < 0.006) & (v < -0.03) & (v > -0.38)
+    tono = np.where((columna % 2 == 0)[:, :, None], azul, rosa)
+    color = np.where((~patito & globo)[:, :, None], tono, color)
+    color[~patito & hilo & ~globo] = cuerda
+    rgb = rgb * 0.45 + luz * color * rgb.mean() * 1.05
+    polyhaven.guardar("infantil", rgb, w, h, ruta)
+    print("INFANTIL", args.nombre)
 
 # --damasco: papel de damasco de casa rica (galería, 11.8.7), encima del papel viejo de Poly Haven: medallones lobulados
 # de oro viejo con una flor de lis dentro, sobre azul pizarra, en filas alternas, y una red de rombos fina; 3 por fila por

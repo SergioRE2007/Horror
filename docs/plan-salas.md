@@ -83,6 +83,7 @@ Medidas y sitio de cada sala: `docs/sistemas/casa-nueva.md`. Los nombres en `có
 ### 10. Cuarto de los niños (arriba, x -39..-12, z 9..33)
 - **Es** el más inquietante: juguetes y cuna.
 - **Plan:** cuna (Blender, de barrotes de verdad), cama pequeña, baúl de juguetes, caballito de madera, muñecos y peluches (`rubber_duck_toy`, de Blender lo demás), dibujos infantiles en la pared (inquietantes), móvil colgando de la cuna, papel infantil desteñido.
+- **Elegido por el usuario (opción B, "la merienda de los muñecos"):** dos camas pequeñas de hermanos contra la pared del fondo, una a cada lado de la ventana (la del oeste es un escondite nuevo, debajo), lámpara en la mesilla; junto a la puerta, mesita de té con muñecos sentados alrededor y una silla vacía con su plato (falta uno); la cuna sola en el rincón del oeste junto a la pared del rico, con el móvil y arañazos alrededor; caballito y baúl de juguetes volcado en la pared de la ventana del oeste; dibujos de niño (con una figura alta y negra en todos) por la pared del rico; una mano de sangre en el marco del vano. Centro libre, ninguna ventana tapada.
 
 ### 11. Escalera del desván y desván (arriba, x 12..39, z 9..33, y el desván bajo el tejado)
 - **Escalera:** peldaños de madera con barandilla, baúles (los de ahora, cambiados por `vintage_suitcase` y arcones).
