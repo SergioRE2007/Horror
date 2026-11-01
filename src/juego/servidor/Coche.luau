@@ -77,7 +77,14 @@ local function publicar()
 		local n = estado.piezas[tipo] or 0
 		for i, nombre in partes do
 			local parte = coche:FindFirstChild(nombre) :: BasePart
-			parte.Transparency = if i <= n then 0 else 1
+			-- Con la malla de Blender dentro (Mapa, 11.8.12), el bloque no se ve: se ven o no sus mallas.
+			local conMalla = parte:GetAttribute("ConMalla") == true
+			parte.Transparency = if i <= n and not conMalla then 0 else 1
+			for _, malla in parte:GetChildren() do
+				if malla:IsA("BasePart") then
+					malla.Transparency = if i <= n then 0 else 1
+				end
+			end
 			parte.CanCollide = i <= n
 			parte.CanQuery = i <= n
 			local ladrillos = coche:FindFirstChild("Ladrillos" .. (i)) :: BasePart?

@@ -55,9 +55,9 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 | 11.8.7 | Galería | balaustrada de verdad sobre el hueco | hecho |
 | 11.8.8 | Dormitorio grande | cama y armario (escondites); salida al balcón | hecho |
 | 11.8.9 | Habitación del rico | lámpara del escritorio; sitio de las pistas (12.1) | hecho |
-| 11.8.10 | Cuarto de los niños | cuna y juguetes | pendiente |
-| 11.8.11 | Escalera del desván y desván | baúles; cuarto de revelado | pendiente |
-| 11.8.12 | Lavadero, garaje y cobertizo | enchufe del móvil, coche, generador | pendiente |
+| 11.8.10 | Cuarto de los niños | cuna y juguetes | hecho |
+| 11.8.11 | Escalera del desván y desván | baúles; cuarto de revelado | hecho |
+| 11.8.12 | Lavadero, garaje y cobertizo | enchufe del móvil, coche, generador | hecho |
 | 11.8.13 | Sótano | banco del taller (la reja de la 12.2) | pendiente |
 
 En todas: telarañas que flotan o se meten en la pared.
