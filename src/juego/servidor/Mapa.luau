@@ -673,7 +673,7 @@ local function construirCoche(base: CFrame)
 end
 
 -- Desván bajo el tejado (suelo en y = 27, encima del techo; de alto, 13 en la cumbrera): se sube por la escalera del
--- cuarto cerrado de arriba. Hastiales en los dos lados y el cuarto de revelado del rico.
+-- cuarto cerrado de arriba. Hastiales en los dos lados; el cuarto de revelado del rico y lo demás, en vestirDesvan.
 local function construirDesvan()
 	local alto = TEJADO.pendiente * 33.5
 	for _, x in { -39, 39 } do
@@ -689,10 +689,7 @@ local function construirDesvan()
 			cuna.Parent = casa
 		end
 	end
-	bloque("MesaRevelado", Vector3.new(6, 3, 3), CFrame.new(10, 28.5, 0), COLOR.Mueble)
-	bloque("Cubeta", Vector3.new(1.6, 0.3, 1.2), CFrame.new(9, 30.15, 0), COLOR.Oscuro, Enum.Material.SmoothPlastic)
-	bloque("Cuerda", Vector3.new(14, 0.1, 0.1), CFrame.new(10, 32.5, -3), COLOR.Oscuro, Enum.Material.Fabric) -- fotos tendidas
-	lampara(Vector3.new(4, 34.5, 0))
+	-- Lo de dentro (cuarto de revelado, muebles tapados, vigas…), en vestirDesvan.
 end
 
 -- Sótano bajo el patio de atrás: de la puerta del fondo del pasillo (z = 33) baja una escalera tapada (x -3..3) hasta
@@ -789,7 +786,9 @@ local SALAS = {
 	-- Dormitorio grande, el de los dueños (11.8.8): papel de damasco azul grisáceo sobre papel viejo, rodapié oscuro,
 	-- parqué de tiras oscuro y el techo de yeso del salón.
 	{ x1 = 12, x2 = 39, z1 = -33, z2 = 9, y = ARRIBA, papel = "PapelDormitorioGrande", suelo = "SueloDormitorioGrande", techo = "TechoSalon", rodapie = "MaderaOscura" },
-	{ x1 = 12, x2 = 39, z1 = 9, z2 = 33, y = ARRIBA, papel = "Claro" }, -- cuarto de la escalera del desván
+	-- Escalera del desván (11.8.11): papel viejo ocre sin dibujo, rodapié oscuro y las tablas viejas de la galería (el techo,
+	-- de tablas con el hueco de la escalera, en vestirDesvan).
+	{ x1 = 12, x2 = 39, z1 = 9, z2 = 33, y = ARRIBA, papel = "PapelEscaleraDesvan", suelo = "SueloGaleria", rodapie = "MaderaOscura" },
 	-- Galería (11.8.7): damasco azul pizarra y oro viejo sobre el zócalo de paneles del vestíbulo, tablas viejas y el
 	-- techo agrietado del vestíbulo (se ven juntos desde el hueco).
 	{ x1 = -12, x2 = 12, z1 = 0, z2 = 33, y = ARRIBA, papel = "PapelGaleria", suelo = "SueloGaleria", techo = "TechoVestibulo", zocalo = "PanelVestibulo" },
@@ -1557,6 +1556,264 @@ local function vestirHabitacionRico()
 	luzLuna(Vector3.new(-38.4, ARRIBA + 8, -15), Vector3.new(-30, ARRIBA, -15), 1.2, 20)
 end
 
+-- Escalera del desván y desván (11.8.11, opción B del usuario, "al fondo, la luz roja"). Escalera: peldaños de madera
+-- gastada, la pared de al lado llena de fotos de los vigilantes que mandó el rico (tachadas; la última, sin cara), baúles
+-- y maletas (una abierta con ropa de hombre) contra la pared de la ventana del lado, espejo tapado y maniquí junto a la
+-- del dormitorio y una bombilla colgando. Desván: tablas y vigas a la vista bajo el tejado; desde la trampilla (con su
+-- barandilla) se ve al fondo, hacia el oeste, la luz roja del cuarto de revelado del rico, y para llegar se cruza el
+-- desván entero entre muebles tapados con sábanas, un maniquí, una rueca y cajas. Dentro: mesa con cubetas, ampliadora,
+-- la cámara, las fotos de flash tendidas, la nota (pista 10) y la pistola de bengalas (12.2). La luna entra por los dos
+-- ventanucos. El paso del centro, bajo la cumbrera, libre para correr. Moderate como máximo.
+local DESVAN = {
+	cumbre = 39.4, -- cara de abajo del tejado en la cumbrera (z = 0); baja TEJADO.pendiente por stud hacia los lados
+	revelado = { x1 = -30, x2 = -18, z = 6 }, -- el cuarto de revelado: de x1 a x2 y de -z a z (pequeño y agobiante)
+	hueco = { x1 = 13, x2 = 17, z1 = 15, z2 = 23 }, -- el hueco de la escalera en el suelo del desván
+}
+local function vestirDesvan()
+	local AL_ESTE, AL_OESTE, AL_NORTE, AL_SUR = Vector3.xAxis, -Vector3.xAxis, Vector3.zAxis, -Vector3.zAxis
+	local blanco = Color3.new(1, 1, 1)
+	-- Cara de arriba de la pieza `nombre` que hay en `punto` (Separar engorda suelos y techos).
+	local function cara(nombre: string, punto: Vector3, porDefecto: number): number
+		for _, pieza in casa:GetChildren() do
+			if pieza.Name == nombre and pieza:IsA("BasePart") then
+				local d = pieza.CFrame:PointToObjectSpace(punto)
+				local arriba = pieza.Position.Y + pieza.Size.Y / 2
+				if math.abs(d.X) < pieza.Size.X / 2 and math.abs(d.Z) < pieza.Size.Z / 2 and math.abs(arriba - porDefecto) < 0.5 then
+					return arriba
+				end
+			end
+		end
+		return porDefecto
+	end
+	-- Cara de abajo del tejado (y) a una distancia z de la cumbrera.
+	local function tejado(z: number): number
+		return DESVAN.cumbre - TEJADO.pendiente * math.abs(z)
+	end
+
+	-- ESCALERA (x 12..39, z 9..33 arriba). El vano del dormitorio grande llega a la esquina y su cortina de ese lado
+	-- atravesaba la pared y asomaba aquí: fuera.
+	for _, m in casa:GetChildren() do
+		local pos = m:IsA("Model") and m.Name == "CortinaVano" and m:GetPivot().Position
+		if pos and pos.X > 12 and pos.Z > 9 and pos.Z < 33 and math.abs(pos.Y - ARRIBA) < 1 then
+			m:Destroy()
+		end
+	end
+	-- Peldaños de madera gastada, como el suelo de la galería.
+	local Y = sueloArriba(Vector3.new(28, ARRIBA, 21)) + 0.06 -- cara de la lámina del suelo de la sala
+	for _, peldano in casa:GetChildren() do
+		if peldano.Name == "Peldano" and peldano:IsA("BasePart") and peldano.Position.Y > ARRIBA and math.abs(peldano.Position.X - 15) < 0.1 then
+			variante(peldano, "SueloGaleria")
+		end
+	end
+	-- Techo de tablas (como el suelo del desván por debajo), con el hueco de la escalera.
+	local alto = ARRIBA + ALTO - BAJO_TECHO
+	for _, r in { { 17, 38.5, 9.5, 32.5 }, { 12.5, 17, 9.5, 15 }, { 12.5, 17, 23, 32.5 } } do
+		variante(lamina(Vector3.new(r[2] - r[1], 0.06, r[4] - r[3]), CFrame.new((r[1] + r[2]) / 2, alto, (r[3] + r[4]) / 2),
+			Color3.fromRGB(62, 50, 40), Enum.Material.WoodPlanks), "TablasDesvan")
+	end
+	-- Las fotos de los vigilantes, en la pared de al lado de los peldaños (su cara de la sala, con el papel, en x 17,65).
+	tienda("FotosVigilantes", CFrame.lookAt(Vector3.new(17.66, Y, 21.4), Vector3.new(18.66, Y, 21.4)), true)
+	-- Baúles y maletas en la pared de la ventana del lado (x 39), sin taparla (z 17,5..22,5): el arcón con el baúl
+	-- encima, y al otro lado las dos maletas y la abierta, revuelta.
+	contraPared("ArconPH", 38.45, Y, 12.6, AL_OESTE)
+	local baul = contraPared("BaulPH", 38.45, Y + 2.5, 12.6, AL_OESTE, true)
+	if baul then
+		baul:PivotTo(baul:GetPivot() * CFrame.Angles(0, math.rad(6), 0))
+	end
+	contraPared("MaletaPH", 38.45, Y, 28.6, AL_OESTE)
+	tienda("MaletaAbierta", CFrame.new(34, Y, 27.2) * CFrame.Angles(0, math.rad(-75), 0))
+	contraPared("BaulPH", 33, Y, 32.4, AL_SUR)
+	-- Espejo tapado y maniquí junto a la pared del dormitorio grande (z 9).
+	contraPared("EspejoTapado", 22.5, Y, 9.55, AL_NORTE)
+	tienda("Maniqui", CFrame.lookAt(Vector3.new(30, Y, 11.4), Vector3.new(24, Y, 16)))
+	-- La bombilla: cuelga de un cable en medio del cuarto; la enciende el generador.
+	local abajo = alto - 2.6
+	local cable = adorno(Vector3.new(0.06, alto - abajo, 0.06), CFrame.new(28, (alto + abajo) / 2, 21), Enum.Material.SmoothPlastic)
+	cable.Color = Color3.fromRGB(20, 18, 16)
+	tienda("PortalamparasPH", CFrame.new(28, abajo - 0.66, 21), true)
+	local bombilla = bloque("Lampara", Vector3.new(0.45, 0.45, 0.45), CFrame.new(28, abajo - 0.45, 21), COLOR.Lampara, Enum.Material.SmoothPlastic)
+	bombilla.Shape = Enum.PartType.Ball
+	bombilla.CanCollide = false
+	bombilla.CastShadow = false
+	local luz = Instance.new("PointLight")
+	luz.Color = COLOR.Lampara
+	luz.Brightness = 1.1
+	luz.Range = 24
+	luz.Shadows = true
+	luz.Enabled = false
+	luz.Parent = bombilla
+	table.insert(Mapa.lamparas, bombilla)
+	-- Lo que cuenta: gotas que suben por los peldaños, una mano que resbala en la pared de las fotos y desconchones.
+	mancha(Vector3.new(15.2, ARRIBA + 3.03, 25.1), Vector3.yAxis, 1.2, SANGRE_VESTIBULO.Gotas, blanco, 0.4)
+	mancha(Vector3.new(14.8, ARRIBA + 8.03, 20.1), Vector3.yAxis, 1, SANGRE_VESTIBULO.Gotas, blanco, 2.1)
+	mancha(Vector3.new(17.66, ARRIBA + 3.4, 26), AL_ESTE, 2.4, SANGRE_VESTIBULO.Gotas, Color3.fromRGB(150, 120, 115), 0)
+	for _, d in { { 38.4, ARRIBA + 8.5, 26, AL_OESTE, 3 }, { 30, ARRIBA + 9, 32.4, AL_SUR, 3.5 }, { 20, ARRIBA + 7.5, 9.6, AL_NORTE, 2.8 } } do
+		mancha(Vector3.new(d[1], d[2], d[3]), d[4], d[5], SANGRE_VESTIBULO.Desconchon, Color3.fromRGB(170, 160, 145), d[2] % 3)
+	end
+	luzLuna(Vector3.new(38.4, ARRIBA + 7, 20), Vector3.new(30, ARRIBA, 20), 1.2, 20)
+	luzLuna(Vector3.new(26, ARRIBA + 7, 32.4), Vector3.new(26, ARRIBA, 25), 1.2, 18)
+
+	-- DESVÁN. Suelo de tablas sin barnizar con el hueco de la escalera.
+	local S = cara("Techo", Vector3.new(0, 27, 0), 27) + 0.06 -- cara de la lámina del suelo del desván
+	local h = DESVAN.hueco
+	for _, r in { { -38.5, h.x1, -33, 33 }, { h.x2, 38.5, -33, 33 }, { h.x1, h.x2, -33, h.z1 }, { h.x1, h.x2, h.z2, 33 } } do
+		variante(lamina(Vector3.new(r[2] - r[1], 0.06, r[4] - r[3]), CFrame.new((r[1] + r[2]) / 2, S - 0.03, (r[3] + r[4]) / 2),
+			Color3.fromRGB(80, 66, 52), Enum.Material.WoodPlanks), "SueloDesvan")
+	end
+	-- Abierta por -z, por donde se sube. Su bloque de choque tapaba el hueco entero: chocan tres tablas invisibles.
+	tienda("BarandillaTrampilla", CFrame.new((h.x1 + h.x2) / 2, S, (h.z1 + h.z2) / 2), true)
+	for _, t in { { Vector3.new(0.3, 3.4, 8.4), Vector3.new(h.x1 - 0.2, 0, (h.z1 + h.z2) / 2) }, { Vector3.new(0.3, 3.4, 8.4), Vector3.new(h.x2 + 0.2, 0, (h.z1 + h.z2) / 2) },
+		{ Vector3.new(4.7, 3.4, 0.3), Vector3.new((h.x1 + h.x2) / 2, 0, h.z2 + 0.2) } } do
+		local tabla = bloque("Choque", t[1], CFrame.new(t[2] + Vector3.new(0, S + 1.7, 0)))
+		tabla.Transparency = 1
+		tabla.CanQuery = false
+	end
+	-- Bajo el tejado: tablas, los pares (vigas inclinadas) cada 4, la viga de la cumbrera y tirantes altos cada 8.
+	local inclinacion = math.atan(TEJADO.pendiente)
+	local largo = 33.5 / math.cos(inclinacion)
+	for _, lado in { 1, -1 } do
+		local giro = CFrame.Angles(inclinacion * lado, 0, 0)
+		local medio = Vector3.new(0, (tejado(0) + tejado(33.5)) / 2, 16.75 * lado)
+		variante(lamina(Vector3.new(77, 0.06, largo), CFrame.new(medio - Vector3.new(0, 0.04, 0)) * giro, Color3.fromRGB(70, 56, 44),
+			Enum.Material.WoodPlanks), "TablasDesvan")
+		for x = -36, 36, 4 do
+			local par = adorno(Vector3.new(0.5, 0.7, largo), CFrame.new(Vector3.new(x, medio.Y, medio.Z)) * giro * CFrame.new(0, -0.42, 0))
+			par.Name = "Viga"
+			variante(par, "VigaDesvan")
+		end
+	end
+	local cumbrera = adorno(Vector3.new(77, 0.9, 0.7), CFrame.new(0, tejado(0) - 0.45, 0))
+	cumbrera.Name = "Viga"
+	variante(cumbrera, "VigaDesvan")
+	for x = -32, 32, 8 do
+		local y = S + 9.2
+		local mitad = (DESVAN.cumbre - y) / TEJADO.pendiente
+		local tirante = adorno(Vector3.new(0.5, 0.6, 2 * mitad), CFrame.new(x, y, 0))
+		tirante.Name = "Viga"
+		variante(tirante, "VigaDesvan")
+	end
+	-- Ventanucos redondos de los hastiales vistos por dentro: el cristal con algo de luna, su cruz y la luz que entra.
+	for _, signo in { -1, 1 } do
+		local c = Vector3.new(signo * 38.45, 27 + TEJADO.pendiente * 33.5 * 0.36, 0)
+		local cristal = adorno(Vector3.new(0.08, 3.6, 3.6), CFrame.new(c), Enum.Material.Glass)
+		cristal.Shape = Enum.PartType.Cylinder
+		cristal.Color = Color3.fromRGB(62, 74, 96)
+		local aro = adorno(Vector3.new(0.06, 4.6, 4.6), CFrame.new(c + Vector3.new(signo * 0.02, 0, 0)))
+		aro.Shape = Enum.PartType.Cylinder
+		adorno(Vector3.new(0.14, 3.6, 0.2), CFrame.new(c))
+		adorno(Vector3.new(0.14, 0.2, 3.6), CFrame.new(c))
+		luzLuna(c - Vector3.new(signo * 0.4, 0, 0), Vector3.new(signo * 26, S, 0), 1.3, 26)
+	end
+
+	-- El cuarto de revelado al fondo: tabiques de tablas hasta el tejado (los de los lados, a lo largo de x, y los de las
+	-- puntas con su pico), la puerta con la cortina negra que deja una rendija y la luz roja de seguridad dentro, siempre
+	-- encendida: es lo que se ve desde la trampilla.
+	local rv = DESVAN.revelado
+	local altoLado = tejado(rv.z) - S
+	for _, z in { -rv.z, rv.z } do
+		variante(bloque("Tabique", Vector3.new(rv.x2 - rv.x1, altoLado, 0.3), CFrame.new((rv.x1 + rv.x2) / 2, S + altoLado / 2, z)), "TablasDesvan")
+	end
+	local pico = tejado(0) - tejado(rv.z)
+	for _, x in { rv.x1, rv.x2 } do
+		local trozos = if x == rv.x2 then { { -rv.z, -2.3 }, { 2.3, rv.z } } else { { -rv.z, rv.z } }
+		for _, t in trozos do
+			variante(bloque("Tabique", Vector3.new(0.3, altoLado, t[2] - t[1]), CFrame.new(x, S + altoLado / 2, (t[1] + t[2]) / 2)), "TablasDesvan")
+		end
+		if x == rv.x2 then -- encima de la puerta
+			variante(bloque("Tabique", Vector3.new(0.3, altoLado - 7.7, 4.6), CFrame.new(x, S + 7.7 + (altoLado - 7.7) / 2, 0)), "TablasDesvan")
+		end
+		for _, lado in { -1, 1 } do -- el pico, hasta la cumbrera (un poco más bajo: por la rendija de arriba sale algo de rojo)
+			local cuna = Instance.new("WedgePart")
+			cuna.Name = "Tabique"
+			cuna.Anchored = true
+			cuna.Size = Vector3.new(0.3, pico - 0.3, rv.z)
+			cuna.CFrame = CFrame.new(x, S + altoLado + (pico - 0.3) / 2, lado * rv.z / 2) * (if lado < 0 then CFrame.identity else CFrame.Angles(0, math.pi, 0))
+			cuna.Parent = casa
+			variante(cuna, "TablasDesvan")
+		end
+	end
+	tienda("CortinaNegra", CFrame.lookAt(Vector3.new(rv.x2 + 0.25, S, 0), Vector3.new(rv.x2 + 5, S, 0)), true)
+	local mesa = CFrame.lookAt(Vector3.new(rv.x1 + 1.75, S, 0), Vector3.new(rv.x2, S, 0))
+	tienda("MesaRevelado", mesa)
+	tienda("CosasRevelado", mesa, true)
+	tienda("CamaraPH", mesa * CFrame.new(-0.3, 3.2, 0.5) * CFrame.Angles(0, math.rad(160), 0), true)
+	for _, x in { rv.x1 + 4.5, rv.x1 + 8 } do -- las fotos, a la altura de los ojos
+		tienda("FotosTendidas", CFrame.lookAt(Vector3.new(x, S + 6.4, 0), Vector3.new(x + 1, S + 6.4, 0)), true)
+	end
+	tienda("Banqueta", CFrame.lookAt(Vector3.new(rv.x1 + 4.4, S, 1.2), Vector3.new(rv.x1, S, 0.5)), true)
+	tienda("CuboPH", CFrame.new(rv.x1 + 1.2, S, -4.6), true)
+	tienda("CajaCartonPH", CFrame.new(rv.x1 + 1.4, S, 4.4) * CFrame.Angles(0, 0.3, 0))
+	local roja = bloque("LuzRoja", Vector3.new(0.3, 0.1, 0.3), mesa * CFrame.new(-0.9, 5.9, 0.55), Color3.fromRGB(150, 12, 8), Enum.Material.Neon)
+	roja.CanCollide = false
+	roja.CanQuery = false
+	roja.CastShadow = false
+	roja.Transparency = 1
+	local rojo = Instance.new("PointLight")
+	rojo.Color = Color3.fromRGB(255, 40, 28)
+	rojo.Brightness = 1.6
+	rojo.Range = 18
+	rojo.Shadows = true
+	rojo.Parent = roja
+	-- Lo que se escapa por la rendija de la cortina y tiñe el suelo de delante: lo que se ve desde la trampilla.
+	local rendija = rojo:Clone()
+	rendija.Brightness = 0.8
+	rendija.Range = 9
+	rendija.Shadows = false
+	rendija.Parent = adorno(Vector3.new(0.2, 0.2, 0.2), CFrame.new(rv.x2 + 0.6, S + 2.5, 1.2))
+	rendija.Parent.Transparency = 1
+	-- Arañazos en la tabla de al lado de la puerta, por fuera (algo quiso entrar), y gotas delante de la mesa.
+	mancha(Vector3.new(rv.x2 + 0.17, S + 2.6, -4.2), AL_ESTE, 2.6, MARCAS.Aranazos, Color3.fromRGB(120, 70, 60), 0.15)
+	mancha(Vector3.new(rv.x1 + 4.5, S + 0.03, -1), Vector3.yAxis, 1.3, SANGRE_VESTIBULO.Gotas, blanco, 1.2)
+
+	-- Muebles tapados y trastos bajo los faldones, a los lados del paso de la cumbrera (|z| < 6, libre).
+	tienda("SofaTapado", CFrame.lookAt(Vector3.new(-3, S, 12.2), Vector3.new(-3, S, 0)))
+	contraPared("ComodaTapada", 6.5, S, 11.8, AL_SUR)
+	tienda("Maniqui", CFrame.lookAt(Vector3.new(-10.5, S, 8.6), Vector3.new(14, S, 14)))
+	tienda("ButacaTapada", CFrame.lookAt(Vector3.new(-7, S, -10.8), Vector3.new(-5, S, 0)))
+	tienda("EspejoTapado", CFrame.lookAt(Vector3.new(6.5, S, -10.2), Vector3.new(6.5, S, 0)) * CFrame.Angles(math.rad(-6), 0, 0))
+	tienda("RuecaPH", CFrame.lookAt(Vector3.new(1, S, -10.5), Vector3.new(0, S, 0)))
+	tienda("MecedoraPH", CFrame.lookAt(Vector3.new(-35.4, S, 3), Vector3.new(-39, S, 0))) -- detrás del cuarto, mirando el ventanuco
+	tienda("BaulPH", CFrame.lookAt(Vector3.new(-1.5, S, -13.4), Vector3.new(-1.5, S, 0)))
+	tienda("MuletasPH", CFrame.lookAt(Vector3.new(35.4, S, 2.6), Vector3.new(30, S, 2.6)) * CFrame.Angles(math.rad(-8), 0, 0), true)
+	tienda("ArconPH", CFrame.lookAt(Vector3.new(28, S, -12.2), Vector3.new(28, S, 0)))
+	tienda("MaletaPH", CFrame.lookAt(Vector3.new(32.5, S, -13.3), Vector3.new(32.5, S, 0)))
+	-- Cajas apiladas: { mueble, x, z, giro (grados), encima de otra }.
+	for _, c in {
+		{ "CajonPH", -12, -12.6, 10 }, { "CajaCartonPH", -12.3, -12.4, 25, true }, { "CajaCartonPH", -9.6, -13.2, -15 },
+		{ "CajonPH", 10.5, 12.4, -5 }, { "CajaCartonPH", 25, 12.8, 30 }, { "CajonPH", 30, 12.6, 0 }, { "CajaCartonPH", 30.2, 12.5, -20, true },
+		{ "CajaCartonPH", -14, 11.5, 5 }, { "CajonPH", -36, -10.5, 90 }, { "CajaCartonPH", -36, 11, 70 },
+	} do
+		local cajon = MUEBLES.CajonPH
+		local base = if c[5] and cajon then S + (cajon:GetAttribute("Tam") :: Vector3).Y else S
+		tienda(c[1], CFrame.new(c[2], base, c[3]) * CFrame.Angles(0, math.rad(c[4]), 0), c[5] == true)
+	end
+	-- La bombilla del desván, colgando de la cumbrera junto a la trampilla; la enciende el generador.
+	local foco = Vector3.new(9, tejado(0) - 3.4, 3)
+	local hilo = adorno(Vector3.new(0.06, 2.5, 0.06), CFrame.new(foco + Vector3.new(0, 1.9, 0)), Enum.Material.SmoothPlastic)
+	hilo.Color = Color3.fromRGB(20, 18, 16)
+	tienda("PortalamparasPH", CFrame.new(foco - Vector3.new(0, 0.21, 0)), true)
+	local bombillaDesvan = bloque("Lampara", Vector3.new(0.45, 0.45, 0.45), CFrame.new(foco), COLOR.Lampara, Enum.Material.SmoothPlastic)
+	bombillaDesvan.Shape = Enum.PartType.Ball
+	bombillaDesvan.CanCollide = false
+	bombillaDesvan.CastShadow = false
+	local luzDesvan = luz:Clone()
+	luzDesvan.Range = 22
+	luzDesvan.Shadows = false -- con la de la escalera debajo, dos con sombras pesan en móvil
+	luzDesvan.Parent = bombillaDesvan
+	table.insert(Mapa.lamparas, bombillaDesvan)
+	-- Telarañas grandes en los rincones de los hastiales con el tejado, en diagonal (de canto parecían una mancha):
+	-- { x, z, hacia dónde mira }.
+	local tela = MUEBLES.Telarana
+	if tela then
+		local altoRed = (tela:GetAttribute("Tam") :: Vector3).Y * 0.55
+		for _, t in { { -38.3, -10.5, Vector3.new(1, 0, 1) }, { -38.3, 11, Vector3.new(1, 0, -1) }, { 38.3, -9.5, Vector3.new(-1, 0, 1) }, { 38.3, 10.5, Vector3.new(-1, 0, -1) } } do
+			local pos = Vector3.new(t[1], tejado(t[2]) - 0.2 - altoRed, t[2])
+			local red = tienda("Telarana", CFrame.lookAt(pos, pos + t[3]), true) :: Model
+			red:ScaleTo(red:GetScale() * 0.55)
+		end
+	end
+end
+
 -- Torre de la esquina de delante a la izquierda, mirando la casa desde el camino (pedido por el usuario): un octógono
 -- de 8 de apotema centrado en la esquina de la casa (x 39, z -33), en las dos plantas. Abajo es el mirador del salón y
 -- arriba, del dormitorio grande: las caras que caen dentro de la casa no se hacen y la torre se abre a la sala. La cara
@@ -1785,14 +2042,7 @@ local function construirCasa(mapa: Folder)
 		bloque("Peldano", Vector3.new(4, i, 1), CFrame.new(15, ARRIBA + i / 2, 28 - (i - 0.5)), COLOR.Piso)
 	end
 	bloque("Muro", Vector3.new(0.6, ALTO, 12), CFrame.new(17.3, ARRIBA + ALTO / 2, 21))
-	-- Baúles viejos contra las paredes (que no sea una sala vacía).
-	for _, b in { { 37, 14, 0.2 }, { 37, 25, -0.1 }, { 30, 31.8, 1.57 } } do
-		local cf = CFrame.new(b[1], ARRIBA, b[2]) * CFrame.Angles(0, b[3], 0)
-		bloque("Baul", Vector3.new(2.2, 2, 4), cf * CFrame.new(0, 1, 0), Color3.fromRGB(70, 50, 36))
-		bloque("Tapa", Vector3.new(2.4, 0.3, 4.2), cf * CFrame.new(0, 2.15, 0), Color3.fromRGB(48, 36, 28))
-		adorno(Vector3.new(2.45, 2.1, 0.25), cf * CFrame.new(0, 1.05, 1.2), Enum.Material.Metal).Color = COLOR.Oscuro
-		adorno(Vector3.new(2.45, 2.1, 0.25), cf * CFrame.new(0, 1.05, -1.2), Enum.Material.Metal).Color = COLOR.Oscuro
-	end
+	-- Baúles, maletas y lo demás del cuarto, en vestirDesvan.
 
 	-- Chimenea del salón (Chimenea, y por ella baja el Trepador): el tiro sube por el dormitorio grande hasta salir por
 	-- el tejado. Está en x = 37,5 y z = -1: el Trepador va a ella por el tejado.
@@ -2384,6 +2634,7 @@ function Mapa.start()
 	vestirGaleria()
 	vestirDormitorioGrande()
 	vestirHabitacionRico()
+	vestirDesvan()
 	abandonar()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
