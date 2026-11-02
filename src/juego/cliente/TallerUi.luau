@@ -1,5 +1,6 @@
 -- Los bancos del taller (servidor: Taller). Al usar uno sale abajo un papel oscuro con sus recetas
--- (Config.Taller.Bancos): lo que sale y lo que pide; las que no te llegan, apagadas. Lo pesado que pide (tablones) cuenta
+-- (Recetas.delBanco: las de Config.Taller.Bancos y, en el sótano, la reja del final si ya se leyó su pista; el servidor
+-- manda cuáles no enseñar): lo que sale y lo que pide; las que no te llegan, apagadas. Lo pesado que pide (tablones) cuenta
 -- si está suelto junto al banco. Se cierra con CERRAR, al alejarte, al morir o al ponerte a trabajar.
 -- El cliente solo pide ("Hacer", n): el servidor lo valida todo. También suena el cierre de las trampas ("Trampa").
 local CollectionService = game:GetService("CollectionService")
@@ -22,6 +23,7 @@ local panel: TextButton
 local titulo: TextLabel
 local filas: { { texto: TextLabel, boton: TextButton } } = {}
 local banco: Model? = nil
+local ocultas: { [number]: boolean } = {} -- recetas del banco abierto que aún no se enseñan (la reja, sin su pista)
 local abierto = 0 -- sube cada vez que se abre o se cierra: el bucle viejo de cerrar se para
 
 local function nombre(tipo: string): string
@@ -58,13 +60,19 @@ local function cerrar()
 end
 
 local function pintar()
-	local recetas = banco and T.Bancos[banco:GetAttribute("Banco")] or {}
+	local recetas = if banco then Recetas.delBanco(banco:GetAttribute("Banco"), Config) else {}
 	local cuenta = tengo()
+	local vistas = 0
 	for i, fila in filas do
-		local receta = recetas[i]
+		local receta = if ocultas[i] then nil else recetas[i]
 		fila.texto.Visible = receta ~= nil
 		fila.boton.Visible = receta ~= nil
 		if receta then
+			-- Una debajo de otra, sin dejar hueco por las ocultas.
+			local y = 80 + vistas * 52
+			vistas += 1
+			fila.texto.Position = UDim2.fromOffset(22, y)
+			fila.boton.Position = UDim2.new(1, -14, 0, y)
 			local pide = {}
 			for _, p in receta.Pide do
 				table.insert(pide, Lang.t(nil, "{n} × {thing}", { n = p[2], thing = nombre(p[1]) }))
@@ -75,7 +83,7 @@ local function pintar()
 			fila.boton.TextTransparency = if puedo then 0 else 0.6
 		end
 	end
-	panel.Size = UDim2.fromOffset(640, 96 + #recetas * 52)
+	panel.Size = UDim2.fromOffset(640, 96 + vistas * 52)
 end
 
 local function lejos(): boolean
@@ -85,10 +93,14 @@ local function lejos(): boolean
 		or (mando.Position - raiz.Position).Magnitude > Config.Casa.Alcance + 3
 end
 
-local function abrir(nuevo: Model)
+local function abrir(nuevo: Model, lista: { number })
 	abierto += 1
 	local mio = abierto
 	banco = nuevo
+	ocultas = {}
+	for _, n in lista do
+		ocultas[n] = true
+	end
 	titulo.Text = Ui.mayusculas(Lang.t(nil, if nuevo:GetAttribute("Banco") == "Garaje" then "Car workshop" else "Workbench"))
 	pintar()
 	panel.Visible = true
@@ -145,8 +157,8 @@ local function construir()
 	salir.Parent = panel
 
 	local cuantas = 0
-	for _, recetas in T.Bancos do
-		cuantas = math.max(cuantas, #recetas)
+	for cual in T.Bancos do
+		cuantas = math.max(cuantas, #Recetas.delBanco(cual, Config))
 	end
 	for i = 1, cuantas do
 		local y = 80 + (i - 1) * 52
@@ -177,9 +189,9 @@ end
 
 function TallerUi.start()
 	construir()
-	Remotes.Taller.OnClientEvent:Connect(function(que, dato)
+	Remotes.Taller.OnClientEvent:Connect(function(que, dato, lista)
 		if que == "Abrir" and typeof(dato) == "Instance" and dato:IsA("Model") then
-			abrir(dato)
+			abrir(dato, if type(lista) == "table" then lista else {})
 		elseif que == "Trampa" and typeof(dato) == "Vector3" then
 			Sonido.en("Golpe", dato, 1.5) -- el cepo se cierra de golpe
 			Sonido.en("Chillido", dato, 0.8)

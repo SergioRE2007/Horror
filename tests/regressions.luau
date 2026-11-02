@@ -900,6 +900,53 @@ do
 	guardable(d, "partida con pistas")
 end
 
+-- Final de la Bestia (12.2): la reja en el banco del sótano y lo preparado, guardado con la partida (lo viejo sigue
+-- cargando).
+do
+	local FP = cargar("src/juego/servidor/FormatoPartida")
+	local Recetas = cargar("src/shared/Recetas")
+	local Historia = cargar("src/shared/Historia")
+	local sotano = Recetas.delBanco("Sotano", Config)
+	igual(#sotano, #Config.Taller.Bancos.Sotano + 1, "banco del sótano: sus recetas y la reja")
+	igual(sotano[#sotano].Da, "Reja", "la reja, al final (las de antes no se mueven)")
+	igual(sotano[1].Da, Config.Taller.Bancos.Sotano[1].Da, "la primera receta sigue siendo la primera")
+	igual(sotano[#sotano].Pide, Config.Bestia.Reja.Pide, "la reja pide lo de Config.Bestia.Reja")
+	igual(Config.Pesados.Reja ~= nil, true, "la reja es pesada")
+	igual(#Config.Taller.Bancos.Sotano, 2, "delBanco no toca Config")
+	igual(#Recetas.delBanco("Garaje", Config), #Config.Taller.Bancos.Garaje, "el garaje, sin reja")
+	local pista = Historia[sotano[#sotano].Pista]
+	igual(pista ~= nil and string.find(pista.texto, "gate") ~= nil, true, "la pista de la reja habla de la reja")
+
+	-- Las claves de los puntos, sacadas de Preparativos (no se puede cargar fuera de Roblox).
+	local fuente = fs.readFile("src/juego/servidor/Preparativos.luau")
+	local claves = {}
+	for clave in string.gmatch(string.match(fuente, "local PUNTOS = (%b{})") :: string, '{ "(%w+)"') do
+		table.insert(claves, clave)
+	end
+	igual(#claves, Config.Bestia.Puntos, "un punto de gasolina por cada uno de Config.Bestia.Puntos")
+	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos, coche = Config.Coche,
+		arreglarCoche = Recetas.arreglarCoche, pistas = #Historia, puntos = claves }
+
+	local vieja = FP.arreglar({ version = 1, noche = 3, semilla = 7 }, cat)
+	igual(#vieja.preparativos.gasolina, 0, "guardado viejo: sin gasolina")
+	igual(vieja.preparativos.rastro or vieja.preparativos.reja, false, "guardado viejo: sin rastro ni reja")
+	local buena = FP.arreglar(guardable({ version = 1, noche = 4, semilla = 7, final = "Bestia",
+		preparativos = { gasolina = { claves[3], claves[1] }, rastro = false, reja = true } }, "preparativos"), cat)
+	igual(table.concat(buena.preparativos.gasolina, ","), claves[1] .. "," .. claves[3], "los puntos llenos, en orden")
+	igual(buena.preparativos.reja, true, "la reja montada")
+	igual(buena.final, "Bestia", "final de la Bestia")
+	local todos = FP.arreglar(guardable({ noche = 4, preparativos = { gasolina = table.clone(claves), rastro = true } }, "todos"), cat)
+	igual(todos.preparativos.rastro, true, "con los 6 puntos, el rastro vale")
+	local rota = FP.arreglar({ noche = 2, final = "Otro", preparativos = { gasolina = { claves[2], claves[2], "Tejado", 5, true },
+		rastro = true, reja = "si" } }, cat)
+	igual(table.concat(rota.preparativos.gasolina, ","), claves[2], "sin repetidos ni puntos que no existen")
+	igual(rota.preparativos.rastro, false, "rastro sin todos los puntos: fuera")
+	igual(rota.preparativos.reja, false, "reja que no es true: sin montar")
+	igual(rota.final, nil, "un final que no existe: partida sin terminar")
+	igual(#FP.arreglar({ noche = 2, preparativos = "todo" }, cat).preparativos.gasolina, 0, "preparativos que no son tabla: nada")
+	guardable(buena, "partida con preparativos")
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")

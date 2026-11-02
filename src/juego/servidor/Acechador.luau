@@ -273,7 +273,7 @@ end
 
 -- Cada medio segundo: ¿quién lleva un rato fuera a oscuras?
 local function vigilar()
-	local activo = oscuro() and not Partida.terminada()
+	local activo = oscuro() and not Partida.terminada() and not workspace:GetAttribute("Bestia") -- la noche final solo sale ella
 	for _, jugador in Players:GetPlayers() do
 		local r = raizDe(jugador)
 		local expuesto = activo and r ~= nil and not aSalvo(r.Position) and table.find(Muerte.vivos(), jugador) ~= nil

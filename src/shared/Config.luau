@@ -25,6 +25,7 @@ Config.Recompensas = {
 	PorNoche = 5, -- más por cada noche siguiente
 	TopeNoches = 10, -- a partir de la noche 11 ya no sube
 	Final = 300, -- por escapar en el coche
+	FinalBestia = 600, -- por matar a la Bestia (el final difícil)
 	Diario = 50, -- premio diario
 	Cada = 86400, -- segundos entre premios diarios
 	-- Logros: se cobran una sola vez por jugador (se guarda el nombre: no renombrar). Noche = al superar esa noche.
@@ -33,6 +34,7 @@ Config.Recompensas = {
 		Noche5 = { Noche = 5, Monedas = 150 },
 		Noche10 = { Noche = 10, Monedas = 400 },
 		Huida = { Monedas = 250 },
+		Bestia = { Monedas = 500 },
 	},
 }
 
@@ -232,6 +234,11 @@ Config.Objetos = {
 	Trampa = { Tam = { 2, 2 }, Nombre = "Trap" }, -- tirada al suelo, aturde al bicho que pasa encima
 	Bateria = { Tam = { 2, 1 }, Nombre = "Car battery" },
 	Radiador = { Tam = { 2, 2 }, Nombre = "Radiator" },
+	-- Final de la Bestia (Config.Bestia, 12.2).
+	Cadena = { Tam = { 2, 1 }, Nombre = "Chain" }, -- para la reja del sótano
+	Pistola = { Tam = { 2, 1 }, Nombre = "Flare gun" }, -- la del rico, en el desván
+	Bengala = { Tam = { 1, 1 }, Nombre = "Flare" }, -- cada disparo gasta una
+	Cerillas = { Tam = { 1, 1 }, Nombre = "Matches" }, -- para prender el rastro de gasolina
 }
 
 -- Salas cerradas con llave (pedido por el usuario), de más cerca a más lejos (juego/servidor/Llaves). Cada llave sale
@@ -283,6 +290,7 @@ Config.Pesados = {
 	Motor = { Tam = { 3.2, 2.2, 2.4 }, Peso = 2, Nombre = "Engine" },
 	Rueda = { Tam = { 1, 2.6, 2.6 }, Peso = 1, Nombre = "Wheel" }, -- cilindro: el eje va a lo largo de X
 	TablonReforzado = { Tam = { 6, 0.45, 1 }, Peso = 1, Nombre = "Reinforced plank" },
+	Reja = { Tam = { 6, 6, 0.5 }, Peso = 2, Nombre = "Iron gate" }, -- sale del banco del sótano; se monta al pie de la escalera
 }
 Config.Cargar = {
 	Frena = { 0.6, 0.5 }, -- multiplica tu velocidad según el Peso de lo que llevas (con todos los que hacen falta)
@@ -348,6 +356,53 @@ Config.Coche = {
 
 -- Móvil (juego/servidor/Movil, cliente MovilUi): mapa con dónde estáis tú y tus amigos (pedido por el usuario). Gasta
 -- batería mientras se mira y se carga en el enchufe de la casa con el generador encendido. Números a ojo.
+-- El final difícil (12.2, TASKS.md): preparar la casa de día, "Esperarla", herirla con bengalas, encerrarla en el
+-- sótano con la reja y quemar la casa desde el porche. Módulos: Preparativos (gasolina, reja, palanca, trampilla,
+-- guardado), Bestia (el bicho), Bengalas (la pistola) e Incendio (el fuego, la escena y el premio). Números a ojo.
+Config.Bestia = {
+	-- Preparativos
+	Puntos = 6, -- puntos de gasolina en la casa (salón, cocina, pasillo, escalera, los dos dormitorios)
+	Verter = 3, -- segundos echando un bidón en un punto
+	PorPunto = 1 / 3, -- parte de un bidón que gasta cada punto (hay pocos bidones y no se rellenan)
+	-- Receta en el banco del sótano; solo sale tras leer la pista Pista (shared/Historia)
+	Reja = { Pide = { { "Chatarra", 4 }, { "Cadena", 2 } }, Tiempo = 8, Pista = 9 },
+	Montar = 4, -- segundos montando la reja en su marco
+	Caer = 0.35, -- segundos que tarda la reja en caer
+	Palanca = 1.5, -- segundos tirando de la palanca
+	-- La Bestia
+	Altura = 4.5, -- de los pies al centro de la raíz
+	Andar = 10,
+	Correr = 19, -- el jugador anda a 16: más rápida que él
+	Cojear = 7, -- velocidad mientras cojea
+	Cojea = 8, -- segundos cojeando tras una bengala
+	Pillar = 5, -- studs a los que te pilla
+	Vista = 90,
+	Espera = 6, -- segundos desde "Esperarla" hasta que llega
+	VioEsconderse = 3, -- segundos en que aún te saca del escondite si te vio meterte (más lista que los demás)
+	Borde = 70, -- studs de la puerta principal al sitio del bosque por donde sale
+	Rugido = 2.5, -- segundos rugiendo al salir del bosque
+	Quema = 4, -- segundos chillando en el fuego hasta desaparecer
+	Sobresalto = 0.6, -- segundos quieta al darle una bengala
+	CercaReja = 45, -- atrapada: va hacia quien ve fuera a menos de esto
+	CadaGolpe = 1.3, -- atrapada: segundos entre golpes a la reja
+	-- Bengalas
+	Bengalas = 3, -- las que trae la pistola
+	Alcance = 120, -- studs del disparo
+	Recarga = 1.5, -- segundos entre disparos
+	CercaCabeza = 6, -- studs: el origen del disparo que manda el cliente no puede estar más lejos de su cabeza
+	Vuela = 160, -- studs/s que vuela la bola (solo se ve)
+	Arde = 9, -- segundos ardiendo donde da
+	Brillo = 2.2, -- luz de la bengala: fuerte sin pasarse (pedido por el usuario: nada de brillos exagerados)
+	Luz = 22, -- alcance de esa luz
+	-- Incendio
+	Prender = 2, -- segundos con la cerilla en el rastro
+	PorSala = 1.6, -- segundos que tarda el fuego en pasar de un punto al siguiente
+	Chillido = 1.5, -- segundos entre que ella se quema y la escena final
+	Ventanas = 18, -- studs: las ventanas a esta distancia de un punto que arde estallan
+	Cinematica = 20, -- segundos de la escena final
+}
+Config.Insignias = { Bestia = 0 } -- Id de la insignia (BadgeService) al publicar (13.2); 0 = no se da
+
 Config.Movil = {
 	Duracion = 150, -- segundos mirándolo con la batería llena
 	Carga = 60, -- segundos en el enchufe hasta llenarse

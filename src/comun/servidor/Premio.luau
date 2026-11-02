@@ -35,6 +35,16 @@ function Premio.logro(datos, config, nombre: string): number
 	return logro.Monedas
 end
 
+-- Monedas de un final ("Huida": el coche, config.Final; "Bestia": quemarla, config.FinalBestia) más su logro (el del
+-- mismo nombre) si aún no lo tenía. Un final desconocido no da nada.
+function Premio.final(datos, config, final: string): number
+	local monedas = if final == "Huida" then config.Final elseif final == "Bestia" then config.FinalBestia else nil
+	if not monedas then
+		return 0
+	end
+	return monedas + Premio.logro(datos, config, final)
+end
+
 -- Monedas del premio diario si ya han pasado config.Cada segundos desde el último (lo apunta en datos.diario), o 0.
 -- Una hora guardada absurda (más de un día en el futuro: reloj roto) no bloquea al jugador.
 function Premio.diario(datos, config, ahora: number): number

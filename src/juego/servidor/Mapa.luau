@@ -751,6 +751,9 @@ end
 -- hueco en el suelo encima de la escalera (HUECO). Paredes de piedra, hormigón roto, techo y peldaños de tablas, propios
 -- de la sala (11.8.13); los muebles, en vestirSotano.
 local HUECO = { -3.5, 3.5, 33.5, 47.6 } -- x1, x2, z1, z2
+-- Trampilla del sótano al patio (12.2, final de la Bestia): hueco en el techo del sótano y en el suelo del bosque, en el
+-- rincón del oeste entre las cadenas del techo y los cajones. Se sube por una escalera de mano; la Bestia no cabe.
+local TRAMPILLA = { -11.4, -6.9, 59.2, 62 } -- x1, x2, z1, z2
 local FONDO_SOTANO = -11
 -- El banco del taller del sótano (BancoCarpintero, en vestirSotano): el origen del mueble, contra la pared del fondo.
 local BANCO_SOTANO = Vector3.new(-1, FONDO_SOTANO, 63.55)
@@ -773,8 +776,12 @@ local function construirSotano()
 	local z1, z2, alto = 47.6, 65.6, 9
 	variante(bloque("Piso", Vector3.new(25, 1, z2 - z1 + 1), CFrame.new(0, FONDO - 0.5, (z1 + z2) / 2), COLOR.Piso, Enum.Material.Concrete),
 		"SueloSotano")
-	variante(bloque("Techo", Vector3.new(25, 0.4, z2 - z1 + 1), CFrame.new(0, FONDO + alto - 0.2, (z1 + z2) / 2), COLOR.Piso, Enum.Material.Concrete),
-		"TechoSotano")
+	-- El techo, en cuatro trozos alrededor del hueco de la trampilla al patio (12.2).
+	local t1, t2, t3, t4 = TRAMPILLA[1], TRAMPILLA[2], TRAMPILLA[3], TRAMPILLA[4]
+	for _, r in { { -12.5, t1, z1 - 0.5, z2 + 0.5 }, { t2, 12.5, z1 - 0.5, z2 + 0.5 }, { t1, t2, z1 - 0.5, t3 }, { t1, t2, t4, z2 + 0.5 } } do
+		variante(bloque("Techo", Vector3.new(r[2] - r[1], 0.4, r[4] - r[3]), CFrame.new((r[1] + r[2]) / 2, FONDO + alto - 0.2, (r[3] + r[4]) / 2),
+			COLOR.Piso, Enum.Material.Concrete), "TechoSotano")
+	end
 	for _, x in { -7.5, 7.5 } do
 		variante(bloque("Muro", Vector3.new(10, alto, 1), CFrame.new(x, FONDO + alto / 2, z1), nil, Enum.Material.Concrete), "ParedSotano")
 	end
@@ -797,6 +804,106 @@ local function construirSotano()
 	-- La chatarra, en el suelo entre las dos despensas de tarros (vestirSotano): en una balda se caía, porque la despensa
 	-- choca como una caja entera.
 	table.insert(Mapa.objetos, { tipo = "Chatarra", cf = CFrame.new(8.6, FONDO + 0.3, 57) })
+end
+
+-- Lo del final de la Bestia (12.2; lo maneja Preparativos, que pone la reja, los puntos de gasolina y los prompts):
+--   MarcoReja: dos guías de hierro al pie de la escalera del sótano, delante del último peldaño (z 46,9), por donde sube
+--   y baja la reja. Atributos: Cerrada y Abierta (dónde va el centro de la reja), Tam (su tamaño).
+--   Palanca: en la pared del oeste, junto a la escalera de mano. Atributo Pivote (el eje del mango; lo mueve el cliente).
+--   Trampilla: tapa de tablas en el patio sobre el hueco TRAMPILLA, con escalera de mano desde el sótano. Atributo
+--   Abierta (CFrame de la tapa abierta). Se abre desde abajo.
+--   Por el mapa (objetos sueltos, Mochila): cadenas para la reja, la pistola de bengalas del rico con sus 3 bengalas al
+--   lado (desván, delante del baúl) y las cerillas (encimera de la cocina).
+local function construirFinal()
+	local F = FONDO_SOTANO
+	local hierro = Color3.fromRGB(52, 50, 48)
+	local guias = Instance.new("Model")
+	guias.Name = "MarcoReja"
+	guias.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	-- La reja cerrada se apoya en el último peldaño (cara de arriba en F + 1) y tapa el vano de la sala; subida, deja
+	-- pasar por debajo hasta a la Bestia.
+	local Z, ALTO_REJA, SUBE = 46.9, 8.6, 9.5
+	for _, x in { -2.3, 2.3 } do
+		local guia = bloque("Guia", Vector3.new(0.3, 19, 0.5), CFrame.new(x, F + 1 + 9.5, Z), hierro, Enum.Material.CorrodedMetal, guias)
+		guia.CanCollide = false
+	end
+	bloque("Travesano", Vector3.new(5.2, 0.5, 0.6), CFrame.new(0, F + 20.25, Z), hierro, Enum.Material.CorrodedMetal, guias).CanCollide = false
+	mando(CFrame.new(0, F + 4, 45.4), guias)
+	local cerrada = CFrame.new(0, F + 1 + ALTO_REJA / 2, Z)
+	guias:SetAttribute("Cerrada", cerrada)
+	guias:SetAttribute("Abierta", cerrada + Vector3.new(0, SUBE, 0))
+	guias:SetAttribute("Tam", Vector3.new(4.9, ALTO_REJA, 0.25))
+	CollectionService:AddTag(guias, "MarcoReja")
+	guias.Parent = casa
+
+	-- Palanca de pared: placa y mango con su pomo; subida, el mango apunta arriba y hacia la sala.
+	local palanca = Instance.new("Model")
+	palanca.Name = "Palanca"
+	palanca.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	local base = CFrame.new(-11.25, F + 3.8, 57.4)
+	bloque("Placa", Vector3.new(0.2, 1.8, 0.9), base, hierro, Enum.Material.CorrodedMetal, palanca)
+	local pivote = base * CFrame.new(0.2, 0, 0)
+	local giro = pivote * CFrame.Angles(0, 0, -0.5)
+	local mango = bloque("Mango", Vector3.new(0.18, 2, 0.18), giro * CFrame.new(0, 1, 0), hierro, Enum.Material.Metal, palanca)
+	mango.CanCollide = false
+	local pomo = bloque("Pomo", Vector3.new(0.4, 0.4, 0.4), giro * CFrame.new(0, 2, 0), Color3.fromRGB(70, 22, 18), Enum.Material.SmoothPlastic,
+		palanca)
+	pomo.Shape = Enum.PartType.Ball
+	pomo.CanCollide = false
+	mando(base * CFrame.new(0.9, 0, 0), palanca)
+	palanca:SetAttribute("Pivote", pivote)
+	CollectionService:AddTag(palanca, "Palanca")
+	palanca.Parent = casa
+
+	-- Trampilla: la tapa, encima del suelo del bosque; la bisagra en el borde del este. El hueco forrado de tablas.
+	local tx1, tx2, tz1, tz2 = TRAMPILLA[1], TRAMPILLA[2], TRAMPILLA[3], TRAMPILLA[4]
+	local cz = (tz1 + tz2) / 2
+	local trampilla = Instance.new("Model")
+	trampilla.Name = "Trampilla"
+	trampilla.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	local ancho = tx2 - tx1 + 0.3
+	local bisagra = CFrame.new(tx2 + 0.15, 0.125, cz)
+	bloque("Tapa", Vector3.new(ancho, 0.25, tz2 - tz1 + 0.3), bisagra * CFrame.new(-ancho / 2, 0, 0), COLOR.Mueble, Enum.Material.WoodPlanks,
+		trampilla)
+	mando(CFrame.new((tx1 + tx2) / 2, F + 8, cz), trampilla) -- bajo el techo del sótano: se abre desde abajo
+	trampilla:SetAttribute("Abierta", bisagra * CFrame.Angles(0, 0, math.rad(-105)) * CFrame.new(-ancho / 2, 0, 0))
+	CollectionService:AddTag(trampilla, "Trampilla")
+	trampilla.Parent = casa
+	-- Las paredes del hueco, forradas: { centro x, centro z, ancho en x, ancho en z }.
+	local mx, w, d = (tx1 + tx2) / 2, tx2 - tx1, tz2 - tz1
+	for _, r in { { tx1 + 0.06, cz, 0.1, d }, { tx2 - 0.06, cz, 0.1, d }, { mx, tz1 + 0.06, w, 0.1 }, { mx, tz2 - 0.06, w, 0.1 } } do
+		adorno(Vector3.new(r[3], 2.4, r[4]), CFrame.new(r[1], -1.2, r[2]), Enum.Material.WoodPlanks)
+	end
+	-- Escalera de mano contra la pared del oeste: se ve de madera y trepa por un TrussPart invisible.
+	local escala = Instance.new("TrussPart")
+	escala.Name = "Escala"
+	escala.Anchored = true
+	escala.Size = Vector3.new(2, 12, 2)
+	escala.CFrame = CFrame.new(tx1 + 1, F + 6, cz)
+	escala.Transparency = 1
+	escala.Parent = casa
+	local madera = Color3.fromRGB(70, 52, 38)
+	for _, dz in { -0.75, 0.75 } do
+		local larguero = adorno(Vector3.new(0.22, 12.4, 0.22), CFrame.new(tx1 + 0.6, F + 6.2, cz + dz), Enum.Material.Wood)
+		larguero.Color = madera
+	end
+	for i = 1, 11 do
+		local peldano = adorno(Vector3.new(0.18, 0.18, 1.5), CFrame.new(tx1 + 0.6, F + i, cz), Enum.Material.Wood)
+		peldano.Color = madera
+	end
+
+	for _, o in {
+		{ "Cadena", Vector3.new(-49.9, ABAJO + 3.7, 30.3) }, -- en el banco del garaje, entre las dos chatarras
+		{ "Cadena", Vector3.new(226, 1.2, 79) }, -- en el granero de la granja
+		{ "Cadena", Vector3.new(-228, 1.2, -84) }, -- en la nave del aserradero
+		{ "Pistola", Vector3.new(-2.4, 27.6, -11.5) }, -- desván, delante del baúl del rico
+		{ "Bengala", Vector3.new(-1.2, 27.6, -11.3) },
+		{ "Bengala", Vector3.new(-0.9, 27.6, -11.9) },
+		{ "Bengala", Vector3.new(-1.6, 27.6, -12) },
+		{ "Cerillas", Vector3.new(-26.5, ABAJO + 3.7, 31.3) }, -- encimera de la cocina
+	} do
+		table.insert(Mapa.objetos, { tipo = o[1], cf = CFrame.new(o[2]) * CFrame.Angles(0, math.rad(#Mapa.objetos * 37), 0) })
+	end
 end
 
 -- Garaje pegado a la cocina, al oeste (x -59..-39, z 3..33; pedido por el usuario): se entra desde la cocina por la
@@ -2961,6 +3068,7 @@ local function construirCasa(mapa: Folder)
 	construirCobertizo()
 	construirCaballete()
 	construirSotano()
+	construirFinal() -- reja, palanca y trampilla del sótano; cadenas, pistola y cerillas (12.2)
 	construirGaraje()
 	Fachada.vestir({ ABAJO = ABAJO, ARRIBA = ARRIBA, ALTO = ALTO, TEJADO = TEJADO, TORRE = TORRE })
 	-- Mecedora en el porche, mirando al camino (no choca: el porche es para correr).
@@ -3049,9 +3157,13 @@ end
 local function construirBosque(mapa: Folder)
 	local bosque = Instance.new("Folder")
 	bosque.Name = "Bosque"
-	-- El suelo, en cuatro trozos alrededor del hueco de la escalera del sótano.
+	-- El suelo, en trozos alrededor del hueco de la escalera del sótano y del de la trampilla al patio (12.2).
 	local x1, x2, z1, z2, L = HUECO[1], HUECO[2], HUECO[3], HUECO[4], 800
-	for _, r in { { -L, x1, -L, L }, { x2, L, -L, L }, { x1, x2, -L, z1 }, { x1, x2, z2, L } } do
+	local t1, t2, t3, t4 = TRAMPILLA[1], TRAMPILLA[2], TRAMPILLA[3], TRAMPILLA[4]
+	for _, r in {
+		{ -L, t1, -L, L }, { t2, x1, -L, L }, { t1, t2, -L, t3 }, { t1, t2, t4, L },
+		{ x2, L, -L, L }, { x1, x2, -L, z1 }, { x1, x2, z2, L },
+	} do
 		bloque("Suelo", Vector3.new(r[2] - r[1], 2, r[4] - r[3]), CFrame.new((r[1] + r[2]) / 2, -1, (r[3] + r[4]) / 2), COLOR.Suelo,
 			Enum.Material.LeafyGrass, bosque)
 	end

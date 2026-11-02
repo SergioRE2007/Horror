@@ -24,7 +24,8 @@ local USOS: { [string]: { etiquetas: { string }, texto: string, textos: { [strin
 	Tronco = { etiquetas = { "Caballete", "Chimenea" }, texto = "Saw", textos = { Chimenea = "Add to fire" } },
 	Tablon = { etiquetas = { "Ventana", "Puerta" }, texto = "Nail" },
 	TablonReforzado = { etiquetas = { "Ventana", "Puerta" }, texto = "Reinforce" },
-	Bidon = { etiquetas = { "Generador", "Coche" }, texto = "Refuel" },
+	Bidon = { etiquetas = { "Generador", "Coche", "Gasolina" }, texto = "Refuel", textos = { Gasolina = "Pour fuel" } },
+	Reja = { etiquetas = { "MarcoReja" }, texto = "Mount" },
 	Motor = { etiquetas = { "Coche" }, texto = "Install" },
 	Rueda = { etiquetas = { "Coche" }, texto = "Install" },
 }
@@ -68,6 +69,12 @@ end
 local function sirve(el: Instance, raiz: BasePart, tipo: string): boolean
 	if el:GetAttribute("Bloqueada") then
 		return false
+	end
+	if CollectionService:HasTag(el, "Gasolina") then -- cruces del final de la Bestia (Preparativos)
+		return el:GetAttribute("Lleno") ~= true
+	end
+	if CollectionService:HasTag(el, "MarcoReja") then
+		return el:GetAttribute("Montada") ~= true
 	end
 	if CollectionService:HasTag(el, "Coche") then
 		local coche = { piezas = {}, gasolina = el:GetAttribute("Gasolina") or 0 }
