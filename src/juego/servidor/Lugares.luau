@@ -5,6 +5,11 @@
 -- botellas, para el vendedor). El bosque no pone árboles dentro de las zonas (Lugares.libre).
 local CollectionService = game:GetService("CollectionService")
 
+local PuebloPlano = require(script.Parent.PuebloPlano)
+local PuebloFachadas = require(script.Parent.PuebloFachadas)
+local PuebloInteriores = require(script.Parent.PuebloInteriores)
+local PuebloCalle = require(script.Parent.PuebloCalle)
+
 local Lugares = {}
 
 local COLOR = {
@@ -23,7 +28,7 @@ local ZONAS = {
 	Granja = { 205, 75, 55 },
 	Aserradero = { -232, -86, 45 },
 	Torre = { 90, 285, 70 },
-	Pueblo = { 28, -480, 75 },
+	Pueblo = { 28, -480, 88 }, -- 11.5: llega a las casas nuevas de la entrada y del final de la calle
 	Garaje = { -49, 18, 20 }, -- el de la casa (Mapa)
 }
 
@@ -217,13 +222,104 @@ local function torre()
 	objeto("Chatarra", Vector3.new(cx - 2, 1.2, 236))
 end
 
--- El vendedor: un viejo de bloques detrás del mostrador (Vendedor le pone el prompt en su Mando).
+-- El vendedor como personaje de Roblox (pedido por el usuario): R15 de serie con la ropa pintada en el cuerpo
+-- (chaqueta parda, pantalón oscuro, manos y cara de viejo), sombrero de copa y la animación de estar quieto de Roblox.
+-- Solo funciona en el servidor de una partida; si falla (en modo Edit), devuelve nil y sale el de bloques.
+local IDLE = "rbxassetid://507766388" -- respirar de pie, de las animaciones de serie de Roblox (R15)
+local function personaje(cf: CFrame, piel: Color3, ropa: Color3, oscuro: Color3): Model?
+	local desc = Instance.new("HumanoidDescription")
+	desc.HeadColor, desc.TorsoColor = piel, ropa
+	desc.LeftArmColor, desc.RightArmColor = ropa, ropa
+	desc.LeftLegColor, desc.RightLegColor = oscuro, oscuro
+	desc.HeightScale = 1.08 -- que asome bien por encima del mostrador
+	local ok, modelo = pcall(function()
+		return game:GetService("Players"):CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not modelo then
+		return nil
+	end
+	local humano = modelo:FindFirstChildOfClass("Humanoid") :: Humanoid
+	local raiz = modelo:FindFirstChild("HumanoidRootPart") :: BasePart
+	local cabeza = modelo:FindFirstChild("Head") :: BasePart
+	if not (humano and raiz and cabeza) then
+		modelo:Destroy()
+		return nil
+	end
+	local colores = modelo:FindFirstChildOfClass("BodyColors")
+	if colores then
+		colores:Destroy() -- si no, vuelve a pintar las manos del color de la chaqueta
+	end
+	for _, nombre in { "LeftHand", "RightHand" } do
+		local mano = modelo:FindFirstChild(nombre) :: BasePart?
+		if mano then
+			mano.Color = piel
+		end
+	end
+	humano.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	humano.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	humano.BreakJointsOnDeath = false
+	raiz.Anchored = true
+	-- PivotTo mueve todas las piezas ya (fuera del mapa las articulaciones aún no las colocan).
+	modelo:PivotTo(cf * CFrame.new(0, humano.HipHeight + raiz.Size.Y / 2, 0))
+	-- Sombrero de copa soldado a la cabeza y delantal de tendero soldado al pecho.
+	local pecho = modelo:FindFirstChild("UpperTorso") :: BasePart? or cabeza
+	for _, s in {
+		{ "Ala", Vector3.new(1.9, 0.12, 1.9), cabeza.CFrame * CFrame.new(0, 0.55, 0), oscuro },
+		{ "Copa", Vector3.new(1.2, 0.75, 1.2), cabeza.CFrame * CFrame.new(0, 0.95, 0), oscuro },
+		{ "Delantal", Vector3.new(1.7, 1.6, 0.1), pecho.CFrame * CFrame.new(0, -0.25, -0.55), Color3.fromRGB(150, 140, 118) },
+	} do
+		local p = Instance.new("Part")
+		p.Name = s[1]
+		p.Size = s[2]
+		p.Color = s[4]
+		p.Material = if s[1] == "Delantal" then Enum.Material.Fabric else Enum.Material.SmoothPlastic -- el fieltro negro brillaba
+		p.CanCollide, p.CanQuery, p.CanTouch, p.Massless = false, false, false, true
+		p.CFrame = s[3]
+		local soldadura = Instance.new("WeldConstraint")
+		soldadura.Part0, soldadura.Part1 = if s[1] == "Delantal" then pecho else cabeza, p
+		soldadura.Parent = p
+		p.Parent = modelo
+	end
+	return modelo
+end
+
+-- La animación de estar quieto (ya colgado en el mapa: fuera de él no carga).
+local function quieto(modelo: Model)
+	local humano = modelo:FindFirstChildOfClass("Humanoid") :: Humanoid
+	local animador = humano:FindFirstChildOfClass("Animator") or Instance.new("Animator")
+	animador.Parent = humano
+	local anim = Instance.new("Animation")
+	anim.AnimationId = IDLE
+	local ok, pista = pcall(function()
+		return animador:LoadAnimation(anim)
+	end)
+	if ok and pista then
+		pista.Looped = true
+		pista:Play()
+	end
+end
+
+-- El vendedor detrás del mostrador (Vendedor le pone el prompt en su Mando).
 local function vendedor(pie: Vector3, mira: Vector3)
-	local modelo = Instance.new("Model")
-	modelo.Name = "Vendedor"
-	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	local cf = CFrame.lookAt(pie, pie + mira)
 	local piel, ropa, oscuro = Color3.fromRGB(150, 128, 112), Color3.fromRGB(72, 64, 54), Color3.fromRGB(40, 38, 36)
+	local modelo = personaje(cf, piel, ropa, oscuro)
+	if modelo then
+		modelo.Name = "Vendedor"
+		modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+		local mando = bloque("Mando", Vector3.new(1, 1, 1), cf * CFrame.new(0, 4, -3), nil, nil, modelo)
+		mando.Transparency = 1
+		mando.CanCollide = false
+		mando.CanQuery = false
+		mando.CanTouch = false
+		CollectionService:AddTag(modelo, "Vendedor")
+		modelo.Parent = carpeta
+		task.defer(quieto, modelo) -- Lugares cuelga el pueblo del mapa al final
+		return
+	end
+	modelo = Instance.new("Model")
+	modelo.Name = "Vendedor"
+	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	local function trozo(nombre: string, tamano: Vector3, offset: CFrame, color: Color3)
 		bloque(nombre, tamano, cf * offset, color, Enum.Material.SmoothPlastic, modelo)
 	end
@@ -244,68 +340,35 @@ local function vendedor(pie: Vector3, mira: Vector3)
 	modelo.Parent = carpeta
 end
 
--- Pueblo abandonado al final de la carretera (llave de la habitación del rico, en el cementerio).
+-- Pueblo abandonado al final de la carretera (11.5): el plano en PuebloPlano; el cascarón de cada edificio en
+-- PuebloFachadas, lo de dentro de los que se entra en PuebloInteriores (con el vendedor y las llaves de la cripta y la
+-- caseta) y la calle y el cementerio en PuebloCalle. El orden importa: así salen los sitios de la llave del cementerio.
 local function pueblo()
-	-- La tienda, con el vendedor detrás del mostrador mirando a la puerta.
-	edificio("Tienda", -20, -455, 14, 12, 10, "E", false)
-	bloque("Mostrador", Vector3.new(2, 3.5, 7), CFrame.new(-18, 2.75, -455), COLOR.Mueble)
-	bloque("Estanteria", Vector3.new(1.5, 7, 10), CFrame.new(-25.6, 4.5, -455), COLOR.Mueble)
-	vendedor(Vector3.new(-22, 1, -455), Vector3.new(1, 0, 0))
-
-	-- Una casa con la puerta rota (comida) y las cerradas.
-	edificio("CasaAbierta", 20, -440, 12, 12, 10, "O", false)
-	bloque("Mesa", Vector3.new(4, 3, 3), CFrame.new(21, 2.5, -440), COLOR.Mueble)
-	objeto("Lata", Vector3.new(20, 4.2, -440))
-	objeto("Botella", Vector3.new(22, 4.2, -441))
-	objeto("Botella", Vector3.new(24.5, 1.2, -445))
-	objeto("Chatarra", Vector3.new(17, 1.2, -444))
-	edificio("CasaCerrada", -22, -485, 12, 12, 10, "E", true)
-	edificio("CasaCerrada", -22, -510, 12, 12, 10, "E", true)
-	edificio("CasaCerrada", 22, -462, 12, 12, 10, "O", true)
-
-	-- La iglesia mirando a la carretera, con su campanario.
-	edificio("Iglesia", 30, -500, 16, 28, 16, "O", false)
-	for i = 0, 3 do
-		for _, z in { -505, -495 } do
-			bloque("Banco", Vector3.new(1.5, 1.5, 7), CFrame.new(26 + i * 2.6, 1.75, z), COLOR.Madera, Enum.Material.Wood)
-		end
-	end
-	bloque("Altar", Vector3.new(3, 3.5, 6), CFrame.new(36, 2.75, -500), COLOR.Piedra, Enum.Material.Slate)
-	bloque("Campanario", Vector3.new(6, 28, 6), CFrame.new(19, 14, -514), COLOR.Muro)
-	bloque("Cruz", Vector3.new(0.5, 4, 0.5), CFrame.new(19, 30, -514), COLOR.Oscuro, Enum.Material.Metal)
-	bloque("Cruz", Vector3.new(0.5, 0.5, 2.4), CFrame.new(19, 30.8, -514), COLOR.Oscuro, Enum.Material.Metal)
-
-	-- El cementerio detrás: tumbas, la cripta y la caseta del enterrador.
-	local x1, x2, z1, z2 = 42, 82, -525, -475
-	CollectionService:AddTag(bloque("Cementerio", Vector3.new(x2 - x1, 0.2, z2 - z1), CFrame.new((x1 + x2) / 2, 0.1, (z1 + z2) / 2),
-		COLOR.Tierra, Enum.Material.Ground), "EnMapa")
-	bloque("Valla", Vector3.new(x2 - x1, 2.5, 0.4), CFrame.new((x1 + x2) / 2, 1.25, z1), COLOR.Oscuro, Enum.Material.Metal)
-	bloque("Valla", Vector3.new(x2 - x1, 2.5, 0.4), CFrame.new((x1 + x2) / 2, 1.25, z2), COLOR.Oscuro, Enum.Material.Metal)
-	bloque("Valla", Vector3.new(0.4, 2.5, z2 - z1), CFrame.new(x2, 1.25, (z1 + z2) / 2), COLOR.Oscuro, Enum.Material.Metal)
-	for _, tramo in { { z1, -503 }, { -497, z2 } } do -- al oeste, con la entrada frente a la iglesia
-		bloque("Valla", Vector3.new(0.4, 2.5, tramo[2] - tramo[1]), CFrame.new(x1, 1.25, (tramo[1] + tramo[2]) / 2), COLOR.Oscuro,
-			Enum.Material.Metal)
-	end
-	edificio("Cripta", 74, -515, 8, 8, 8, "O", false)
-	bloque("Sarcofago", Vector3.new(2.5, 2.5, 5), CFrame.new(76, 2.25, -515), COLOR.Piedra, Enum.Material.Slate)
-	llave("Cementerio", Vector3.new(76, 3.7, -515))
-	edificio("CasetaEnterrador", 78, -481, 6, 6, 8, "O", false)
-	bloque("Mesa", Vector3.new(2, 3, 2), CFrame.new(79.5, 2.5, -481), COLOR.Mueble)
-	llave("Cementerio", Vector3.new(79.5, 4.2, -481))
-	objeto("Chatarra", Vector3.new(77, 1.2, -479))
-	for x = 48, 76, 7 do
-		for z = -520, -484, 9 do
-			if (x > 66 and z < -506) or (x > 70 and z > -488) then
-				continue -- ahí están la cripta y la caseta
+	local modelo = Instance.new("Folder")
+	modelo.Name = "Pueblo"
+	modelo.Parent = carpeta
+	local ctx = {
+		carpeta = modelo,
+		COLOR = COLOR,
+		Mapa = Mapa,
+		Plano = PuebloPlano,
+		bloque = function(nombre: string, tamano: Vector3, cf: CFrame, color: Color3?, material: Enum.Material?, padre: Instance?): Part
+			return bloque(nombre, tamano, cf, color, material, padre or modelo)
+		end,
+		llave = llave,
+		objeto = objeto,
+		pesado = pesado,
+		vendedor = function(pie: Vector3, mira: Vector3)
+			vendedor(pie, mira)
+			local v = carpeta:FindFirstChild("Vendedor")
+			if v then
+				v.Parent = modelo
 			end
-			bloque("Lapida", Vector3.new(0.5, 3, 2.2), CFrame.new(x, 1.5, z) * CFrame.Angles(0, 0, math.rad((x + z) % 7 - 3)),
-				COLOR.Piedra, Enum.Material.Slate)
-			bloque("Tumba", Vector3.new(4.6, 0.5, 2.4), CFrame.new(x + 2.8, 0.25, z), COLOR.Tierra, Enum.Material.Ground)
-		end
-	end
-	llave("Cementerio", Vector3.new(50.8, 0.7, -484))
-	bloque("BancoPiedra", Vector3.new(1, 1.2, 3), CFrame.new(46, 0.6, -500), COLOR.Piedra, Enum.Material.Slate)
-	llave("Cementerio", Vector3.new(46, 1.4, -500))
+		end,
+	}
+	PuebloFachadas.construir(ctx)
+	PuebloInteriores.construir(ctx)
+	PuebloCalle.construir(ctx)
 end
 
 function Lugares.construir(mapa: Folder, modulo)
