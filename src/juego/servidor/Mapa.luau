@@ -748,13 +748,18 @@ end
 
 -- Sótano bajo el patio de atrás: de la puerta del fondo del pasillo (z = 33) baja una escalera tapada (x -3..3) hasta
 -- una sala bajo tierra (x -12..12, z 47.6..65.6, suelo en y = -11; encima, el suelo del bosque). El bosque deja un
--- hueco en el suelo encima de la escalera (HUECO). El banco de carpintero, provisional (paso 8).
+-- hueco en el suelo encima de la escalera (HUECO). Paredes de piedra, hormigón roto, techo y peldaños de tablas, propios
+-- de la sala (11.8.13); los muebles, en vestirSotano.
 local HUECO = { -3.5, 3.5, 33.5, 47.6 } -- x1, x2, z1, z2
+local FONDO_SOTANO = -11
+-- El banco del taller del sótano (BancoCarpintero, en vestirSotano): el origen del mueble, contra la pared del fondo.
+local BANCO_SOTANO = Vector3.new(-1, FONDO_SOTANO, 63.55)
 local function construirSotano()
-	local FONDO = -11
-	bloque("Rellano", Vector3.new(5, 12, 2), CFrame.new(0, FONDO + 6, 34.5), COLOR.Piso)
+	local FONDO = FONDO_SOTANO
+	variante(bloque("Rellano", Vector3.new(5, 12, 2), CFrame.new(0, FONDO + 6, 34.5), COLOR.Piso), "TechoSotano")
 	for i = 1, 11 do
-		bloque("Peldano", Vector3.new(5, 12 - i, 1.1), CFrame.new(0, FONDO + (12 - i) / 2, 35.5 + (i - 0.5) * 1.1), COLOR.Piso)
+		variante(bloque("Peldano", Vector3.new(5, 12 - i, 1.1), CFrame.new(0, FONDO + (12 - i) / 2, 35.5 + (i - 0.5) * 1.1), COLOR.Piso),
+			"TechoSotano")
 	end
 	-- Paredes de la escalera: bajo tierra y por fuera (la del este, junto al cobertizo, hasta su suelo).
 	Fachada.pared(bloque("Muro", Vector3.new(1, 21, 14.6), CFrame.new(-3, FONDO + 10.5, 40.8)), Vector3.new(-1, 0, 0))
@@ -765,19 +770,32 @@ local function construirSotano()
 	lampara(Vector3.new(0, 9.6, 41))
 	-- La sala.
 	local z1, z2, alto = 47.6, 65.6, 9
-	bloque("Piso", Vector3.new(25, 1, z2 - z1 + 1), CFrame.new(0, FONDO - 0.5, (z1 + z2) / 2), COLOR.Piso, Enum.Material.Concrete)
-	bloque("Techo", Vector3.new(25, 0.4, z2 - z1 + 1), CFrame.new(0, FONDO + alto - 0.2, (z1 + z2) / 2), COLOR.Piso, Enum.Material.Concrete)
+	variante(bloque("Piso", Vector3.new(25, 1, z2 - z1 + 1), CFrame.new(0, FONDO - 0.5, (z1 + z2) / 2), COLOR.Piso, Enum.Material.Concrete),
+		"SueloSotano")
+	variante(bloque("Techo", Vector3.new(25, 0.4, z2 - z1 + 1), CFrame.new(0, FONDO + alto - 0.2, (z1 + z2) / 2), COLOR.Piso, Enum.Material.Concrete),
+		"TechoSotano")
 	for _, x in { -7.5, 7.5 } do
-		bloque("Muro", Vector3.new(10, alto, 1), CFrame.new(x, FONDO + alto / 2, z1), nil, Enum.Material.Concrete)
+		variante(bloque("Muro", Vector3.new(10, alto, 1), CFrame.new(x, FONDO + alto / 2, z1), nil, Enum.Material.Concrete), "ParedSotano")
 	end
-	bloque("Muro", Vector3.new(25, alto, 1), CFrame.new(0, FONDO + alto / 2, z2), nil, Enum.Material.Concrete)
+	variante(bloque("Muro", Vector3.new(25, alto, 1), CFrame.new(0, FONDO + alto / 2, z2), nil, Enum.Material.Concrete), "ParedSotano")
 	for _, x in { -12, 12 } do
-		bloque("Muro", Vector3.new(1, alto, z2 - z1), CFrame.new(x, FONDO + alto / 2, (z1 + z2) / 2), nil, Enum.Material.Concrete)
+		variante(bloque("Muro", Vector3.new(1, alto, z2 - z1), CFrame.new(x, FONDO + alto / 2, (z1 + z2) / 2), nil, Enum.Material.Concrete),
+			"ParedSotano")
 	end
-	banco("Sotano", CFrame.lookAt(Vector3.new(-6, FONDO, 63.6), Vector3.new(-6, FONDO, 51)))
-	bloque("Estanteria", Vector3.new(1.5, 7, 8), CFrame.new(10.5, FONDO + 3.5, 57), COLOR.Mueble)
-	table.insert(Mapa.objetos, { tipo = "Chatarra", cf = CFrame.new(10.5, FONDO + 7.2, 55) })
-	lampara(Vector3.new(0, -2.6, 56))
+	-- El banco del taller (opción A del usuario, "el banco te espera"): en medio de la pared del fondo, lo primero que se
+	-- ve al bajar. El de Blender (BancoCarpintero, en vestirSotano) tapa los bloques de siempre, que siguen chocando y
+	-- siendo el Banco del Taller. Delante del pie de la escalera queda sitio para la reja (12.2).
+	banco("Sotano", CFrame.lookAt(BANCO_SOTANO, BANCO_SOTANO - Vector3.zAxis))
+	if MUEBLES.BancoCarpintero then
+		for _, b in (casa:FindFirstChild("BancoSotano") :: Model):GetChildren() do
+			if b:IsA("BasePart") then
+				b.Transparency = 1
+			end
+		end
+	end
+	-- La chatarra, en el suelo entre las dos despensas de tarros (vestirSotano): en una balda se caía, porque la despensa
+	-- choca como una caja entera.
+	table.insert(Mapa.objetos, { tipo = "Chatarra", cf = CFrame.new(8.6, FONDO + 0.3, 57) })
 end
 
 -- Garaje pegado a la cocina, al oeste (x -59..-39, z 3..33; pedido por el usuario): se entra desde la cocina por la
@@ -1720,6 +1738,158 @@ local function vestirGaraje()
 	suelto("PalaPH", CFrame.new(-52.9, ABAJO, C_SUR + 0.9) * CFrame.Angles(-0.2, 0.2, 0))
 	telarana(Vector3.new(-52.8, ABAJO + 8.9, 44.2), Vector3.new(1, 0, -1))
 	luzLuna(Vector3.new(-41.5, ABAJO + 6, 41.5), Vector3.new(-50, ABAJO, 41.5), 1.2, 22)
+end
+
+-- Sótano (11.8.13, opción A del usuario, "el banco te espera"): al bajar, al fondo, el banco de carpintero con sus
+-- herramientas colgadas y la única bombilla encima; delante, de espaldas a la escalera, una silla sola con las cuerdas
+-- cortadas. Caldera de carbón en el rincón del oeste (su tiro entra en la pared), cadenas colgando de una viga junto a
+-- ella, despensas con tarros turbios en el este, barriles y una rata en el rincón del este. Un arrastre de sangre va de la
+-- silla a la puerta de la caldera; arañazos al pie de la escalera. El centro y el pie de la escalera, libres (la reja,
+-- 12.2). Los modelos van con su origen de Blender: `enOrigen` suma el desfase de su caja (CENTRO y ABAJO de a_mano.py).
+local function vestirSotano()
+	local blanco = Color3.new(1, 1, 1)
+	local F = sueloArriba(Vector3.new(0, FONDO_SOTANO, 56), FONDO_SOTANO) -- cara del suelo, tras Separar
+	local TECHO = FONDO_SOTANO + 9 - 0.4
+	local OESTE, ESTE, FONDO_Z = -11.4, 11.4, 64.95 -- caras de las paredes (Separar las engorda un poco)
+	local function suelto(nombre: string, cf: CFrame, conChoque: boolean?)
+		return tienda(nombre, cf, not conChoque)
+	end
+	local function enOrigen(nombre: string, origen: CFrame, centro: Vector3, conChoque: boolean?)
+		return suelto(nombre, origen * CFrame.new(centro), conChoque)
+	end
+	local function choque(tam: Vector3, cf: CFrame)
+		local b = bloque("Choque", tam, cf)
+		b.Transparency = 1
+		b.CanQuery = false
+	end
+
+	-- Techo de tablas con vigas (de ellas cuelgan las cadenas).
+	for _, z in { 50.5, 54.5, 58.5, 62.5 } do
+		local viga = adorno(Vector3.new(23, 0.6, 0.5), CFrame.new(0, TECHO - 0.3, z))
+		variante(viga, "TechoSotano")
+	end
+	-- La piedra sigue por dentro de la escalera (se veían las tablas claras de la fachada), delante de las paredes, que
+	-- Separar engorda hasta ±2,38. La pared del este solo llega al suelo del patio hasta z 42,5.
+	for _, l in { { -2.33, 33.5, 48.1, 10 }, { 2.33, 33.5, 42.5, ABAJO }, { 2.33, 42.5, 48.1, 10 } } do
+		local alto = l[4] - FONDO_SOTANO
+		local hoja = lamina(Vector3.new(0.06, alto, l[3] - l[2]), CFrame.new(l[1], FONDO_SOTANO + alto / 2, (l[2] + l[3]) / 2),
+			Color3.new(1, 1, 1), Enum.Material.Slate)
+		variante(hoja, "ParedSotano")
+	end
+	-- Y en las puntas de esas paredes, que asoman un poco a la sala.
+	for _, x in { -3, 3 } do
+		variante(lamina(Vector3.new(1.4, 9, 0.06), CFrame.new(x, FONDO_SOTANO + 4.5, 48.26), Color3.new(1, 1, 1), Enum.Material.Slate),
+			"ParedSotano")
+	end
+
+	-- El banco de carpintero y lo que cuelga de su tablero (origen = BANCO_SOTANO, a ras del suelo).
+	local origenBanco = CFrame.new(BANCO_SOTANO.X, F, BANCO_SOTANO.Z)
+	enOrigen("BancoCarpintero", origenBanco, Vector3.new(0, 0, -0.483))
+	for _, h in {
+		{ "SierraArcoPH", -3.3, 6.6 - 0.44 + 0.08, 1.15, 0 }, { "HachaPH", -2.2, 6.6 - 1.154 + 0.1, 1.17, math.pi / 2 },
+		{ "MazoPH", -1.0, 6.6 - 1.117 + 0.1, 1.2, 0 }, { "SerruchoPH", 1.1, 6.6 - 0.668 + 0.08, 1.15, math.pi / 2 },
+		{ "BerbiquiPH", 3.2, 6.6 - 1.94 + 0.15, 1.0, 0 }, { "LlaveGrifaPH", -2.8, 5.0 - 1.62 + 0.1, 1.18, 0 },
+	} do
+		suelto(h[1], origenBanco * CFrame.new(h[2], h[3], h[4]) * CFrame.Angles(0, h[5], 0))
+	end
+	suelto("CepilloPH", origenBanco * CFrame.new(-0.6, 3.4, -0.3) * CFrame.Angles(0, 0.35, 0))
+	suelto("CuboPH", CFrame.new(-6.4, F, 64.1) * CFrame.Angles(0, 0.6, 0))
+	suelto("MazaPH", CFrame.new(4.6, F, FONDO_Z - 0.6) * CFrame.Angles(0.18, 0.3, 0))
+	-- La bombilla de cadenilla, colgada de un cable encima del banco: la única luz (la enciende el generador).
+	local alto = 1.8 -- del techo a lo de arriba del portalámparas: la bombilla, a 6,3 del suelo (sobre la cabeza)
+	local cable = adorno(Vector3.new(0.08, alto, 0.08), CFrame.new(-1, TECHO - alto / 2, 60.6), Enum.Material.SmoothPlastic)
+	cable.Color = Color3.fromRGB(25, 22, 20)
+	local tam = MUEBLES.BombillaCadenillaPH and (MUEBLES.BombillaCadenillaPH:GetAttribute("Tam") :: Vector3)
+	if tam then
+		suelto("BombillaCadenillaPH", CFrame.new(-1, TECHO - alto - tam.Y, 60.6))
+	end
+	local bombilla = bloque("Lampara", Vector3.new(0.4, 0.4, 0.4), CFrame.new(-1, TECHO - alto - 0.45, 60.6), COLOR.Lampara,
+		Enum.Material.SmoothPlastic)
+	bombilla.Shape = Enum.PartType.Ball
+	bombilla.CanCollide = false
+	bombilla.CastShadow = false
+	local luz = Instance.new("PointLight")
+	luz.Color = COLOR.Lampara
+	luz.Brightness = 1.1
+	luz.Range = 26
+	luz.Shadows = true
+	luz.Enabled = false
+	luz.Parent = bombilla
+	table.insert(Mapa.lamparas, bombilla)
+
+	-- La silla, de espaldas a la escalera y mirando al banco, con sus cuerdas cortadas.
+	local silla = CFrame.lookAt(Vector3.new(2, F, 58.3), Vector3.new(2, F, 60))
+	if suelto("SillaSotanoPH", silla, true) then
+		suelto("CuerdasSilla", silla * CFrame.new(-0.004, 0.005, -0.68))
+	end
+
+	-- La caldera en el rincón del oeste, mirando a la sala: su tiro entra en la pared; el carbón, hacia el sur.
+	local caldera = CFrame.lookAt(Vector3.new(OESTE + 2.65, F + 0.06, 51.6), Vector3.new(OESTE + 10, F + 0.06, 51.6))
+	if enOrigen("CalderaVieja", caldera, Vector3.new(1.082, -0.06, -0.168)) then
+		choque(Vector3.new(4.2, 5.5, 3.8), caldera * CFrame.new(0, 2.75, 0))
+		choque(Vector3.new(2.4, 1.2, 2.4), caldera * CFrame.new(3.1, 0.6, -0.2))
+	end
+	-- Cadenas de la viga, entre la caldera y el rincón del fondo (no chocan).
+	enOrigen("CadenasTecho", CFrame.new(-8.8, TECHO - 0.6 - 5.6, 58.5), Vector3.new(0.203, 0.05, 0))
+
+	-- Despensas con tarros en la pared del este; en la segunda, latas y cajas (la chatarra, en el suelo entre las dos).
+	local function balda(despensa: Model?, h: number, que: string, giro: number?)
+		if despensa then
+			local cf = despensa:GetPivot() * CFrame.new(0, h, 0) * CFrame.Angles(0, giro or 0, 0)
+			if que == "TarrosSotano" then
+				suelto(que, cf * CFrame.new(-0.065, 0, 0.021))
+			else
+				suelto(que, cf)
+			end
+		end
+	end
+	local norte = contraPared("DespensaPH", ESTE, F, 53.4, -Vector3.xAxis)
+	balda(norte, 1.6, "TarrosSotano")
+	balda(norte, 2.8, "TarrosSotano", math.pi)
+	balda(norte, 4.0, "TarrosSotano")
+	balda(norte, 5.3, "LatasPH", 0.2)
+	balda(norte, 6.9, "CajaCartonPH", math.pi / 2)
+	local sur = contraPared("DespensaPH", ESTE, F, 59.4, -Vector3.xAxis)
+	balda(sur, 0.4, "CajaCartonPH", math.pi / 2)
+	if sur then
+		suelto("LataOxidadaPH", sur:GetPivot() * CFrame.new(-1.3, 2.8, 0))
+	end
+	balda(sur, 4.0, "TarrosSotano", math.pi)
+	balda(sur, 5.3, "TarrosSotano")
+	suelto("RatoneraPH", CFrame.new(8.3, F, 52) * CFrame.Angles(0, 1.2, 0))
+
+	-- Rincón del este, al fondo: barriles y una rata junto a ellos. Rincón del oeste: dos cajones apilados.
+	suelto("BarrilPH", CFrame.new(ESTE - 1.65, F, FONDO_Z - 1.65), true)
+	suelto("BarrilPH", CFrame.new(ESTE - 4.8, F, FONDO_Z - 1.6) * CFrame.Angles(0, 1.1, 0), true)
+	suelto("RataPH", CFrame.new(8.6, F, 61.1) * CFrame.Angles(0, 2.3, 0))
+	suelto("CajonPH", CFrame.new(OESTE + 2.2, F, FONDO_Z - 1.0), true)
+	suelto("CajonPH", CFrame.new(OESTE + 2.4, F + 1.57, FONDO_Z - 1.1) * CFrame.Angles(0, 0.15, 0))
+
+	-- Lo que pasó: sangre bajo la silla y un arrastre hasta la puerta de la caldera, gotas delante del banco, arañazos al
+	-- pie de la escalera (de ahí sube) y hollín y agua sucia delante de la caldera.
+	mancha(Vector3.new(2, F + 0.03, 58.3), Vector3.yAxis, 3.4, SANGRE_VESTIBULO.Salpicadura, blanco, 0.5)
+	local desde, hasta = Vector3.new(1.2, 0, 57.4), Vector3.new(-6.2, 0, 52.4)
+	local medio = (desde + hasta) / 2
+	mancha(Vector3.new(medio.X, F + 0.035, medio.Z), Vector3.yAxis, 2.6, SANGRE_VESTIBULO.Arrastre, blanco,
+		-math.atan2(hasta.Z - desde.Z, hasta.X - desde.X), (hasta - desde).Magnitude)
+	mancha(Vector3.new(-2.6, F + 0.04, 61.2), Vector3.yAxis, 1.6, SANGRE_VESTIBULO.Gotas, blanco, 1.1)
+	mancha(Vector3.new(0.2, F + 0.03, 50.2), Vector3.yAxis, 3, MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), math.pi / 2 + 0.15, 4)
+	mancha(Vector3.new(-5.9, F + 0.025, 51.4), Vector3.yAxis, 3.2, SANGRE_VESTIBULO.Salpicadura, Color3.fromRGB(25, 22, 20), 1.9)
+
+	-- Telarañas en los rincones del techo.
+	local molde = MUEBLES.Telarana
+	if molde then
+		for _, t in {
+			{ OESTE + 0.4, 48.6, Vector3.new(1, 0, 1) }, { ESTE - 0.4, 48.6, Vector3.new(-1, 0, 1) },
+			{ OESTE + 0.4, FONDO_Z - 0.4, Vector3.new(1, 0, -1) }, { ESTE - 0.4, FONDO_Z - 0.4, Vector3.new(-1, 0, -1) },
+		} do
+			local pos = Vector3.new(t[1], TECHO - 0.1, t[2])
+			local tela = suelto("Telarana", CFrame.lookAt(pos, pos + t[3]) - Vector3.new(0, (molde:GetAttribute("Tam") :: Vector3).Y * 0.45, 0))
+			if tela then
+				tela:ScaleTo(tela:GetScale() * 0.45)
+			end
+		end
+	end
 end
 
 -- Habitación del rico (11.8.9, opción B del usuario, "despacho y trofeos"). Junto a la puerta, el despacho: escritorio
@@ -2983,6 +3153,7 @@ function Mapa.start()
 	vestirDesvan()
 
 	vestirGaraje()
+	vestirSotano()
 	abandonar()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
