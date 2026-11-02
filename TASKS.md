@@ -4,8 +4,8 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
-1. Plan de pulido (se hace con Sergio; ya hechos: 11.5 pueblo, 11.8 interior, 11.9 detalles, 12.1 pistas y 12.2 Bestia).
-2. 11.2 Monstruos (casi al final), 13 Lanzamiento.
+1. 14 Pulido, fase a fase (14.1 → 14.5; la 14.2 es el tutorial 13.1).
+2. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
 ## Hechas
 
@@ -106,10 +106,37 @@ En todas: telarañas que flotan o se meten en la pared.
 - **Descripción:** también crear en Roblox los productos y pases de `Config.Compras` (Id = 0 ahora) y probar compras de verdad.
 - **Estado:** pendiente — decide Sergio
 
-## Sueltas por confirmar
+## 14. Pulido (pedido por el usuario: "un nuevo plan con muchas fases para empezar con pulir el juego", 02-11-2026)
 
-Salen en `diseño.md` y no se han encontrado en el código; mirar antes si ya están hechas con otro nombre.
+Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su fase.
 
-- Ajustes con opción Rendimiento.
-- Trampas de latas que suenan fuera de la casa.
-- Sustos y efectos (temblores, polvo que cae, cristales) como avisos para quien juega sin cascos.
+### 14.1 Final de la Bestia justo y vistoso
+- **Palanca fuera:** pasarla al patio, junto a la trampilla. Se la mete en el sótano, se sale por la trampilla y se tira desde fuera (ahora, dentro, te pilla mientras tiras aunque cojee).
+- **Que suba al piso de arriba:** ahora arriba estás a salvo porque no encuentra camino.
+- **Incendio grande:** llamas por ventanas y tejado, humo, la casa entera ardiendo en la escena final.
+- **Puerta principal cerrada** al empezar "Wait for her", para que la reviente.
+- **Morir esa noche** no borra lo preparado ese día.
+- **Bidón:** no soltarlo después de cada cruz mientras le quede gasolina.
+- **Aviso** "Corre. Vuelve a la luz." no tiene sentido en el sótano oscuro de la noche final.
+- **Estado:** pendiente
+
+### 14.2 Los primeros 5 minutos
+- Es la 13.1 (tutorial muy visible: flecha grande, pasos cortos, premio al acabar). Se diseña con Sergio.
+- **Estado:** pendiente
+
+### 14.3 Más miedo
+- Sustos y efectos (temblores, polvo que cae, cristales) como avisos para quien juega sin cascos (sale en `diseño.md`; mirar antes si ya está con otro nombre).
+- Trampas de latas que suenan fuera de la casa (ídem).
+- Sonido de ambiente, con ElevenLabs. Falta también el sonido de papel de las pistas.
+- **Estado:** pendiente
+
+### 14.4 Controles y móvil
+- Botones que solo salen muy cerca (la puerta del sótano, a ~3 studs).
+- Ajustes con opción Rendimiento (mirar antes si ya está).
+- HUD en pantallas pequeñas, cuántas piezas tiene el mapa (el pueblo, ~5.100 más 240 pinos) y probar en móvil.
+- Aviso suelto del asset 203785492 en la consola.
+- **Estado:** pendiente
+
+### 14.5 Partida entera de prueba
+- Una partida de principio a fin sin órdenes de prueba: ritmo de días y noches, monedas y precios (skill `roblox-economy-balancing`), fallos que salgan.
+- **Estado:** pendiente
