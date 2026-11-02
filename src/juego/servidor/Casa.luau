@@ -112,6 +112,7 @@ local function preparar(el: Model, tipo: string)
 
 	-- Siempre estados[el] (no `e`): importar cambia la tabla.
 	principal.Triggered:Connect(function(jugador)
+		-- selene: allow(shadowing)
 		local e = estados[el]
 		if not puede(jugador, el) then
 			return

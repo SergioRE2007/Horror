@@ -4,7 +4,8 @@
 --   (Preparativos.listo). Al prender: la Bestia atrapada, vivo, cerca y con cerillas en la mochila (se gasta una). Si
 --   falta algo, aviso de una línea con lo primero que falta.
 --   El fuego sale del porche, corre por el rastro y por Preparativos.puntos() en orden (uno cada Config.Bestia.PorSala s)
---   y por último llega al sótano: Bestia.quemar().
+--   y por último llega al sótano: Bestia.quemar(). Desde ahí se come la casa entera (IncendioVista) y a los
+--   Chillido + ARDE s empieza la escena final.
 --   Luego, como la huida (Coche.huir): se quitan los bichos, la partida se da por terminada (alTerminar, antes del premio),
 --   premio (Recompensas.finalBestia: monedas, logro e insignia), todos quietos y a salvo mientras los clientes ven la
 --   escena final (IncendioVista) y vuelta al lobby.
@@ -35,6 +36,9 @@ local Incendio = {}
 local B = Config.Bestia
 -- Centro del sótano (Mapa: sala x -12..12, z 47.6..65.6, suelo en y = -11), por si no se encuentra a la Bestia.
 local SOTANO = Vector3.new(0, -8, 56)
+-- Segundos que se ve la casa entera ardiendo (con su chillido dentro) antes de la escena final, para quien esté fuera:
+-- el fuego aún se está comiendo el tejado y las ventanas de lejos (IncendioVista).
+local ARDE = B.ArdeCasa
 
 -- Bestia y Preparativos se cargan en start(): así no hay require en círculo si ellos usan Incendio.ardiendo().
 local Bestia: any
@@ -131,7 +135,7 @@ local function prender(jugador: Player?, forzado: boolean?)
 		return
 	end
 	Bestia.quemar()
-	task.wait(Config.Bestia.Chillido) -- que se oiga su chillido antes de la escena
+	task.wait(Config.Bestia.Chillido + ARDE) -- que se oiga su chillido y se vea arder la casa antes de la escena
 	terminar()
 end
 

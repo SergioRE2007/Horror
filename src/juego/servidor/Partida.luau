@@ -2,7 +2,8 @@
 -- lee quién es el dueño, qué ranura y quiénes vienen (Viaje.leer, lo apuntó el lobby; en Studio, el dueño falso de
 -- Config.Test), coge la partida con candado (Candado, como los jugadores) y deja el mundo como estaba.
 --   Al amanecer hace una foto de todo (formato en FormatoPartida) y la guarda. Si mueren todos se vuelve a esa foto
---   (volverAlAmanecer) y si os vais también es lo que queda: lo del día no cuenta hasta el amanecer.
+--   (volverAlAmanecer) y si os vais también es lo que queda: lo del día no cuenta hasta el amanecer. También se hace
+--   al pulsar "Wait for her" (Preparativos.alSoltar): morir la noche final no borra lo preparado ese día.
 --   Las mochilas son de cada jugador dentro de la partida; lo que lleva el que se va cae al suelo (Mochila) y deja de
 --   ser suyo en la siguiente foto.
 --   Si el dueño se va, se espera Config.Partida.EsperaDueno por si es un corte y luego se acaba para todos.
@@ -276,6 +277,15 @@ function Partida.start(): number
 			Llaves.repasar(semilla, if ultima then ultima.mochilas else {}) -- la que se haya perdido, a su sitio
 			ultima = foto()
 			task.spawn(guardar, false) -- sin frenar al resto de los que escuchan el amanecer
+		end
+	end)
+	-- "Wait for her" (12.2): la noche final empieza de día, así que también se hace la foto (aún de día y con todo lo
+	-- preparado). Si mueren todos esa noche se vuelve ahí, no al amanecer (14.1, pedido por el usuario). Una vez al día
+	-- como mucho: Preparativos solo deja esperarla de día y una vez.
+	Preparativos.alSoltar(function()
+		if op and not acabada then
+			ultima = foto()
+			task.spawn(guardar, false)
 		end
 	end)
 	task.spawn(function() -- renueva el candado aunque tarde en amanecer

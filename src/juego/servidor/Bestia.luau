@@ -10,7 +10,8 @@
 --   Bestia.activa(): es la noche final (desde soltar hasta irse o quitar, también después de quemarla).
 --   Bestia.irse(): amanece (se va al bosque). Bestia.quitar(): fuera del mapa al momento.
 -- Remote Bestia (a todos), para BestiaVista: ("Ruge", modelo), ("Golpe", modelo) contra la reja o la puerta,
--- ("Herida", modelo), ("Atrapada", modelo), ("Quema", modelo), ("Flash", modelo). Atributos del modelo: "Cojea" (hora
+-- ("Herida", modelo), ("Atrapada", modelo), ("Quema", modelo), ("Flash", modelo), ("Arana", modelo) bajo la trampilla.
+-- Sube y baja por la escalera del vestíbulo (ir). La trampilla no la cruza: se queda debajo arañando. Atributos: "Cojea" (hora
 -- del servidor hasta la que cojea), "Atrapada", "Quema". En workspace, atributo "Bestia" = es la noche final.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -43,6 +44,24 @@ local QUEMA = Config.Bestia.Quema
 local SOBRESALTO = Config.Bestia.Sobresalto
 local CERCA_REJA = Config.Bestia.CercaReja
 local CADA_GOLPE = Config.Bestia.CadaGolpe
+local OLFATO_RECIENTE = Config.Bestia.OlfatoReciente
+local OLFATO_ALTO = Config.Bestia.OlfatoAlto
+local ARANAR = Config.Bestia.Aranar
+local SIN_TRAMPILLA = Config.Bestia.SinTrampilla
+local CERCA_TRAMPILLA = Config.Bestia.CercaTrampilla
+
+-- La escalera del vestíbulo (Mapa): los caminos no la suben (con los peldaños de arriba sueltos PathfindingService
+-- pide saltos), así que ella va al pie o a lo alto y la sube o baja recta por el medio.
+local PIE_ESCALERA = Vector3.new(0, 1, -21)
+local ANTE_PIE = Vector3.new(0, 1, -25) -- delante del pie, para subir siempre de frente
+local CIMA_ESCALERA = Vector3.new(0, 14, 6) -- fuera de enEscalera (si no, se queda yendo y viniendo arriba)
+-- La trampilla del sótano al patio (TRAMPILLA en Mapa): no cabe. Debajo, al lado de la escala, se queda arañando.
+local TRAMPILLA = Vector3.new(-9.15, -11, 60.6)
+local BAJO_TRAMPILLA = Vector3.new(-6.2, -11, 60.6)
+local SALIDA_SOTANO = Vector3.new(0, 1, 31) -- en el pasillo, arriba de la escalera del sótano
+local ANTE_SOTANO = Vector3.new(0, 1, 29) -- en el pasillo, delante de la puerta del sótano, para bajar de frente
+local DELANTE_VANO = Vector3.new(0, -11, 50) -- en la sala del sótano, delante del vano de su escalera
+local PIE_SOTANO = Vector3.new(0, -10, 46) -- el primer peldaño, pasado el vano
 
 type Estado = {
 	bicho: Caza.Bicho?,
@@ -156,6 +175,8 @@ local function crear(cf: CFrame): Caza.Bicho
 	end
 
 	local humanoide = Cuerpo.terminar(m, Caza.carpeta(), ALTURA, B.Andar)
+	-- Que no trepe por la escala de la trampilla (ni por ningún TrussPart): no cabe por arriba y se quedaba colgada.
+	humanoide:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
 	return Caza.nuevo(m, humanoide, {
 		Altura = ALTURA,
 		Andar = B.Andar,
@@ -187,6 +208,100 @@ local function raizDe(jugador: Player): BasePart?
 	return personaje and personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
 end
 
+-- Planta de un punto (pies): 1 arriba (y el desván), 0 abajo, el sótano y fuera.
+local function planta(p: Vector3): number
+	return if p.Y > 8 then 1 else 0
+end
+
+local function enEscalera(p: Vector3): boolean
+	-- Los peldaños y el rellano de arriba hasta z 4,5 (la galería empieza en z 0): ahí sigue recta al otro extremo.
+	return math.abs(p.X) < 4.8 and p.Z > -19 and p.Z < 4.5 and p.Y > 1.6 and p.Y < 14.6
+end
+
+-- El sótano, su escalera y el rellano de arriba, delante de la puerta del sótano (HUECO en Mapa).
+local function enSotano(p: Vector3): boolean
+	return (p.Y < -1.5 and p.Z > 33) or (math.abs(p.X) < 3.5 and p.Z > 33 and p.Z < 36 and p.Y < 2.5)
+end
+
+-- Recta por una escalera hasta `hacia`. Andando despacio (rondando o cojeando) el Humanoid se atasca en el primer
+-- peldaño: si lleva un momento sin avanzar, un empujón de un peldaño hacia arriba y adelante.
+local trabada = 0 -- os.clock desde el que no avanza por la escalera
+local filtroEmpujon = RaycastParams.new()
+filtroEmpujon.FilterType = Enum.RaycastFilterType.Exclude
+local function subirRecta(b: Caza.Bicho, hacia: Vector3)
+	b.humanoide:MoveTo(hacia)
+	local modelo = b.modelo
+	local dir = plano(hacia - b.raiz.Position)
+	if not modelo or dir.Magnitude < 2 or plano(b.raiz.AssemblyLinearVelocity).Magnitude > 1.5 then
+		trabada = 0
+	elseif trabada == 0 then
+		trabada = os.clock()
+	elseif os.clock() - trabada > 0.6 then
+		trabada = 0
+		-- Nunca a través de una puerta cerrada, la reja o una pared: a la altura de la raíz solo puede haber aire (los
+		-- peldaños quedan por debajo).
+		filtroEmpujon.FilterDescendantsInstances = { Caza.carpeta() }
+		if workspace:Raycast(b.raiz.Position, dir.Unit * 3, filtroEmpujon) then
+			return
+		end
+		local sube = if hacia.Y > b:suelo().Y + 1 then 1.2 else 0.2
+		modelo:PivotTo(modelo:GetPivot() + dir.Unit * 1.2 + Vector3.new(0, sube, 0))
+	end
+end
+
+-- Un paso hacia `destino` (a ras de suelo), también a la otra planta: los caminos no suben la escalera del vestíbulo
+-- (PIE_ESCALERA), así que va a un extremo y anda recta hasta el otro.
+local function ir(b: Caza.Bicho, destino: Vector3)
+	if b:quieto() then
+		b.humanoide:MoveTo(b.raiz.Position)
+		return
+	end
+	local suelo = b:suelo()
+	local arriba = planta(destino) == 1
+	if enSotano(suelo) and not enSotano(destino) and destino.Y > -1.5 then
+		-- Del sótano (o su escalera) a la casa o al patio: primero sube su escalera. Si no, con alguien en el patio
+		-- junto a la trampilla, se quedaba empujando la pared hacia él (no hay camino con las puertas cerradas).
+		-- En la sala, primero delante del vano y centrada (si no, se quedaba enganchada en la esquina del muro); de
+		-- ahí, recta por el medio de la escalera hasta el pasillo, abriendo la puerta del sótano.
+		if suelo.Z > 47.8 and (suelo.Z > 51.8 or math.abs(suelo.X) > 1.5) then
+			b:pasoHacia(DELANTE_VANO) -- MoveTo se para a 1 stud: por eso el margen de 51,8 y 1,5
+		elseif suelo.Z > 47.8 then
+			subirRecta(b, PIE_SOTANO) -- recta por el vano
+		else
+			b:abrirPuertas()
+			subirRecta(b, SALIDA_SOTANO)
+		end
+	elseif destino.Y < -8 and enSotano(destino) and suelo.Z > 27 and suelo.Z < 47.8 and math.abs(suelo.X) < 6
+		and suelo.Y > -10 then
+		-- Bajar al sótano (14.1): con los caminos se quedaba ladeada contra el marco de la puerta y se rendía. Primero
+		-- centrada delante de la puerta; de ahí, recta por el medio de la escalera hasta la sala.
+		if suelo.Z < 33 and math.abs(suelo.X) > 1.5 then
+			b:pasoHacia(ANTE_SOTANO)
+		else
+			b:abrirPuertas()
+			subirRecta(b, DELANTE_VANO)
+		end
+	elseif enEscalera(suelo) then
+		subirRecta(b, if arriba then CIMA_ESCALERA else PIE_ESCALERA)
+	elseif planta(suelo) ~= planta(destino) and arriba then
+		-- Siempre de frente: entrando por un lado del pie, la barandilla (Choque, a 7,5 de alto) le pilla el lomo y se
+		-- queda encajada debajo.
+		if b:cerca(ANTE_PIE, 3) or (math.abs(suelo.X) < 2 and suelo.Z > -26 and suelo.Z < -19) then
+			subirRecta(b, CIMA_ESCALERA)
+		else
+			b:pasoHacia(ANTE_PIE)
+		end
+	elseif planta(suelo) ~= planta(destino) then
+		if b:cerca(CIMA_ESCALERA, 3) then
+			subirRecta(b, PIE_ESCALERA)
+		else
+			b:pasoHacia(CIMA_ESCALERA)
+		end
+	else
+		b:pasoHacia(destino)
+	end
+end
+
 -- Pilla a `presa` si la alcanza; si no, un paso hacia `destino`. true si la ha pillado.
 local function perseguir(e: Estado, b: Caza.Bicho, presa: Player, destino: Vector3): boolean
 	b.humanoide.WalkSpeed = velocidad(e, b.o.Correr)
@@ -201,7 +316,7 @@ local function perseguir(e: Estado, b: Caza.Bicho, presa: Player, destino: Vecto
 		task.wait(2.5)
 		return true
 	end
-	b:pasoHacia(destino)
+	ir(b, destino)
 	return false
 end
 
@@ -246,36 +361,34 @@ local ronda: Vector3? = nil
 local parada = 0 -- os.clock desde el que no avanza rondando o buscando
 local PARADA = B.Parada -- segundos sin avanzar para cambiar de destino
 
--- Una sala de su misma planta para rondar (es muy alta: arriba no encuentra camino y se quedaba empujando la escalera).
-local function otraRonda(b: Caza.Bicho): Vector3
-	local suelo = b:suelo()
-	local lista = {}
-	for _, s in Mapa.salas do
-		if math.abs(s.Y - suelo.Y) < 6 then
-			table.insert(lista, s)
-		end
-	end
-	if #lista == 0 then
-		lista = Mapa.salas
-	end
-	return lista[azar:NextInteger(1, #lista)]
+-- Una sala cualquiera de la casa para rondar, de las dos plantas (sube y baja por la escalera del vestíbulo: ir).
+local function otraRonda(_b: Caza.Bicho): Vector3
+	return Mapa.salas[azar:NextInteger(1, #Mapa.salas)]
 end
 
 -- Sin ver a nadie, huele al más cercano que no esté escondido, a menos de Config.Bestia.Olfato y en su planta: así te
--- sigue escaleras abajo hasta el sótano aunque dobles una esquina (si no, se volvía al llegar a donde te vio).
+-- sigue escaleras abajo hasta el sótano aunque dobles una esquina (si no, se volvía al llegar a donde te vio). Si le
+-- vio hace nada (OLFATO_RECIENTE), también en la otra planta: le ha visto subir la escalera o salir por la trampilla.
 local sinOlfato = 0 -- os.clock hasta el que no huele (tras atascarse yendo a por alguien que no alcanza)
 local function oler(b: Caza.Bicho): Vector3?
 	if os.clock() < sinOlfato then
 		return nil
 	end
 	local suelo = b:suelo()
-	local mejor, distancia = nil, B.Olfato
+	-- Arriba de la escalera del sótano o dentro, huele más lejos a quien esté abajo (14.1): si no, al bajar
+	-- corriendo (o con ella cojeando por una bengala) la perdías y no había forma de meterla en el sótano.
+	local enLaBajada = enSotano(suelo) or plano(suelo - SALIDA_SOTANO).Magnitude < 10
+	local mejor, distancia = nil, math.huge
 	for _, jugador in Muerte.vivos() do
 		local raiz = raizDe(jugador)
 		if raiz and not jugador:GetAttribute("Escondido") then
 			local pies = raiz.Position - Vector3.new(0, 3, 0)
 			local d = (pies - suelo).Magnitude
-			if d < distancia and math.abs(pies.Y - suelo.Y) < 8 then
+			local visto = b.vistoEn[jugador]
+			local alSotano = enLaBajada and enSotano(pies)
+			local alcance = if alSotano then B.OlfatoSotano else B.Olfato
+			local alto = if alSotano or (visto and os.clock() - visto < OLFATO_RECIENTE) then OLFATO_ALTO else 8
+			if d < alcance and d < distancia and math.abs(pies.Y - suelo.Y) < alto then
 				mejor, distancia = pies, d
 			end
 		end
@@ -283,8 +396,64 @@ local function oler(b: Caza.Bicho): Vector3?
 	return mejor
 end
 
+-- La trampilla: si a quien busca se le ha ido por ella (ella en el sótano y él arriba, junto al hueco), va debajo y se
+-- queda ARANAR s arañando hacia arriba y rugiendo; luego le busca por la escalera (y en SIN_TRAMPILLA s no vuelve).
+-- Así da tiempo a tirar de la palanca desde el patio.
+local aranaHasta = 0 -- os.clock hasta el que araña (0 = no está en ello)
+local sinTrampilla = 0
+local ultimoArano = 0
+local yendoTrampilla = 0 -- os.clock desde el que va hacia la trampilla
+local function porLaTrampilla(b: Caza.Bicho, punto: Vector3?): boolean
+	return punto ~= nil and os.clock() > sinTrampilla and b:suelo().Y < -8 and punto.Y > -5
+		and plano(punto - TRAMPILLA).Magnitude < CERCA_TRAMPILLA
+end
+
+-- Un paso con la trampilla; false si ya ha acabado de arañar (sigue cazando normal).
+local function aranar(e: Estado, b: Caza.Bicho): boolean
+	if aranaHasta > 0 then
+		if os.clock() > aranaHasta then
+			aranaHasta = 0
+			sinTrampilla = os.clock() + SIN_TRAMPILLA
+			return false
+		end
+		b.humanoide:MoveTo(b.raiz.Position)
+		b:mirarA(TRAMPILLA)
+		if os.clock() - ultimoArano > 1.2 and b.modelo then
+			ultimoArano = os.clock()
+			Remotes.Bestia:FireAllClients("Arana", b.modelo)
+		end
+		return true
+	end
+	if yendoTrampilla == 0 then
+		yendoTrampilla = os.clock()
+	end
+	-- Debajo (o si algo no la deja llegar, donde esté al cabo de unos segundos): empieza a arañar.
+	if b:cerca(BAJO_TRAMPILLA, 3) or os.clock() - yendoTrampilla > 4 then
+		aranaHasta = os.clock() + ARANAR
+		ultimoArano = 0
+		yendoTrampilla = 0
+		return aranar(e, b)
+	end
+	b.humanoide.WalkSpeed = velocidad(e, b.o.Correr)
+	b:pasoHacia(BAJO_TRAMPILLA)
+	return true
+end
+
 local function cazar(e: Estado, b: Caza.Bicho)
 	local presa, destino = b:elegirPresa(false)
+	-- Alguien ha vuelto a bajar al sótano mientras arañaba: a por él.
+	if aranaHasta > 0 and destino and destino.Y < -8 then
+		aranaHasta = 0
+	end
+	if not b:quieto() then
+		local objetivo = destino or oler(b) or ultimoVisto
+		if (aranaHasta > 0 or porLaTrampilla(b, objetivo)) and aranar(e, b) then
+			parada = 0
+			ultimoVisto = objetivo or ultimoVisto
+			return
+		end
+	end
+	yendoTrampilla = 0
 	-- Si rondando o buscando no avanza (algo en medio, sin camino), cambia de destino y deja de oler un rato.
 	if not presa and not b:quieto() and plano(b.raiz.AssemblyLinearVelocity).Magnitude < 1 then
 		if parada == 0 then
@@ -310,7 +479,7 @@ local function cazar(e: Estado, b: Caza.Bicho)
 		end
 	elseif ultimoVisto then
 		b.humanoide.WalkSpeed = velocidad(e, b.o.Correr)
-		b:pasoHacia(ultimoVisto)
+		ir(b, ultimoVisto)
 		if b:cerca(ultimoVisto, 4) then
 			ultimoVisto = nil
 			sinOlfato = os.clock() + 1 -- si no, lo vuelve a oler ahí mismo (una puerta cerrada en medio) y empuja
@@ -320,7 +489,7 @@ local function cazar(e: Estado, b: Caza.Bicho)
 		if not ronda or b:cerca(ronda :: Vector3, 4) then
 			ronda = otraRonda(b)
 		end
-		b:pasoHacia(ronda :: Vector3)
+		ir(b, ronda :: Vector3)
 	end
 end
 
@@ -423,6 +592,7 @@ local function noche(e: Estado)
 		Remotes.Bestia:FireAllClients("Flash", modelo)
 	end
 	ultimoVisto, ronda, ultimoDentro, atascada, parada = nil, nil, nil, 0, 0
+	aranaHasta, sinTrampilla, yendoTrampilla, trabada = 0, 0, 0, 0
 	Remotes.Bestia:FireAllClients("Ruge", modelo)
 	avisar("Something huge is coming out of the woods.")
 	task.wait(RUGIDO)
@@ -508,7 +678,7 @@ function Bestia.encerrar(dentro: (Vector3) -> boolean): boolean
 	e.dentro = dentro
 	e.centro = b.raiz.Position
 	ultimoDentro = b.modelo:GetPivot()
-	ronda, ultimoVisto = nil, nil
+	ronda, ultimoVisto, aranaHasta = nil, nil, 0
 	b.modelo:SetAttribute("Atrapada", true)
 	Remotes.Bestia:FireAllClients("Atrapada", b.modelo)
 	return true
