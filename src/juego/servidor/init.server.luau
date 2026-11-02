@@ -38,6 +38,7 @@ require(Sistemas.Bestia).start() -- final de la Bestia (12.2)
 require(Sistemas.Bengalas).start()
 require(Sistemas.Preparativos).start()
 require(Sistemas.Incendio).start()
+require(Sistemas.Latas).start() -- trampas de latas fuera de la casa (14.3)
 require(Sistemas.Revivir).start()
 local noche = require(Sistemas.Partida).start() -- espera a cargar la partida y deja el mundo como estaba
 require(Sistemas.Ciclo).start(noche) -- lo último: el primer día empieza cuando todos están escuchando
