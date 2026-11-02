@@ -167,6 +167,9 @@ local function abrirPuertasCerca(self: Bicho)
 	end
 end
 
+-- Para quien se mueve a mano sin pasoHacia (la Bestia por las escaleras): b:abrirPuertas().
+Caza.abrirPuertas = abrirPuertasCerca
+
 -- Un paso hacia `destino` (a ras de suelo): recto si no hay nada en medio, si no, por el camino que calcula.
 function Caza.pasoHacia(self: Bicho, destino: Vector3)
 	if self:quieto() then

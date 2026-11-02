@@ -2,20 +2,23 @@
 -- pistas (la 9, el plano de la reja; la 12, las cruces de gasolina).
 --   Gasolina: 6 cruces pintadas en el suelo (PUNTOS: escalera del vestíbulo, salón, dormitorio de abajo, pasillo,
 --   cocina y dormitorio grande). Con un bidón en las manos, R junto a la cruz (Cargar.alUsar "Bidon", etiqueta
---   "Gasolina"): se echa POR_PUNTO de bidón y queda un charco. Con las 6, un rastro de gasolina va de la primera (la de la
---   escalera, junto a la puerta) al porche: ahí se prende (Incendio). El fuego corre en el orden de PUNTOS.
+--   "Gasolina"): se echa POR_PUNTO de bidón y queda un charco; si le queda para otra cruz, sigue en las manos. Con las
+--   6, un rastro de gasolina va de la primera (la de la escalera, junto a la puerta) al porche: ahí se prende
+--   (Incendio). El fuego corre en el orden de PUNTOS.
 --   Reja: sale del banco del sótano (Taller, Recetas.delBanco) y se lleva con R al marco del pie de la escalera del
---   sótano (etiqueta "MarcoReja", de Mapa): queda montada y subida. La palanca junto a la trampilla la deja caer (solo
---   con la Bestia suelta, o en pruebas) y llama a Bestia.encerrar(Preparativos.sotano). Sin ella dentro, la reja ha
---   fallado: se queda cerrada esa noche (al amanecer vuelve a subir).
+--   sótano (etiqueta "MarcoReja", de Mapa): queda montada y subida. La palanca, fuera, en el patio junto a la trampilla
+--   (14.1), la deja caer (solo con la Bestia suelta, o en pruebas) y llama a Bestia.encerrar(Preparativos.sotano). Sin
+--   ella dentro, la reja ha fallado: se queda cerrada esa noche (al amanecer vuelve a subir).
 --   Trampilla: del sótano al patio por una escalera de mano; se abre desde abajo (E) y se queda abierta.
---   "Wait for her" (E) en medio del vestíbulo, de día y con todo listo: empieza la noche ya y Bestia.soltar().
+--   "Wait for her" (E) en medio del vestíbulo, de día y con todo listo: Partida hace la foto (alSoltar; si mueren
+--   todos se vuelve ahí, con lo preparado), la puerta principal se cierra de golpe, empieza la noche y Bestia.soltar().
 -- Estado para el cliente (PreparativosVista), en atributos: cada punto (modelo "Gasolina") Clave, Orden y Lleno; el
 -- porche ("PorcheGasolina") Rastro y Desde; el marco Montada y Caida; la palanca Bajada; la trampilla Abierto.
 --   Remote `Preparativos` (servidor -> todos): ("Reja", posición) la reja acaba de caer (golpe de hierro).
 -- Se guarda con la partida (exportar/importar, FormatoPartida): puntos con gasolina por su clave, rastro y reja montada.
 -- Modo de pruebas: ServerStorage.Prueba:Fire("Preparar") lo deja todo listo y da pistola, 3 bengalas y cerillas al
--- primer jugador; ("Palanca") deja caer la reja ya; ("Trampilla") la abre.
+-- primer jugador; ("Esperar") es "Wait for her" sin ir al vestíbulo; ("Palanca") deja caer la reja ya; ("Trampilla")
+-- la abre.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -28,6 +31,7 @@ local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Bestia = require(script.Parent.Bestia)
 local Cargar = require(script.Parent.Cargar)
+local Casa = require(script.Parent.Casa)
 local Ciclo = require(script.Parent.Ciclo)
 local Mochila = require(script.Parent.Mochila)
 local Muerte = require(script.Parent.Muerte)
@@ -64,6 +68,7 @@ local montada = false
 local montando = false
 local caida = false
 local soltada = false -- ya se ha usado "Wait for her" (hasta volver al amanecer)
+local alSoltar: { () -> () } = {} -- lo que se hace justo antes de soltarla (Partida: la foto)
 local porche: BasePart
 local marco: Model
 local hoja: BasePart
@@ -208,7 +213,8 @@ local function usoBidon(): Cargar.Uso
 			local suelo = (objetivo:FindFirstChild("Mando") :: BasePart).Position
 			local carga = bidon:GetAttribute("Carga") or 0
 			if carga >= POR_PUNTO - 0.01 then
-				bidon:SetAttribute("Carga", math.max(0, carga - POR_PUNTO))
+				carga = math.max(0, carga - POR_PUNTO)
+				bidon:SetAttribute("Carga", carga)
 				llenos[objetivo:GetAttribute("Clave")] = true
 				if not rastro and todos() then
 					rastro = true
@@ -216,7 +222,15 @@ local function usoBidon(): Cargar.Uso
 				end
 				publicar()
 			end
-			Cargar.liberar(bidon, CFrame.new(suelo + Vector3.new(2, 1.3, 0)))
+			-- Con gasolina para otra cruz sigue en las manos (14.1, pedido por el usuario); vacío o con todas hechas, al
+			-- suelo.
+			local raiz = cerca(jugador, objetivo:FindFirstChild("Mando") :: BasePart)
+			if raiz and carga >= POR_PUNTO - 0.01 and not todos() then
+				Cargar.liberar(bidon, raiz.CFrame * CFrame.new(0, 0, -2))
+				Cargar.recoger(jugador, bidon)
+			else
+				Cargar.liberar(bidon, CFrame.new(suelo + Vector3.new(2, 1.3, 0)))
+			end
 		end,
 	}
 end
@@ -243,7 +257,7 @@ local function usoReja(): Cargar.Uso
 			montada, caida = true, false
 			colocarReja()
 			publicar()
-			avisar(jugador, "The gate is ready. The lever drops it.")
+			avisar(jugador, "The gate is ready. The lever is outside, by the hatch.")
 		end,
 	}
 end
@@ -295,16 +309,54 @@ local function abrirTrampilla(jugador: Player)
 	promptTrampilla.Enabled = false
 end
 
-local function esperar(jugador: Player)
-	if not cerca(jugador, promptEsperar.Parent :: BasePart) or not Preparativos.listo() or soltada or Bestia.activa()
-		or Ciclo.fase() ~= "Dia" then
+-- La puerta principal se cierra de golpe (14.1): así siempre la revienta al llegar. Se deja entera, que es la que
+-- revienta. Casa no tiene un "cerrar" para el servidor: se le pasa su propio estado con esa puerta cambiada.
+local function cerrarPrincipal()
+	local puerta = Casa.principal()
+	local clave = puerta and puerta:GetAttribute("Clave")
+	local estado = Casa.exportar()
+	local suya = if type(clave) == "string" then estado[clave] else nil
+	if not suya then
+		return
+	end
+	if suya.abierta then
+		(puerta :: Model):SetAttribute("Portazo", ((puerta :: Model):GetAttribute("Portazo") or 0) + 1)
+	end
+	suya.abierta = false
+	suya.vida = math.huge -- importar la deja en su vida máxima
+	Casa.importar(estado)
+end
+
+-- Empieza la noche final (de día, con todo listo y una vez).
+local function soltarla()
+	if not Preparativos.listo() or soltada or Bestia.activa() or Ciclo.fase() ~= "Dia" then
 		return
 	end
 	soltada = true
+	-- Antes de cambiar nada: la foto de la partida (Partida). Si mueren todos esta noche se vuelve aquí, con todo lo
+	-- preparado (14.1, pedido por el usuario).
+	for _, fn in alSoltar do
+		local ok, fallo = pcall(fn) -- si la foto falla, la noche final empieza igual
+		if not ok then
+			warn("Preparativos.alSoltar: " .. tostring(fallo))
+		end
+	end
+	cerrarPrincipal()
 	avisarTodos("She's coming. Get ready.")
 	Ciclo.forzar("Noche")
 	Bestia.soltar()
 	publicar()
+end
+
+local function esperar(jugador: Player)
+	if cerca(jugador, promptEsperar.Parent :: BasePart) then
+		soltarla()
+	end
+end
+
+-- `fn` se llama al pulsar "Wait for her", aún de día y antes de que cambie nada (Partida hace la foto).
+function Preparativos.alSoltar(fn: () -> ())
+	table.insert(alSoltar, fn)
 end
 
 -- Las claves de los puntos, en orden (para FormatoPartida).
@@ -474,6 +526,8 @@ function Preparativos.start()
 						Mochila.dar(jugador, tipo)
 					end
 				end
+			elseif que == "Esperar" then
+				soltarla()
 			elseif que == "Palanca" then
 				dejarCaer()
 			elseif que == "Trampilla" and not trampilla:GetAttribute("Abierto") then

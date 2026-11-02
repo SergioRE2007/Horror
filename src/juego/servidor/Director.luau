@@ -133,7 +133,7 @@ local function noche(mio: number, n: number)
 	apagon = false
 	local dif = Dificultad.de(jugadores(), azar:NextNumber(), Config.Dificultad)
 	local retraso = 0
-	for i = 1, dif.alaVez do
+	for _ = 1, dif.alaVez do
 		task.spawn(hueco, mio, n, dif, retraso)
 		retraso += rango(Config.Separacion)
 	end
@@ -219,7 +219,7 @@ function Director.start()
 		orden.Parent = game:GetService("ServerStorage")
 	end
 	-- El Acechador sale solo (vigila a los que se quedan fuera): en la noche final se le quita en cuanto aparece.
-	-- TODO líder: mejor que Acechador no salga si workspace:GetAttribute("Bestia") (lo pone Bestia).
+	-- (Acechador ya no sale ni sigue si workspace:GetAttribute("Bestia"); esto es por si acaso.)
 	task.spawn(function()
 		while true do
 			task.wait(0.5)

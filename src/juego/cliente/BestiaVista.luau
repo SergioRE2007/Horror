@@ -4,6 +4,7 @@
 --   vence a ese lado y le sale humo de la quemadura.
 --   "Ruge": se levanta sobre las patas de atrás con la boca abierta. "Golpe": se alza y descarga los brazos (contra la
 --   puerta o la reja). "Herida": se encoge, chilla y ruge. "Atrapada": ruge de rabia. "Flash": aparta la cara.
+--   "Arana": bajo la trampilla, de pie, araña el hueco hacia arriba (garras, polvo y astillas, rugidos).
 --   "Quema": arde entera, se retuerce y chilla largo hasta que el servidor la quita.
 -- BestiaVista.rugir(punto): para el susto al morir (como los demás bichos). Animación sencilla a propósito.
 local Debris = game:GetService("Debris")
@@ -29,6 +30,7 @@ type Bicho = {
 	herida: number,
 	flash: number,
 	quema: number,
+	arana: number, -- bajo la trampilla: se alza y araña hacia arriba
 	giro: Vector3, -- la cabeza ahora (cabeceo, giro, ladeo) y a dónde da el próximo tirón
 	meta: Vector3,
 	tiron: number,
@@ -55,7 +57,7 @@ local function preparar(modelo: Instance)
 		motores[nombre] = motor
 	end
 	bichos[modelo] = { modelo = modelo, raiz = raiz, motores = motores, fase = 0, pisada = 1, rugido = -math.huge,
-		golpe = -math.huge, herida = -math.huge, flash = -math.huge, quema = -math.huge, giro = Vector3.zero,
+		golpe = -math.huge, herida = -math.huge, flash = -math.huge, quema = -math.huge, arana = -math.huge, giro = Vector3.zero,
 		meta = Vector3.zero, tiron = 0, humo = nil }
 end
 
@@ -134,6 +136,7 @@ local function animar(dt: number)
 		local quemando = ahora - b.quema < 30
 		local brazosG, torsoG = curvaGolpe(ahora - b.golpe)
 		local encoge = math.max(0, 1 - (ahora - b.herida) / 0.9)
+		local aranando = ahora - b.arana < 1.4 -- cada "Arana" dura 1,4 s y llegan cada 1,2: seguido mientras araña
 
 		-- Patas: en diagonal (brazo izquierdo con pierna derecha). Herida, la de atrás derecha va tiesa y arrastrada.
 		m.PiernaI.Transform = CFrame.Angles(s * 0.5 * paso, 0, 0)
@@ -143,6 +146,9 @@ local function animar(dt: number)
 		if quemando then -- se agita con los brazos
 			brazo += math.sin(ahora * 11) * 0.9
 			otro += math.sin(ahora * 9 + 1) * 0.9
+		elseif aranando then -- de pie, los brazos arriba arañando el hueco, uno y otro
+			brazo = 2.6 + math.sin(ahora * 10) * 0.7
+			otro = 2.6 + math.sin(ahora * 10 + math.pi) * 0.7
 		end
 		m.BrazoI.Transform = CFrame.Angles(brazo, 0, 0)
 		m.BrazoD.Transform = CFrame.Angles(otro, 0, 0)
@@ -151,7 +157,7 @@ local function animar(dt: number)
 		local respira = math.sin(ahora * 1.6) * 0.03
 		local cabeceo = math.abs(s) * 0.06 * paso
 		local vence = if cojea then math.max(0, -s) * 0.18 * paso + 0.05 else 0
-		local alza = (if rugiendo then 0.45 else 0) + torsoG
+		local alza = (if rugiendo then 0.45 else 0) + torsoG + (if aranando then 0.55 + math.sin(ahora * 10) * 0.05 else 0)
 		local ladeo = s * 0.05 * paso - vence - encoge * 0.2
 		if quemando then
 			local t = ahora - b.quema
@@ -168,10 +174,11 @@ local function animar(dt: number)
 		end
 		b.giro = b.giro:Lerp(b.meta, math.min(1, dt * 18))
 		local aparta = if ahora - b.flash < 0.7 then 1.1 else 0
-		local giro = b.giro + Vector3.new(if rugiendo then 0.35 else 0, aparta + encoge * 0.9, 0)
+		local giro = b.giro + Vector3.new((if rugiendo then 0.35 else 0) + (if aranando then 0.6 else 0), aparta + encoge * 0.9, 0)
 		m.Cabeza.Transform = CFrame.Angles(giro.X, giro.Y, giro.Z)
 		local abre = 0.2 + 0.06 * math.sin(ahora * 2.5) + brazosG * 0.2 + encoge * 0.6
 			+ (if rugiendo or quemando then 0.75 + 0.1 * math.sin(ahora * 30) else 0)
+			+ (if aranando then 0.45 + 0.15 * math.sin(ahora * 13) else 0)
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
 
 		-- Pisadas: graves y pesadas; cerca, tiembla el suelo.
@@ -219,6 +226,40 @@ local function rugido(b: Bicho, tono: number, lejos: number)
 	s.RollOffMinDistance = lejos
 end
 
+-- Polvo y astillas que caen del hueco que araña (un momento y se borran).
+local function polvo(donde: Vector3)
+	local pieza = Instance.new("Part")
+	pieza.Anchored, pieza.CanCollide, pieza.CanQuery, pieza.CanTouch = true, false, false, false
+	pieza.Transparency = 1
+	pieza.Size = Vector3.new(3, 0.2, 2.5)
+	pieza.CFrame = CFrame.new(donde)
+	for i, color in { Color3.fromRGB(120, 110, 96), Color3.fromRGB(70, 50, 34) } do
+		local e = Instance.new("ParticleEmitter")
+		e.Color = ColorSequence.new(color)
+		e.LightEmission = 0
+		e.Lifetime = NumberRange.new(0.8, 1.6)
+		e.Speed = NumberRange.new(0.5, 2)
+		e.SpreadAngle = Vector2.new(40, 40)
+		e.EmissionDirection = Enum.NormalId.Bottom
+		e.Rotation = NumberRange.new(0, 360)
+		e.RotSpeed = NumberRange.new(-120, 120)
+		if i == 1 then -- polvo
+			e.Acceleration = Vector3.new(0, -4, 0)
+			e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1.6) })
+			e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(1, 1) })
+		else -- astillas
+			e.Acceleration = Vector3.new(0, -30, 0)
+			e.Size = NumberSequence.new(0.12)
+			e.Squash = NumberSequence.new(1.5)
+		end
+		e.Enabled = false
+		e.Parent = pieza
+		task.defer(e.Emit, e, if i == 1 then 18 else 10)
+	end
+	pieza.Parent = workspace
+	Debris:AddItem(pieza, 2.5)
+end
+
 local function mensaje(tipo: string, b: Bicho)
 	local ahora = os.clock()
 	if tipo == "Ruge" then
@@ -245,6 +286,23 @@ local function mensaje(tipo: string, b: Bicho)
 		temblar(b.raiz.Position, 0.15, 40)
 	elseif tipo == "Flash" then
 		b.flash = ahora
+	elseif tipo == "Arana" then
+		-- Bajo la trampilla: garras contra las tablas del hueco, polvo y astillas que caen, y un rugido de vez en cuando.
+		local primera = ahora - b.arana > 2
+		b.arana = ahora
+		local arriba = cabezaDe(b) + Vector3.new(0, 4, 0)
+		Sonido.en("Raspado", arriba, azar:NextNumber(0.55, 0.7)).RollOffMinDistance = 25
+		task.delay(0.35, function()
+			if b.modelo.Parent then
+				Sonido.en("Golpe", arriba, azar:NextNumber(0.85, 1)).RollOffMinDistance = 25
+				temblar(arriba, 0.14, 30)
+				polvo(arriba)
+			end
+		end)
+		if primera or azar:NextNumber() < 0.4 then
+			b.rugido = ahora
+			rugido(b, azar:NextNumber(0.5, 0.58), 40)
+		end
 	elseif tipo == "Quema" then
 		b.quema = ahora
 		b.rugido = ahora

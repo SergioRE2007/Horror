@@ -166,6 +166,12 @@ local function coger(jugador: Player, pieza: BasePart)
 	rehacer(pieza)
 end
 
+-- Vuelve a poner en las manos de `jugador` una pieza que acaba de usar, si puede llevarla (Preparativos: el bidón que
+-- aún tiene gasolina para otra cruz).
+function Cargar.recoger(jugador: Player, pieza: BasePart)
+	coger(jugador, pieza)
+end
+
 -- La reja de hierro (12.2): `pieza` (X ancho, Y alto, Z grueso) se vuelve invisible y se le sueldan barrotes, dos
 -- travesaños y un marco, que no chocan. La usan la reja pesada y la montada en el sótano (Preparativos).
 function Cargar.barrotes(pieza: BasePart)
@@ -252,7 +258,9 @@ function Cargar.nuevo(tipo: string, cf: CFrame, carga: number?): BasePart
 	local giro = Instance.new("AlignOrientation")
 	giro.Name = "Giro"
 	giro.Mode = Enum.OrientationAlignmentMode.OneAttachment
-	giro.Attachment0 = Instance.new("Attachment", pieza)
+	local centro = Instance.new("Attachment")
+	centro.Parent = pieza
+	giro.Attachment0 = centro
 	giro.MaxTorque = pieza.AssemblyMass * workspace.Gravity * 40
 	giro.Responsiveness = 15
 	giro.Enabled = false
