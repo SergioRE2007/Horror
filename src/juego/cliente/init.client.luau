@@ -10,6 +10,7 @@ require(Sistemas.Sonido).start() -- antes que los que tocan sonidos
 require(Sistemas.Pasos).start()
 require(Sistemas.Ambiente).start()
 require(Comun:WaitForChild("Controles")).start()
+require(Comun:WaitForChild("AjustesUi")).start() -- engranaje de Ajustes: Rendimiento (14.4)
 require(Sistemas.CasaVista).start()
 require(Sistemas.GolpeadorVista).start()
 require(Sistemas.RaspadorVista).start()

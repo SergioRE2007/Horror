@@ -15,6 +15,14 @@ local VendedorUi = {}
 
 local jugador = Players.LocalPlayer
 local V, CAT = Config.Vendedor, Config.Objetos
+-- Medidas en píxeles de diseño. En el móvil, botones del alto de un dedo, filas más altas y el papel más ancho (con 5
+-- tratos mide 562 de alto: cabe en los 655 de un teléfono de 640 × 360).
+local TACTIL = Ui.tactil()
+local ANCHO = if TACTIL then 700 else 600
+local BOTON = Ui.alto(42) -- CAMBIAR
+local CERRAR = Ui.alto(40)
+local PASO = BOTON + (if TACTIL then 8 else 10) -- de un trato al siguiente
+local ARRIBA = math.max(80, 14 + CERRAR + 12) -- donde empieza el primer trato
 local panel: TextButton
 local dice: TextLabel
 local filas: { { texto: TextLabel, boton: TextButton } } = {}
@@ -89,7 +97,7 @@ local function construir()
 	panel.AutoButtonColor = false
 	panel.AnchorPoint = Vector2.new(0.5, 1)
 	panel.Position = UDim2.new(0.5, 0, 1, -24)
-	panel.Size = UDim2.fromOffset(600, 96 + #V.Trueques * 52)
+	panel.Size = UDim2.fromOffset(ANCHO, ARRIBA + 16 + #V.Trueques * PASO)
 	panel.BackgroundColor3 = Ui.Color.Papel
 	panel.BackgroundTransparency = 0.08
 	panel.ClipsDescendants = true
@@ -103,7 +111,7 @@ local function construir()
 
 	dice = Ui.texto("", {
 		Position = UDim2.fromOffset(22, 14),
-		Size = UDim2.new(1, -190, 0, 54),
+		Size = UDim2.new(1, -190, 0, math.max(54, CERRAR)),
 		TextSize = 22,
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -113,7 +121,7 @@ local function construir()
 	local salir = Ui.boton(Lang.t(nil, "Close"), {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -14, 0, 14),
-		Size = UDim2.fromOffset(150, 40),
+		Size = UDim2.fromOffset(150, CERRAR),
 		TextSize = 20,
 		ZIndex = 11,
 	})
@@ -121,12 +129,12 @@ local function construir()
 	salir.Parent = panel
 
 	for i, trato in V.Trueques do
-		local y = 80 + (i - 1) * 52
+		local y = ARRIBA + (i - 1) * PASO
 		local texto = Ui.texto(Ui.mayusculas(Lang.t(nil, "{give} for {take}", { give = cosas(trato.Da[1], trato.Da[2]),
 			take = cosas(trato.Pide[1], trato.Pide[2]) })), {
 			Position = UDim2.fromOffset(22, y),
-			Size = UDim2.new(1, -200, 0, 44),
-			TextSize = 21,
+			Size = UDim2.new(1, -200, 0, math.max(44, BOTON)),
+			TextSize = if TACTIL then 24 else 21,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 11,
 		})
@@ -134,7 +142,7 @@ local function construir()
 		local boton = Ui.boton(Lang.t(nil, "Trade"), {
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, -14, 0, y),
-			Size = UDim2.fromOffset(150, 42),
+			Size = UDim2.fromOffset(150, BOTON),
 			TextSize = 20,
 			ZIndex = 11,
 		})

@@ -3281,6 +3281,70 @@ function Mapa.arbol(x: number, z: number, alto: number, grueso: number, padre: I
 	pino(tronco, x, z, alto, grueso)
 end
 
+-- Rendimiento (14.4, docs/sistemas/rendimiento.md). Con el mapa ya hecho: nadie usa Touched en el mapa (ni servidor ni
+-- cliente), así que ninguna pieza necesita CanTouch: menos contactos que vigilar al andar por el suelo y los troncos.
+local function aligerar(mapa: Folder)
+	for _, d in mapa:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CanTouch = false
+		end
+	end
+end
+
+-- Mapa por partes (StreamingEnabled). Se enciende en Studio, en la propiedad StreamingEnabled del Workspace (no se puede
+-- cambiar con el juego en marcha): con ella apagada esto no hace nada. Lo que el cliente necesita siempre y entero:
+--   La casa (Persistent): sustos, efectos, detalles, el incendio y la huida la recorren o buscan cosas en ella.
+--   Los árboles que se talan (Persistent): el mapa del móvil los pinta y los borra cuando dejan de existir.
+--   El plano del móvil: copias invisibles de las piezas "EnMapa" de fuera de la casa, en un modelo Persistent; si no,
+--     el móvil borraría el pueblo y la granja del mapa al alejarse (MovilUi quita lo que desaparece).
+-- Los edificios del pueblo, de lejos, como una malla simple (LevelOfDetail): que se vea su silueta al fondo.
+local POR_PARTES = workspace.StreamingEnabled
+local SILUETA = { "^Casa", "^Tienda$", "^Iglesia$", "^Cripta$", "^Caseta" }
+
+local function porPartes(mapa: Folder)
+	if not POR_PARTES or not casa then
+		return
+	end
+	local fijo = Enum.ModelStreamingMode.Persistent
+	casa.ModelStreamingMode = fijo
+	local bosque = mapa:FindFirstChild("Bosque")
+	local arboles = bosque and bosque:FindFirstChild("Arboles")
+	for _, arbol in (if arboles then arboles:GetChildren() else {}) do
+		if arbol:IsA("Model") then
+			arbol.ModelStreamingMode = fijo
+		end
+	end
+	local plano = Instance.new("Model")
+	plano.Name = "Plano"
+	plano.ModelStreamingMode = fijo
+	for _, pieza in CollectionService:GetTagged("EnMapa") do
+		if pieza:IsA("BasePart") and pieza:IsDescendantOf(mapa) and not pieza:IsDescendantOf(casa) then
+			local copia = Instance.new("Part")
+			copia.Name = pieza.Name
+			copia.Anchored = true
+			copia.Size = pieza.Size
+			copia.CFrame = pieza.CFrame
+			copia.Color = pieza.Color
+			copia.Transparency = 1
+			copia.CanCollide, copia.CanQuery, copia.CanTouch, copia.CastShadow = false, false, false, false
+			copia.Parent = plano
+			CollectionService:RemoveTag(pieza, "EnMapa")
+			CollectionService:AddTag(copia, "EnMapa")
+		end
+	end
+	plano.Parent = mapa
+	local lugares = mapa:FindFirstChild("Lugares")
+	local pueblo = lugares and lugares:FindFirstChild("Pueblo")
+	for _, m in (if pueblo then pueblo:GetChildren() else {}) do
+		for _, patron in SILUETA do
+			if m:IsA("Model") and string.find(m.Name, patron) then
+				m.LevelOfDetail = Enum.ModelLevelOfDetail.StreamingMesh
+				break
+			end
+		end
+	end
+end
+
 function Mapa.start()
 	local mapa = workspace:WaitForChild("Mapa")
 	construirBosque(mapa)
@@ -3309,6 +3373,8 @@ function Mapa.start()
 	vestirGaraje()
 	vestirSotano()
 	abandonar()
+	aligerar(mapa)
+	porPartes(mapa)
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
 	local aparicion = Instance.new("SpawnLocation")

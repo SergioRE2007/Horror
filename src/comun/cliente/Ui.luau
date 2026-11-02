@@ -4,6 +4,7 @@
 -- Textos de botones y títulos en mayúsculas.
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Ui = {}
 
@@ -17,12 +18,54 @@ Ui.Fuente = Font.fromEnum(Enum.Font.SpecialElite) -- máquina de escribir gastad
 
 local jugador = Players.LocalPlayer
 local hud: ScreenGui? = nil
+local escalaHud: UIScale? = nil
+
+-- Móvil (docs/sistemas/movil.md): el HUD se dibuja en "píxeles de diseño" sobre una pantalla de 1280 × 720 y el UIScale
+-- del ScreenGui lo encoge; las posiciones en escala siguen siendo de la pantalla de verdad. En un teléfono de 640 × 360
+-- la escala es 0,55: el lienzo mide unos 1164 × 655 píxeles de diseño y un botón de Ui.DEDO (80) mide 44 de verdad,
+-- lo mínimo para acertar con el dedo.
+Ui.DEDO = 80
 
 local function escalar(gui: ScreenGui, escala: UIScale)
 	local tamano = gui.AbsoluteSize
 	if tamano.X > 0 then
 		escala.Scale = math.clamp(math.min(tamano.X / 1280, tamano.Y / 720), 0.55, 1.3)
 	end
+end
+
+-- Pantalla táctil (el móvil): botones grandes y otro reparto de lo de abajo.
+function Ui.tactil(): boolean
+	return UserInputService.TouchEnabled
+end
+
+-- Alto de un botón: el normal, o el de un dedo en pantallas táctiles.
+function Ui.alto(normal: number): number
+	return if Ui.tactil() then math.max(normal, Ui.DEDO) else normal
+end
+
+-- La escala del HUD ahora mismo (para lo que no cuelga de él, como los carteles del mundo).
+function Ui.escala(): number
+	Ui.hud()
+	return if escalaHud then escalaHud.Scale else 1
+end
+
+-- Lo que mide la pantalla en píxeles de diseño (lo que cabe dentro del HUD).
+function Ui.lienzo(): Vector2
+	local gui = Ui.hud()
+	return gui.AbsoluteSize / Ui.escala()
+end
+
+-- Texto que encoge para caber en su caja (palabras largas en otros idiomas), hasta `maximo`.
+function Ui.queQuepa(objeto: TextLabel | TextButton, maximo: number)
+	objeto.TextScaled = true
+	objeto.TextWrapped = true
+	local limite = Instance.new("UITextSizeConstraint")
+	limite.MaxTextSize = maximo
+	limite.MinTextSize = math.min(maximo, 12)
+	limite.Parent = objeto
+	local relleno = Instance.new("UIPadding")
+	relleno.PaddingLeft, relleno.PaddingRight = UDim.new(0, 8), UDim.new(0, 8)
+	relleno.Parent = objeto
 end
 
 -- La capa del HUD (se crea la primera vez).
@@ -37,12 +80,13 @@ function Ui.hud(): ScreenGui
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	local escala = Instance.new("UIScale")
 	escala.Parent = gui
+	escalaHud = escala
+	hud = gui -- antes de esperar: si otro lo pide mientras tanto, es la misma capa
 	gui.Parent = jugador:WaitForChild("PlayerGui")
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		escalar(gui, escala)
 	end)
 	escalar(gui, escala)
-	hud = gui
 	return gui
 end
 
@@ -128,7 +172,8 @@ function Ui.aviso(texto: string, segundos: number?)
 	end
 	local t = Ui.texto(texto, {
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromScale(0.5, 0.76), -- encima del botón SALIR del escondite
+		-- Encima del botón SALIR del escondite; en el móvil, más arriba aún: abajo están los botones del equipo.
+		Position = UDim2.fromScale(0.5, if Ui.tactil() then 0.64 else 0.76),
 		Size = UDim2.fromScale(0.8, 0.05),
 		TextSize = 26,
 		TextTransparency = 1,

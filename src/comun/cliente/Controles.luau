@@ -41,12 +41,14 @@ end
 local function mostrar(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputType)
 	local tactil = tipo == Enum.ProximityPromptInputType.Touch
 	local fila = math.floor(prompt.UIOffset.Y / 60) -- el segundo prompt de una cosa va debajo
+	-- El cartel va fuera del HUD (en el mundo): se encoge a mano con su escala, sin pasar de su tamaño de ordenador.
+	local s = math.clamp(Ui.escala(), 0.75, 1)
 
 	local cartel = Instance.new("BillboardGui")
 	cartel.Name = "Prompt"
 	cartel.Adornee = prompt.Parent :: BasePart
 	cartel.AlwaysOnTop = true
-	cartel.Size = UDim2.fromOffset(260, 34)
+	cartel.Size = UDim2.fromOffset(260 * s, 34 * s)
 	cartel.StudsOffsetWorldSpace = Vector3.new(0, -0.9 * fila, 0)
 	cartel.LightInfluence = 0
 	cartel.MaxDistance = 40
@@ -59,14 +61,14 @@ local function mostrar(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputT
 	lista.FillDirection = Enum.FillDirection.Horizontal
 	lista.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	lista.VerticalAlignment = Enum.VerticalAlignment.Center
-	lista.Padding = UDim.new(0, 8)
+	lista.Padding = UDim.new(0, 8 * s)
 	lista.Parent = caja
 	if not tactil then
 		local tecla = Ui.texto(teclaDe(prompt, tipo), {
-			Size = UDim2.fromOffset(30, 30),
+			Size = UDim2.fromOffset(30 * s, 30 * s),
 			BackgroundTransparency = 0.2,
 			BackgroundColor3 = Ui.Color.Papel,
-			TextSize = 20,
+			TextSize = 20 * s,
 		})
 		local borde = Instance.new("UIStroke")
 		borde.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -77,8 +79,8 @@ local function mostrar(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputT
 	end
 	local accion = Ui.texto(textoDe(prompt), {
 		AutomaticSize = Enum.AutomaticSize.X,
-		Size = UDim2.fromOffset(0, 30),
-		TextSize = 22,
+		Size = UDim2.fromOffset(0, 30 * s),
+		TextSize = 22 * s,
 	})
 	accion.Parent = caja
 
@@ -95,9 +97,8 @@ local function mostrar(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputT
 	if tactil then
 		local boton = Ui.boton(textoDe(prompt), { -- grande: en el móvil el HUD se encoge a la mitad y hay que darle con el dedo
 			Size = UDim2.fromOffset(200, 90),
-			TextSize = 28,
-			TextWrapped = true,
 		})
+		Ui.queQuepa(boton, 28) -- las frases largas (y en otros idiomas) bajan de letra en vez de salirse
 		boton.Parent = botonera
 		boton.InputBegan:Connect(function(entrada)
 			if entrada.UserInputType == Enum.UserInputType.Touch or entrada.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -141,7 +142,9 @@ function Controles.start()
 	botonera = Instance.new("Frame")
 	botonera.Name = "Acciones"
 	botonera.AnchorPoint = Vector2.new(1, 0.5)
-	botonera.Position = UDim2.fromScale(0.97, 0.52) -- encima del botón de saltar de Roblox
+	-- Encima del botón de saltar de Roblox, algo apartada del borde (la cámara de algunos teléfonos tapa el lado).
+	-- Mapa del móvil en docs/sistemas/movil.md.
+	botonera.Position = UDim2.fromScale(0.955, 0.52)
 	botonera.Size = UDim2.fromOffset(200, 190)
 	botonera.BackgroundTransparency = 1
 	local lista = Instance.new("UIListLayout")
