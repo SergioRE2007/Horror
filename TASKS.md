@@ -58,7 +58,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 | 11.8.10 | Cuarto de los niños | cuna y juguetes | hecho |
 | 11.8.11 | Escalera del desván y desván | baúles; cuarto de revelado | hecho |
 | 11.8.12 | Lavadero, garaje y cobertizo | enchufe del móvil, coche, generador | hecho |
-| 11.8.13 | Sótano | banco del taller (la reja de la 12.2) | pendiente |
+| 11.8.13 | Sótano | banco del taller (la reja de la 12.2) | hecho (aprobado por el usuario el 02-11-2026) |
 
 En todas: telarañas que flotan o se meten en la pared.
 
