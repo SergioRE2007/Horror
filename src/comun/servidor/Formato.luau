@@ -20,6 +20,7 @@ function Formato.jugadorNuevo()
 		diario = 0, -- os.time() del último premio diario
 		clase = "", -- Id de la clase elegida en el lobby ("" = ninguna)
 		puestos = {}, -- [Tipo] = Id del cosmético que lleva puesto de cada tipo (sin entrada = el de serie)
+		rendimiento = false, -- ajuste Rendimiento (comun/servidor/Ajustes): menos partículas y adornos
 	}
 end
 

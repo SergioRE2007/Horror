@@ -39,7 +39,7 @@ local function pintar()
 		local b = botones[otro]
 		if se and not b then
 			b = Ui.boton(Lang.t(nil, "Revive {nombre}", { nombre = otro.DisplayName }) .. `  {precio()}`, {
-				Size = UDim2.fromOffset(240, 40),
+				Size = UDim2.fromOffset(240, Ui.alto(40)),
 				TextSize = 17,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 			})
@@ -72,7 +72,7 @@ function RevivirUi.start()
 		Name = "Revivir",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.fromScale(0.5, 0.89),
-		Size = UDim2.fromOffset(260, 56),
+		Size = UDim2.fromOffset(260, Ui.alto(56)),
 		TextSize = 26,
 		Visible = false,
 		ZIndex = 97, -- encima de la capa de muerto (MuerteVista)
@@ -82,14 +82,18 @@ function RevivirUi.start()
 	end)
 	propio.Parent = hud
 
+	-- Los de los compañeros: a la izquierda en el ordenador. En el móvil, en fila arriba a la izquierda, bajo la barra
+	-- de Roblox: más abajo estarían en la zona del joystick y se pulsarían sin querer al andar.
+	local tactil = Ui.tactil()
 	otros = Instance.new("Frame")
 	otros.Name = "RevivirOtros"
-	otros.AnchorPoint = Vector2.new(0, 0.5)
-	otros.Position = UDim2.new(0, 16, 0.42, 0)
-	otros.Size = UDim2.fromOffset(240, 200)
+	otros.AnchorPoint = Vector2.new(0, if tactil then 0 else 0.5)
+	otros.Position = if tactil then UDim2.new(0, 16, 0.17, 0) else UDim2.new(0, 16, 0.42, 0)
+	otros.Size = if tactil then UDim2.new(1, -32, 0, Ui.DEDO) else UDim2.fromOffset(240, 200)
 	otros.BackgroundTransparency = 1
 	local lista = Instance.new("UIListLayout")
 	lista.Padding = UDim.new(0, 8)
+	lista.FillDirection = if tactil then Enum.FillDirection.Horizontal else Enum.FillDirection.Vertical
 	lista.Parent = otros
 	otros.Parent = hud
 

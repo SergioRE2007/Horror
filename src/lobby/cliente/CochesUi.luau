@@ -17,6 +17,11 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 local CochesUi = {}
 
 local jugador = Players.LocalPlayer
+-- Medidas en píxeles de diseño. En el móvil, todos los botones del alto de un dedo (Ui.DEDO) y el papel más alto.
+local BAJAR = Ui.alto(40)
+local RANURA = Ui.alto(70)
+local BOTON = Ui.alto(48) -- NUEVA PARTIDA y EMPEZAR
+local ARRIBA = math.max(66, 12 + BAJAR + 14) -- donde empiezan las ranuras
 local panel: Frame
 local titulo: TextLabel
 local fila: Frame
@@ -122,7 +127,7 @@ local function construir()
 	panel.Name = "Coche"
 	panel.AnchorPoint = Vector2.new(0.5, 1)
 	panel.Position = UDim2.new(0.5, 0, 1, -24)
-	panel.Size = UDim2.fromOffset(620, 214)
+	panel.Size = UDim2.fromOffset(620, ARRIBA + RANURA + 14 + BOTON + 16)
 	panel.BackgroundColor3 = Ui.Color.Papel
 	panel.BackgroundTransparency = 0.08
 	panel.ClipsDescendants = true
@@ -145,7 +150,7 @@ local function construir()
 	local bajar = Ui.boton(Lang.t(nil, "Get out"), {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -14, 0, 12),
-		Size = UDim2.fromOffset(150, 40),
+		Size = UDim2.fromOffset(150, BAJAR),
 		TextSize = 20,
 	})
 	bajar.Activated:Connect(function()
@@ -159,8 +164,8 @@ local function construir()
 	fila = Instance.new("Frame")
 	fila.Name = "Ranuras"
 	fila.BackgroundTransparency = 1
-	fila.Position = UDim2.fromOffset(22, 66)
-	fila.Size = UDim2.new(1, -44, 0, 70)
+	fila.Position = UDim2.fromOffset(22, ARRIBA)
+	fila.Size = UDim2.new(1, -44, 0, RANURA)
 	local lista = Instance.new("UIListLayout")
 	lista.FillDirection = Enum.FillDirection.Horizontal
 	lista.Padding = UDim.new(0, 12)
@@ -183,15 +188,15 @@ local function construir()
 	abajo = Instance.new("Frame")
 	abajo.Name = "Abajo"
 	abajo.BackgroundTransparency = 1
-	abajo.Position = UDim2.new(0, 22, 1, -64)
-	abajo.Size = UDim2.new(1, -44, 0, 48)
+	abajo.Position = UDim2.new(0, 22, 1, -(BOTON + 16))
+	abajo.Size = UDim2.new(1, -44, 0, BOTON)
 	local lista2 = Instance.new("UIListLayout")
 	lista2.FillDirection = Enum.FillDirection.Horizontal
 	lista2.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	lista2.Padding = UDim.new(0, 12)
 	lista2.SortOrder = Enum.SortOrder.LayoutOrder
 	lista2.Parent = abajo
-	nueva = Ui.boton("", { LayoutOrder = 1, Size = UDim2.fromOffset(250, 48), TextSize = 19 })
+	nueva = Ui.boton("", { LayoutOrder = 1, Size = UDim2.fromOffset(250, BOTON), TextSize = 19 })
 	nueva.Activated:Connect(function()
 		local c = coche()
 		if not c then
@@ -208,7 +213,7 @@ local function construir()
 		pintar()
 	end)
 	nueva.Parent = abajo
-	empezar = Ui.boton("", { LayoutOrder = 2, Size = UDim2.fromOffset(250, 48), TextSize = 26 })
+	empezar = Ui.boton("", { LayoutOrder = 2, Size = UDim2.fromOffset(250, BOTON), TextSize = 26 })
 	empezar.BackgroundColor3 = Color3.fromRGB(58, 16, 14) -- lo principal, con más rojo
 	empezar.Activated:Connect(function()
 		Remotes.Coche:FireServer("Arrancar")

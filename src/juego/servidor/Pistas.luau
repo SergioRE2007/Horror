@@ -7,13 +7,14 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Historia = require(ReplicatedStorage.Shared.Historia)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Casa = require(script.Parent.Casa)
 
 local Pistas = {}
 
-local ALCANCE = 7 -- studs del prompt
+local ALCANCE = Config.Casa.Alcance -- studs del prompt, como todos los demás
 local HOLGURA = 4 -- de más en el servidor (el personaje llega con retraso)
 
 -- Lo que está en una pared: el papel, con su cara de delante hacia `fuera` y lo alto en vertical.
@@ -181,7 +182,10 @@ local function construir(n: number, cf: CFrame, padre: Instance): Part
 	end
 	modelo.PrimaryPart = principal
 	local prompt = Instance.new("ProximityPrompt")
+	prompt.Style = Enum.ProximityPromptStyle.Custom -- lo pinta Controles, como los demás (en móvil, con su botón grande)
 	prompt.ActionText = YA_HAY[n] or if forma == "Foto" then "Look" else "Read"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 	prompt.ObjectText = ""
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = ALCANCE

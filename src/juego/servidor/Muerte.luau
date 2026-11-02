@@ -7,6 +7,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -172,6 +173,8 @@ end
 
 function Muerte.start()
 	Players.CharacterAutoLoads = false
+	-- Primera persona también en StarterPlayer: en Studio el jugador salía con el CameraMode de StarterPlayer (14.4).
+	StarterPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 	for _, sitio in CollectionService:GetTagged("Escondite") do
 		prepararEscondite(sitio)
 	end
