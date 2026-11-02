@@ -21,7 +21,7 @@ local NOMBRES = {
 	"Movil", -- cliente -> servidor: (abierto) miro o guardo el móvil
 	"Coche", -- cliente -> servidor (lobby): ("Ranura", n), ("Nueva", nueva) o ("Arrancar"): solo el dueño del coche
 	"Vendedor", -- servidor -> cliente: ("Abrir", frase) le habla; cliente -> servidor: ("Cambiar", n) hago el trato n
-	"Taller", -- servidor -> cliente: ("Abrir", banco); cliente -> servidor: ("Hacer", n) la receta n del banco que tengo
+	"Taller", -- servidor -> cliente: ("Abrir", banco, ocultas = números de recetas aún sin descubrir); cliente -> servidor: ("Hacer", n) la receta n del banco que tengo
 	-- cerca; servidor -> todos: ("Trampa", posición) una trampa se ha cerrado
 	"Huida", -- servidor -> todos: (segundos) la escena final de la huida en el coche
 	"Trepador", -- servidor -> todos: ("Baja", modelo) por la chimenea, ("Entra", modelo) sale al salón o ("Quema", modelo)
@@ -31,6 +31,11 @@ local NOMBRES = {
 	"Tienda", -- cliente -> servidor (lobby): ("Clase", id) o ("Cosmetico", id) comprar, ("Poner", tipo, id) ponerme uno
 	"Compra", -- cliente -> servidor: abre una compra con Robux: ("Monedas", n), ("Pase", ventaja) o ("Revivir", jugador)
 	"Pista", -- servidor -> cliente: (n, encontradas) lee la pista n de shared/Historia (lo pide su ProximityPrompt)
+	-- Final de la Bestia (12.2): cada sistema documenta sus mensajes en la cabecera de su módulo.
+	"Bestia", -- servidor -> todos: animar a la Bestia (Bestia / BestiaVista)
+	"Bengala", -- cliente -> servidor: disparo la pistola; servidor -> todos: el disparo (Bengalas / BengalasVista)
+	"Preparativos", -- servidor -> todos: efectos de la preparación (Preparativos / PreparativosVista)
+	"Incendio", -- servidor -> todos: el fuego y la escena final (Incendio / IncendioVista)
 }
 
 local Remotes = {}

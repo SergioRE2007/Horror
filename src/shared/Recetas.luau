@@ -1,5 +1,6 @@
 -- Cuentas del taller y del coche, sin nada de Roblox (probadas con Lune).
 --   Recetas: Pide = { { tipo, cuántos } }; `tengo` = [tipo] = cuántos hay (mochila y cosas pesadas junto al banco).
+--   Las de cada banco, con Recetas.delBanco (añade la reja del final al del sótano).
 --   Coche: { piezas = [tipo] = cuántas montadas, gasolina = bidones echados, porton = el del garaje abierto }.
 --   `cfg` = Config.Coche.
 local Recetas = {}
@@ -14,6 +15,21 @@ function Recetas.falta(pide: { { any } }, tengo: { [string]: number }): { { any 
 		if faltan > 0 then
 			table.insert(lista, { p[1], faltan })
 		end
+	end
+	return lista
+end
+
+-- La pista que explica la reja (shared/Historia: la nota de Harlan, "it needs real iron"): sin leerla no sale la receta.
+Recetas.PISTA_REJA = 9 -- si Config.Bestia.Reja no trae Pista (pruebas de Lune con un Config de mentira)
+
+-- Las recetas de un banco (`cfg` = Config): las de Config.Taller.Bancos y, al final de las del sótano, la reja del final
+-- de la Bestia (Config.Bestia.Reja, 12.2), con `Pista` = la que hay que haber leído. El número de cada receta es su
+-- sitio en esta lista (lo pide el cliente con "Hacer"; no se guarda): lo nuevo, al final.
+function Recetas.delBanco(nombre: string, cfg): { any }
+	local lista = table.clone(cfg.Taller.Bancos[nombre] or {})
+	local reja = cfg.Bestia and cfg.Bestia.Reja
+	if nombre == "Sotano" and reja then
+		table.insert(lista, { Da = "Reja", Pide = reja.Pide, Tiempo = reja.Tiempo, Pista = reja.Pista or Recetas.PISTA_REJA })
 	end
 	return lista
 end

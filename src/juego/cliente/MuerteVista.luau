@@ -19,6 +19,7 @@ local RaspadorVista = require(script.Parent.RaspadorVista)
 local TrepadorVista = require(script.Parent.TrepadorVista)
 local ImitadorVista = require(script.Parent.ImitadorVista)
 local AcechadorVista = require(script.Parent.AcechadorVista)
+local BestiaVista = require(script.Parent.BestiaVista)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -226,7 +227,7 @@ local function meHanPillado(cabeza: Vector3)
 	hacia = if hacia.Magnitude > 0.1 then hacia.Unit else Vector3.zAxis
 	-- La cara del bicho de frente, con la boca abierta, echándose encima; una luz para que se le vea en lo oscuro.
 	local bicho = GolpeadorVista.rugir(cabeza) or RaspadorVista.rugir(cabeza) or TrepadorVista.rugir(cabeza)
-		or ImitadorVista.rugir(cabeza) or AcechadorVista.rugir(cabeza)
+		or ImitadorVista.rugir(cabeza) or AcechadorVista.rugir(cabeza) or BestiaVista.rugir(cabeza)
 	local cara = bicho and bicho:FindFirstChild("Cabeza") :: BasePart?
 	local luz: Attachment? = nil
 	if cara then

@@ -1,7 +1,8 @@
 -- Linterna y flash en el cliente (lo manda el servidor: juego/servidor/Equipo).
 --   Linterna: la F, L1 en el mando o el botón en el móvil. La luz de cada jugador: la mía sale de la cámara; la de los
 --   demás, de su cabeza. Con poca pila parpadea.
---   Flash: clic, R2 o el botón en el móvil. Destello en todos los clientes; al que hace la foto, la pantalla en blanco.
+--   Flash: clic, R2 o el botón en el móvil (con la pistola de bengalas en la mano, el clic es suyo: BengalasVista).
+--   Destello en todos los clientes; al que hace la foto, la pantalla en blanco.
 --   Lo que queda de pila y fotos sale abajo un momento cuando cambia, y se va (casi nada en pantalla).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +14,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Stats = require(ReplicatedStorage.Shared.Stats)
+local BengalasVista = require(script.Parent.BengalasVista)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -131,7 +133,7 @@ local function pedirLinterna()
 end
 
 local function pedirFlash()
-	if jugador:GetAttribute("Escondido") or jugador:GetAttribute("Muerto") then
+	if jugador:GetAttribute("Escondido") or jugador:GetAttribute("Muerto") or BengalasVista.enMano() then
 		return
 	end
 	Remotes.Flash:FireServer(camara.CFrame.LookVector)
@@ -216,6 +218,7 @@ local function crearHud()
 		fila.AnchorPoint = Vector2.new(1, 1)
 		fila.Position = UDim2.fromScale(0.8, 0.97)
 		fila.Size = UDim2.fromOffset(290, 80)
+		fila.AutomaticSize = Enum.AutomaticSize.X -- BengalasVista añade BENGALA si lleva la pistola
 		fila.BackgroundTransparency = 1
 		local orden = Instance.new("UIListLayout")
 		orden.FillDirection = Enum.FillDirection.Horizontal

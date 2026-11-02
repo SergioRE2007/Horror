@@ -4,10 +4,8 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
-1. 11.6: que Sergio vea la fachada.
-2. 12.2 La Bestia (ya hechos: 11.8 interior, 11.9 detalles y 12.1 pistas).
-3. Cambiar los sonidos de la bombilla de la 11.9 (sacados de YouTube) por unos sin derechos de autor.
-4. 11.5 Pueblo amueblado, 11.2 Monstruos (casi al final), 13 Lanzamiento.
+1. 12.2 La Bestia (ya hechos: 11.8 interior, 11.9 detalles y 12.1 pistas).
+2. 11.5 Pueblo amueblado, 11.2 Monstruos (casi al final), 13 Lanzamiento.
 
 ## Hechas
 
@@ -26,15 +24,11 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
     - 11.3 Sonidos con ElevenLabs — hecho (`docs/sistemas/sonidos.md`)
     - 11.4 Cortinas en vez de persianas — hecho (`docs/sistemas/corazon.md`)
     - 11.5 Casa más grande con muebles del Creator Store: la casa — hecho (`docs/sistemas/casa-grande.md`); el pueblo sigue abajo
-    - 11.6 Casa nueva con el plano aprobado, ensanchada para correr, y fachada victoriana (`Fachada.luau`) — hecho (`docs/sistemas/casa-nueva.md`); falta que Sergio vea la fachada
+    - 11.6 Casa nueva con el plano aprobado, ensanchada para correr, y fachada victoriana (`Fachada.luau`) — hecho (`docs/sistemas/casa-nueva.md`); fachada vista y aprobada por Sergio
     - Plugin VistaMapa para mover cosas a mano sin Play — hecho
     - Paso previo del interior: papel, molduras, techos y muebles más apagados y sucios; techos rotos; mecedora nueva; burro de serrar en X; quitadas la mesa de la cocina y la silla volcada; sillas del comedor orientadas — hecho
 
 ## 11. Arte (lo que queda)
-
-### 11.6 Fachada: que la vea Sergio
-- **Qué:** enseñarle la fachada victoriana en Studio y cambiar lo que no le guste.
-- **Estado:** en curso — hecha, falta que la vea
 
 ### 11.8 Interior realista, sala por sala (pedido por el usuario: "la casa por dentro es un ñordo gordo", muebles "demasiado simples")
 - **Qué:** cambiar los muebles de la tienda de Roblox y los hechos con bloques por modelos de Poly Haven (CC0, uso comercial libre), pasados por Blender a Roblox con sus texturas (`SurfaceAppearance`). Lo que no haya, en Blender por script, nunca bloques.
@@ -97,7 +91,7 @@ En todas: telarañas que flotan o se meten en la pared.
 - **Noche final:** empieza con "Esperarla" en la casa cuando todo está listo. Esa noche no sale ningún otro bicho. Es más rápida que el jugador; cada bengala la deja cojeando ~8 s y más lenta. Se la atrae al sótano, se pasa la reja y se tira de la palanca; se sale por una trampilla nueva al patio. Desde el porche, la cerilla al rastro: el fuego recorre la casa sala por sala, cinemática de la casa ardiendo con su rugido, amanece; recompensa e insignia. Sin bengalas o con la reja fallada, te pilla y mueres.
 - **Números a ojo:** 6 puntos de gasolina, 3 bengalas, ~8 s cojeando (en `Config`).
 - **Criterios:** se puede completar de principio a fin en `Config.Test`; recompensa e insignia propias, entregadas una vez; lo preparado se guarda en la partida (guardado viejo sigue cargando, prueba de Lune); cinemática que esconde la interfaz y la devuelve siempre.
-- **Estado:** pendiente — mecánica decidida con Sergio; hacer después de 12.1 (las pistas la explican)
+- **Estado:** en curso — programado (rama `paso-12-2-bestia`, revisado); falta probarlo en Studio de principio a fin y escribir `docs/sistemas/bestia.md`
 
 ## 13. Lanzamiento
 

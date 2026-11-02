@@ -10,8 +10,10 @@
 --   mochilas: [UserId en texto] = { cosas = las de shared/Rejilla } (de todos los que han jugado en ella).
 --   coche: { piezas = [tipo] = cuántas montadas, gasolina, porton } (shared/Recetas). Desde el paso 8, sin subir versión:
 --   lo viejo no lo tiene y sale el coche sin arreglar. La casa lleva también `refuerzo` (tablón reforzado).
---   final: "Huida" si ya se terminó (al volver a esa ranura se empieza de cero).
+--   final: "Huida" o "Bestia" si ya se terminó (al volver a esa ranura se empieza de cero).
 --   pistas: lista de los números de shared/Historia ya leídos (12.1, sin subir versión: lo viejo no la tiene = ninguna).
+--   preparativos: { gasolina = claves de los puntos con gasolina, rastro, reja } (12.2, Preparativos; sin subir versión:
+--   lo viejo no lo tiene = nada hecho). El rastro solo vale con todos los puntos llenos.
 local FormatoPartida = {}
 
 FormatoPartida.VERSION = 1
@@ -55,9 +57,35 @@ local function sueltos(lista: unknown, catalogo, maximo: number)
 	return salida
 end
 
+-- Lo preparado para el final de la Bestia: solo claves de puntos que existen (`claves`, en su orden), sin repetir.
+local function preparativos(t: unknown, claves: { string }?)
+	local p = { gasolina = {}, rastro = false, reja = false }
+	if type(t) ~= "table" then
+		return p
+	end
+	local g = t :: any
+	local hay = {}
+	if type(g.gasolina) == "table" then
+		for _, c in g.gasolina do
+			if type(c) == "string" then
+				hay[c] = true
+			end
+		end
+	end
+	for _, c in claves or {} do
+		if hay[c] then
+			table.insert(p.gasolina, c)
+		end
+	end
+	p.rastro = g.rastro == true and #p.gasolina > 0 and #p.gasolina == #(claves or {})
+	p.reja = g.reja == true
+	return p
+end
+
 -- Pone al día lo guardado de una partida. nil (o algo que no es una tabla) = partida nueva: devuelve nil y el mundo
 -- se queda como lo genera el mapa. `cat` = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Sueltos,
--- coche = Config.Coche, arreglarCoche = Recetas.arreglarCoche, pistas = cuántas hay en shared/Historia }.
+-- coche = Config.Coche, arreglarCoche = Recetas.arreglarCoche, pistas = cuántas hay en shared/Historia,
+-- puntos = claves de los puntos de gasolina (Preparativos.claves()) }.
 function FormatoPartida.arreglar(guardado: unknown, cat)
 	if type(guardado) ~= "table" then
 		return nil
@@ -75,8 +103,9 @@ function FormatoPartida.arreglar(guardado: unknown, cat)
 		pesados = sueltos(g.pesados, cat.pesados, cat.maximo),
 		mochilas = {},
 		coche = cat.arreglarCoche(g.coche, cat.coche),
-		final = if g.final == "Huida" then "Huida" else nil,
+		final = if g.final == "Huida" or g.final == "Bestia" then g.final else nil,
 		pistas = {},
+		preparativos = preparativos(g.preparativos, cat.puntos),
 	}
 	-- Pistas: números enteros de las que existen, sin repetir y en orden.
 	if type(g.pistas) == "table" then
