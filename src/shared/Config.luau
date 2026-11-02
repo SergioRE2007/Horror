@@ -418,6 +418,38 @@ Config.Sonidos = {
 	Buho = { Id = { 128579231147340, 99006707518885 }, Volumen = 0.9, Alcance = 250 },
 	Ramita = { Id = { 81824412925307, 91333969182246 }, Volumen = 3, Alcance = 150 },
 	Grillo = { Id = { 106921997334500, 94261260619240 }, Volumen = 0.8, Alcance = 120 },
+	-- Detalles vivos de la casa (juego/cliente/DetallesVista y ChimeneaVista, 11.9). Elegidos por el usuario; los dos de
+	-- la bombilla, de YouTube (pedido por el usuario: los de ElevenLabs salían saturados).
+	Tic = { Id = 125137723416876, Volumen = 0.6, Alcance = 30 }, -- el reloj de pie del vestíbulo
+	Campanada = { Id = 140173958642561, Volumen = 1.2, Alcance = 160 },
+	Nevera = { Id = 105328731081136, Volumen = 1.2, Alcance = 22 }, -- zumbido en bucle con el generador encendido
+	NeveraClac = { Id = 113816743112992, Volumen = 0.8, Alcance = 30 },
+	Gota = { Id = 135808961631299, Volumen = 1.2, Alcance = 22 },
+	Tuberia = { Id = 84822903759176, Volumen = 1.6, Alcance = 60 },
+	VientoTiro = { Id = 108230513932897, Volumen = 1.3, Alcance = 50 }, -- el viento por el tiro de la chimenea
+	Parpadeo = { Id = 115400138567928, Volumen = 0.7, Alcance = 40 }, -- "Efecto de Sonido - Foco Luz Rota" (YouTube)
+	Zumbido = { Id = 129528625281695, Volumen = 0.35, Alcance = 22 }, -- "Bombilla de Luz Defectuosa" (YouTube, sin copyright)
+}
+
+-- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.
+-- Posiciones como { x, y, z } (sin Vector3: Lune lee Config).
+Config.Detalles = {
+	Cerca = 45, -- más lejos de la cámara no se anima ni suena nada
+	Reloj = { 10, 1, 8.5 }, -- el reloj de pie que anda (el del vestíbulo); los otros están parados
+	Campanadas = { 0, 1, 2, 3 }, -- horas de la noche a las que da campanadas (a las 0, doce)
+	Nevera = { Encendida = { 40, 70 }, Parada = { 15, 30 } },
+	Grifos = { -- x, y, z de donde sale la gota y la altura del fondo de la pila
+		{ -26.45, 4.72, 31.4, 3.75 }, -- fregadero de la cocina
+		{ 20.45, 4.45, 31, 4.03 }, -- lavabo del baño
+	},
+	Gota = { 1.5, 4 },
+	BombillaMala = { 0, 8, 28.5 }, -- la del pasillo: zumba y parpadea más a menudo
+	ParpadeoMala = { 5, 12 },
+	ParpadeoOtras = { 25, 60 }, -- alguna otra bombilla cerca de la cámara
+	Tuberias = { { 14, 4, 32 }, { -30, 3, 33 }, { -6, 3, 26 } }, -- dentro de las paredes
+	Tuberia = { 40, 90 }, -- solo de noche y con la cámara dentro de la casa
+	VientoTiro = { 25, 60 }, -- de noche, con la chimenea apagada
+	Rescoldo = 90, -- lo que tardan las brasas en enfriarse después de apagarse el fuego
 }
 
 -- Ventajas de los jugadores (shared/Stats): lo de quien no tiene clase. Cada una se usa en un solo sistema.
