@@ -15,7 +15,7 @@
 --   Remote `Preparativos` (servidor -> todos): ("Reja", posición) la reja acaba de caer (golpe de hierro).
 -- Se guarda con la partida (exportar/importar, FormatoPartida): puntos con gasolina por su clave, rastro y reja montada.
 -- Modo de pruebas: ServerStorage.Prueba:Fire("Preparar") lo deja todo listo y da pistola, 3 bengalas y cerillas al
--- primer jugador; ("Palanca") deja caer la reja ya.
+-- primer jugador; ("Palanca") deja caer la reja ya; ("Trampilla") la abre.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -476,6 +476,12 @@ function Preparativos.start()
 				end
 			elseif que == "Palanca" then
 				dejarCaer()
+			elseif que == "Trampilla" and not trampilla:GetAttribute("Abierto") then
+				local tapa = trampilla:FindFirstChild("Tapa") :: BasePart
+				tapa.CFrame = trampilla:GetAttribute("Abierta") :: CFrame
+				tapa.CanCollide = false
+				trampilla:SetAttribute("Abierto", true)
+				promptTrampilla.Enabled = false
 			end
 		end)
 	end)

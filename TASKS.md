@@ -4,8 +4,8 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
-1. 12.2 La Bestia (ya hechos: 11.8 interior, 11.9 detalles y 12.1 pistas).
-2. 11.2 Monstruos (casi al final), 13 Lanzamiento (ya hecho: 11.5 pueblo).
+1. Plan de pulido (se hace con Sergio; ya hechos: 11.5 pueblo, 11.8 interior, 11.9 detalles, 12.1 pistas y 12.2 Bestia).
+2. 11.2 Monstruos (casi al final), 13 Lanzamiento.
 
 ## Hechas
 
@@ -94,7 +94,7 @@ En todas: telarañas que flotan o se meten en la pared.
 - **Noche final:** empieza con "Esperarla" en la casa cuando todo está listo. Esa noche no sale ningún otro bicho. Es más rápida que el jugador; cada bengala la deja cojeando ~8 s y más lenta. Se la atrae al sótano, se pasa la reja y se tira de la palanca; se sale por una trampilla nueva al patio. Desde el porche, la cerilla al rastro: el fuego recorre la casa sala por sala, cinemática de la casa ardiendo con su rugido, amanece; recompensa e insignia. Sin bengalas o con la reja fallada, te pilla y mueres.
 - **Números a ojo:** 6 puntos de gasolina, 3 bengalas, ~8 s cojeando (en `Config`).
 - **Criterios:** se puede completar de principio a fin en `Config.Test`; recompensa e insignia propias, entregadas una vez; lo preparado se guarda en la partida (guardado viejo sigue cargando, prueba de Lune); cinemática que esconde la interfaz y la devuelve siempre.
-- **Estado:** en curso — programado (rama `paso-12-2-bestia`, revisado); falta probarlo en Studio de principio a fin y escribir `docs/sistemas/bestia.md`
+- **Estado:** hecho — probado en Studio de punta a punta el 02-11-2026 (`docs/sistemas/bestia.md`); lo que queda por pulir, en el plan de pulido
 
 ## 13. Lanzamiento
 
