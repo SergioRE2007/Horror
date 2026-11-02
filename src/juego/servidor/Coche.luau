@@ -197,10 +197,11 @@ end
 
 -- El final de la huida: todos se van en el coche (también los muertos: la escena es de todos).
 local function huir(jugador: Player)
-	if huyendo or Recetas.queFalta(estado, C) or not cerca(jugador, coche:FindFirstChild("Conducir") :: BasePart) then
+	if huyendo or workspace:GetAttribute("Final") or Recetas.queFalta(estado, C) or not cerca(jugador, coche:FindFirstChild("Conducir") :: BasePart) then
 		return
 	end
 	huyendo = true
+	workspace:SetAttribute("Final", true) -- un solo final: el incendio de la Bestia ya no puede empezar
 	publicar()
 	Golpeador.quitar()
 	Raspador.quitar()

@@ -7,7 +7,8 @@
 --   ser suyo en la siguiente foto.
 --   Si el dueño se va, se espera Config.Partida.EsperaDueno por si es un corte y luego se acaba para todos.
 --   Cada guardado apunta en los datos del dueño el resumen de la ranura (lo que enseña el lobby).
---   Al huir en el coche (Coche.alHuir) se guarda con `final` y se da por terminada: la ranura queda libre.
+--   Al huir en el coche (Coche.alHuir) o al quemar la casa con la Bestia dentro (Incendio.alTerminar, 12.2) se guarda
+--   con `final` ("Huida" o "Bestia") y se da por terminada: la ranura queda libre.
 -- Modo de pruebas: un almacén de mentira que dura lo que la prueba. ServerStorage.Prueba:Fire("Guardar") hace la foto
 -- y la guarda ya; ("Cargar") la vuelve a leer del almacén y la pone, como al volver a entrar.
 -- Detalle en docs/sistemas/partida.md.
@@ -34,16 +35,18 @@ local Ciclo = require(script.Parent.Ciclo)
 local Coche = require(script.Parent.Coche)
 local FormatoPartida = require(script.Parent.FormatoPartida)
 local Generador = require(script.Parent.Generador)
+local Incendio = require(script.Parent.Incendio)
 local Llaves = require(script.Parent.Llaves)
 local Mochila = require(script.Parent.Mochila)
 local Pistas = require(script.Parent.Pistas)
+local Preparativos = require(script.Parent.Preparativos)
 local Recursos = require(script.Parent.Recursos)
 
 local Partida = {}
 
 local P = Config.Partida
 local CAT = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = P.Sueltos, coche = Config.Coche,
-	arreglarCoche = Recetas.arreglarCoche, pistas = #Historia }
+	arreglarCoche = Recetas.arreglarCoche, pistas = #Historia, puntos = Preparativos.claves() }
 local info: Viaje.Info? = nil
 local op: Candado.Opciones? = nil -- nil = no se guarda (sin cargar, acabada o perdida)
 local crudo = nil -- lo que había guardado al cargar, tal cual (se devuelve si se cierra antes del primer amanecer)
@@ -112,6 +115,7 @@ local function foto()
 		mochilas = mochilas,
 		coche = Coche.exportar(),
 		pistas = Pistas.exportar(),
+		preparativos = Preparativos.exportar(),
 	}
 end
 
@@ -129,6 +133,7 @@ local function aplicar(d)
 	Generador.importar(d.generador)
 	Coche.importar(d.coche)
 	Pistas.importar(d.pistas)
+	Preparativos.importar(d.preparativos)
 	for _, jugador in Players:GetPlayers() do
 		ponerMochila(jugador)
 	end
@@ -168,7 +173,7 @@ local function guardar(soltar: boolean)
 	end
 end
 
--- Se ha terminado con un final (Coche, al huir): se guarda así, se suelta y ya no pasa nada más (Director lo mira).
+-- Se ha terminado con un final (Coche al huir, Incendio al quemar a la Bestia): se guarda así, se suelta y ya no pasa nada más (Director lo mira).
 local function terminar(final: string)
 	if acabada then
 		return
@@ -262,6 +267,9 @@ function Partida.start(): number
 	Players.PlayerRemoving:Connect(alSalir)
 	Coche.alHuir(function()
 		terminar("Huida")
+	end)
+	Incendio.alTerminar(function()
+		terminar("Bestia")
 	end)
 	Ciclo.alCambiar(function(fase)
 		if fase == "Dia" and op and not acabada then

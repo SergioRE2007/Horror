@@ -3,6 +3,8 @@
 -- recetas; el cliente pide ("Hacer", n) y aquí se valida todo: vivo, cerca, con lo que pide en la mochila y las cosas
 -- pesadas dejadas junto al banco (Config.Taller.Radio). Se trabaja unos segundos a martillazos y, si sale bien, se
 -- gasta lo pedido y sale lo hecho: a la mochila o, si es pesado, delante del banco.
+-- Las recetas salen de Recetas.delBanco: al final de las del sótano, la reja del final de la Bestia (12.2), que no sale
+-- hasta leer la pista de su plano (Pistas.leida). ("Abrir", banco, ocultas) le dice al cliente cuáles no enseñar.
 -- Trampas: una trampa tirada al suelo (objeto suelto, se guarda como los demás) aturde al primer bicho que pasa cerca
 -- y se gasta; a los jugadores no les hace nada.
 local CollectionService = game:GetService("CollectionService")
@@ -19,6 +21,7 @@ local Cargar = require(script.Parent.Cargar)
 local Caza = require(script.Parent.Caza)
 local Mochila = require(script.Parent.Mochila)
 local Muerte = require(script.Parent.Muerte)
+local Pistas = require(script.Parent.Pistas)
 
 local Taller = {}
 
@@ -74,11 +77,22 @@ local function tengo(jugador: Player, banco: Model, receta): ({ [string]: number
 	return cuenta, cerca
 end
 
+-- Las recetas que aún no se ven (la reja, sin leer la pista de su plano): { [número] = true }.
+local function ocultas(recetas): { [number]: boolean }
+	local lista = {}
+	for i, receta in recetas do
+		if receta.Pista and not Pistas.leida(receta.Pista) then
+			lista[i] = true
+		end
+	end
+	return lista
+end
+
 local function hacer(jugador: Player, n: unknown)
 	local banco = bancoDe(jugador)
-	local recetas = banco and T.Bancos[banco:GetAttribute("Banco")]
+	local recetas = banco and Recetas.delBanco(banco:GetAttribute("Banco"), Config)
 	local receta = recetas and type(n) == "number" and recetas[n]
-	if not banco or not receta then
+	if not banco or not receta or ocultas(recetas)[n :: number] then
 		return
 	end
 	if ocupados[banco] then
@@ -106,8 +120,11 @@ local function hacer(jugador: Player, n: unknown)
 			end
 		end
 	end
-	if Config.Pesados[receta.Da] then
-		Cargar.nuevo(receta.Da, banco:GetAttribute("Salida") :: CFrame)
+	local pesado = Config.Pesados[receta.Da]
+	if pesado then
+		-- Lo alto (la reja), de pie con la base en el suelo: la Salida está a ras de él.
+		local alto = math.max(0, pesado.Tam[2] / 2 - 0.5)
+		Cargar.nuevo(receta.Da, (banco:GetAttribute("Salida") :: CFrame) * CFrame.new(0, alto, 0))
 	else
 		Mochila.dar(jugador, receta.Da)
 	end
@@ -171,7 +188,12 @@ local function preparar(banco: Model)
 	prompt.Parent = banco:WaitForChild("Mando")
 	prompt.Triggered:Connect(function(jugador)
 		if bancoDe(jugador) == banco then
-			Remotes.Taller:FireClient(jugador, "Abrir", banco)
+			-- Las ocultas, como lista de números (las tablas con huecos no pasan bien por el remote).
+			local lista = {}
+			for i in ocultas(Recetas.delBanco(banco:GetAttribute("Banco"), Config)) do
+				table.insert(lista, i)
+			end
+			Remotes.Taller:FireClient(jugador, "Abrir", banco, lista)
 		end
 	end)
 end

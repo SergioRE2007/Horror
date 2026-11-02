@@ -5,7 +5,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 ## Sobre Sergio
 
 - Habla español y no programa: todo el código lo escribe Claude. Da ideas a grandes rasgos y espera que Claude proponga los detalles, los construya y los pruebe.
-- Le preocupa el gasto de tokens: respuestas cortas, leer solo lo necesario, una funcionalidad por conversación. No volcar árboles enteros del juego ni archivos grandes sin necesidad.
+- Gasto de tokens (desde noviembre de 2026 tiene el plan Max 5x): ya no hace falta ahorrar tanto (se puede probar más a fondo en Studio y revisar con calma), pero sigue siendo importante no gastar sin motivo: respuestas cortas, leer solo lo necesario, una funcionalidad por conversación. No volcar árboles enteros del juego ni archivos grandes sin necesidad.
 - Le gustan las físicas y los juegos RNG. Quiere una base sólida que se pueda ampliar. No hay modelos propios: piezas, código y modelos de Blender hechos por script; los sonidos, con ElevenLabs.
 - Números de equilibrio de contenido nuevo: a ojo siguiendo a los vecinos, sin preguntarle cuántas horas debe durar; avisar en una línea de que son a ojo.
 - En este juego, pedido por el usuario: en la partida siempre primera persona (en el lobby da igual).
@@ -28,7 +28,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
   - Interfaz: skills `roblox-ui-designer` y `roblox-ui-engineer`.
   - Un fallo que no se entiende: skill `roblox-debugging-bugfix`. Probar una tarea entera en Studio: `roblox-playtest-qa`.
   - Revisar el código al acabar: agente `reviewer` (Sonnet; Haiku se deja fallos de seguridad). Revisar capturas: un agente con Haiku y el `.jpg`.
-  - No lanzar agentes para construir: se construye en la conversación principal, que ya tiene el contexto.
+  - Por defecto se construye en la conversación principal. Si Sergio dice "en paralelo" o "con agentes" (pedido por el usuario, nov. 2026, sin abrir terminales), el chat principal lanza subagentes a la vez en la misma carpeta y rama, sin copias ni puertos: cada uno con archivos distintos (nunca dos en el mismo), sin commits, y solo uno usa Play en Studio a la vez (los demás miran en modo Edit). El principal reparte, junta, prueba y hace el commit. Las copias con varios Studios (memoria `trabajo-en-paralelo`) solo para trabajos enormes.
 - Parar y preguntar a Sergio si la tarea no está clara, si depende de él (dibujos, sonidos, historia, nombres) o si algo falla dos veces seguidas.
 
 ## Entorno
