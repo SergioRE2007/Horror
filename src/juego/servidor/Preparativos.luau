@@ -296,7 +296,7 @@ local function tirar(jugador: Player)
 	end
 end
 
--- La trampilla solo se abre desde abajo (desde el patio, el prompt no se ve: la tapa lo tapa).
+-- La trampilla solo se abre desde abajo (desde el patio, el prompt queda lejos: no sale).
 local function abrirTrampilla(jugador: Player)
 	local raiz = cerca(jugador, trampilla:FindFirstChild("Mando") :: BasePart)
 	if not raiz or raiz.Position.Y > -1 or trampilla:GetAttribute("Abierto") then
@@ -481,8 +481,12 @@ function Preparativos.start()
 	promptPalanca.Triggered:Connect(tirar)
 	trampilla = CollectionService:GetTagged("Trampilla")[1] :: Model
 	trampilla:SetAttribute("Abierto", false)
-	promptTrampilla = nuevoPrompt(trampilla:FindFirstChild("Mando") :: BasePart, "Open")
-	promptTrampilla.RequiresLineOfSight = true -- desde el patio la tapa lo tapa
+	-- El mando, a la altura de la cabeza bajo el hueco (Mapa lo pone pegado al techo del sótano: había que ponerse
+	-- debajo y mirar arriba para ver el prompt). Desde el patio queda a más de Alcance: no sale y no hace falta
+	-- línea de visión (la escala invisible la cortaba).
+	local mandoTrampilla = trampilla:FindFirstChild("Mando") :: BasePart
+	mandoTrampilla.Position -= Vector3.new(0, 4, 0)
+	promptTrampilla = nuevoPrompt(mandoTrampilla, "Open")
 
 	Cargar.alUsar("Bidon", usoBidon())
 	Cargar.alUsar("Reja", usoReja())

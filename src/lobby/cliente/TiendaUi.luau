@@ -20,6 +20,13 @@ local TiendaUi = {}
 local jugador = Players.LocalPlayer
 local LEJOS = 16 -- studs del mostrador a los que se cierra sola
 local ROBUX = "\u{E002}" -- el símbolo de Robux (lo pintan todas las fuentes)
+-- Medidas en píxeles de diseño. En el móvil, botones del alto de un dedo (Ui.DEDO): la X, las pestañas y los de cada
+-- fila; las filas crecen con ellos y la lista empieza más abajo. El papel, 540 de alto: cabe en un teléfono de 640 × 360.
+local BOTON = Ui.alto(46) -- el de cada fila
+local PESTANA = Ui.alto(42)
+local CRUZ = Ui.alto(44)
+local FILA = math.max(78, BOTON + 16)
+local LISTA = 86 + PESTANA + 14 -- donde empieza la lista
 
 local panel: Frame
 local escala: UIScale
@@ -55,7 +62,7 @@ local function fila(orden: number, nombre: string, linea: string, boton: string,
 	local f = Instance.new("Frame")
 	f.Name = "Fila"
 	f.LayoutOrder = orden
-	f.Size = UDim2.new(1, -12, 0, 78)
+	f.Size = UDim2.new(1, -12, 0, FILA)
 	f.BackgroundColor3 = Ui.Color.Negro
 	f.BackgroundTransparency = if marcada then 0.45 else 0.7
 	local borde = Instance.new("UIStroke")
@@ -90,7 +97,7 @@ local function fila(orden: number, nombre: string, linea: string, boton: string,
 	}).Parent = f
 	Ui.texto(linea, {
 		Position = UDim2.fromOffset(izquierda, 38),
-		Size = UDim2.new(1, -izquierda - 196, 0, 34),
+		Size = UDim2.new(1, -izquierda - 196, 0, FILA - 44),
 		TextSize = 16,
 		TextTransparency = 0.25,
 		TextWrapped = true,
@@ -100,7 +107,7 @@ local function fila(orden: number, nombre: string, linea: string, boton: string,
 	local b = Ui.boton(boton, {
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -14, 0.5, 0),
-		Size = UDim2.fromOffset(170, 46),
+		Size = UDim2.fromOffset(170, BOTON),
 		TextSize = 19,
 	})
 	if not alPulsar then
@@ -269,7 +276,7 @@ local function construir()
 	}).Parent = panel
 	monedas = Ui.texto("", {
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -78, 0, 20),
+		Position = UDim2.new(1, -(14 + math.max(48, CRUZ) + 16), 0, 20),
 		Size = UDim2.fromOffset(300, 36),
 		TextSize = 24,
 		TextXAlignment = Enum.TextXAlignment.Right,
@@ -278,7 +285,7 @@ local function construir()
 	local x = Ui.boton("X", {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -14, 0, 16),
-		Size = UDim2.fromOffset(48, 44),
+		Size = UDim2.fromOffset(math.max(48, CRUZ), CRUZ),
 		TextSize = 24,
 	})
 	x.Activated:Connect(cerrar)
@@ -287,7 +294,7 @@ local function construir()
 	-- Raya bajo el título, como una hoja de libreta.
 	local raya = Instance.new("Frame")
 	raya.Position = UDim2.fromOffset(26, 70)
-	raya.Size = UDim2.new(1, -52, 0, 2)
+	raya.Size = UDim2.new(1, if CRUZ > 44 then -(26 + 14 + CRUZ + 12) else -52, 0, 2) -- la X del móvil baja hasta aquí
 	raya.BackgroundColor3 = Ui.Color.Sangre
 	raya.BackgroundTransparency = 0.3
 	raya.BorderSizePixel = 0
@@ -296,7 +303,7 @@ local function construir()
 	for i, p in { { "Clases", "Classes" }, { "Linterna", "Lights" }, { "Robux", "Robux" } } do
 		local b = Ui.boton(Lang.t(nil, p[2]), {
 			Position = UDim2.fromOffset(26 + (i - 1) * 182, 86),
-			Size = UDim2.fromOffset(170, 42),
+			Size = UDim2.fromOffset(170, PESTANA),
 			TextSize = 20,
 		})
 		b.Activated:Connect(function()
@@ -310,8 +317,8 @@ local function construir()
 
 	lista = Instance.new("ScrollingFrame")
 	lista.Name = "Lista"
-	lista.Position = UDim2.fromOffset(20, 142)
-	lista.Size = UDim2.new(1, -40, 1, -158)
+	lista.Position = UDim2.fromOffset(20, LISTA)
+	lista.Size = UDim2.new(1, -40, 1, -LISTA - 16)
 	lista.BackgroundTransparency = 1
 	lista.BorderSizePixel = 0
 	lista.ScrollBarThickness = 6

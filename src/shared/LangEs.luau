@@ -250,4 +250,10 @@ return {
 	["Get out of here"] = "Vete de aquí",
 	["He knew"] = "Él lo sabía",
 	["Behind you"] = "Detrás de ti",
+	-- Ajustes (14.4).
+	["Settings"] = "Ajustes",
+	["Performance"] = "Rendimiento",
+	["Fewer particles and effects."] = "Menos partículas y efectos.",
+	["On"] = "Sí",
+	["Off"] = "No",
 }

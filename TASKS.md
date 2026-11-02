@@ -135,7 +135,7 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 - Ajustes con opción Rendimiento (mirar antes si ya está).
 - HUD en pantallas pequeñas, cuántas piezas tiene el mapa (el pueblo, ~5.100 más 240 pinos) y probar en móvil.
 - Aviso suelto del asset 203785492 en la consola.
-- **Estado:** pendiente
+- **Estado:** hecho (`docs/sistemas/movil.md`, `ajustes.md`, `rendimiento.md`; probado en Studio en PC el 02-11-2026; el HUD táctil, sin probar aún con el emulador de teléfono). Mapa por partes (StreamingEnabled) preparado pero apagado: antes hay que poner Atomic los bichos (ver `rendimiento.md`)
 
 ### 14.5 Partida entera de prueba
 - Una partida de principio a fin sin órdenes de prueba: ritmo de días y noches, monedas y precios (skill `roblox-economy-balancing`), fallos que salgan.

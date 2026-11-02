@@ -19,6 +19,13 @@ local TallerUi = {}
 
 local jugador = Players.LocalPlayer
 local T = Config.Taller
+-- Medidas en píxeles de diseño. En el móvil, botones del alto de un dedo, filas más altas y el papel más ancho.
+local TACTIL = Ui.tactil()
+local ANCHO = if TACTIL then 700 else 640
+local BOTON = Ui.alto(42) -- HACER
+local CERRAR = Ui.alto(40)
+local PASO = BOTON + 10 -- de una receta a la siguiente
+local ARRIBA = math.max(80, 14 + CERRAR + 12) -- donde empieza la primera receta
 local panel: TextButton
 local titulo: TextLabel
 local filas: { { texto: TextLabel, boton: TextButton } } = {}
@@ -69,7 +76,7 @@ local function pintar()
 		fila.boton.Visible = receta ~= nil
 		if receta then
 			-- Una debajo de otra, sin dejar hueco por las ocultas.
-			local y = 80 + vistas * 52
+			local y = ARRIBA + vistas * PASO
 			vistas += 1
 			fila.texto.Position = UDim2.fromOffset(22, y)
 			fila.boton.Position = UDim2.new(1, -14, 0, y)
@@ -83,7 +90,7 @@ local function pintar()
 			fila.boton.TextTransparency = if puedo then 0 else 0.6
 		end
 	end
-	panel.Size = UDim2.fromOffset(640, 96 + vistas * 52)
+	panel.Size = UDim2.fromOffset(ANCHO, ARRIBA + 16 + vistas * PASO)
 end
 
 local function lejos(): boolean
@@ -126,7 +133,7 @@ local function construir()
 	panel.AutoButtonColor = false
 	panel.AnchorPoint = Vector2.new(0.5, 1)
 	panel.Position = UDim2.new(0.5, 0, 1, -24)
-	panel.Size = UDim2.fromOffset(640, 200)
+	panel.Size = UDim2.fromOffset(ANCHO, 200)
 	panel.BackgroundColor3 = Ui.Color.Papel
 	panel.BackgroundTransparency = 0.08
 	panel.ClipsDescendants = true
@@ -140,7 +147,7 @@ local function construir()
 
 	titulo = Ui.texto("", {
 		Position = UDim2.fromOffset(22, 14),
-		Size = UDim2.new(1, -190, 0, 54),
+		Size = UDim2.new(1, -190, 0, math.max(54, CERRAR)),
 		TextSize = 26,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 11,
@@ -149,7 +156,7 @@ local function construir()
 	local salir = Ui.boton(Lang.t(nil, "Close"), {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -14, 0, 14),
-		Size = UDim2.fromOffset(150, 40),
+		Size = UDim2.fromOffset(150, CERRAR),
 		TextSize = 20,
 		ZIndex = 11,
 	})
@@ -161,11 +168,11 @@ local function construir()
 		cuantas = math.max(cuantas, #Recetas.delBanco(cual, Config))
 	end
 	for i = 1, cuantas do
-		local y = 80 + (i - 1) * 52
+		local y = ARRIBA + (i - 1) * PASO
 		local texto = Ui.texto("", {
 			Position = UDim2.fromOffset(22, y),
-			Size = UDim2.new(1, -200, 0, 44),
-			TextSize = 19,
+			Size = UDim2.new(1, -200, 0, math.max(44, BOTON)),
+			TextSize = if TACTIL then 22 else 19,
 			TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 11,
@@ -174,7 +181,7 @@ local function construir()
 		local boton = Ui.boton(Lang.t(nil, "Make"), {
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, -14, 0, y),
-			Size = UDim2.fromOffset(150, 42),
+			Size = UDim2.fromOffset(150, BOTON),
 			TextSize = 20,
 			ZIndex = 11,
 		})

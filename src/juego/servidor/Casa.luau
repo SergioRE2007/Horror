@@ -105,6 +105,11 @@ local function preparar(el: Model, tipo: string)
 	e.bloqueada = el:GetAttribute("Bloqueada") == true
 	estados[el] = e
 	local mando = el:WaitForChild("Mando") :: BasePart
+	if tipo == "Puerta" then
+		-- El prompt mide en 3D desde la cadera: con el mando a esa altura, subiendo la escalera del sótano sale un
+		-- stud antes (en llano no cambia nada).
+		mando.Position -= Vector3.new(0, 1, 0)
+	end
 	local principal = nuevoPrompt(mando, Enum.KeyCode.E, Enum.KeyCode.ButtonX, "")
 	local reparar = nuevoPrompt(mando, Enum.KeyCode.R, Enum.KeyCode.ButtonY, "Repair")
 	reparar.UIOffset = Vector2.new(0, 60)
