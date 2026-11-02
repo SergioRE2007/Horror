@@ -4,10 +4,10 @@ Textos aprobados por el usuario en `docs/historia.md` (no cambiarlos sin él). E
 
 ## Servidor (`Pistas`)
 
-- Cada pista es un modelo `Pista<n>` (etiqueta `Pista`, atributo `N`) en `workspace.Mapa.Pistas`, con un prompt "Read" (E, 7 studs, sin línea de visión). Formas: nota (papel con renglones; la de la iglesia, clavada en la pared), foto (borde blanco y la imagen oscura), libreta o diario abiertos. Mancha de sangre en la 4, la 6 y la 9.
+- Cada pista es un modelo `Pista<n>` (etiqueta `Pista`, atributo `N`) en `workspace.Mapa.Pistas`, con un prompt "Read" (E, `Config.Casa.Alcance` como los demás, estilo Custom que pinta `Controles`, sin línea de visión). Formas: nota (papel con renglones; la de la iglesia, clavada en la pared), foto (borde blanco y la imagen oscura), libreta o diario abiertos. Mancha de sangre en la 4, la 6 y la 9.
 - Sitios en `SITIOS` (mismo orden que `Historia`). La 10 (nota del cuarto de revelado), la 11 (diario del escritorio del rico) y la 12 (caja fuerte, "Open") ya están en los muebles de `Mapa`: solo llevan el prompt en una pieza invisible (`YA_HAY`).
 - La 9 (sótano) está encima del banco del taller, a la izquierda (sitio dado por la 11.8.13).
-- Al leerla, el servidor comprueba vivo, cerca (7 + 4 studs de holgura), 0,3 s entre lecturas y, en las salas con llave (9 a 12), que su puerta ya esté abierta (el prompt atraviesa paredes; `SALA`); la apunta y manda `Remotes.Pista` (n, cuántas van). No hay remote de vuelta.
+- Al leerla, el servidor comprueba vivo, cerca (`Alcance` + 4 studs de holgura), 0,3 s entre lecturas y, en las salas con llave (9 a 12), que su puerta ya esté abierta (el prompt atraviesa paredes; `SALA`); la apunta y manda `Remotes.Pista` (n, cuántas van). No hay remote de vuelta.
 - `Pistas.leida(n)`: para el final (12.2: plano de la reja, cerillas).
 
 ## Guardado

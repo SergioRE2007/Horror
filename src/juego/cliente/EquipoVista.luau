@@ -179,11 +179,13 @@ local function crearHud()
 	blanco.BorderSizePixel = 0
 	blanco.Parent = capa
 
-	-- Pila (una barrita) y fotos, abajo en el centro; sale un momento al cambiar.
+	-- Pila (una barrita) y fotos, abajo en el centro; sale un momento al cambiar. En el móvil, arriba en el centro, bajo
+	-- la barra de Roblox: abajo están los botones del equipo.
+	local tactil = UserInputService.TouchEnabled
 	cartel = Instance.new("CanvasGroup")
 	cartel.Name = "Equipo"
-	cartel.AnchorPoint = Vector2.new(0.5, 1)
-	cartel.Position = UDim2.new(0.5, 0, 1, -18)
+	cartel.AnchorPoint = Vector2.new(0.5, if tactil then 0 else 1)
+	cartel.Position = if tactil then UDim2.fromScale(0.5, 0.17) else UDim2.new(0.5, 0, 1, -18)
 	cartel.Size = UDim2.fromOffset(300, 30)
 	cartel.BackgroundTransparency = 1
 	cartel.GroupTransparency = 1
@@ -211,25 +213,37 @@ local function crearHud()
 	fotos = Ui.texto("", { AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 26), TextSize = 20 })
 	fotos.Parent = cartel
 
-	-- Móvil: dos botones a la izquierda del de saltar de Roblox.
-	if UserInputService.TouchEnabled then
+	-- Móvil: los botones del equipo a la izquierda del de saltar de Roblox, en dos filas de tres como mucho para no
+	-- meterse en la zona del joystick (el 40 % izquierdo de la pantalla). Se rellena desde abajo a la derecha, junto al
+	-- pulgar, por LayoutOrder: FLASH 1, LINTERNA 2, BENGALA 3 (BengalasVista, solo con la pistola), MOCHILA 4
+	-- (MochilaUi) y MÓVIL 5 (MovilUi). Escondido o muerto no se ven (el botón SALIR y el de revivir van ahí).
+	if tactil then
 		local fila = Instance.new("Frame")
 		fila.Name = "EquipoBotones"
 		fila.AnchorPoint = Vector2.new(1, 1)
 		fila.Position = UDim2.fromScale(0.8, 0.97)
-		fila.Size = UDim2.fromOffset(290, 80)
-		fila.AutomaticSize = Enum.AutomaticSize.X -- BengalasVista añade BENGALA si lleva la pistola
+		fila.Size = UDim2.fromOffset(3 * 140 + 2 * 10, 2 * 80 + 10)
 		fila.BackgroundTransparency = 1
-		local orden = Instance.new("UIListLayout")
+		local orden = Instance.new("UIGridLayout")
+		orden.CellSize = UDim2.fromOffset(140, 80)
+		orden.CellPadding = UDim2.fromOffset(10, 10)
 		orden.FillDirection = Enum.FillDirection.Horizontal
-		orden.HorizontalAlignment = Enum.HorizontalAlignment.Right
-		orden.Padding = UDim.new(0, 10)
+		orden.FillDirectionMaxCells = 3
+		orden.StartCorner = Enum.StartCorner.BottomRight
+		orden.SortOrder = Enum.SortOrder.LayoutOrder
 		orden.Parent = fila
-		for _, datos in { { Lang.t(nil, "Flashlight"), pedirLinterna }, { "FLASH", pedirFlash } } do
-			local boton = Ui.boton(datos[1], { Size = UDim2.fromOffset(140, 80), TextSize = 24 })
+		for i, datos in { { "FLASH", pedirFlash }, { Lang.t(nil, "Flashlight"), pedirLinterna } } do
+			local boton = Ui.boton(datos[1], { LayoutOrder = i })
+			Ui.queQuepa(boton, 24) -- FLASHLIGHT no cabe entero a 24
 			boton.Activated:Connect(datos[2])
 			boton.Parent = fila
 		end
+		local function verFila()
+			fila.Visible = not (jugador:GetAttribute("Muerto") or typeof(jugador:GetAttribute("Escondido")) == "CFrame")
+		end
+		jugador:GetAttributeChangedSignal("Muerto"):Connect(verFila)
+		jugador:GetAttributeChangedSignal("Escondido"):Connect(verFila)
+		verFila()
 		fila.Parent = hud
 	end
 end

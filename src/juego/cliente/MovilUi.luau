@@ -21,6 +21,12 @@ local MovilUi = {}
 local ANCHO, ALTO = 290, 460
 local PANTALLA = Vector2.new(ANCHO - 24, ALTO - 44 - 76) -- el mapa en píxeles (debajo, el botón de adorno)
 local ESCALA = (PANTALLA.X / 2) / Config.Movil.Radio -- píxeles por stud
+-- Dónde queda abierto: en el ordenador, abajo a la derecha. En el móvil, algo más pequeño y encima de los botones del
+-- equipo (EquipoVista: 170 de alto pegados al 97 % de abajo), para no tapar MÓVIL, LINTERNA ni FLASH.
+local TACTIL = UserInputService.TouchEnabled
+local X = 0.68
+local ABIERTO = if TACTIL then UDim2.new(X, 0, 0.97, -180) else UDim2.new(X, 0, 1, -16)
+local CERRADO = UDim2.new(X, 0, 1, ALTO + 40)
 
 local jugador = Players.LocalPlayer
 local camara = workspace.CurrentCamera
@@ -173,7 +179,7 @@ local function mostrar(si: boolean)
 		telefono.Visible = true
 	end
 	local tween = TweenService:Create(telefono, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = if si then UDim2.new(0.68, 0, 1, -16) else UDim2.new(0.68, 0, 1, ALTO + 40),
+		Position = if si then ABIERTO else CERRADO,
 	})
 	tween:Play()
 	if not si then
@@ -198,13 +204,18 @@ local function crear()
 	telefono = caja({
 		Name = "Movil",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.68, 0, 1, ALTO + 40),
+		Position = CERRADO,
 		Size = UDim2.fromOffset(ANCHO, ALTO),
 		BackgroundColor3 = Color3.fromRGB(14, 14, 16),
 		Visible = false,
 		ZIndex = 20,
 	})
 	esquina(telefono, 26)
+	if TACTIL then
+		local menor = Instance.new("UIScale")
+		menor.Scale = 0.75 -- a 640 × 360 cabe entre la barra de Roblox y los botones del equipo
+		menor.Parent = telefono
+	end
 	local borde = Instance.new("UIStroke")
 	borde.Color = Color3.fromRGB(50, 50, 54)
 	borde.Thickness = 3
@@ -274,11 +285,12 @@ local function crear()
 		task.defer(pintarArbol, arbol)
 	end)
 
-	-- Móvil: botón MÓVIL junto a los del equipo.
-	if UserInputService.TouchEnabled then
+	-- Móvil: botón MÓVIL en la rejilla del equipo (EquipoVista: el tamaño lo pone ella; orden 5).
+	if TACTIL then
 		local botones = Ui.hud():FindFirstChild("EquipoBotones")
 		if botones then
-			local boton = Ui.boton(Lang.t(nil, "Phone"), { Size = UDim2.fromOffset(140, 80), TextSize = 22, LayoutOrder = -2 })
+			local boton = Ui.boton(Lang.t(nil, "Phone"), { LayoutOrder = 5 })
+			Ui.queQuepa(boton, 22)
 			boton.Activated:Connect(alternar)
 			boton.Parent = botones
 		end

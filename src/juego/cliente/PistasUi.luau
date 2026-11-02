@@ -17,7 +17,13 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 local PistasUi = {}
 
 local ALCANCE = 11 -- studs: más lejos de la pista, se cierra
-local ANCHO = 560 -- del papel, en píxeles (el alto sale del texto)
+-- Medidas del papel en píxeles de diseño (el alto sale del texto). En el móvil, más grande y con letra mayor (el HUD
+-- se encoge a la mitad) y CERRAR del alto de un dedo.
+local TACTIL = Ui.tactil()
+local ANCHO = if TACTIL then 720 else 560
+local LETRA = if TACTIL then 28 else 24
+local CERRAR = Ui.alto(40)
+local ABAJO = CERRAR + 36 -- lo que queda bajo el texto: la cuenta y CERRAR
 local ROJO = Color3.fromRGB(150, 34, 28) -- más claro que Ui.Color.Sangre: sobre el papel oscuro tiene que leerse
 
 local jugador = Players.LocalPlayer
@@ -71,7 +77,8 @@ local function abrir(n: number, encontradas: number)
 	texto.Text = Lang.t(nil, pista.texto)
 	-- El papel, tan alto como el texto (las cortas no dejan medio papel vacío).
 	local alto = TextService:GetTextSize(texto.Text, texto.TextSize, Enum.Font.SpecialElite, Vector2.new(ANCHO - 64, 1000)).Y
-	panel.Size = UDim2.fromOffset(ANCHO, math.max(200, math.ceil(alto * texto.LineHeight) + 150))
+	local maximo = Ui.lienzo().Y - 40 -- que no se salga de la pantalla
+	panel.Size = UDim2.fromOffset(ANCHO, math.clamp(math.ceil(alto * texto.LineHeight) + 74 + ABAJO, 200, math.max(200, maximo)))
 	cuenta.Text = Lang.t(nil, "{n} of {total}", { n = encontradas, total = #Historia })
 	if not panel.Visible then
 		Sonido.tocar("Papel") -- de una pista a otra sin cerrar, el papel ya estaba en la mano
@@ -122,8 +129,8 @@ local function construir()
 	que.Parent = panel
 	texto = Ui.texto("", {
 		Position = UDim2.fromOffset(32, 60),
-		Size = UDim2.new(1, -64, 1, -136),
-		TextSize = 24,
+		Size = UDim2.new(1, -64, 1, -60 - ABAJO),
+		TextSize = LETRA,
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
@@ -144,7 +151,7 @@ local function construir()
 	local salir = Ui.boton(Lang.t(nil, "Close"), {
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -18, 1, -16),
-		Size = UDim2.fromOffset(150, 40),
+		Size = UDim2.fromOffset(150, CERRAR),
 		TextSize = 20,
 		ZIndex = 21,
 	})

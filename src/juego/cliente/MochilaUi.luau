@@ -21,7 +21,10 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 local MochilaUi = {}
 
 local CAT = Config.Objetos
-local CASILLA = 58 -- píxeles de una casilla (el HUD entero se escala)
+local CASILLA = 58 -- píxeles de diseño de una casilla en el ordenador (el HUD entero se escala)
+local casilla = CASILLA -- la de ahora: en el móvil, más grande si cabe (medirCasilla)
+local BOTON = Ui.alto(50) -- alto de los botones de abajo (en el móvil, el de un dedo)
+local MARCO = 62 + 14 + BOTON + 14 -- lo que ocupa el panel aparte de la rejilla, de alto (título, botones y bordes)
 local jugador = Players.LocalPlayer
 local camara = workspace.CurrentCamera
 
@@ -55,8 +58,8 @@ end
 local function cuadro(tipo: string, girada: boolean, x: number, y: number): Frame
 	local w, h = Rejilla.tamano(CAT, tipo, girada)
 	local f = Instance.new("Frame")
-	f.Position = UDim2.fromOffset((x - 1) * CASILLA + 3, (y - 1) * CASILLA + 3)
-	f.Size = UDim2.fromOffset(w * CASILLA - 6, h * CASILLA - 6)
+	f.Position = UDim2.fromOffset((x - 1) * casilla + 3, (y - 1) * casilla + 3)
+	f.Size = UDim2.fromOffset(w * casilla - 6, h * casilla - 6)
 	f.BackgroundColor3 = Color3.fromRGB(62, 57, 52)
 	f.BorderSizePixel = 0
 	local borde = Instance.new("UIStroke")
@@ -70,7 +73,7 @@ local function cuadro(tipo: string, girada: boolean, x: number, y: number): Fram
 	degradado.Parent = f
 	-- Lo alto y estrecho, con el nombre de lado; lo de una casilla, con la letra que quepa.
 	local deLado = h > w
-	local largo, corto = (if deLado then h else w) * CASILLA - 12, (if deLado then w else h) * CASILLA - 12
+	local largo, corto = (if deLado then h else w) * casilla - 12, (if deLado then w else h) * casilla - 12
 	local nombre = Ui.texto(textoCosa(tipo), {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -79,7 +82,7 @@ local function cuadro(tipo: string, girada: boolean, x: number, y: number): Fram
 		TextScaled = true,
 	})
 	local limite = Instance.new("UITextSizeConstraint")
-	limite.MaxTextSize = 17
+	limite.MaxTextSize = math.floor(casilla * 0.3) -- 17 con la casilla del ordenador
 	limite.Parent = nombre
 	nombre.Parent = f
 	return f
@@ -110,31 +113,31 @@ local function pintarFantasma()
 	borde.Color = if cabe then Ui.Color.Hueso else Color3.fromRGB(170, 25, 25)
 	borde.Transparency = 0
 	borde.Thickness = 2.5
-	fantasma.Size = UDim2.fromOffset(w * CASILLA, h * CASILLA)
-	fantasma.Position = UDim2.fromOffset((x - 1) * CASILLA, (y - 1) * CASILLA)
+	fantasma.Size = UDim2.fromOffset(w * casilla, h * casilla)
+	fantasma.Position = UDim2.fromOffset((x - 1) * casilla, (y - 1) * casilla)
 	fantasma.Visible = true
 end
 
 -- Las casillas de fondo (se rehacen si cambia el tamaño: mochila ampliada).
 local tocar: (x: number, y: number) -> ()
 local function hacerCeldas(ancho: number, alto: number)
-	if medidas[1] == ancho and medidas[2] == alto then
+	if medidas[1] == ancho and medidas[2] == alto and medidas[3] == casilla then
 		return
 	end
-	medidas = { ancho, alto }
+	medidas = { ancho, alto, casilla }
 	for _, c in celdas do
 		c:Destroy()
 	end
 	table.clear(celdas)
-	rejillaGui.Size = UDim2.fromOffset(ancho * CASILLA, alto * CASILLA)
-	panel.Size = UDim2.fromOffset(ancho * CASILLA + 48, alto * CASILLA + 140)
+	rejillaGui.Size = UDim2.fromOffset(ancho * casilla, alto * casilla)
+	panel.Size = UDim2.fromOffset(ancho * casilla + 48, alto * casilla + MARCO)
 	for y = 1, alto do
 		for x = 1, ancho do
 			local celda = Instance.new("TextButton")
 			celda.Text = ""
 			celda.AutoButtonColor = false
-			celda.Position = UDim2.fromOffset((x - 1) * CASILLA, (y - 1) * CASILLA)
-			celda.Size = UDim2.fromOffset(CASILLA, CASILLA)
+			celda.Position = UDim2.fromOffset((x - 1) * casilla, (y - 1) * casilla)
+			celda.Size = UDim2.fromOffset(casilla, casilla)
 			celda.BackgroundColor3 = Color3.fromRGB(14, 12, 11)
 			celda.BackgroundTransparency = 0.25
 			celda.BorderSizePixel = 0
@@ -157,11 +160,22 @@ local function hacerCeldas(ancho: number, alto: number)
 	end
 end
 
+-- En el móvil las casillas crecen hasta llenar el alto de la pantalla (a 640 × 360, unos 40 píxeles de verdad en la
+-- mochila normal en vez de 32), sin pasar de 76 ni bajar de 40. En el ordenador, siempre CASILLA.
+local function medirCasilla(alto: number): number
+	if not Ui.tactil() then
+		return CASILLA
+	end
+	local libre = Ui.lienzo().Y - MARCO - 24
+	return math.clamp(math.floor(libre / alto), 40, 76)
+end
+
 local function pintar()
 	capaCosas:ClearAllChildren()
 	if not r then
 		return
 	end
+	casilla = medirCasilla(r.alto)
 	hacerCeldas(r.ancho, r.alto)
 	for _, c in r.cosas do
 		if not (cogida and cogida.id == c.id) then
@@ -415,7 +429,7 @@ local function crearGui()
 	local fila = Instance.new("Frame")
 	fila.AnchorPoint = Vector2.new(0.5, 1)
 	fila.Position = UDim2.new(0.5, 0, 1, -14)
-	fila.Size = UDim2.new(1, -48, 0, 50)
+	fila.Size = UDim2.new(1, -48, 0, BOTON)
 	fila.BackgroundTransparency = 1
 	fila.Parent = panel
 	local lista = Instance.new("UIListLayout")
@@ -426,7 +440,7 @@ local function crearGui()
 	local teclado = UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled
 	for _, b in { { "Rotate", "R", girar }, { "Throw away", "G", tirar }, { "Close", "B", function() cerrar(true) end } } do
 		local texto = Ui.mayusculas(Lang.t(nil, b[1])) .. (if teclado then "  [" .. b[2] .. "]" else "")
-		local boton = Ui.boton(texto, { Size = UDim2.fromOffset(0, 50), AutomaticSize = Enum.AutomaticSize.X, TextSize = 22 })
+		local boton = Ui.boton(texto, { Size = UDim2.fromOffset(0, BOTON), AutomaticSize = Enum.AutomaticSize.X, TextSize = 22 })
 		local relleno = Instance.new("UIPadding")
 		relleno.PaddingLeft, relleno.PaddingRight = UDim.new(0, 16), UDim.new(0, 16)
 		relleno.Parent = boton
@@ -434,11 +448,12 @@ local function crearGui()
 		boton.Parent = fila
 	end
 
-	-- Móvil: botón MOCHILA junto a los del equipo.
+	-- Móvil: botón MOCHILA en la rejilla del equipo (EquipoVista: el tamaño lo pone ella; orden 4).
 	if UserInputService.TouchEnabled then
 		local botones = Ui.hud():FindFirstChild("EquipoBotones")
 		if botones then
-			local boton = Ui.boton(Lang.t(nil, "Backpack"), { Size = UDim2.fromOffset(140, 80), TextSize = 22, LayoutOrder = -1 })
+			local boton = Ui.boton(Lang.t(nil, "Backpack"), { LayoutOrder = 4 })
+			Ui.queQuepa(boton, 22)
 			boton.Activated:Connect(alternar)
 			boton.Parent = botones
 		end

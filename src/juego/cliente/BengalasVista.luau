@@ -351,10 +351,12 @@ local function crearHud()
 	redondo.CornerRadius = UDim.new(1, 0)
 	redondo.Parent = mira
 	mira.Parent = hud
-	-- Las que quedan, abajo en el centro (encima del cartel de pila y fotos de EquipoVista).
+	-- Las que quedan, abajo en el centro (encima del cartel de pila y fotos de EquipoVista). En el móvil, arriba en el
+	-- centro, debajo de ese cartel (que allí va arriba: abajo están los botones del equipo).
+	local tactil = UserInputService.TouchEnabled
 	cuenta = Ui.texto("", {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -52),
+		AnchorPoint = Vector2.new(0.5, if tactil then 0 else 1),
+		Position = if tactil then UDim2.new(0.5, 0, 0.17, 36) else UDim2.new(0.5, 0, 1, -52),
 		Size = UDim2.fromOffset(240, 26),
 		TextSize = 20,
 		Visible = false,
@@ -365,12 +367,13 @@ local function crearHud()
 	end)
 
 	-- Móvil: botón BENGALA en la fila del equipo (la crea EquipoVista); solo se ve con la pistola en la mochila.
-	if UserInputService.TouchEnabled then
+	if tactil then
 		local fila = hud:FindFirstChild("EquipoBotones")
 		if fila then
-			local boton = Ui.boton(Lang.t(nil, "Flare"), { Size = UDim2.fromOffset(140, 80), TextSize = 24 })
+			local boton = Ui.boton(Lang.t(nil, "Flare"))
+			Ui.queQuepa(boton, 24)
 			boton.Name = "Bengala"
-			boton.LayoutOrder = -1
+			boton.LayoutOrder = 3 -- en la fila de abajo, junto a FLASH y LINTERNA (orden en EquipoVista)
 			boton.Visible = false
 			boton.Activated:Connect(disparar)
 			boton.Parent = fila

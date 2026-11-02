@@ -189,19 +189,22 @@ function CargarVista.start()
 	cartel = Instance.new("BillboardGui")
 	cartel.Name = "Usar"
 	cartel.AlwaysOnTop = true
-	cartel.Size = UDim2.fromOffset(300, 34)
+	local s = math.clamp(Ui.escala(), 0.75, 1) -- fuera del HUD: se encoge a mano en el móvil, como los de Controles
+	cartel.Size = UDim2.fromOffset(300 * s, 34 * s)
 	cartel.LightInfluence = 0
 	cartel.Enabled = false
-	textoCartel = Ui.texto("", { Size = UDim2.fromScale(1, 1), TextSize = 22 })
+	textoCartel = Ui.texto("", { Size = UDim2.fromScale(1, 1), TextSize = 22 * s })
 	textoCartel.Parent = cartel
 	cartel.Parent = Ui.hud().Parent
 
 	if tactil then
 		local acciones = Ui.hud():FindFirstChild("Acciones") -- donde sale el botón grande de acción (Controles)
-		botonUsar = Ui.boton("", { Size = UDim2.fromOffset(200, 90), TextSize = 26, TextWrapped = true, Visible = false, LayoutOrder = -2 })
+		botonUsar = Ui.boton("", { Size = UDim2.fromOffset(200, 90), Visible = false, LayoutOrder = -2 })
+		Ui.queQuepa(botonUsar :: TextButton, 26)
 		;(botonUsar :: TextButton).Activated:Connect(usar)
 		;(botonUsar :: TextButton).Parent = acciones or Ui.hud()
-		boton = Ui.boton(Lang.t(nil, "Drop"), { Size = UDim2.fromOffset(200, 90), TextSize = 28, Visible = false, LayoutOrder = -1 })
+		boton = Ui.boton(Lang.t(nil, "Drop"), { Size = UDim2.fromOffset(200, 90), Visible = false, LayoutOrder = -1 })
+		Ui.queQuepa(boton :: TextButton, 28)
 		;(boton :: TextButton).Activated:Connect(soltar)
 		;(boton :: TextButton).Parent = acciones or Ui.hud()
 	end

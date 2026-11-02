@@ -807,6 +807,16 @@ do
 	igual(type(Formato.arreglarJugador({ monedas = 3 }).puestos), "table", "puestos en datos viejos")
 end
 
+-- Ajustes (14.4): Rendimiento se guarda como booleano y los datos viejos o rotos quedan en false.
+do
+	igual(Formato.jugadorNuevo().rendimiento, false, "rendimiento: apagado al empezar")
+	igual(Formato.arreglarJugador({ monedas = 3 }).rendimiento, false, "rendimiento en datos viejos")
+	igual(Formato.arreglarJugador({ rendimiento = "si" }).rendimiento, false, "rendimiento que no es booleano: false")
+	local d = Formato.arreglarJugador({ monedas = 3, rendimiento = true })
+	igual(d.rendimiento, true, "rendimiento guardado se mantiene")
+	guardable(d, "datos con rendimiento")
+end
+
 -- Compras con Robux (Recibos): una compra no se entrega dos veces, el regalo de un pase una sola vez y revivir solo
 -- de noche, a un muerto y una vez por noche.
 do

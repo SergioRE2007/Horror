@@ -14,6 +14,7 @@ require(Comun.Recompensas).start()
 require(Comun.Clases).start(false)
 require(Comun.Tienda).start(false)
 require(Comun.Compras).start()
+require(Comun.Ajustes).start() -- Rendimiento (14.4)
 
 local Sistemas = script
 require(Sistemas.Mapa).start() -- la casa y el bosque, antes que lo que los usa
