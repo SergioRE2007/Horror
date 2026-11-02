@@ -388,6 +388,12 @@ Config.Bestia = {
 	Sobresalto = 0.6, -- segundos quieta al darle una bengala
 	CercaReja = 45, -- atrapada: va hacia quien ve fuera a menos de esto
 	CadaGolpe = 1.3, -- atrapada: segundos entre golpes a la reja
+	OlfatoSotano = 40, -- studs: arriba de la escalera del sótano o dentro, a quien esté abajo (para poder meterla)
+	OlfatoReciente = 6, -- segundos tras verle en que aún le huele en la otra planta (le ha visto subir o salir)
+	OlfatoAlto = 16, -- studs de alto a los que huele entonces (si no, 8: su planta)
+	Aranar = 8, -- segundos arañando bajo la trampilla cuando alguien se le escapa por ella (da tiempo a subir y tirar)
+	SinTrampilla = 15, -- segundos después en que ya no vuelve a la trampilla (busca por la escalera)
+	CercaTrampilla = 16, -- studs: si a quien busca está arriba a menos de esto del hueco, se ha ido por la trampilla
 	-- Bengalas
 	Bengalas = 3, -- las que trae la pistola
 	Alcance = 120, -- studs del disparo
@@ -401,7 +407,7 @@ Config.Bestia = {
 	Prender = 2, -- segundos con la cerilla en el rastro
 	PorSala = 1.6, -- segundos que tarda el fuego en pasar de un punto al siguiente
 	Chillido = 1.5, -- segundos entre que ella se quema y la escena final
-	Ventanas = 18, -- studs: las ventanas a esta distancia de un punto que arde estallan
+	ArdeCasa = 5, -- segundos con la casa entera ardiendo (y su chillido dentro) antes de la escena final
 	Cinematica = 20, -- segundos de la escena final
 }
 Config.Insignias = { Bestia = 0 } -- Id de la insignia (BadgeService) al publicar (13.2); 0 = no se da

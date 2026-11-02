@@ -101,8 +101,10 @@ local function raizDe(jugador: Player): BasePart?
 	return personaje and personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
 end
 
+-- A salvo: cerca de la luz de la casa o bajo tierra (el sótano y su escalera están debajo de la casa, no en el bosque:
+-- ahí no pinta "Run. Get back to the light.").
 local function aSalvo(posicion: Vector3): boolean
-	return plano(posicion).Magnitude < A.Refugio
+	return plano(posicion).Magnitude < A.Refugio or posicion.Y < -2
 end
 
 -- ¿Ya es hora? De noche, o en los últimos segundos del día (cuando suena el aviso de que se pone el sol).
@@ -152,6 +154,7 @@ local function ataque(a: Ataque)
 		local rr = raizDe(presa)
 		return not b.prisa and b.modelo ~= nil and rr ~= nil and table.find(Muerte.vivos(), presa) ~= nil
 			and not aSalvo(rr.Position) and Muerte.escondite(presa) == nil
+			and not workspace:GetAttribute("Bestia") -- la noche final solo está ella
 	end
 	local function iluminado(): boolean
 		return os.clock() - b.iluminado < 0.6

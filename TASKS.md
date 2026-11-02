@@ -118,7 +118,7 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 - **Morir esa noche** no borra lo preparado ese día.
 - **Bidón:** no soltarlo después de cada cruz mientras le quede gasolina.
 - **Aviso** "Corre. Vuelve a la luz." no tiene sentido en el sótano oscuro de la noche final.
-- **Estado:** pendiente
+- **Estado:** hecho (`docs/sistemas/bestia.md`; probado en Studio de punta a punta el 02-11-2026)
 
 ### 14.2 Los primeros 5 minutos
 - Es la 13.1 (tutorial muy visible: flecha grande, pasos cortos, premio al acabar). Se diseña con Sergio.
