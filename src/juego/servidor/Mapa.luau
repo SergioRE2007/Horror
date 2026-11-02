@@ -3240,6 +3240,32 @@ local function construirBosque(mapa: Folder)
 	bosque.Parent = mapa
 end
 
+-- Para el pueblo (Pueblo*.luau, por Lugares): las mismas ayudas que usa la casa. `Mapa.conPadre(padre, fn)` hace que
+-- todo lo que se cree dentro de `fn` (muebles, manchas, adornos) cuelgue de `padre` en vez de la casa.
+function Mapa.conPadre(padre: Instance, fn: () -> ())
+	local antes = casa
+	casa = padre :: any
+	local ok, err = pcall(fn)
+	casa = antes
+	if not ok then
+		error(err, 0)
+	end
+end
+Mapa.mueble = tienda
+Mapa.contraPared = contraPared
+Mapa.mancha = mancha
+Mapa.adorno = adorno
+Mapa.variante = variante
+Mapa.SANGRE = SANGRE
+Mapa.MUEBLES = MUEBLES
+-- Un pino como los del bosque (tronco que choca y su modelo de Piezas) en (x, z), colgado de `padre`.
+function Mapa.arbol(x: number, z: number, alto: number, grueso: number, padre: Instance)
+	local tronco = bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
+		COLOR.Tronco, Enum.Material.Wood, padre)
+	tronco.Shape = Enum.PartType.Cylinder
+	pino(tronco, x, z, alto, grueso)
+end
+
 function Mapa.start()
 	local mapa = workspace:WaitForChild("Mapa")
 	construirBosque(mapa)

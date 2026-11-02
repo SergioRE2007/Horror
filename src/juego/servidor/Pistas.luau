@@ -29,7 +29,7 @@ end
 local SITIOS: { CFrame } = {
 	enMesa(-19.0, 4.82, 6.9, 0.4), -- 1. cocina: en la mesa, al empezar
 	enMesa(17.1, 2.62, 0.7, 0.6), -- 2. salón: la foto en la mesa baja del sofá
-	enMesa(21.4, 4.02, -439.0, -0.3), -- 3. pueblo: la mesa de la casa de la puerta rota
+	enMesa(23.6, 4.02, -440.1, -0.3), -- 3. pueblo: la mesa de la casa de la puerta rota (contra la pared este, 11.5)
 	enPared(Vector3.new(21.47, 5.4, -503.6), -Vector3.xAxis), -- 4. iglesia: clavado junto a la puerta
 	enMesa(79.15, 4.02, -481.45, 0.5), -- 5. caseta del enterrador: la mesa
 	enMesa(195.6, 4.02, 51.3, 0.25), -- 6. granja: la mesa de la casa

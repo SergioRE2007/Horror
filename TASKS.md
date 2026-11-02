@@ -5,7 +5,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 ## Lo siguiente, en orden
 
 1. 12.2 La Bestia (ya hechos: 11.8 interior, 11.9 detalles y 12.1 pistas).
-2. 11.5 Pueblo amueblado, 11.2 Monstruos (casi al final), 13 Lanzamiento.
+2. 11.2 Monstruos (casi al final), 13 Lanzamiento (ya hecho: 11.5 pueblo).
 
 ## Hechas
 
@@ -64,9 +64,12 @@ En todas: telarañas que flotan o se meten en la pared.
 - Sonidos con ElevenLabs (tanda `detalles`), elegidos por el usuario; los de la bombilla, de YouTube (pedido por el usuario). — hecho
 
 ### 11.5 Pueblo amueblado
-- **Qué:** lo mismo que se hizo en la casa (salas grandes, muebles contra las paredes, puertas solo donde hacen falta), con el estilo de la casa nueva.
+- **Qué (pedido por el usuario: "hacerlo bien, pero rápido", no las 2 semanas de la casa):** fachadas bien hechas en todos los edificios y solo unos pocos con interior. Nada de una sala por chat: todo en 1-2 conversaciones.
+- **Fachadas:** las de `Fachada.luau` de la casa (tablas, ventanas con molduras, tejados con tejas, porches), cada casa distinta (color, una o dos plantas, porche o no). Iglesia de piedra. Las cerradas, tapiadas y sin interior.
+- **Se entra en:** tienda (vendedor), la casa de la puerta rota, iglesia, cripta y caseta del enterrador. Muebles reutilizados de la casa (`src/muebles/`) y pocos nuevos.
+- **Calle:** farolas apagadas, coche abandonado, buzones, vallas caídas.
 - **Modelos:** borrar todo script y lo que no sea pieza, malla o textura (en la prueba, 2 de 6 traían virus); descartar los sacados de otros juegos. Mejor Poly Haven, como en la 11.8.
-- **Estado:** pendiente — después del interior de la casa
+- **Estado:** hecho — detalle en `docs/sistemas/pueblo.md` (vendedor como personaje de Roblox, vallas oscuras, charcos sin reflejo y bosque alrededor: pedido por el usuario)
 
 ### 11.2 Monstruos con IA
 - **Descripción:** Golpeador, Raspador, Trepador, Imitador y Acechador desde dibujos de Sergio, pasados por IA de imagen a 3D, con esqueleto y animaciones por código.
