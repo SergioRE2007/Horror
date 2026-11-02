@@ -493,6 +493,24 @@ Config.Sonidos = {
 	VientoTiro = { Id = 108230513932897, Volumen = 1.3, Alcance = 50 }, -- el viento por el tiro de la chimenea
 	Parpadeo = { Id = 115400138567928, Volumen = 0.7, Alcance = 40 }, -- "Efecto de Sonido - Foco Luz Rota" (YouTube)
 	Zumbido = { Id = 129528625281695, Volumen = 0.35, Alcance = 22 }, -- "Bombilla de Luz Defectuosa" (YouTube, sin copyright)
+	-- Más miedo (14.3, tanda miedo). Latas, PuertaGolpe, CuadroCae, PasosArriba, Papel, Tension y CasaFondo: la versión
+	-- que recomendó Claude, falta que elija el usuario. Los demás, PROVISIONALES con ids de otros sonidos: sin créditos
+	-- de ElevenLabs hasta la recarga (~08-11-2026).
+	Latas = { Id = 84516470881879, Volumen = 1.45, Alcance = 120 }, -- latas colgadas que tintinean al pasar algo
+	PuertaGolpe = { Id = 112896966864592, Volumen = 1.5, Alcance = 90 }, -- un portazo en otra sala (susto)
+	CuadroCae = { Id = 77766212438473, Volumen = 0.97, Alcance = 50 }, -- un cuadro que se cae de la pared (susto)
+	PasosArriba = { Id = 74222410792500, Volumen = 0.9, Alcance = 60 }, -- pasos en el piso de arriba sin nadie (susto)
+	Susurro = { Id = 76385773029835, Volumen = 0.5 }, -- un susurro al oído, sin posición (susto)
+	Toc = { Id = 85091064305699, Volumen = 0.8, Alcance = 40 }, -- unos golpecitos en el cristal (susto)
+	Aranazo = { Id = 73284823449392, Volumen = 1, Alcance = 40 }, -- algo araña dentro de la pared (susto)
+	Sobresalto = { Id = 76385773029835, Volumen = 1.2 }, -- golpe de tensión al ver algo (susto)
+	Polvo = { Id = 133574014508797, Volumen = 0.6, Alcance = 30 }, -- polvo y arenilla que caen del techo
+	CristalVibra = { Id = 100084710095294, Volumen = 0.6, Alcance = 30 }, -- el cristal traquetea en el marco
+	Retumbo = { Id = 90763366072682, Volumen = 0.8, Alcance = 80 }, -- retumbo grave de algo pesado cerca
+	Tension = { Id = 128655385492630, Volumen = 0.44 }, -- zumbido grave de tensión, en bucle (Ambiente)
+	CasaFondo = { Id = 78347978132756, Volumen = 0.38 }, -- fondo de dentro de la casa de noche, en bucle (Ambiente)
+	Rafaga = { Id = 108230513932897, Volumen = 0.8, Alcance = 60 }, -- ráfaga de viento contra una ventana (Ambiente)
+	Papel = { Id = { 102356296355745, 123486080921232, 140510968287147 }, Volumen = 0.75 }, -- papel al coger o leer una pista
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.
@@ -583,6 +601,178 @@ Config.Compras = {
 		{ Ventaja = "PaqueteInicio", Id = 0, Robux = 99, Nombre = "Starter pack", Texto = "1000 coins and the violet light.",
 			Regalo = { Monedas = 1000, Cosmeticos = { "LuzMorada" } } },
 	},
+}
+
+-- Trampas de latas fuera de la casa (juego/servidor/Latas, 14.3). Números a ojo. Lineas: { x1, z1, x2, z2 }; no reordenar (el cliente siembra las latas con el número).
+Config.Latas = {
+	Cada = 0.2, -- segundos entre dos miradas
+	Radio = 2.5, -- studs de la cuerda (en planta) a los que algo la hace sonar
+	Espera = 4, -- segundos entre dos avisos de bicho de la misma línea
+	EsperaJugador = 2.5, -- lo mismo para los jugadores
+	FuerzaBicho = { 0.75, 1 }, -- andando ... corriendo (a CFG.Rapido studs/s o más)
+	FuerzaJugador = { 0.25, 0.45 },
+	Rapido = 20, -- studs/s a los que ya suena con la fuerza máxima
+	Salto = 40, -- studs en una mirada: más es que lo han movido de golpe (PivotTo), no que haya cruzado
+	Alto = 4.8, -- studs del suelo al nudo de la cuerda en la estaca
+	Comba = 0.7, -- lo que cuelga la cuerda en el medio
+	-- Las líneas { x1, z1, x2, z2 } (en planta, a ras de suelo). No reordenar: el cliente siembra las latas con el número.
+	Lineas = {
+		{ -40, -77, -12, -81 }, -- delante, a la izquierda de la carretera (comedor y puerta)
+		{ 12, -81, 42, -76 }, -- delante, a la derecha (salón y puerta)
+		{ 54, -71, 78, -49 }, -- la esquina de la torre (su ventana mira al sureste)
+		{ 80, -20, 82, 8 }, -- este, hacia delante
+		{ 81, 14, 78, 42 }, -- este, hacia atrás (ventana del dormitorio)
+		{ 72, 54, 52, 74 }, -- esquina de atrás a la derecha
+		{ 42, 79, 12, 81 }, -- detrás, a la derecha (dormitorio de abajo)
+		{ -16, 81, -48, 78 }, -- detrás, a la izquierda (cocina)
+		{ -58, 74, -76, 56 }, -- esquina de atrás a la izquierda (detrás del cobertizo)
+		{ -78, 48, -76, 20 }, -- oeste, hacia atrás (lavadero)
+		{ -79, 10, -77, -24 }, -- oeste, hacia delante (mirador del comedor)
+		{ -70, -44, -48, -70 }, -- esquina de delante a la izquierda (fuera del camino del coche)
+		{ -10, -84, 10, -84 }, -- por encima de la carretera, entre dos postes altos: la puerta principal (Imitador, Bestia)
+	},
+	-- Líneas distintas: [n] = { Alto, Comba, SoloBichos }. La de la carretera, alta para que el coche pase por debajo al
+	-- huir; los jugadores también pasan por debajo (no la tocan), los bichos no.
+	Especiales = {
+		[13] = { Alto = 9.5, Comba = 0.45, SoloBichos = true },
+	} :: { [number]: { Alto: number, Comba: number, SoloBichos: boolean } },
+}
+
+-- Cómo se mueven y suenan las latas (juego/cliente/LatasVista, 14.3). A ojo.
+Config.LatasVista = {
+	Cerca = 120, -- studs: más lejos no se anima nada
+	CercaViento = 60, -- studs: el vaivén del viento solo a esta distancia
+	Gravedad = 35, -- studs/s² "de verdad" (1 stud ~ 0,28 m): péndulos lentos como los de una lata real
+	Frena = 0.6, -- amortiguado del balanceo (por segundo)
+	Viento = 0.07, -- radianes de vaivén con viento
+	Golpe = 5, -- velocidad de giro (rad/s) que da un bicho a la lata que tiene al lado
+	Onda = 0.35, -- studs que vibra la cuerda con fuerza 1
+	Volumen = { 0.35, 1 }, -- parte del volumen del sonido con fuerza 0 ... 1
+	Lejos = { 10, 28 }, -- RollOffMinDistance con fuerza 0 ... 1 (desde la casa hay que oírlas: están a ~75 studs)
+	Alcance = { 70, 170 }, -- RollOffMaxDistance con fuerza 0 ... 1
+	Ecos = { { 0.38, 0.4, 1.08 }, { 0.85, 0.22, 0.94 }, { 1.45, 0.12, 1.15 } }, -- tintineos después: { s, volumen, tono }
+}
+
+-- Avisos visuales para quien juega sin cascos (juego/cliente/Efectos, 14.3): pisadas, polvo del techo, lámparas, cristales en el suelo. A ojo.
+Config.Efectos = {
+	Cerca = 90, -- studs de la cámara: más lejos no se mira nada
+	-- Algo fuera de una ventana o puerta.
+	Acerca = 18, -- studs (en planta) del sitio donde se planta el bicho: desde aquí empieza a notarse
+	Pegado = 7, -- studs del cristal o la puerta: se nota aunque no sea su sitio (el Trepador por la pared)
+	Plantado = 3.5, -- a menos de esto del sitio o del cristal: está pegado (vaho)
+	Suaviza = 1.5, -- lo deprisa que sube y baja (por segundo)
+	-- Cada bicho: studs entre dos pisadas (como en su Vista), de los pies a la raíz y lo que pesa.
+	Bichos = {
+		Golpeador = { Zancada = 7.5, Pies = 5, Peso = 1 },
+		Raspador = { Zancada = 6.3, Pies = 4, Peso = 0.55 },
+		Trepador = { Zancada = 3.5, Pies = 0, Peso = 0.85 },
+		Imitador = { Zancada = 7, Pies = 4, Peso = 0.45 },
+		Acechador = { Zancada = 11, Pies = 7, Peso = 0.9 },
+		Bestia = { Zancada = 10.5, Pies = Config.Bestia.Altura, Peso = 1.4, SinTemblor = true }, -- su temblor, en BestiaVista
+	},
+	Pasos = 45, -- studs de la cámara a los que se notan las pisadas
+	Retumbo = 0.55, -- volumen del retumbo (por el peso y la distancia)
+	Temblor = 0.22, -- temblor de cámara por pisada (en CasaVista un golpe es 0,5)
+	AlcanceTemblor = 26,
+	Encima = 6, -- studs por encima de la cámara: pisa "encima" (cae polvo del techo)
+	EncimaPlanta = 18, -- studs en planta de la cámara a los que cae
+	PolvoTecho = 14, -- granos de arenilla por pisada encima
+	Objetos = 11, -- studs de la pisada a los que tiemblan adornos, cuadros, lámparas, bombillas y cristales
+	Cuadro = 1.6, -- grados que se tuerce un cuadro con una pisada fuerte...
+	CuadroMax = 7, -- ...hasta este tope
+	Bombilla = 0.45, -- probabilidad de que tiemble una bombilla con una pisada (por el peso)
+	Golpe = 1.3, -- un golpe en una ventana o puerta hace temblar lo de alrededor como una pisada de este peso
+	-- Lámparas colgantes (péndulo).
+	Colgada = 1.4, -- studs mínimos de la bombilla al techo para que cuelgue
+	Gravedad = 30, -- cuanto más, más deprisa oscila
+	Amortigua = 0.5,
+	Empuje = 0.22, -- radianes/s por pisada (encima, x1,6)
+	MaxAngulo = 0.3,
+	-- Cristales del suelo.
+	Trozos = 24, -- (con Rendimiento, la mitad)
+	Pisar = 0.9, -- studs de un trozo a los que cruje
+	CadaCrujido = 0.9, -- studs andados entre dos crujidos
+	MaxVentanas = 6, -- ventanas con cristales en el suelo a la vez (las más viejas se barren)
+}
+
+-- Cortinas, cristales y puertas cuando algo se acerca por fuera (juego/cliente/CasaVista, 14.3). A ojo.
+Config.EfectosCasa = {
+	Ondea = 0.32, -- radianes que se mecen las cortinas hacia dentro con algo pegado fuera (abajo del todo)
+	VibraCristal = 0.03, -- studs que se mueve el cristal en el marco al vibrar
+	VibraDesde = 0.3, -- corriente a partir de la que suena el traqueteo del cristal
+	CadaVibra = { 2.2, 4.5 }, -- segundos entre dos traqueteos
+	CadaPolvo = { 2.5, 5 }, -- segundos entre dos polvillos del marco
+	Empuje = 0.9, -- grados que se comba la puerta hacia dentro
+	Vaho = 0.22, -- lo opaco del vaho en el cristal (0 a 1)
+	Dientes = 10, -- picos de cristal que quedan en el marco al romperse
+}
+
+-- Ambiente con miedo (juego/cliente/AmbienteMiedo, 14.3): fondo de la casa, tensión con un bicho cerca y ráfagas. A ojo.
+Config.AmbienteMiedo = {
+	Paso = 0.1, -- s entre cada vuelta del bucle
+	AltoCasa = 28, -- por encima de esto la cámara ya no está "en casa" (como Ambiente)
+	FondoSubir = 0.35, -- del volumen entero por segundo al entrar (unos 3 s)
+	FondoBajar = 0.6, -- y al salir (algo menos de 2 s)
+	TensionCerca = 16, -- studs: a esta distancia o menos de un bicho, la tensión entera
+	TensionLejos = 60, -- más lejos, nada
+	TensionDentro = 0.55, -- un bicho dentro de la casa con la cámara dentro: al menos esto
+	TensionSubir = 0.12, -- por segundo: de nada a entera en unos 8 s
+	TensionBajar = 0.07, -- por segundo: se va más despacio todavía
+	TensionEscondido = 0.4, -- escondido, la tensión se queda en esta parte (manda el latido)
+	TensionTono = { 0.94, 1.05 }, -- el zumbido sube un poco de tono con la tensión
+	RafagaCada = { 35, 90 }, -- s entre ráfagas
+	RafagaAlcance = 30, -- studs: ventanas a esta distancia de la cámara
+	RafagaFuera = 0.8, -- studs por fuera del cristal desde donde suena
+	RafagaTono = { 0.9, 1.08 },
+}
+
+-- Sustos sueltos de noche, cada jugador los suyos (juego/cliente/Sustos, 14.3). Segundos y studs a ojo.
+Config.Sustos = {
+	Paso = 0.25, -- segundos entre vueltas del bucle
+	Primero = { 45, 80 }, -- segundos desde que empieza la noche hasta el primero
+	Espera = { 170, 230 }, -- segundos entre sustos la primera noche (la noche dura ~240)...
+	MenosPorNoche = 0.05, -- ...cada noche un 5 % menos...
+	EsperaMinima = 0.5, -- ...hasta la mitad
+	Reintento = 3, -- si ahora no se puede, se mira otra vez a los tantos segundos
+	LejosBicho = 90, -- con un bicho más cerca, nada
+	TrasBicho = 20, -- y nada hasta estos segundos después de que se aleje
+	Junto = 8, -- studs alrededor de la casa que aún cuentan
+	RepetidoEstaNoche = 0.3, -- el peso de uno que ya ha salido esta noche se multiplica por esto
+	Pesos = {
+		Silueta = 3, Pasillo = 3, Susurro = 2, Pasos = 3, Pared = 2, Portazo = 3,
+		Cuadro = 2, Bombilla = 2, Juguetes = 3, Cristal = 3, Espejo = 2, Goteo = 2,
+	},
+	-- Silueta
+	SiluetaDistancia = { 6, 32 }, -- de la cámara a la ventana
+	SiluetaFuera = 5, -- studs por fuera de la ventana
+	SiluetaMax = 30, -- si en este tiempo no la ves, se va sola
+	-- Pasillo: { x, y, z } de los fondos (el del sótano, la galería y la entrada) y a qué distancia se ve
+	Fondos = { { 0, 1, 29.5 }, { 0, 14, 30 }, { 0, 1, -29 } },
+	FondoDistancia = { 16, 55 },
+	PasilloMirar = 0.45, -- segundos mirándola (o con la linterna encima) hasta que se va
+	PasilloMax = 30,
+	-- Susurro
+	DetrasDesde = 4, -- desde esta noche, a veces hay algo detrás al girarte
+	DetrasProb = 0.5,
+	-- Pasos
+	PasosLargo = 16, -- studs que andan antes de pararse
+	PasosTiempo = 5.5,
+	PasosMinimo = 1.5, -- segundos como mínimo entre dos sonidos de pasos (por si aún no ha cargado)
+	-- Portazo
+	PuertaDistancia = { 10, 38 },
+	PuertaCerrada = { 5, 8 }, -- segundos cerrada antes de volver a abrirse sola, despacio
+	-- Cuadro
+	CuadroDistancia = { 5, 26 },
+	-- Bombilla
+	BombillaDistancia = 16,
+	Oscuro = { 12, 18 }, -- segundos a oscuras
+	-- Cristal
+	CristalDistancia = { 3, 14 },
+	-- Espejo
+	EspejoDistancia = { 5, 28 },
+	-- Goteo
+	GoteoTiempo = 9,
+	GoteoCada = { 0.5, 1.1 },
 }
 
 return Config
