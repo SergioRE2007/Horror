@@ -761,10 +761,11 @@ local function construirSotano()
 		variante(bloque("Peldano", Vector3.new(5, 12 - i, 1.1), CFrame.new(0, FONDO + (12 - i) / 2, 35.5 + (i - 0.5) * 1.1), COLOR.Piso),
 			"TechoSotano")
 	end
-	-- Paredes de la escalera: bajo tierra y por fuera (la del este, junto al cobertizo, hasta su suelo).
-	Fachada.pared(bloque("Muro", Vector3.new(1, 21, 14.6), CFrame.new(-3, FONDO + 10.5, 40.8)), Vector3.new(-1, 0, 0))
-	bloque("Muro", Vector3.new(1, 12, 9), CFrame.new(3, FONDO + 6, 38))
-	Fachada.pared(bloque("Muro", Vector3.new(1, 21, 5.6), CFrame.new(3, FONDO + 10.5, 45.3)), Vector3.new(1, 0, 0))
+	-- Paredes de la escalera: bajo tierra y por fuera, enteras a los dos lados (la del este era baja porque la tapaba
+	-- el cobertizo; al moverlo quedó un hueco al bosque).
+	for _, x in { -3, 3 } do
+		Fachada.pared(bloque("Muro", Vector3.new(1, 21, 14.6), CFrame.new(x, FONDO + 10.5, 40.8)), Vector3.new(math.sign(x), 0, 0))
+	end
 	Fachada.pared(bloque("Muro", Vector3.new(7, 10, 1), CFrame.new(0, 5, 48.1)), Vector3.new(0, 0, 1))
 	Fachada.chapa(bloque("Tejadillo", Vector3.new(7, 0.6, 15.1), CFrame.new(0, 10.3, 40.85), COLOR.Oscuro, Enum.Material.CorrodedMetal))
 	lampara(Vector3.new(0, 9.6, 41))
