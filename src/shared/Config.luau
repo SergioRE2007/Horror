@@ -493,6 +493,22 @@ Config.Sonidos = {
 	VientoTiro = { Id = 108230513932897, Volumen = 1.3, Alcance = 50 }, -- el viento por el tiro de la chimenea
 	Parpadeo = { Id = 115400138567928, Volumen = 0.7, Alcance = 40 }, -- "Efecto de Sonido - Foco Luz Rota" (YouTube)
 	Zumbido = { Id = 129528625281695, Volumen = 0.35, Alcance = 22 }, -- "Bombilla de Luz Defectuosa" (YouTube, sin copyright)
+	-- Más miedo (14.3). PROVISIONAL: ids de otros sonidos hasta que el usuario elija los de ElevenLabs (tanda miedo).
+	Latas = { Id = 85091064305699, Volumen = 1.2, Alcance = 120 }, -- latas colgadas que tintinean al pasar algo
+	PuertaGolpe = { Id = 77366400653400, Volumen = 1.5, Alcance = 90 }, -- un portazo en otra sala (susto)
+	CuadroCae = { Id = 90088146547108, Volumen = 1, Alcance = 50 }, -- un cuadro que se cae de la pared (susto)
+	PasosArriba = { Id = 136017086076556, Volumen = 0.8, Alcance = 60 }, -- pasos en el piso de arriba sin nadie (susto)
+	Susurro = { Id = 76385773029835, Volumen = 0.5 }, -- un susurro al oído, sin posición (susto)
+	Toc = { Id = 85091064305699, Volumen = 0.8, Alcance = 40 }, -- unos golpecitos en el cristal (susto)
+	Aranazo = { Id = 73284823449392, Volumen = 1, Alcance = 40 }, -- algo araña dentro de la pared (susto)
+	Sobresalto = { Id = 76385773029835, Volumen = 1.2 }, -- golpe de tensión al ver algo (susto)
+	Polvo = { Id = 133574014508797, Volumen = 0.6, Alcance = 30 }, -- polvo y arenilla que caen del techo
+	CristalVibra = { Id = 100084710095294, Volumen = 0.6, Alcance = 30 }, -- el cristal traquetea en el marco
+	Retumbo = { Id = 90763366072682, Volumen = 0.8, Alcance = 80 }, -- retumbo grave de algo pesado cerca
+	Tension = { Id = 135916874292391, Volumen = 0.4 }, -- zumbido grave de tensión, en bucle (Ambiente)
+	CasaFondo = { Id = 135916874292391, Volumen = 0.3 }, -- fondo de dentro de la casa de noche, en bucle (Ambiente)
+	Rafaga = { Id = 108230513932897, Volumen = 0.8, Alcance = 60 }, -- ráfaga de viento contra una ventana (Ambiente)
+	Papel = { Id = 79954556495838, Volumen = 0.7 }, -- papel al coger o leer una pista
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.
