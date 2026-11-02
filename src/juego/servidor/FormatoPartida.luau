@@ -11,6 +11,7 @@
 --   coche: { piezas = [tipo] = cuántas montadas, gasolina, porton } (shared/Recetas). Desde el paso 8, sin subir versión:
 --   lo viejo no lo tiene y sale el coche sin arreglar. La casa lleva también `refuerzo` (tablón reforzado).
 --   final: "Huida" si ya se terminó (al volver a esa ranura se empieza de cero).
+--   pistas: lista de los números de shared/Historia ya leídos (12.1, sin subir versión: lo viejo no la tiene = ninguna).
 local FormatoPartida = {}
 
 FormatoPartida.VERSION = 1
@@ -56,7 +57,7 @@ end
 
 -- Pone al día lo guardado de una partida. nil (o algo que no es una tabla) = partida nueva: devuelve nil y el mundo
 -- se queda como lo genera el mapa. `cat` = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Sueltos,
--- coche = Config.Coche, arreglarCoche = Recetas.arreglarCoche }.
+-- coche = Config.Coche, arreglarCoche = Recetas.arreglarCoche, pistas = cuántas hay en shared/Historia }.
 function FormatoPartida.arreglar(guardado: unknown, cat)
 	if type(guardado) ~= "table" then
 		return nil
@@ -75,7 +76,22 @@ function FormatoPartida.arreglar(guardado: unknown, cat)
 		mochilas = {},
 		coche = cat.arreglarCoche(g.coche, cat.coche),
 		final = if g.final == "Huida" then "Huida" else nil,
+		pistas = {},
 	}
+	-- Pistas: números enteros de las que existen, sin repetir y en orden.
+	if type(g.pistas) == "table" then
+		local vistas = {}
+		for _, n in g.pistas do
+			if finito(n) and n % 1 == 0 and n >= 1 and n <= (cat.pistas or 0) then
+				vistas[n] = true
+			end
+		end
+		for n = 1, cat.pistas or 0 do
+			if vistas[n] then
+				table.insert(d.pistas, n)
+			end
+		end
+	end
 	if type(g.casa) == "table" then
 		for clave, e in g.casa do
 			if type(clave) == "string" and type(e) == "table" and finito(e.vida) then
