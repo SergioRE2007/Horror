@@ -72,7 +72,7 @@ local function crear(cf: CFrame): Caza.Bicho
 	-- Enorme, a cuatro patas como un gorila: lomo largo que sube hacia unos hombros altos (unos 8,5 studs), brazos más
 	-- largos que las piernas, cabeza baja y alargada delante del pecho. Provisional hasta el modelo de verdad.
 	-- El torso gira desde las caderas (atrás y abajo): la parte de delante queda más alta.
-	local torso = miembro("Torso", Vector3.new(4.4, 3, 6.2), raiz, CFrame.new(0, -0.4, 2.4) * CFrame.Angles(0.2, 0, 0),
+	local torso = miembro("Lomo", Vector3.new(4.4, 3, 6.2), raiz, CFrame.new(0, -0.4, 2.4) * CFrame.Angles(0.2, 0, 0),
 		CFrame.new(0, -1.2, 3), PIEL)
 	-- Joroba de los hombros y espinazo de huesos que asoman por el lomo.
 	pegar(torso, Vector3.new(3.6, 1.2, 2.8), CFrame.new(0, 1.5, -1.7) * CFrame.Angles(0.15, 0, 0), PIEL)
@@ -163,6 +163,8 @@ local function crear(cf: CFrame): Caza.Bicho
 		Pillar = B.Pillar,
 		Vista = B.Vista,
 		VioEsconderse = VIO_ESCONDERSE,
+		-- Con 8 el camino no cabía por la escalera del sótano y daba la vuelta por la trampilla del patio.
+		AltoCamino = B.AltoCamino,
 	})
 end
 
@@ -241,8 +243,64 @@ end
 -- Un paso de caza por la casa (suelta).
 local ultimoVisto: Vector3? = nil
 local ronda: Vector3? = nil
+local parada = 0 -- os.clock desde el que no avanza rondando o buscando
+local PARADA = B.Parada -- segundos sin avanzar para cambiar de destino
+
+-- Una sala de su misma planta para rondar (es muy alta: arriba no encuentra camino y se quedaba empujando la escalera).
+local function otraRonda(b: Caza.Bicho): Vector3
+	local suelo = b:suelo()
+	local lista = {}
+	for _, s in Mapa.salas do
+		if math.abs(s.Y - suelo.Y) < 6 then
+			table.insert(lista, s)
+		end
+	end
+	if #lista == 0 then
+		lista = Mapa.salas
+	end
+	return lista[azar:NextInteger(1, #lista)]
+end
+
+-- Sin ver a nadie, huele al más cercano que no esté escondido, a menos de Config.Bestia.Olfato y en su planta: así te
+-- sigue escaleras abajo hasta el sótano aunque dobles una esquina (si no, se volvía al llegar a donde te vio).
+local sinOlfato = 0 -- os.clock hasta el que no huele (tras atascarse yendo a por alguien que no alcanza)
+local function oler(b: Caza.Bicho): Vector3?
+	if os.clock() < sinOlfato then
+		return nil
+	end
+	local suelo = b:suelo()
+	local mejor, distancia = nil, B.Olfato
+	for _, jugador in Muerte.vivos() do
+		local raiz = raizDe(jugador)
+		if raiz and not jugador:GetAttribute("Escondido") then
+			local pies = raiz.Position - Vector3.new(0, 3, 0)
+			local d = (pies - suelo).Magnitude
+			if d < distancia and math.abs(pies.Y - suelo.Y) < 8 then
+				mejor, distancia = pies, d
+			end
+		end
+	end
+	return mejor
+end
+
 local function cazar(e: Estado, b: Caza.Bicho)
 	local presa, destino = b:elegirPresa(false)
+	-- Si rondando o buscando no avanza (algo en medio, sin camino), cambia de destino y deja de oler un rato.
+	if not presa and not b:quieto() and plano(b.raiz.AssemblyLinearVelocity).Magnitude < 1 then
+		if parada == 0 then
+			parada = os.clock()
+		elseif os.clock() - parada > PARADA then
+			parada = 0
+			ultimoVisto = nil
+			sinOlfato = os.clock() + 4
+			ronda = otraRonda(b)
+		end
+	else
+		parada = 0
+	end
+	if not presa and not b:quieto() then
+		ultimoVisto = oler(b) or ultimoVisto
+	end
 	if b:quieto() then
 		b.humanoide:MoveTo(b.raiz.Position)
 	elseif presa and destino then
@@ -255,11 +313,12 @@ local function cazar(e: Estado, b: Caza.Bicho)
 		b:pasoHacia(ultimoVisto)
 		if b:cerca(ultimoVisto, 4) then
 			ultimoVisto = nil
+			sinOlfato = os.clock() + 1 -- si no, lo vuelve a oler ahí mismo (una puerta cerrada en medio) y empuja
 		end
 	else
 		b.humanoide.WalkSpeed = velocidad(e, b.o.Andar)
 		if not ronda or b:cerca(ronda :: Vector3, 4) then
-			ronda = Mapa.salas[azar:NextInteger(1, #Mapa.salas)]
+			ronda = otraRonda(b)
 		end
 		b:pasoHacia(ronda :: Vector3)
 	end
@@ -363,7 +422,7 @@ local function noche(e: Estado)
 		-- El flash no la para: solo aparta la cara (lo que la daña es el fuego).
 		Remotes.Bestia:FireAllClients("Flash", modelo)
 	end
-	ultimoVisto, ronda, ultimoDentro, atascada = nil, nil, nil, 0
+	ultimoVisto, ronda, ultimoDentro, atascada, parada = nil, nil, nil, 0, 0
 	Remotes.Bestia:FireAllClients("Ruge", modelo)
 	avisar("Something huge is coming out of the woods.")
 	task.wait(RUGIDO)
