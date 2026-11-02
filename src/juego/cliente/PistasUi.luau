@@ -1,7 +1,7 @@
 -- Leer una pista (servidor: Pistas). Sale en el centro un papel oscuro con la esquina manchada de sangre: arriba, en
 -- rojo, lo que es ("Nota del rico"); debajo lo que pone; abajo, cuántas llevamos ("3 de 12", pequeño) y CERRAR.
 -- Se cierra con CERRAR, volviendo a pulsar E en la misma pista, al alejarse o al morir. Solo enseña: el servidor no
--- espera nada de vuelta.
+-- espera nada de vuelta. Al abrirla suena el papel que se despliega (Papel).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 local Historia = require(ReplicatedStorage.Shared.Historia)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
 local PistasUi = {}
@@ -72,6 +73,9 @@ local function abrir(n: number, encontradas: number)
 	local alto = TextService:GetTextSize(texto.Text, texto.TextSize, Enum.Font.SpecialElite, Vector2.new(ANCHO - 64, 1000)).Y
 	panel.Size = UDim2.fromOffset(ANCHO, math.max(200, math.ceil(alto * texto.LineHeight) + 150))
 	cuenta.Text = Lang.t(nil, "{n} of {total}", { n = encontradas, total = #Historia })
+	if not panel.Visible then
+		Sonido.tocar("Papel") -- de una pista a otra sin cerrar, el papel ya estaba en la mano
+	end
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
 	escala.Scale = 0.92

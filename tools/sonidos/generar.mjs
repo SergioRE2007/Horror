@@ -21,6 +21,8 @@ function apiKey() {
 // Un sonido: nombre (su clave en Config.Sonidos), segundos, descripción para la página, texto para ElevenLabs,
 // cuántas versiones y si es un bucle (ambiente que se repite sin corte).
 const s = (name, seconds, label, text, versions = 3, loop = false) => ({ name, seconds, label, text, versions, loop });
+// Uno compuesto con componer.mjs (no se pide a ElevenLabs): solo sale en la página, con sus .wav.
+const c = (name, label, versions = 3) => ({ name, label, versions, composed: true });
 const DRY = "horror game sound effect, realistic, dry, no reverb, no music";
 const LOOP = "seamless ambient loop";
 
@@ -112,6 +114,30 @@ const BATCHES = {
 		s("ParpadeoC", 1.0, "Bombilla: el filamento chisporrotea un momento", `Light bulb filament sputtering for a moment, a short gentle electric sizzle that fades, clean, ${DRY}`, 2),
 		s("ParpadeoD", 1.2, "Bombilla: interruptor que falla", `Faulty old light switch, a few quick soft clicks with a faint electric buzz between them, clean, ${DRY}`, 2),
 	],
+	// Más miedo (14.3): sustos sueltos, las latas de fuera, el papel de las pistas y piezas para componer los dos
+	// fondos en bucle (CasaFondo y Tension, con componer.mjs y miedo.json: pedidos enteros salen mudos y con siseo).
+	// Nada eléctrico (ElevenLabs lo satura). El papel va primero: es el que falta en el juego.
+	miedo: [
+		s("Papel", 1.2, "Papel viejo que se coge y se despliega (pistas)", `Old dry paper note being picked up and unfolded, crisp crinkle and rustle, close, ${DRY}`),
+		s("Latas", 2, "Latas y botellas colgadas que tintinean al tropezar algo", `Empty tin cans and glass bottles hanging from a rope outdoors, suddenly jangling and clanking together when something bumps the rope, metallic rattle, ${DRY}`),
+		s("PuertaGolpe", 1.5, "Portazo de una puerta vieja en otra sala", `Old heavy wooden door slamming shut hard in another room, loud bang with a rattle of the frame, slightly distant, ${DRY}`),
+		s("CuadroCae", 2, "Cuadro que cae de la pared y se rompe el cristal", `Framed picture falling off a wall onto a wooden floor, wooden frame thud and the glass breaking, ${DRY}`),
+		s("PasosArriba", 4, "Pasos lentos en el piso de arriba, oídos desde abajo", `Slow heavy footsteps walking across an old wooden floor upstairs, heard from the room below, muffled thuds and creaking ceiling boards, ${DRY}`),
+		s("Susurro", 2.5, "Susurro ininteligible al oído", "Creepy unintelligible whisper very close to the ear, breathy hushed murmur with no clear words, intimate, horror game sound effect, no music"),
+		s("Toc", 1.5, "Golpecitos de nudillo en el cristal de una ventana", `A few slow soft knocks of a knuckle tapping on a glass window pane, ${DRY}`),
+		s("Aranazo", 3, "Algo araña por dentro de una pared de madera", `Something scratching and clawing from inside a wooden wall, slow scraping claws on wood, muffled, ${DRY}`),
+		s("Sobresalto", 2, "Golpe de tensión corto (no un grito)", "Short horror tension stinger, deep low dissonant boom hit with a dark rumble tail, no scream, no voice, no music melody"),
+		s("Polvo", 2, "Arenilla y polvo que caen del techo", `Dust, grit and small plaster debris trickling down from a ceiling onto a wooden floor, soft sandy patter, ${DRY}`),
+		s("CristalVibra", 1.5, "Cristal que traquetea en su marco de madera", `Loose window glass pane rattling in its old wooden frame, short trembling rattle, ${DRY}`),
+		s("Retumbo", 2, "Retumbo de una pisada enorme que hace vibrar la casa", `Deep heavy rumbling thud of a giant footstep nearby, the whole wooden house shaking and rattling, low boom, ${DRY}`),
+		s("Rafaga", 3, "Ráfaga de viento contra una ventana", `Strong gust of wind hitting a window from outside, the glass rattling and the wind whistling through the gaps of the frame, rises and fades, ${DRY}`),
+		// Los dos bucles, compuestos (node tools/sonidos/componer.mjs tools/sonidos/miedo.json#Tension_1 <carpeta> <carpeta>/Tension_1.wav).
+		c("Tension", "Zumbido grave de tensión (bucle, compuesto: tonos graves y soplo)"),
+		c("CasaFondo", "Fondo de la casa de noche (bucle, compuesto: viento apagado y crujidos lejanos)"),
+		// Piezas sueltas para CasaFondo (miedo.json).
+		s("casaviento", 5, "Pieza: viento contra la casa oído desde dentro", "Wind pressing against an old wooden house heard from inside a room, low muffled hollow moan, clean, no hiss, no music", 2),
+		s("gemido", 3, "Pieza: la estructura de madera gime despacio", `Old wooden house beams groaning slowly under strain, long deep creak, distant, ${DRY}`, 2),
+	],
 };
 
 const key = apiKey();
@@ -133,7 +159,7 @@ for (const batch of wanted.length > 0 ? wanted : Object.keys(BATCHES)) {
 	}
 	const out = path.join(base, batch);
 	fs.mkdirSync(out, { recursive: true });
-	for (const sound of sounds) {
+	for (const sound of sounds.filter((one) => !one.composed)) {
 		for (let version = 1; version <= sound.versions && !stop; version++) {
 			const file = path.join(out, `${sound.name}_${version}.mp3`);
 			if (fs.existsSync(file)) continue;
@@ -159,8 +185,9 @@ for (const batch of wanted.length > 0 ? wanted : Object.keys(BATCHES)) {
 	// Página para escucharlos: un botón por versión, una fila por sonido.
 	const rows = sounds.map((sound) => {
 		const buttons = [];
-		for (let version = 1; fs.existsSync(path.join(out, `${sound.name}_${version}.mp3`)); version++) {
-			buttons.push(`<button data-src="${sound.name}_${version}.mp3">${version}</button>`);
+		const ext = sound.composed ? "wav" : "mp3";
+		for (let version = 1; fs.existsSync(path.join(out, `${sound.name}_${version}.${ext}`)); version++) {
+			buttons.push(`<button data-src="${sound.name}_${version}.${ext}">${version}</button>`);
 		}
 		return `<tr><td><b>${sound.label}</b><br><code>${sound.name}</code></td><td>${buttons.join(" ")}</td></tr>`;
 	}).join("\n");

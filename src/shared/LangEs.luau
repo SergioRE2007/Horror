@@ -246,4 +246,8 @@ return {
 	["As long as she eats, she lets me live. Every month I send her a new one. This one has lasted longer than any."] = "Mientras coma, me deja vivir. Cada mes le mando a uno nuevo. Este ha durado más que ninguno.",
 	["Diary, last page"] = "Diario, última página",
 	["There is only one way: get her down to the basement, close the gate and burn the house with her inside. Six fuel cans where I marked the crosses. I never had the nerve."] = "Solo hay una forma: que baje al sótano, cerrar la reja y quemar la casa con ella dentro. Seis bidones donde marqué las cruces. Nunca tuve valor.",
+	-- Sustos (14.3): lo escrito con sangre en los espejos.
+	["Get out of here"] = "Vete de aquí",
+	["He knew"] = "Él lo sabía",
+	["Behind you"] = "Detrás de ti",
 }
