@@ -4,9 +4,9 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
-1. 11.8.10 a 11.8.13: las 4 salas que quedan del interior, en paralelo (varios chats y Studios, `docs/plan-paralelo.md`).
-2. 11.6: que Sergio vea la fachada (se puede meter en cualquier chat de sala).
-3. 12.1 Pistas → 12.2 La Bestia.
+1. 11.6: que Sergio vea la fachada.
+2. 12.2 La Bestia (ya hechos: 11.8 interior, 11.9 detalles y 12.1 pistas).
+3. Cambiar los sonidos de la bombilla de la 11.9 (sacados de YouTube) por unos sin derechos de autor.
 4. 11.5 Pueblo amueblado, 11.2 Monstruos (casi al final), 13 Lanzamiento.
 
 ## Hechas
@@ -58,9 +58,16 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 | 11.8.10 | Cuarto de los niños | cuna y juguetes | hecho |
 | 11.8.11 | Escalera del desván y desván | baúles; cuarto de revelado | hecho |
 | 11.8.12 | Lavadero, garaje y cobertizo | enchufe del móvil, coche, generador | hecho |
-| 11.8.13 | Sótano | banco del taller (la reja de la 12.2) | pendiente |
+| 11.8.13 | Sótano | banco del taller (la reja de la 12.2) | hecho (aprobado por el usuario el 02-11-2026) |
 
 En todas: telarañas que flotan o se meten en la pared.
+
+### 11.9 Detalles vivos de la casa (pedido por el usuario: "poner que la chimenea esté animada con fuego o sonidos de los electrodomésticos, detallitos")
+
+- Todo en el cliente (`DetallesVista` y `ChimeneaVista`), sin tocar el camino del Trepador. Detalle en `docs/sistemas/detalles.md`.
+- Chimenea: chispas, brasas que se enfrían al apagarse, llamarada al quemar al Trepador; al bajar él, las brasas se apagan de golpe y las luces tiemblan (aviso). Viento por el tiro.
+- Reloj de pie del vestíbulo (tic-tac y campanadas de noche), nevera con el generador, gotas en fregadero y lavabo, bombillas que chisporrotean y tuberías que golpean.
+- Sonidos con ElevenLabs (tanda `detalles`), elegidos por el usuario; los de la bombilla, de YouTube (pedido por el usuario). — hecho
 
 ### 11.5 Pueblo amueblado
 - **Qué:** lo mismo que se hizo en la casa (salas grandes, muebles contra las paredes, puertas solo donde hacen falta), con el estilo de la casa nueva.
@@ -78,7 +85,7 @@ En todas: telarañas que flotan o se meten en la pared.
 - **Descripción:** notas, fotos y diario repartidos por el mapa y las salas cerradas; cuentan que el rico te mandó a propósito.
 - **Archivos probables:** `src/juego/servidor/Pistas.luau` (nuevo), `FormatoPartida.luau`, `Lang`.
 - **Criterios:** se guardan en la partida; carteles de pocas líneas; guardado viejo sin pistas sigue cargando (prueba de Lune).
-- **Estado:** pendiente — textos aprobados por el usuario en `docs/historia.md` (12 pistas, dónde va cada una); falta programarlo (en casa, con Rojo)
+- **Estado:** hecho (`docs/sistemas/pistas.md`); falta un sonido de papel
 
 ### 12.2 La Bestia
 - **Descripción (pedido por el usuario):** la Bestia es el origen de todos los bichos (partes o crías suyas que cazan para ella; el rico la alimenta con gente y por eso te contrató). Se la mata dentro de la casa: herirla, atraerla al sótano, encerrarla y quemar la casa empapada de gasolina. Al morir ella caen todos.

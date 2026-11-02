@@ -41,6 +41,9 @@ local NOCHE = {
 
 local lamparas: { [Light]: number } = {} -- luz → su brillo puesto por el servidor
 
+-- Parpadeos (DetallesVista): luz → cuánto de su brillo le queda ahora (0 a 1). Sin entrada, todo.
+Ambiente.factor = {} :: { [Light]: number }
+
 local atmosfera: Atmosphere
 local color: ColorCorrectionEffect
 local viento: Sound? -- nil mientras no haya un viento en Config.Sonidos
@@ -83,9 +86,10 @@ local function pintar()
 	local proporcion = mezcla(DIA.Lamparas, NOCHE.Lamparas, k)
 	for luz, base in lamparas do
 		if luz.Parent then
-			luz.Brightness = base * proporcion
+			luz.Brightness = base * proporcion * (Ambiente.factor[luz] or 1)
 		else
 			lamparas[luz] = nil
+			Ambiente.factor[luz] = nil
 		end
 	end
 	if viento then
