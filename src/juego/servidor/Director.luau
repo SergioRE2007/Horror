@@ -5,6 +5,7 @@
 --   Desde la noche del Raspador, su primer ataque es seguro y luego sale a veces (uno como mucho a la vez). Igual el
 --   Trepador (por la chimenea) y el Imitador (a la puerta principal; su primera noche se va la luz). El Acechador va
 --   aparte: sale solo al que se queda en el bosque al anochecer.
+--   La noche final (12.2): mientras Bestia.activa() no sale ningún otro bicho, tampoco el Acechador.
 --   Amanecer: los bichos se van y los muertos reviven (Partida hace la foto de todo y la guarda).
 --   Si mueren todos: a los pocos segundos se vuelve al principio del día, con todo como estaba al amanecer.
 local Players = game:GetService("Players")
@@ -16,6 +17,7 @@ local Lang = require(ReplicatedStorage.Shared.Lang)
 local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Acechador = require(script.Parent.Acechador)
+local Bestia = require(script.Parent.Bestia)
 local Casa = require(script.Parent.Casa)
 local Chimenea = require(script.Parent.Chimenea)
 local Ciclo = require(script.Parent.Ciclo)
@@ -73,6 +75,10 @@ local function hueco(mio: number, n: number, dif: Dificultad.Noche, retraso: num
 	esperar(rango(G.PrimerAtaque) + retraso, mio)
 	local ultimo: Model? = nil
 	while turno == mio and not Partida.terminada() do
+		if Bestia.activa() then -- la noche final: solo ella
+			esperar(2, mio)
+			continue
+		end
 		-- Qué bicho: los especiales, uno como mucho a la vez cada uno; si no, el Golpeador.
 		local function toca(que: string, desde: number, probabilidad: number, cuantos: number): boolean
 			return n >= desde and cuantos == 0 and (seguros[que] or azar:NextNumber() < probabilidad)
@@ -155,6 +161,7 @@ function Director.start()
 			Trepador.irse()
 			Imitador.irse()
 			Acechador.irse()
+			Bestia.irse()
 			Muerte.revivirTodos()
 		else
 			noche(turno, n)
@@ -163,7 +170,8 @@ function Director.start()
 	-- Modo de pruebas: ServerStorage.Prueba:Fire(orden, punto). Órdenes: "Noche", "Dia", "Ataque" o "Raspador" (a la
 	-- ventana o puerta más cerca del punto), "Romper" (la rompe) y "Esconder" (el primer jugador, en el escondite más cerca del punto).
 	-- Bichos nuevos: "Trepador", "Imitador" (con apagón), "Acechador" (a por el primer jugador, que debe estar en el
-	-- bosque) y "Fuego" (echa un tronco a la chimenea).
+	-- bosque) y "Fuego" (echa un tronco a la chimenea). Final: "Bestia" (la suelta ya: llega a los Config.Bestia.Espera s) y
+	-- "Bengala" (la hiere como una bengala: cojea Config.Bestia.Cojea s).
 	if Prueba.activa() then
 		local orden = Instance.new("BindableEvent")
 		orden.Name = "Prueba"
@@ -196,6 +204,10 @@ function Director.start()
 				end
 			elseif que == "Acechador" then
 				Acechador.atacar(Players:GetPlayers()[1])
+			elseif que == "Bestia" then
+				Bestia.soltar()
+			elseif que == "Bengala" then
+				Bestia.herir(Config.Bestia.Cojea)
 			elseif que == "Fuego" then
 				Chimenea.echar(1)
 			elseif que == "Noche" or que == "Dia" then -- las demás órdenes son de otros sistemas (Partida)
@@ -206,6 +218,16 @@ function Director.start()
 		end)
 		orden.Parent = game:GetService("ServerStorage")
 	end
+	-- El Acechador sale solo (vigila a los que se quedan fuera): en la noche final se le quita en cuanto aparece.
+	-- TODO líder: mejor que Acechador no salga si workspace:GetAttribute("Bestia") (lo pone Bestia).
+	task.spawn(function()
+		while true do
+			task.wait(0.5)
+			if Bestia.activa() and Acechador.cuantos() > 0 then
+				Acechador.quitar()
+			end
+		end
+	end)
 	Muerte.alMorirTodos(function()
 		if Partida.terminada() then
 			return
@@ -223,6 +245,7 @@ function Director.start()
 		Trepador.quitar()
 		Imitador.quitar()
 		Acechador.quitar()
+		Bestia.quitar()
 		Chimenea.apagar()
 		table.clear(enUso)
 		Partida.volverAlAmanecer()

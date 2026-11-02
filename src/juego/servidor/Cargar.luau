@@ -36,6 +36,7 @@ local COLOR = {
 	Motor = { Color3.fromRGB(70, 72, 75), Enum.Material.DiamondPlate },
 	Rueda = { Color3.fromRGB(32, 32, 34), Enum.Material.Rubber },
 	TablonReforzado = { Color3.fromRGB(72, 54, 40), Enum.Material.Wood },
+	Reja = { Color3.fromRGB(52, 50, 48), Enum.Material.CorrodedMetal }, -- 12.2: la pieza no se ve, se ven sus barrotes
 }
 
 local function humanoideDe(jugador: Player): Humanoid?
@@ -165,6 +166,40 @@ local function coger(jugador: Player, pieza: BasePart)
 	rehacer(pieza)
 end
 
+-- La reja de hierro (12.2): `pieza` (X ancho, Y alto, Z grueso) se vuelve invisible y se le sueldan barrotes, dos
+-- travesaños y un marco, que no chocan. La usan la reja pesada y la montada en el sótano (Preparativos).
+function Cargar.barrotes(pieza: BasePart)
+	local tam = pieza.Size
+	pieza.Transparency = 1
+	local function barra(nombre: string, t: Vector3, cf: CFrame)
+		local b = Instance.new("Part")
+		b.Name = nombre
+		b.Size = t
+		b.CFrame = pieza.CFrame * cf
+		b.Color = COLOR.Reja[1]
+		b.Material = COLOR.Reja[2]
+		b.CanCollide = false
+		b.CanQuery = false
+		b.CanTouch = false
+		b.Massless = true
+		b.Anchored = false
+		local union = Instance.new("WeldConstraint")
+		union.Part0, union.Part1 = pieza, b
+		union.Parent = b
+		b.Parent = pieza
+	end
+	local grueso = math.min(0.22, tam.Z)
+	local n = math.max(2, math.floor(tam.X / 0.6))
+	for i = 0, n do
+		barra("Barrote", Vector3.new(grueso, tam.Y, grueso), CFrame.new(-tam.X / 2 + grueso / 2 + i * (tam.X - grueso) / n, 0, 0))
+	end
+	for _, y in { -0.5, -0.17, 0.17, 0.5 } do
+		local borde = math.abs(y) == 0.5
+		barra("Travesano", Vector3.new(tam.X, if borde then 0.3 else 0.2, tam.Z),
+			CFrame.new(0, y * tam.Y - (if borde then math.sign(y) * 0.15 else 0), 0))
+	end
+end
+
 -- Una cosa pesada nueva en el mundo. `carga`: la gasolina del bidón (0..1; lleno si no se dice).
 function Cargar.nuevo(tipo: string, cf: CFrame, carga: number?): BasePart
 	local datos = PESADOS[tipo]
@@ -205,6 +240,8 @@ function Cargar.nuevo(tipo: string, cf: CFrame, carga: number?): BasePart
 			union.Parent = fleje
 			fleje.Parent = pieza
 		end
+	elseif tipo == "Reja" then -- la pieza es lo que choca; se ven los barrotes (los mismos que montada: Preparativos)
+		Cargar.barrotes(pieza)
 	end
 	pieza:SetAttribute("Tipo", tipo)
 	pieza:SetAttribute("Peso", datos.Peso)
