@@ -128,7 +128,7 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 - Sustos y efectos (temblores, polvo que cae, cristales) como avisos para quien juega sin cascos (sale en `diseño.md`; mirar antes si ya está con otro nombre).
 - Trampas de latas que suenan fuera de la casa (ídem).
 - Sonido de ambiente, con ElevenLabs. Falta también el sonido de papel de las pistas.
-- **Estado:** pendiente
+- **Estado:** hecho (`docs/sistemas/miedo.md`; probado en Studio el 02-11-2026). Faltan 8 sonidos (sin créditos de ElevenLabs hasta ~08-11) y la imagen de la mano de sangre
 
 ### 14.4 Controles y móvil
 - Botones que solo salen muy cerca (la puerta del sótano, a ~3 studs).
