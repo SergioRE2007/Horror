@@ -35,8 +35,8 @@ local SITIOS: { CFrame } = {
 	enMesa(195.6, 4.02, 51.3, 0.25), -- 6. granja: la mesa de la casa
 	enPared(Vector3.new(-255.47, 6.3, -72.4), Vector3.xAxis), -- 7. aserradero: en la pared de la oficina, sobre el escritorio
 	enMesa(91.1, 47.52, 300.2, -0.4), -- 8. torre: la mesa de la caseta de arriba
-	-- 9. sótano: provisional, en el banco del taller (el sótano lo amuebla la 11.8.13: allí se decide su sitio final).
-	enMesa(-3.2, -6.88, 62.8, 0.2),
+	-- 9. sótano: encima del banco del taller, a la izquierda (tablero a y -7.5; sitio dado por la 11.8.13)
+	enMesa(-2.8, -7.48, 63.15, 0.2),
 	enMesa(-27.5, 30.3, 1.1, 0), -- 10. desván: la nota que ya hay en la mesa del cuarto de revelado
 	enMesa(-23.8, 16.9, 5.85, 0), -- 11. habitación del rico: el diario abierto que ya hay en el escritorio
 	enMesa(-13.45, 18.96, -14.0, 0), -- 12. habitación del rico: la caja fuerte (la página está dentro)
