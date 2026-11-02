@@ -19,6 +19,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Historia = require(ReplicatedStorage.Shared.Historia)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Recetas = require(ReplicatedStorage.Shared.Recetas)
@@ -35,13 +36,14 @@ local FormatoPartida = require(script.Parent.FormatoPartida)
 local Generador = require(script.Parent.Generador)
 local Llaves = require(script.Parent.Llaves)
 local Mochila = require(script.Parent.Mochila)
+local Pistas = require(script.Parent.Pistas)
 local Recursos = require(script.Parent.Recursos)
 
 local Partida = {}
 
 local P = Config.Partida
 local CAT = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = P.Sueltos, coche = Config.Coche,
-	arreglarCoche = Recetas.arreglarCoche }
+	arreglarCoche = Recetas.arreglarCoche, pistas = #Historia }
 local info: Viaje.Info? = nil
 local op: Candado.Opciones? = nil -- nil = no se guarda (sin cargar, acabada o perdida)
 local crudo = nil -- lo que había guardado al cargar, tal cual (se devuelve si se cierra antes del primer amanecer)
@@ -109,6 +111,7 @@ local function foto()
 		pesados = guardables(Cargar.sueltos()),
 		mochilas = mochilas,
 		coche = Coche.exportar(),
+		pistas = Pistas.exportar(),
 	}
 end
 
@@ -125,6 +128,7 @@ local function aplicar(d)
 	Recursos.importar(d.arboles)
 	Generador.importar(d.generador)
 	Coche.importar(d.coche)
+	Pistas.importar(d.pistas)
 	for _, jugador in Players:GetPlayers() do
 		ponerMochila(jugador)
 	end
@@ -344,6 +348,7 @@ function Partida.start(): number
 	end
 	semilla = Random.new():NextInteger(1, 2 ^ 31 - 2)
 	Llaves.repasar(semilla, {}) -- partida nueva: todas las llaves, en su sitio
+	Pistas.importar({})
 	return 1
 end
 
