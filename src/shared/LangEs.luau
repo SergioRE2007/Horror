@@ -120,7 +120,7 @@ return {
 	["There's already fuel here."] = "Aquí ya hay gasolina.",
 	["The fuel trail now runs to the porch."] = "El rastro de gasolina ya llega al porche.",
 	["The gate is already in place."] = "La reja ya está puesta.",
-	["The gate is ready. The lever drops it."] = "La reja está lista. La palanca la deja caer.",
+	["The gate is ready. The lever is outside, by the hatch."] = "La reja está lista. La palanca está fuera, junto a la trampilla.",
 	["The gate fell with nothing behind it."] = "La reja ha caído y no había nada detrás.",
 	["There's no gate to drop."] = "No hay ninguna reja que soltar.",
 	["Not yet. Wait for her."] = "Todavía no. Espérala.",

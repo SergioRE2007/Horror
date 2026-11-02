@@ -809,7 +809,8 @@ end
 -- Lo del final de la Bestia (12.2; lo maneja Preparativos, que pone la reja, los puntos de gasolina y los prompts):
 --   MarcoReja: dos guías de hierro al pie de la escalera del sótano, delante del último peldaño (z 46,9), por donde sube
 --   y baja la reja. Atributos: Cerrada y Abierta (dónde va el centro de la reja), Tam (su tamaño).
---   Palanca: en la pared del oeste, junto a la escalera de mano. Atributo Pivote (el eje del mango; lo mueve el cliente).
+--   Palanca: fuera, en un poste del patio al oeste de la trampilla (14.1). Atributo Pivote (el eje del mango; lo mueve
+--   el cliente).
 --   Trampilla: tapa de tablas en el patio sobre el hueco TRAMPILLA, con escalera de mano desde el sótano. Atributo
 --   Abierta (CFrame de la tapa abierta). Se abre desde abajo.
 --   Por el mapa (objetos sueltos, Mochila): cadenas para la reja, la pistola de bengalas del rico con sus 3 bengalas al
@@ -836,12 +837,26 @@ local function construirFinal()
 	CollectionService:AddTag(guias, "MarcoReja")
 	guias.Parent = casa
 
-	-- Palanca de pared: placa y mango con su pomo; subida, el mango apunta arriba y hacia la sala.
+	-- Palanca (14.1, pedido por el usuario: fuera, en el patio): en un poste de madera al oeste de la trampilla, mirando
+	-- al hueco. Se mete a la Bestia en el sótano, se sube por la escalera de mano y se tira nada más salir; desde abajo
+	-- no llega. Placa y mango con su pomo; subida, el mango apunta arriba y hacia la trampilla. Un tubo de hierro baja
+	-- del poste, va por el suelo y se mete por el hueco: es lo que suelta la reja.
 	local palanca = Instance.new("Model")
 	palanca.Name = "Palanca"
 	palanca.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-	local base = CFrame.new(-11.25, F + 3.8, 57.4)
+	local PX, PZ = TRAMPILLA[1] - 3.2, (TRAMPILLA[3] + TRAMPILLA[4]) / 2
+	bloque("Poste", Vector3.new(0.6, 5.4, 0.6), CFrame.new(PX - 0.4, 1.9, PZ), Color3.fromRGB(58, 44, 34), Enum.Material.Wood, palanca)
+	local base = CFrame.new(PX, 3.4, PZ)
 	bloque("Placa", Vector3.new(0.2, 1.8, 0.9), base, hierro, Enum.Material.CorrodedMetal, palanca)
+	for _, t in {
+		{ Vector3.new(0.16, 2.6, 0.16), CFrame.new(PX + 0.05, 1.3, PZ - 0.35) }, -- baja por el poste
+		{ Vector3.new(TRAMPILLA[1] - PX + 0.1, 0.16, 0.16), CFrame.new((PX + TRAMPILLA[1]) / 2, 0.08, PZ - 0.35) }, -- por el suelo
+		{ Vector3.new(0.16, 3, 0.16), CFrame.new(TRAMPILLA[1] + 0.2, -1.4, PZ - 0.35) }, -- y se mete por el hueco
+	} do
+		local tubo = bloque("Tubo", t[1], t[2], hierro, Enum.Material.CorrodedMetal, palanca)
+		tubo.CanCollide = false
+		tubo.CanQuery = false
+	end
 	local pivote = base * CFrame.new(0.2, 0, 0)
 	local giro = pivote * CFrame.Angles(0, 0, -0.5)
 	local mango = bloque("Mango", Vector3.new(0.18, 2, 0.18), giro * CFrame.new(0, 1, 0), hierro, Enum.Material.Metal, palanca)

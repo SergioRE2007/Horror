@@ -1,24 +1,30 @@
 -- El incendio de la casa y la escena final de la Bestia (servidor: Incendio, remote Incendio). Todo local.
 --   ("Prender", camino, porSala, inicio): el fuego corre del porche por el rastro y por los puntos de gasolina, uno cada
---     porSala s: llamas, humo, luz anaranjada que tiembla y los cristales de cerca que estallan con llamas asomando.
+--     porSala s, y desde ellos se come la casa entera (pedido por el usuario: "el fuego se ve pequeño"):
+--       - cada punto, una hoguera que llena la sala;
+--       - las ventanas estallan según les llega el fuego (de la más cercana a lo que arde a la más lejana) y por ellas
+--         salen lenguas de fuego que lamen la fachada y humo negro;
+--       - el tejado prende desde encima del dormitorio grande y se extiende por los dos faldones, con columnas de humo
+--         negro muy altas y brasas que vuelan;
+--       - luces anaranjadas fuera que tiemblan e iluminan el patio y el bosque de cerca; crujidos de madera sueltos.
 --     Se queda ardiendo (la casa ya no se usa: se vuelve al lobby).
 --   ("Final", segundos): la escena, en planos desde fuera y de noche:
---     1. De lejos, desde el camino: la casa ardiendo por todas las ventanas, columnas de humo.
---     2. Abajo, junto al porche: el rugido de la Bestia desde dentro, la cámara tiembla.
---     3. De lado y alto: el tejado de delante cruje y se hunde hacia dentro, llamarada de chispas.
---     4. Muy de lejos: amanece (el cielo aclara) con la casa aún humeando.
+--     1. De lejos, desde el camino: la casa ardiendo por todas las ventanas y el tejado, columnas de humo.
+--     2. Abajo, junto al porche: el rugido de la Bestia desde dentro, la cámara tiembla, cae una viga ardiendo.
+--     3. De lado y alto: el tejado de delante cruje y se hunde hacia dentro, llamarada enorme y chispas.
+--     4. Muy de lejos: amanece (el cielo aclara) con la casa aún ardiendo y humeando.
 --     5. Fundido a negro y "SHE'S GONE." con la raya roja (como "HAS ESCAPADO").
 -- La escena esconde toda la interfaz, los carteles y a los personajes, y lo devuelve todo al acabar aunque algo falle
 -- (en Studio no hay viaje al lobby y se sigue jugando). En Studio, el atributo IncendioT del Workspace congela la escena
 -- en ese segundo (para revisar cada plano), como HuidaT.
-local CollectionService = game:GetService("CollectionService")
+-- Rendimiento: las llamas son ParticleEmitter (las Fire de Roblox se quedan pequeñas) con un tope de emisores y luces;
+-- con el atributo Rendimiento del jugador (opción de Ajustes, 14.4) salen la mitad de partículas y sin luces de ventana.
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Sonido = require(script.Parent.Sonido)
@@ -33,9 +39,27 @@ local enMarcha = false
 
 local LLAMA = Color3.fromRGB(255, 120, 40)
 local LLAMA_OSCURA = Color3.fromRGB(120, 30, 10)
-local HUMO = Color3.fromRGB(38, 35, 33)
-local RADIO_VENTANAS = Config.Bestia.Ventanas -- studs: las ventanas a esta distancia de un punto que arde estallan
 local LARGO_ESCENA = 20 -- los tiempos de los planos están pensados para 20 s; con otra duración se estiran
+local TEX_LLAMA = "rbxasset://textures/particles/fire_main.dds"
+local TEX_HUMO = "rbxasset://textures/particles/smoke_main.dds"
+local TEX_CHISPA = "rbxasset://textures/particles/sparkles_main.dds"
+
+-- Números del incendio, solo de cómo se ve (a ojo).
+local PROPAGA = 7 -- studs/s: lo que tarda el fuego en llegar de un punto que arde a cada ventana
+local PROPAGA_TEJADO = 8 -- studs/s por el tejado, desde encima del dormitorio grande
+local TEJADO_ANTES = 2 -- s: el tejado prende esto antes de que llegue el fuego al dormitorio grande
+local CRECE = 2.5 -- s que tarda cada llama en llegar a su tamaño
+local LUZ_FUERA = 1.6 -- brillo de las luces de fuera (pedido por el usuario: luces flojas; de noche esto ya alumbra)
+local ALCANCE_FUERA = 60 -- studs de esas luces: el patio y el bosque de cerca
+local CRUJIDOS = 60 -- s que suenan crujidos sueltos de madera mientras arde
+
+-- La casa (Mapa): x -39,5..39,5, z -33,5..33,5; tejado a dos aguas con la cumbrera a lo largo de x en z = 0, que sube
+-- 9/24 por stud desde el alero (|z| = 34,5, y = 27).
+local PENDIENTE, ALERO = 9 / 24, 34.5
+local function alturaTejado(z: number): number
+	return 27 + PENDIENTE * (ALERO - math.abs(z)) + 0.6
+end
+local DESDE_TEJADO = Vector3.new(25, 0, -14) -- encima del dormitorio grande: de aquí corre el fuego por el tejado
 
 -- Noche y amanecer de la escena (la noche, como la de Ambiente; el alba, cálida y con bruma). Números a ojo.
 local NOCHE = {
@@ -57,17 +81,21 @@ local ALBA = {
 	Niebla = Color3.fromRGB(150, 120, 105),
 }
 
--- Lo que arde: cada foco se enciende a su `hora` (del servidor) y crece; su luz tiembla en un solo bucle.
+-- Lo que arde: cada foco se enciende a su `hora` (del servidor) y crece en CRECE s; su luz tiembla, en un solo bucle.
+type Emisor = { e: ParticleEmitter, ritmo: number }
 type Foco = {
 	parte: BasePart,
 	hora: number,
 	tam: number,
 	fuegos: { Fire },
+	emisores: { Emisor },
 	luz: PointLight?,
 	brillo: number,
-	humo: Smoke?,
 	sonido: boolean,
+	alVivir: (() -> ())?,
 	vivo: boolean,
+	fuerza: number, -- la escena aviva las llamas del tejado al hundirse
+	crecido: boolean?, -- ya a su tamaño y fuerza: el bucle solo hace temblar su luz
 }
 
 local carpeta: Folder? = nil -- lo que arde (se queda)
@@ -75,6 +103,13 @@ local focos: { Foco } = {}
 local rotas: { [Instance]: boolean } = {}
 local bucle: RBXScriptConnection? = nil
 local fuerzaLuz = 1 -- la escena la baja al amanecer
+local envuelta = false -- ya se ha preparado la casa entera ardiendo
+local fuera: { PointLight } = {} -- las luces del patio
+local horaFuera = math.huge -- desde cuándo alumbran
+
+local function poco(): boolean
+	return jugador:GetAttribute("Rendimiento") == true
+end
 
 local function pieza(tamano: Vector3, cf: CFrame, padre: Instance): Part
 	local p = Instance.new("Part")
@@ -82,6 +117,7 @@ local function pieza(tamano: Vector3, cf: CFrame, padre: Instance): Part
 	p.CanCollide = false
 	p.CanQuery = false
 	p.CanTouch = false
+	p.CastShadow = false
 	p.Transparency = 1
 	p.Size = tamano
 	p.CFrame = cf
@@ -103,54 +139,288 @@ local function mezcla(a: number, b: number, k: number): number
 	return a + (b - a) * k
 end
 
--- Un sitio que arde. `tam`: tamaño de la llama grande (2 en el rastro, 8 en un punto). Con humo y luz si es grande.
-local function foco(posicion: Vector3, hora: number, tam: number, padre: Instance?, conSonido: boolean?): Foco
-	local base = pieza(Vector3.new(math.max(1, tam * 0.4), 0.4, math.max(1, tam * 0.4)), CFrame.new(posicion),
-		padre or carpetaFuego())
-	local fuegos = {}
-	local sitios = if tam >= 4 then { Vector3.zero, Vector3.new(tam * 0.3, 0, tam * 0.15), Vector3.new(-tam * 0.25, 0, -tam * 0.2) }
-		else { Vector3.zero }
-	for i, desvio in sitios do
-		local f = Instance.new("Fire")
-		f.Color = LLAMA
-		f.SecondaryColor = LLAMA_OSCURA
-		f.Size = 0.5
-		f.Heat = if i == 1 then tam + 4 else tam
-		f.Enabled = false
-		f.Parent = if i == 1 then base else pieza(Vector3.one, CFrame.new(posicion + desvio), base)
-		table.insert(fuegos, f)
+local function secuencia(puntos: { { number } }): NumberSequence
+	local lista = {}
+	for _, p in puntos do
+		table.insert(lista, NumberSequenceKeypoint.new(p[1], p[2]))
 	end
-	local luz, humo = nil, nil
-	if tam >= 4 then
-		local l = Instance.new("PointLight")
-		l.Color = Color3.fromRGB(255, 130, 60)
-		l.Range = math.min(40, tam * 3)
-		l.Brightness = 0
-		l.Shadows = true
-		l.Parent = base
-		luz = l
-		local h = Instance.new("Smoke")
-		h.Color = HUMO
-		h.Opacity = 0.3
-		h.Size = tam
-		h.RiseVelocity = 6
-		h.Enabled = false
-		h.Parent = base
-		humo = h
+	return NumberSequence.new(lista)
+end
+
+-- Un emisor de partículas en `padre` (una pieza invisible: sale de todo su volumen hacia su cara `cara`).
+--   "Llama": lenguas de fuego de `escala` studs que suben. "Humo": humo negro espeso de `escala` studs al salir que se
+--   hincha mucho y sube alto. "Brasa": chispas que vuelan con el aire caliente.
+local function emisor(padre: BasePart, tipo: string, escala: number, ritmo: number, cara: Enum.NormalId?): Emisor
+	local e = Instance.new("ParticleEmitter")
+	e.Shape = Enum.ParticleEmitterShape.Box
+	e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	e.EmissionDirection = cara or Enum.NormalId.Top
+	e.Rotation = NumberRange.new(-180, 180)
+	e.Rate = 0
+	e.Enabled = true
+	if tipo == "Llama" then
+		e.Texture = TEX_LLAMA
+		e.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 225, 150)),
+			ColorSequenceKeypoint.new(0.3, Color3.fromRGB(255, 135, 40)),
+			ColorSequenceKeypoint.new(0.7, Color3.fromRGB(190, 45, 12)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 18, 10)),
+		})
+		e.LightEmission = 0.55
+		e.LightInfluence = 0
+		e.Size = secuencia({ { 0, escala * 0.45 }, { 0.3, escala }, { 1, escala * 0.25 } })
+		e.Transparency = secuencia({ { 0, 0.7 }, { 0.12, 0.1 }, { 0.65, 0.35 }, { 1, 1 } })
+		e.Lifetime = NumberRange.new(0.7, 1.3)
+		e.Speed = NumberRange.new(escala * 0.5, escala * 1.1)
+		e.Acceleration = Vector3.new(0, escala * 1.6, 0)
+		e.Drag = 1.2
+		e.SpreadAngle = Vector2.new(18, 18)
+		e.RotSpeed = NumberRange.new(-50, 50)
+	elseif tipo == "Humo" then
+		e.Texture = TEX_HUMO
+		e.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(150, 72, 34)), -- abajo, teñido por el fuego
+			ColorSequenceKeypoint.new(0.2, Color3.fromRGB(70, 58, 52)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(46, 44, 44)), -- gris oscuro: negro del todo no se ve de noche
+		})
+		e.LightEmission = 0
+		e.LightInfluence = 0.15
+		e.Size = secuencia({ { 0, escala * 0.5 }, { 1, escala * 2.4 } })
+		e.Transparency = secuencia({ { 0, 1 }, { 0.06, 0.12 }, { 0.6, 0.3 }, { 1, 1 } })
+		e.Lifetime = NumberRange.new(7, 11)
+		e.Speed = NumberRange.new(escala * 0.35, escala * 0.6)
+		e.Acceleration = Vector3.new(1.6, 1.2, 0.9) -- un poco de viento
+		e.Drag = 0.25
+		e.SpreadAngle = Vector2.new(12, 12)
+		e.RotSpeed = NumberRange.new(-12, 12)
+	else
+		e.Texture = TEX_CHISPA
+		e.Color = ColorSequence.new(Color3.fromRGB(255, 180, 80), Color3.fromRGB(210, 60, 20))
+		e.LightEmission = 1
+		e.LightInfluence = 0
+		e.Size = secuencia({ { 0, escala * 0.3 }, { 1, 0 } })
+		e.Transparency = secuencia({ { 0, 0.1 }, { 1, 1 } })
+		e.Lifetime = NumberRange.new(2, 4)
+		e.Speed = NumberRange.new(4, 12)
+		e.Acceleration = Vector3.new(1.5, 3, 0.8)
+		e.Drag = 0.4
+		e.SpreadAngle = Vector2.new(50, 50)
+		e.RotSpeed = NumberRange.new(-200, 200)
 	end
+	e.Parent = padre
+	return { e = e, ritmo = if poco() then ritmo * 0.5 else ritmo }
+end
+
+local function nuevoFoco(parte: BasePart, hora: number, tam: number): Foco
 	local f: Foco = {
-		parte = base,
+		parte = parte,
 		hora = hora,
 		tam = tam,
-		fuegos = fuegos,
-		luz = luz,
-		brillo = if tam >= 6 then 1.6 else 1,
-		humo = humo,
-		sonido = conSonido == true,
+		fuegos = {},
+		emisores = {},
+		luz = nil,
+		brillo = 1,
+		sonido = false,
+		alVivir = nil,
 		vivo = false,
+		fuerza = 1,
 	}
 	table.insert(focos, f)
 	return f
+end
+
+local function luz(padre: Instance, alcance: number, sombras: boolean): PointLight
+	local l = Instance.new("PointLight")
+	l.Color = Color3.fromRGB(255, 125, 55)
+	l.Range = alcance
+	l.Brightness = 0
+	l.Shadows = sombras
+	l.Parent = padre
+	return l
+end
+
+-- Un sitio del suelo que arde. `tam`: 2 en el rastro, 8 en un punto, 10 en el sótano. Los grandes llenan la sala de
+-- llamas hasta el techo y alumbran.
+local function foco(posicion: Vector3, hora: number, tam: number, padre: Instance?, conSonido: boolean?): Foco
+	local grande = tam >= 4
+	local base = pieza(Vector3.new(math.max(1, tam * 0.7), 0.6, math.max(1, tam * 0.7)), CFrame.new(posicion),
+		padre or carpetaFuego())
+	local f = nuevoFoco(base, hora, tam)
+	local sitios = if grande then { Vector3.zero, Vector3.new(tam * 0.3, 0, tam * 0.15), Vector3.new(-tam * 0.25, 0, -tam * 0.2) }
+		else { Vector3.zero }
+	for i, desvio in sitios do
+		local fuego = Instance.new("Fire")
+		fuego.Color = LLAMA
+		fuego.SecondaryColor = LLAMA_OSCURA
+		fuego.Size = 0.5
+		fuego.Heat = if i == 1 then tam + 4 else tam
+		fuego.Enabled = false
+		fuego.Parent = if i == 1 then base else pieza(Vector3.one, CFrame.new(posicion + desvio), base)
+		table.insert(f.fuegos, fuego)
+	end
+	if grande then
+		table.insert(f.emisores, emisor(base, "Llama", tam * 0.55, 30))
+		table.insert(f.emisores, emisor(base, "Brasa", 1, 6))
+		f.luz = luz(base, math.min(36, tam * 3.5), true)
+		f.brillo = if tam >= 6 then 2 else 1.2
+	else
+		table.insert(f.emisores, emisor(base, "Llama", 1.8, 10))
+	end
+	f.sonido = conSonido == true
+	return f
+end
+
+-- Estalla el cristal de una ventana (solo aquí) hacia fuera: salen lenguas de fuego que lamen la fachada y humo negro.
+-- `modelo`: el modelo "Ventana" de Mapa (todas, también las de las salas cerradas). Una vez cada una.
+local function romperVentana(modelo: Instance, hora: number, conLuz: boolean)
+	if rotas[modelo] then
+		return
+	end
+	local cristal = modelo:FindFirstChild("Cristal")
+	if not (cristal and cristal:IsA("BasePart")) then
+		return
+	end
+	rotas[modelo] = true
+	local mira = cristal.CFrame -- Mapa: mira hacia fuera
+	local fueraV = mira.LookVector
+	local ancho, alto = cristal.Size.X, cristal.Size.Y
+	-- Las llamas salen del hueco hacia fuera y suben pegadas a la pared; el humo, de la parte de arriba.
+	local boca = pieza(Vector3.new(ancho * 0.85, alto * 0.6, 0.4), mira * CFrame.new(0, -alto * 0.1, -0.5), carpetaFuego())
+	local f = nuevoFoco(boca, hora, 5)
+	local lengua = emisor(boca, "Llama", math.clamp(ancho * 1.9, 5, 8), 34, Enum.NormalId.Front)
+	lengua.e.Speed = NumberRange.new(4, 8)
+	lengua.e.Lifetime = NumberRange.new(0.9, 1.6)
+	table.insert(f.emisores, lengua)
+	local alta = pieza(Vector3.new(ancho * 0.7, 0.4, 0.4), mira * CFrame.new(0, alto * 0.45, -0.6), boca)
+	table.insert(f.emisores, emisor(alta, "Humo", 4, 2, Enum.NormalId.Front))
+	if conLuz and not poco() then
+		f.luz = luz(boca, 22, false)
+		f.brillo = 1.3
+	end
+	f.alVivir = function()
+		cristal.LocalTransparencyModifier = 1
+		Sonido.en("Cristal", mira.Position, azar:NextNumber(0.9, 1.1))
+		for _ = 1, 8 do
+			local p = Instance.new("Part")
+			p.Size = Vector3.new(0.4, 0.4, 0.12)
+			p.CFrame = mira * CFrame.new(azar:NextNumber(-ancho / 2, ancho / 2), azar:NextNumber(-alto / 2, alto / 2), 0)
+				* CFrame.Angles(azar:NextNumber(0, 6), azar:NextNumber(0, 6), 0)
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CastShadow = false
+			p.Transparency = 0.3
+			p.Color = Color3.fromRGB(170, 190, 200)
+			p.Material = Enum.Material.Glass
+			p.AssemblyLinearVelocity = fueraV * azar:NextNumber(10, 18)
+				+ Vector3.new(azar:NextNumber(-4, 4), azar:NextNumber(2, 6), azar:NextNumber(-4, 4))
+			p.Parent = workspace.Terrain
+			task.delay(4, p.Destroy, p)
+		end
+	end
+end
+
+local function ventanas(): { Instance }
+	local mapa = workspace:FindFirstChild("Mapa")
+	local casa = mapa and mapa:FindFirstChild("Casa")
+	local lista = {}
+	for _, d in (if casa then casa:GetDescendants() else {}) do
+		if d.Name == "Ventana" and d:IsA("Model") and d:FindFirstChild("Cristal") then
+			table.insert(lista, d)
+		end
+	end
+	return lista
+end
+
+-- La casa entera: ventanas, tejado, humo y luces de fuera, cada cosa a la hora en que le llega el fuego desde lo que
+-- ya arde (`ardiendo`: { {posición, hora} }).
+local function envolver(ardiendo: { { any } }, inicioTejado: number)
+	if envuelta then
+		return
+	end
+	envuelta = true
+	local function llega(pos: Vector3, velocidad: number): number
+		local mejor = math.huge
+		for _, a in ardiendo do
+			mejor = math.min(mejor, (a[2] :: number) + ((a[1] :: Vector3) - pos).Magnitude / velocidad)
+		end
+		return mejor
+	end
+	-- Ventanas: una de cada tres con luz (con todas sería demasiado para el móvil).
+	for i, v in ventanas() do
+		local cristal = v:FindFirstChild("Cristal") :: BasePart
+		romperVentana(v, llega(cristal.Position, PROPAGA) + azar:NextNumber(0.3, 1.8), i % 3 == 0)
+	end
+	-- Tejado: una rejilla de hogueras sobre los dos faldones, del dormitorio grande hacia fuera.
+	local raiz = carpetaFuego()
+	local primero = math.huge
+	for _, x in { -33, -22, -11, 0, 11, 22, 33 } do
+		for _, z in { -24, -9, 9, 24 } do
+			local pos = Vector3.new(x + azar:NextNumber(-2, 2), alturaTejado(z), z)
+			local hora = inicioTejado + (Vector3.new(x, 0, z) - DESDE_TEJADO).Magnitude / PROPAGA_TEJADO + azar:NextNumber(0, 1)
+			primero = math.min(primero, hora)
+			local base = pieza(Vector3.new(9, 1, 7), CFrame.new(pos), raiz)
+			local f = nuevoFoco(base, hora, 9)
+			table.insert(f.emisores, emisor(base, "Llama", 8, 14))
+			if z == -9 or z == 9 then
+				table.insert(f.emisores, emisor(base, "Brasa", 1.4, 5))
+			end
+		end
+	end
+	-- Columnas de humo negro, encima de la cumbrera: suben muy alto y se ven desde el camino.
+	for _, x in { -27, -6, 14, 32 } do
+		local pos = Vector3.new(x, alturaTejado(0) + 2, azar:NextNumber(-3, 3))
+		local base = pieza(Vector3.new(14, 2, 10), CFrame.new(pos), raiz)
+		local f = nuevoFoco(base, inicioTejado + (Vector3.new(x, 0, 0) - DESDE_TEJADO).Magnitude / PROPAGA_TEJADO + 1, 12)
+		table.insert(f.emisores, emisor(base, "Humo", 16, 4))
+	end
+	-- Las paredes de fuera también arden: lenguas que trepan por la fachada (abajo y arriba) y por los lados.
+	local paredes = {}
+	for _, x in { -30, -18, -6, 6, 18 } do
+		table.insert(paredes, CFrame.new(x + azar:NextNumber(-2, 2), 2, -34.4))
+		table.insert(paredes, CFrame.new(x + 4 + azar:NextNumber(-2, 2), 15, -34.4))
+	end
+	for _, lado in { -1, 1 } do
+		for _, z in { -20, 0, 20 } do
+			table.insert(paredes, CFrame.new(40 * lado, if z == 0 then 15 else 2, z) * CFrame.Angles(0, math.pi / 2, 0))
+		end
+	end
+	for _, cf in paredes do
+		local base = pieza(Vector3.new(7, 4, 0.6), cf, raiz)
+		local f = nuevoFoco(base, llega(cf.Position, PROPAGA) + azar:NextNumber(1.5, 4), 7)
+		table.insert(f.emisores, emisor(base, "Llama", 6, 16))
+	end
+	-- El porche, de punta a punta: el rastro de gasolina prende las tablas.
+	for x = -26, 24, 10 do
+		local pos = Vector3.new(x + azar:NextNumber(-2, 2), 1.3, -37 + azar:NextNumber(-1.5, 1.5))
+		local f = foco(pos, llega(pos, PROPAGA) + azar:NextNumber(2, 5), 5, raiz)
+		if f.luz then -- sin luz propia: ya alumbran las de fuera
+			f.luz:Destroy()
+			f.luz = nil
+		end
+	end
+	-- Las luces de fuera, a los cuatro lados y una encima: iluminan el patio, la fachada desde fuera y el bosque.
+	horaFuera = math.min(primero, llega(Vector3.new(0, 1, -30), PROPAGA))
+	for _, sitio in { Vector3.new(-24, 5, -50), Vector3.new(22, 5, -50), Vector3.new(0, 34, -24), Vector3.new(52, 6, 0),
+		Vector3.new(-52, 6, 0), Vector3.new(0, 6, 48) } do
+		table.insert(fuera, luz(pieza(Vector3.one, CFrame.new(sitio), raiz), ALCANCE_FUERA, false))
+	end
+	-- El rugido del fuego grande, en las cuatro esquinas, y crujidos sueltos de la madera.
+	task.delay(math.max(0, horaFuera - workspace:GetServerTimeNow()), function()
+		for _, sitio in { Vector3.new(-30, 10, -30), Vector3.new(30, 10, -30), Vector3.new(-30, 10, 30), Vector3.new(30, 10, 30) } do
+			local s = Sonido.bucle("Fuego", pieza(Vector3.one, CFrame.new(sitio), raiz))
+			s.Volume *= 2
+			s.RollOffMode = Enum.RollOffMode.InverseTapered
+			s.RollOffMinDistance = 20
+			s.RollOffMaxDistance = 180
+		end
+		local hasta = os.clock() + CRUJIDOS
+		while os.clock() < hasta and raiz.Parent do
+			task.wait(azar:NextNumber(2, 4.5))
+			local x, z = azar:NextNumber(-36, 36), azar:NextNumber(-30, 30)
+			Sonido.en("Crujido", Vector3.new(x, alturaTejado(z), z), azar:NextNumber(0.7, 0.95))
+		end
+	end)
 end
 
 -- El bucle de todo lo que arde: enciende cada foco a su hora, lo hace crecer y hace temblar las luces.
@@ -174,70 +444,43 @@ local function arrancarBucle()
 				for _, fuego in f.fuegos do
 					fuego.Enabled = true
 				end
-				if f.humo then
-					f.humo.Enabled = true
-				end
 				if f.sonido then
 					local s = Sonido.bucle("Fuego", f.parte)
 					s.RollOffMode = Enum.RollOffMode.InverseTapered
 					s.RollOffMinDistance = 8
 					s.RollOffMaxDistance = 60
 				end
+				if f.alVivir then
+					task.spawn(f.alVivir)
+				end
 			end
-			local crece = math.min(1, pasado / 2.5)
+			local crece = math.min(1, pasado / CRECE)
+			if f.crecido then -- ya a su tamaño: solo tiembla su luz
+				if f.luz then
+					f.luz.Brightness = f.brillo * fuerzaLuz * (0.65 + 0.35 * math.noise(reloj * 7, i * 1.37))
+				end
+				continue
+			end
+			f.crecido = crece >= 1
 			for j, fuego in f.fuegos do
 				fuego.Size = math.max(0.5, f.tam * crece * (if j == 1 then 1 else 0.65))
 			end
+			for _, em in f.emisores do
+				em.e.Rate = em.ritmo * crece * f.fuerza
+			end
 			if f.luz then
-				f.luz.Brightness = f.brillo * crece * fuerzaLuz * (0.7 + 0.3 * math.noise(reloj * 7, i * 1.37))
+				f.luz.Brightness = f.brillo * crece * fuerzaLuz * (0.65 + 0.35 * math.noise(reloj * 7, i * 1.37))
 			end
 		end
-	end)
-end
-
--- Estalla el cristal de una ventana (solo aquí) hacia fuera y asoman las llamas. Una vez cada una.
-local function romperVentana(el: Instance, hora: number)
-	if rotas[el] then
-		return
-	end
-	rotas[el] = true
-	local centro = el:GetAttribute("Centro")
-	local cristal = el:FindFirstChild("Cristal")
-	if typeof(centro) ~= "CFrame" then
-		return
-	end
-	local fuera = centro.LookVector -- CasaVista: la sala queda hacia -LookVector
-	foco(centro.Position - fuera * 0.4 - Vector3.new(0, 1, 0), hora, 4.5)
-	task.delay(math.max(0, hora - workspace:GetServerTimeNow()), function()
-		if cristal and cristal:IsA("BasePart") then
-			cristal.LocalTransparencyModifier = 1
-		end
-		Sonido.en("Cristal", centro.Position, azar:NextNumber(0.9, 1.1))
-		for _ = 1, 10 do
-			local p = pieza(Vector3.new(0.4, 0.4, 0.12),
-				centro * CFrame.new(azar:NextNumber(-1.2, 1.2), azar:NextNumber(-1, 1), 0)
-					* CFrame.Angles(azar:NextNumber(0, 6), azar:NextNumber(0, 6), 0), workspace.Terrain)
-			p.Transparency = 0.3
-			p.Color = Color3.fromRGB(170, 190, 200)
-			p.Material = Enum.Material.Glass
-			p.Anchored = false
-			p.AssemblyLinearVelocity = fuera * azar:NextNumber(10, 18) + Vector3.new(azar:NextNumber(-4, 4), azar:NextNumber(2, 6), azar:NextNumber(-4, 4))
-			task.delay(4, p.Destroy, p)
+		local k = math.clamp((ahora - horaFuera) / 8, 0, 1)
+		for i, l in fuera do
+			l.Brightness = LUZ_FUERA * k * fuerzaLuz * (0.55 + 0.45 * math.noise(reloj * 5, i * 2.1))
 		end
 	end)
 end
 
--- Las ventanas a menos de RADIO_VENTANAS de `posicion` estallan un poco después de que llegue allí el fuego.
-local function ventanasCerca(posicion: Vector3, hora: number)
-	for _, el in CollectionService:GetTagged("Ventana") do
-		local centro = el:GetAttribute("Centro")
-		if typeof(centro) == "CFrame" and (centro.Position - posicion).Magnitude <= RADIO_VENTANAS then
-			romperVentana(el, hora + azar:NextNumber(0.6, 2.2))
-		end
-	end
-end
-
--- El fuego corre por `camino`: del porche (1) por el rastro hasta el primer punto (2) y luego de punto en punto.
+-- El fuego corre por `camino`: del porche (1) por el rastro hasta el primer punto (2) y luego de punto en punto; desde
+-- ellos, la casa entera.
 local function prender(camino: { Vector3 }, porSala: number, inicio: number)
 	-- El rastro: llamitas cada ~3 studs que se van encendiendo.
 	local a, b = camino[1], camino[2]
@@ -247,12 +490,18 @@ local function prender(camino: { Vector3 }, porSala: number, inicio: number)
 		local k = i / trozos
 		foco(a:Lerp(b, k) + Vector3.new(0, 0.3, 0), inicio + porSala * k, 2.2, nil, i == 0)
 	end
-	-- Los puntos de gasolina (y el sótano, el último): un fuego grande en cada uno.
+	-- Los puntos de gasolina (y el sótano, el último): una hoguera grande en cada uno.
+	local ardiendo = {}
+	local tejado = inicio + porSala * (#camino - 2)
 	for i = 2, #camino do
 		local hora = inicio + porSala * (i - 1)
 		foco(camino[i] + Vector3.new(0, 0.5, 0), hora, if i == #camino then 10 else 8, nil, true)
-		ventanasCerca(camino[i], hora)
+		table.insert(ardiendo, { camino[i], hora })
+		if camino[i].Y > 10 then -- el del piso de arriba (dormitorio grande): de ahí prende el tejado
+			tejado = hora - TEJADO_ANTES
+		end
 	end
+	envolver(ardiendo, tejado)
 	arrancarBucle()
 end
 
@@ -304,6 +553,7 @@ local function tejadoQueCae(casa: Instance, padre: Instance, alAcabar: (() -> ()
 			d:Destroy()
 		end
 	end
+	copia.Color = copia.Color:Lerp(Color3.new(), 0.6) -- chamuscado
 	copia.Parent = padre
 	original.LocalTransparencyModifier = 1
 	alAcabar(function()
@@ -338,6 +588,27 @@ local function tejadoQueCae(casa: Instance, padre: Instance, alAcabar: (() -> ()
 			c.LocalTransparencyModifier = if p > 0.25 then 1 else 0
 		end
 	end
+end
+
+-- Una viga ardiendo que cae de `desde` (solo aquí, se queda en el suelo humeando).
+local function viga(desde: Vector3, padre: Instance)
+	local p = Instance.new("Part")
+	p.Size = Vector3.new(0.9, 0.9, azar:NextNumber(6, 9))
+	p.CFrame = CFrame.new(desde) * CFrame.Angles(azar:NextNumber(-0.4, 0.4), azar:NextNumber(0, 6.28), azar:NextNumber(-0.3, 0.3))
+	p.Color = Color3.fromRGB(28, 20, 16)
+	p.Material = Enum.Material.Wood
+	p.CanCollide = true
+	p.CanQuery = false
+	p.CanTouch = false
+	p.AssemblyLinearVelocity = Vector3.new(azar:NextNumber(-3, 3), azar:NextNumber(0, 4), -azar:NextNumber(4, 9))
+	p.AssemblyAngularVelocity = Vector3.new(azar:NextNumber(-3, 3), azar:NextNumber(-2, 2), azar:NextNumber(-3, 3))
+	local fuego = Instance.new("Fire")
+	fuego.Color = LLAMA
+	fuego.SecondaryColor = LLAMA_OSCURA
+	fuego.Size = 4
+	fuego.Heat = 8
+	fuego.Parent = p
+	p.Parent = padre
 end
 
 -- `devolver`: lo que hay que deshacer al acabar (lo hace quien llama, aunque esto falle a medias).
@@ -386,47 +657,29 @@ local function escena(segundos: number, devolver: { () -> () })
 		end
 	end)
 
-	-- La casa entera en llamas: todas las ventanas (se quedan, como lo que ya ardía), fuego en el tejado, columnas de
-	-- humo y luces anaranjadas fuera para que se vea la fachada. Lo de la escena va en `local_` y se quita al acabar.
+	-- La casa entera en llamas: lo que aún no ardía prende ya (también si se entra con la escena empezada).
 	local ahora = workspace:GetServerTimeNow()
-	for _, el in CollectionService:GetTagged("Ventana") do
-		romperVentana(el, ahora + azar:NextNumber(0, 2.5))
+	if not envuelta then
+		envolver({ { Vector3.new(0, 6, 0), ahora - 4 } }, ahora - 3)
 	end
-	local tejado: { Foco } = {}
-	for x = -30, 30, 12 do
-		-- Encima del faldón de delante (Mapa: en z = -8 está a y ≈ 37); al hundirse, quedan ardiendo sobre el hueco.
-		table.insert(tejado, foco(Vector3.new(x, 37.8, -8), ahora + azar:NextNumber(0, 1), 9, local_))
+	for _, f in focos do
+		if f.hora > ahora + 2.5 then
+			f.hora = ahora + azar:NextNumber(0, 2.5)
+		end
 	end
-	for _, x in { -22, 4, 26 } do
-		local h = Instance.new("Smoke")
-		h.Color = HUMO
-		h.Opacity = 0.45
-		h.Size = 30
-		h.RiseVelocity = 12
-		h.Parent = pieza(Vector3.one, CFrame.new(x, 42, 2), local_)
+	horaFuera = math.min(horaFuera, ahora - 8)
+	local delante: { Foco } = {} -- las llamas del faldón de delante: se avivan al hundirse
+	for _, f in focos do
+		if f.tam == 9 and f.parte.Position.Z < 0 then
+			table.insert(delante, f)
+		end
 	end
-	local fuera: { PointLight } = {}
-	for _, sitio in { Vector3.new(-24, 6, -40), Vector3.new(20, 6, -40), Vector3.new(0, 22, -38), Vector3.new(44, 10, -10) } do
-		local l = Instance.new("PointLight")
-		l.Color = Color3.fromRGB(255, 120, 50)
-		l.Range = 45
-		l.Brightness = 0
-		l.Parent = pieza(Vector3.one, CFrame.new(sitio), local_)
-		table.insert(fuera, l)
-	end
-	local chispas = Instance.new("ParticleEmitter")
-	chispas.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	chispas.Color = ColorSequence.new(Color3.fromRGB(255, 170, 70), Color3.fromRGB(200, 60, 20))
-	chispas.LightEmission = 0.6
-	chispas.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 0) })
-	chispas.Transparency = NumberSequence.new(0.1, 1)
-	chispas.Lifetime = NumberRange.new(1.5, 3)
-	chispas.Speed = NumberRange.new(10, 26)
-	chispas.SpreadAngle = Vector2.new(40, 40)
-	chispas.Acceleration = Vector3.new(0, -4, 0)
-	chispas.EmissionDirection = Enum.NormalId.Top
-	chispas.Rate = 6
-	chispas.Parent = pieza(Vector3.new(60, 1, 12), CFrame.new(0, 34, -12), local_)
+	-- La llamarada del hueco al hundirse el tejado (sale de golpe y se queda ardiendo muy alta).
+	local hueco = pieza(Vector3.new(60, 2, 18), CFrame.new(0, 30, -14), local_)
+	local llamarada = emisor(hueco, "Llama", 16, 0)
+	local humoHueco = emisor(hueco, "Humo", 18, 0)
+	local chispas = emisor(hueco, "Brasa", 2, 0)
+	chispas.e.Speed = NumberRange.new(14, 32)
 	arrancarBucle()
 	local hundir = if casa then tejadoQueCae(casa, local_, alAcabar) else nil
 
@@ -517,15 +770,16 @@ local function escena(segundos: number, devolver: { () -> () })
 		end
 		fuerzaLuz = 1 - 0.45 * alba
 		local reloj = os.clock()
-		for i, l in fuera do
-			l.Brightness = 1.3 * fuerzaLuz * (0.7 + 0.3 * math.noise(reloj * 6, i * 2.1))
-		end
 
-		-- Lo que pasa: el rugido desde dentro, el tejado que se hunde.
+		-- Lo que pasa: el rugido desde dentro y una viga que cae junto al porche, el tejado que se hunde.
 		if t >= 5.6 and una("Rugido") then
 			local rugido = Sonido.en("Rugido", Vector3.new(0, 4, 16), 0.7)
 			rugido.Volume *= 1.6
 			temblar(t, 1.6, 0.6)
+		end
+		if t >= 7 and una("Viga") then
+			viga(Vector3.new(-6, 24, -36), local_)
+			Sonido.en("Crujido", Vector3.new(-6, 20, -36), 0.75)
 		end
 		if t >= 8 and una("Chillido") then
 			Sonido.en("Chillido", Vector3.new(0, 4, 16), 0.6)
@@ -540,23 +794,30 @@ local function escena(segundos: number, devolver: { () -> () })
 		end
 		if cae >= 0.6 and una("Caida") then
 			Sonido.en("Caida", Vector3.new(0, 30, -12), 0.8)
-			chispas:Emit(120)
+			chispas.e:Emit(if poco() then 80 else 200)
+			llamarada.e:Emit(if poco() then 30 else 70)
 			temblar(t, 1.3, 0.45)
 		end
-		for _, f in tejado do -- tras hundirse, las llamas del tejado suben
-			f.tam = 9 + 14 * math.clamp((t - 11.2) / 1.5, 0, 1)
+		-- Tras hundirse, del hueco sale una llamarada que se queda, y las llamas de delante se avivan.
+		local aviva = math.clamp((t - 11.2) / 1.5, 0, 1)
+		llamarada.e.Rate = llamarada.ritmo + (if poco() then 10 else 22) * aviva
+		humoHueco.e.Rate = (if poco() then 1.5 else 3) * aviva
+		chispas.e.Rate = (if poco() then 6 else 14) * aviva
+		for _, f in delante do
+			f.fuerza = 1 + 0.8 * aviva
+			f.crecido = false -- que el bucle le aplique la fuerza nueva
 		end
 
 		-- Cámara por planos.
 		local cf
 		if t < 5 then
-			cf = plano(t, 0, 5, Vector3.new(10, 6, -112), Vector3.new(6, 8, -95), Vector3.new(0, 18, -5))
+			cf = plano(t, 0, 5, Vector3.new(10, 6, -112), Vector3.new(6, 8, -95), Vector3.new(0, 20, -5))
 		elseif t < 9.5 then
-			cf = plano(t, 5, 9.5, Vector3.new(-16, 3.2, -54), Vector3.new(-13, 3.6, -50), Vector3.new(0, 9, -33))
+			cf = plano(t, 5, 9.5, Vector3.new(-16, 3.2, -54), Vector3.new(-13, 3.6, -50), Vector3.new(0, 11, -33))
 		elseif t < 14 then
 			cf = plano(t, 9.5, 14, Vector3.new(62, 20, -78), Vector3.new(56, 21, -72), Vector3.new(0, 30, -12))
 		else
-			cf = plano(t, 14, LARGO_ESCENA, Vector3.new(-70, 16, -150), Vector3.new(-62, 18, -138), Vector3.new(0, 20, 0))
+			cf = plano(t, 14, LARGO_ESCENA, Vector3.new(-48, 62, -128), Vector3.new(-40, 66, -116), Vector3.new(0, 34, 0))
 		end
 		if t < temblorHasta then
 			local f = temblorFuerza * (temblorHasta - t)
