@@ -131,3 +131,12 @@ Modelos CC0 de polyhaven.com (uso comercial libre, sin citar), pasados por Blend
 - Salas "en bruto" (`bruto = true` en `SALAS`): solo papel, sin rodapié ni moldura (garaje y cobertizo).
 - Poly Haven: `compost_bags` son tres sacos esparcidos (a escala 4,5 miden 8 de ancho: en `Mapa`, `ScaleTo` 0,5 y su caja de choque a mano); `wicker_basket_01` es una bandeja baja; `bleach_bottle` y `all_purpose_cleaner` son de plástico moderno de colores (a `--oscurecer 0.5`); `wooden_ladder` es una escalera de tijera abierta; `hanging_industrial_lamp` trae 5,4 de cadena.
 - `upload_image` con 45 imágenes tarda más de dos minutos (sigue en segundo plano). Los ids se guardaron en `_garaje_tex*.json` dentro de la carpeta servida y Studio los lee con `HttpService:GetAsync`.
+
+## Sótano (11.8.13)
+
+- Los muebles hechos a mano de esta sala van en `tools/blender/sotano.py` (como `desvan.py`): `BancoCarpintero` (9 × 2,8, tablero a 3,4, con el tablero de pared y sus clavijas a 6,6 y 5,0), `CalderaVieja` (el tiro sale 2,65 por detrás del origen: hasta la pared), `CadenasTecho` (5,6 de alto: su origen, 5,6 por debajo de la viga), `CuerdasSilla` (en los ejes de `SillaSotanoPH`: mismo CFrame más su desfase) y `TarrosSotano` (una balda de 5 para `DespensaPH`, cuyas baldas están a 0,4, 1,6, 2,8, 4,0, 5,3 y 6,9). `cuerda()` hace tubos por una línea quebrada y `helice()` las vueltas de cuerda.
+- En `vestirSotano`, `enOrigen(nombre, cf, centro)` pone un mueble de Blender por su origen sumando el desfase de su caja (`CENTRO` y `ABAJO` que imprime `a_mano.py`).
+- Cuerdas finas: sin bolas en las juntas (gastaban la mitad de los triángulos y no se notan).
+- Poly Haven: `pull_chain_light_socket` es un portalámparas sin bombilla (la pone `Mapa`, a `--escala 6`); `gallinera_chair` es una silla tallada con brazos (asiento a 1,8, brazos a 2,55, patas en x ±1,06 y z -0,79 y 1,05); `Barrel_01` es un bidón rojo de aviso moderno (se cambió por `wine_barrel_01`); `wooden_barrels_01` son barriles esparcidos de 17 × 13; `mousetrap` y `street_rat`, a `--escala 6` para que se vean.
+- Las virutas de pie, claras y regulares parecían letras ("C"): tumbadas, de tamaño al azar y del color de la madera.
+- Las paredes del hueco de la escalera crecen con `Separar` hasta ±2,38: la piedra de dentro va a ±2,33, y sus puntas asoman 0,1 a la sala (otra lámina en z 48,26).

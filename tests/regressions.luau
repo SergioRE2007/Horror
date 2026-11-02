@@ -874,6 +874,32 @@ do
 	end
 end
 
+-- Pistas de la historia (12.1): se guardan con la partida y lo viejo sin pistas sigue cargando.
+do
+	local FP = cargar("src/juego/servidor/FormatoPartida")
+	local Historia = cargar("src/shared/Historia")
+	local LangEs = cargar("src/shared/LangEs")
+	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos, coche = Config.Coche,
+		arreglarCoche = cargar("src/shared/Recetas").arreglarCoche, pistas = #Historia }
+	igual(#Historia, 12, "las 12 pistas de docs/historia.md")
+	for n, p in Historia do
+		igual(LangEs[p.que] ~= nil and LangEs[p.texto] ~= nil, true, `pista {n} traducida`)
+		igual(p.forma == "Nota" or p.forma == "Foto" or p.forma == "Libreta" or p.forma == "Diario", true, `pista {n} con forma`)
+	end
+	local fuente = fs.readFile("src/juego/servidor/Pistas.luau")
+	local _, sitios = string.gsub(string.match(fuente, "local SITIOS: { CFrame } = (%b{})") :: string, "\n%s*en%a+%(", "")
+	igual(sitios, #Historia, "un sitio por pista")
+
+	local vieja = FP.arreglar({ version = 1, noche = 3, semilla = 7 }, cat)
+	igual(#vieja.pistas, 0, "guardado viejo sin pistas: ninguna leída")
+	local d = FP.arreglar(guardable({ version = 1, noche = 3, semilla = 7, pistas = { 12, 3, 1 } }, "pistas"), cat)
+	igual(table.concat(d.pistas, ","), "1,3,12", "las leídas, en orden")
+	local mala = FP.arreglar({ noche = 2, pistas = { 2, 2, 0, 13, -1, 1.5, 0 / 0, math.huge, "4", 5 } }, cat)
+	igual(table.concat(mala.pistas, ","), "2,5", "sin repetidas, rotas ni que no existen")
+	igual(#FP.arreglar({ noche = 2, pistas = "todas" }, cat).pistas, 0, "pistas que no son lista: ninguna")
+	guardable(d, "partida con pistas")
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")
