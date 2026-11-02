@@ -6,6 +6,7 @@
 - `juego/cliente/Pasos`: los pasos de cada jugador cerca de la cámara según `Humanoid.FloorMaterial` (madera, hojarasca/hierba o tierra), uno cada 7 studs andados, en 3D desde los pies. Calla el `Running` de serie de Roblox.
 - `Ambiente`: el fondo del bosque (`Viento`) es un bucle de 40 s de solo viento y hojas (`tools/sonidos/componer.mjs tools/sonidos/bosque.json <piezas> BosqueBase.wav`; pedidos de una vez a ElevenLabs los ambientes salen mudos y con siseo). Lo demás suena suelto y al azar desde un sitio del bosque (pedido por el usuario: que no se oiga siempre lo mismo): de noche lobos lejos, búhos en lo alto, ramas y grillos cada 10-28 s; de día alguna rama. De noche, con la cámara dentro de la casa, un crujido suelto cada 18-45 s.
 - Flash: el de YouTube de arriba (`FlashYT`, 132658894276493, probado en Studio). Los intentos con ElevenLabs (`FlashPop` y el pitido de `tools/sonidos/pitido.mjs`) se descartaron.
+- Detalles de la casa (11.9, tanda `detalles` y dos de YouTube para la bombilla): `docs/sistemas/detalles.md`. Lo eléctrico (zumbidos, chisporroteos) sale de ElevenLabs "brutalmente saturado" (el usuario): para eso, mejor uno de YouTube sin derechos que pase él.
 - Claude no puede oír: el volumen y el gusto los decide el usuario.
 
 ## Probado en Studio (23-10-2026)
