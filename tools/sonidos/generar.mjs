@@ -93,6 +93,25 @@ const BATCHES = {
 		s("ramita", 1, "Ramita lejana", "Distant twig snapping in a forest, far away, quiet", 2),
 		s("hojas", 3, "Hojas con la brisa", "Leaves rustling in a light breeze, soft, clean", 2),
 	],
+	// Detalles vivos de la casa (11.9, pedido por el usuario): reloj, nevera, grifos, bombillas, tuberías y chimenea.
+	detalles: [
+		s("Tic", 0.5, "Reloj de pie: un tic del péndulo", `Single tick of an old grandfather clock escapement, crisp wooden mechanical click, very short, ${DRY}`),
+		s("Campanada", 4, "Reloj de pie: una campanada", "Single deep chime of an old grandfather clock striking the hour, one bell hit with a long resonant decay, eerie, no music"),
+		s("Nevera", 4, "Nevera vieja zumbando (bucle)", `Old 1950s refrigerator compressor running, steady low electrical hum with a faint rattle, clearly audible, ${LOOP}`, 3, true),
+		s("NeveraClac", 1.5, "La nevera se para con un traqueteo", `Old refrigerator compressor shutting off, a short shudder and rattle ending in a metallic click, ${DRY}`),
+		s("Gota", 0.5, "Gota del grifo cayendo en la pila", `Single water drop falling from a leaky faucet into a sink, small clear plink, ${DRY}`),
+		s("Chispazo", 1.2, "Bombilla que chisporrotea y parpadea", `Old light bulb flickering with a faulty electrical buzz and crackle, short, ${DRY}`),
+		s("Tuberia", 3, "Tuberías golpeando dentro de la pared", "Old water pipes knocking and banging inside a wall, a few hollow metallic clanks, muffled, horror ambience, no music"),
+		// Los tres Chispazo salieron saturados (el usuario): uno suave en su lugar.
+		s("Parpadeo", 1.2, "Bombilla que parpadea (suave)", `Quiet flicker of an old incandescent light bulb, soft faint electrical hum with a few tiny clicks, subtle and gentle, clean, no distortion, ${DRY}`),
+		s("VientoTiro", 5, "Viento aullando por la chimenea", "Wind howling down a brick chimney flue, low hollow moaning gust that rises and fades, eerie, no music"),
+	],
+	// Otra tanda para la bombilla (pedido por el usuario: los Chispazo saturados y el Parpadeo suave no valieron).
+	parpadeo: [
+		s("ParpadeoB", 1.2, "Bombilla: zumbido bajo y unos clics", `Old incandescent light bulb flickering, a low steady electric hum with a few soft ticking clicks, moderate volume, clean, ${DRY}`, 2),
+		s("ParpadeoC", 1.0, "Bombilla: el filamento chisporrotea un momento", `Light bulb filament sputtering for a moment, a short gentle electric sizzle that fades, clean, ${DRY}`, 2),
+		s("ParpadeoD", 1.2, "Bombilla: interruptor que falla", `Faulty old light switch, a few quick soft clicks with a faint electric buzz between them, clean, ${DRY}`, 2),
+	],
 };
 
 const key = apiKey();

@@ -17,6 +17,7 @@ require(Sistemas.TrepadorVista).start()
 require(Sistemas.ImitadorVista).start()
 require(Sistemas.AcechadorVista).start()
 require(Sistemas.ChimeneaVista).start()
+task.spawn(require(Sistemas.DetallesVista).start) -- espera al mapa: que no frene a los de después
 require(Sistemas.EquipoVista).start()
 require(Sistemas.MochilaUi).start() -- después de EquipoVista: su botón va en la misma fila
 require(Sistemas.MovilUi).start() -- después de EquipoVista: su botón va en la misma fila

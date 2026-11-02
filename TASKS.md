@@ -62,6 +62,13 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 En todas: telarañas que flotan o se meten en la pared.
 
+### 11.9 Detalles vivos de la casa (pedido por el usuario: "poner que la chimenea esté animada con fuego o sonidos de los electrodomésticos, detallitos")
+
+- Todo en el cliente (`DetallesVista` y `ChimeneaVista`), sin tocar el camino del Trepador. Detalle en `docs/sistemas/detalles.md`.
+- Chimenea: chispas, brasas que se enfrían al apagarse, llamarada al quemar al Trepador; al bajar él, las brasas se apagan de golpe y las luces tiemblan (aviso). Viento por el tiro.
+- Reloj de pie del vestíbulo (tic-tac y campanadas de noche), nevera con el generador, gotas en fregadero y lavabo, bombillas que chisporrotean y tuberías que golpean.
+- Sonidos con ElevenLabs (tanda `detalles`), elegidos por el usuario; los de la bombilla, de YouTube (pedido por el usuario). — hecho
+
 ### 11.5 Pueblo amueblado
 - **Qué:** lo mismo que se hizo en la casa (salas grandes, muebles contra las paredes, puertas solo donde hacen falta), con el estilo de la casa nueva.
 - **Modelos:** borrar todo script y lo que no sea pieza, malla o textura (en la prueba, 2 de 6 traían virus); descartar los sacados de otros juegos. Mejor Poly Haven, como en la 11.8.
