@@ -36,6 +36,8 @@ local NOMBRES = {
 	"Bengala", -- cliente -> servidor: disparo la pistola; servidor -> todos: el disparo (Bengalas / BengalasVista)
 	"Preparativos", -- servidor -> todos: efectos de la preparación (Preparativos / PreparativosVista)
 	"Incendio", -- servidor -> todos: el fuego y la escena final (Incendio / IncendioVista)
+	-- Más miedo (14.3).
+	"Latas", -- servidor -> todos: ("Suena", línea, fuerza, donde 0..1 de la cuerda) algo ha pasado por una trampa de latas (Latas / LatasVista)
 }
 
 local Remotes = {}

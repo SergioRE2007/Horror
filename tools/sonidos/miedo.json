@@ -1,0 +1,97 @@
+{
+	"Tension_1": {
+		"seconds": 24,
+		"cutoff": 1200,
+		"peak": 0.9,
+		"bed": { "level": 0.02, "cutoff": 220, "depth": 0.6, "seed": 31 },
+		"drone": {
+			"tones": [
+				{ "freq": 41.2, "level": 0.32, "swell": 2, "phase": 0 },
+				{ "freq": 43.65, "level": 0.22, "swell": 3, "phase": 0.3 },
+				{ "freq": 82.4, "level": 0.14, "swell": 2, "phase": 0.6 },
+				{ "freq": 87.3, "level": 0.07, "swell": 1, "phase": 0.1 },
+				{ "freq": 146.8, "level": 0.035, "swell": 3, "phase": 0.5 },
+				{ "freq": 155.6, "level": 0.025, "swell": 2, "phase": 0.8 }
+			]
+		},
+		"events": []
+	},
+	"Tension_2": {
+		"seconds": 24,
+		"cutoff": 1200,
+		"peak": 0.9,
+		"bed": { "level": 0.025, "cutoff": 260, "depth": 0.7, "seed": 47 },
+		"drone": {
+			"tones": [
+				{ "freq": 55, "level": 0.3, "swell": 2, "phase": 0.2 },
+				{ "freq": 58.27, "level": 0.2, "swell": 1, "phase": 0.7 },
+				{ "freq": 77.78, "level": 0.12, "swell": 3, "phase": 0.4 },
+				{ "freq": 110, "level": 0.06, "swell": 2, "phase": 0.9 },
+				{ "freq": 116.54, "level": 0.04, "swell": 3, "phase": 0.1 },
+				{ "freq": 164.8, "level": 0.02, "swell": 2, "phase": 0.5 }
+			]
+		},
+		"events": []
+	},
+	"Tension_3": {
+		"seconds": 30,
+		"cutoff": 1000,
+		"peak": 0.9,
+		"bed": { "level": 0.045, "cutoff": 200, "depth": 0.85, "seed": 59 },
+		"drone": {
+			"tones": [
+				{ "freq": 36.7, "level": 0.3, "swell": 1, "phase": 0 },
+				{ "freq": 49, "level": 0.18, "swell": 2, "phase": 0.35 },
+				{ "freq": 51.9, "level": 0.12, "swell": 3, "phase": 0.6 },
+				{ "freq": 73.4, "level": 0.1, "swell": 2, "phase": 0.15 },
+				{ "freq": 138.6, "level": 0.03, "swell": 3, "phase": 0.75 },
+				{ "freq": 146.8, "level": 0.025, "swell": 2, "phase": 0.4 }
+			]
+		},
+		"events": []
+	},
+	"CasaFondo_1": {
+		"seconds": 45,
+		"cutoff": 2500,
+		"peak": 0.8,
+		"bed": { "level": 0.02, "cutoff": 240, "depth": 0.5, "seed": 71 },
+		"events": [
+			{ "file": "../ambiente/viento_1.mp3", "at": 1.0, "gain": 0.35, "pan": -0.3, "cutoff": 450 },
+			{ "file": "../ambiente/viento_2.mp3", "at": 10.5, "gain": 0.3, "pan": 0.4, "cutoff": 420 },
+			{ "file": "../casa/Cruje_2.mp3", "at": 14.0, "gain": 0.12, "pan": 0.6, "cutoff": 1400 },
+			{ "file": "../ambiente/viento_3.mp3", "at": 21.0, "gain": 0.38, "pan": 0.0, "cutoff": 400 },
+			{ "file": "../ambiente/viento_1.mp3", "at": 31.0, "gain": 0.28, "pan": 0.5, "cutoff": 450 },
+			{ "file": "../casa/Cruje_4.mp3", "at": 34.5, "gain": 0.1, "pan": -0.6, "cutoff": 1200 },
+			{ "file": "../ambiente/viento_2.mp3", "at": 39.0, "gain": 0.3, "pan": -0.4, "cutoff": 420 }
+		]
+	},
+	"CasaFondo_2": {
+		"seconds": 45,
+		"cutoff": 2200,
+		"peak": 0.8,
+		"bed": { "level": 0.03, "cutoff": 200, "depth": 0.6, "seed": 83 },
+		"events": [
+			{ "file": "../ambiente/viento_3.mp3", "at": 0.5, "gain": 0.3, "pan": 0.3, "cutoff": 380 },
+			{ "file": "../ambiente/viento_2.mp3", "at": 8.0, "gain": 0.34, "pan": -0.5, "cutoff": 380 },
+			{ "file": "../ambiente/viento_1.mp3", "at": 17.0, "gain": 0.3, "pan": 0.1, "cutoff": 380 },
+			{ "file": "../casa/Cruje_3.mp3", "at": 22.0, "gain": 0.09, "pan": -0.7, "cutoff": 1000 },
+			{ "file": "../ambiente/viento_3.mp3", "at": 27.0, "gain": 0.32, "pan": 0.5, "cutoff": 380 },
+			{ "file": "../ambiente/viento_2.mp3", "at": 36.0, "gain": 0.28, "pan": -0.2, "cutoff": 380 }
+		]
+	},
+	"CasaFondo_3": {
+		"seconds": 45,
+		"cutoff": 3000,
+		"peak": 0.8,
+		"bed": { "level": 0.015, "cutoff": 260, "depth": 0.45, "seed": 97 },
+		"events": [
+			{ "file": "../ambiente/viento_2.mp3", "at": 2.0, "gain": 0.32, "pan": 0.0, "cutoff": 550 },
+			{ "file": "../casa/Cruje_4.mp3", "at": 7.5, "gain": 0.11, "pan": 0.7, "cutoff": 1600 },
+			{ "file": "../ambiente/viento_1.mp3", "at": 12.0, "gain": 0.3, "pan": -0.5, "cutoff": 520 },
+			{ "file": "../ambiente/viento_3.mp3", "at": 22.5, "gain": 0.36, "pan": 0.4, "cutoff": 500 },
+			{ "file": "../casa/Cruje_2.mp3", "at": 28.0, "gain": 0.1, "pan": -0.4, "cutoff": 1400 },
+			{ "file": "../ambiente/viento_1.mp3", "at": 33.0, "gain": 0.28, "pan": 0.2, "cutoff": 520 },
+			{ "file": "../casa/Cruje_3.mp3", "at": 41.0, "gain": 0.08, "pan": 0.5, "cutoff": 1200 }
+		]
+	}
+}

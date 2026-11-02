@@ -5,14 +5,22 @@
 // (necesita `npm install` en tools/sonidos)
 //
 // Receta: { seconds, cutoff (corte final de agudos, Hz), bed: { level (nivel medio, 0 a 1), cutoff, depth, seed },
+//   drone (opcional): { tones: [{ freq (Hz), level, swell (vueltas de subida y bajada en el bucle), phase }], seed },
+//   peak (opcional: el pico final al que se lleva la mezcla entera),
 //   events: [{ file, at (s), gain (pico con el que entra), pan (-1 izquierda a 1 derecha), cutoff (opcional) }] }
 // Lo que se sale por el final entra por el principio, para que el bucle no tenga corte.
+// Un archivo con varias recetas ({ "Nombre": receta, ... }, como miedo.json): `receta.json#Nombre`.
+// El drone son tonos graves puros que suben y bajan despacio (zumbido de tensión): cada frecuencia se redondea para
+// dar vueltas enteras en el bucle, así no hay chasquido al repetirse.
 import fs from "node:fs";
 import path from "node:path";
 import { MPEGDecoder } from "mpg123-decoder";
 
-const [specFile, pieces, output, bedText] = process.argv.slice(2);
-const spec = JSON.parse(fs.readFileSync(specFile, "utf8"));
+const [specArg, pieces, output, bedText] = process.argv.slice(2);
+const [specFile, specName] = specArg.split("#");
+const specAll = JSON.parse(fs.readFileSync(specFile, "utf8"));
+const spec = specName ? specAll[specName] : specAll;
+if (!spec) throw new Error(`No hay receta ${specName} en ${specFile}`);
 const bedScale = bedText === undefined ? 1 : Number(bedText);
 const RATE = 44100;
 const length = Math.round(spec.seconds * RATE);
@@ -64,6 +72,22 @@ if (spec.bed && bedScale > 0) {
 	}
 }
 
+// El drone: cada tono, con su subida y bajada lenta (que también da vueltas enteras) y un poco distinto en cada oído.
+if (spec.drone) {
+	for (const tone of spec.drone.tones) {
+		const cycles = Math.max(1, Math.round(tone.freq * spec.seconds));
+		const swell = Math.max(1, Math.round(tone.swell ?? 1));
+		for (let channel = 0; channel < 2; channel++) {
+			const offset = channel * 0.25 + (tone.phase ?? 0);
+			for (let i = 0; i < length; i++) {
+				const t = i / length;
+				const amp = tone.level * (0.55 + 0.45 * Math.sin(2 * Math.PI * (swell * t + offset)));
+				mix[channel][i] += amp * Math.sin(2 * Math.PI * cycles * t + channel * 0.7);
+			}
+		}
+	}
+}
+
 // Las piezas.
 const decoder = new MPEGDecoder();
 await decoder.ready;
@@ -107,6 +131,14 @@ if (spec.cutoff) {
 			}
 		}
 	}
+}
+
+// La mezcla entera al pico pedido (así el volumen de Config se pone sin medir).
+if (spec.peak) {
+	let top = 0;
+	for (const channel of mix) for (let i = 0; i < length; i++) top = Math.max(top, Math.abs(channel[i]));
+	const scale = spec.peak / Math.max(top, 1e-9);
+	for (const channel of mix) for (let i = 0; i < length; i++) channel[i] *= scale;
 }
 
 let peak = 0;
