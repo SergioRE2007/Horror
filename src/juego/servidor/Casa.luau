@@ -14,6 +14,7 @@ local Stats = require(ReplicatedStorage.Shared.Stats)
 local Defensa = require(ReplicatedStorage.Shared.Defensa)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Cargar = require(script.Parent.Cargar)
 
 local Casa = {}
@@ -354,6 +355,23 @@ function Casa.start()
 	end)
 	for _, el in CollectionService:GetTagged("Puerta") do
 		preparar(el, "Puerta")
+	end
+	-- Modo de pruebas: ServerStorage.Prueba:Fire("Abrir") quita la llave a todas las salas cerradas (para probar el
+	-- final de la Bestia sin ir a por cada llave).
+	if Prueba.activa() then
+		task.spawn(function() -- el BindableEvent lo crea Director, que arranca después
+			game:GetService("ServerStorage"):WaitForChild("Prueba").Event:Connect(function(que: string)
+				if que ~= "Abrir" then
+					return
+				end
+				for el, e in estados do
+					if e.bloqueada then
+						e.bloqueada = false
+						publicar(el)
+					end
+				end
+			end)
+		end)
 	end
 end
 

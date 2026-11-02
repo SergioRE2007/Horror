@@ -720,6 +720,8 @@ do
 	igual(Premio.logro(d, R, "Noche1"), R.Logros.Noche1.Monedas, "logro: paga")
 	igual(Premio.logro(d, R, "Noche1"), 0, "logro: solo una vez")
 	igual(Premio.logro(d, R, "NoExiste"), 0, "logro que no existe")
+	igual(Premio.final(d, R, "Bestia"), R.FinalBestia + R.Logros.Bestia.Monedas, "final de la Bestia: premio y logro")
+	igual(Premio.final(d, R, "Bestia"), R.FinalBestia, "final de la Bestia otra vez: sin logro")
 	igual(Premio.diario(d, R, 100000), R.Diario, "diario: el primero")
 	igual(Premio.diario(d, R, 100000 + R.Cada - 1), 0, "diario: antes de 24 h no")
 	igual(Premio.diario(d, R, 100000 + R.Cada), R.Diario, "diario: a las 24 h sí")

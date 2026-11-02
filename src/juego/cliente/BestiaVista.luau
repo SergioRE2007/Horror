@@ -47,7 +47,7 @@ local function preparar(modelo: Instance)
 		return
 	end
 	local motores = {}
-	for _, nombre in { "Torso", "Cabeza", "Mandibula", "BrazoI", "BrazoD", "PiernaI", "PiernaD" } do
+	for _, nombre in { "Lomo", "Cabeza", "Mandibula", "BrazoI", "BrazoD", "PiernaI", "PiernaD" } do
 		local motor = raiz:WaitForChild(nombre, 5) :: Motor6D?
 		if not motor then
 			return
@@ -158,7 +158,7 @@ local function animar(dt: number)
 			alza += 0.5 * math.max(0, 1 - t / 2) - 0.25 * math.clamp((t - 2) / 2, 0, 1) -- se alza y luego se derrumba
 			ladeo += math.sin(ahora * 7) * 0.22
 		end
-		m.Torso.Transform = CFrame.Angles(alza + cabeceo + respira, 0, ladeo)
+		m.Lomo.Transform = CFrame.Angles(alza + cabeceo + respira, 0, ladeo)
 
 		-- Cabeza: tirones bruscos a una posición nueva cada poco (más seguidos si está alterada).
 		if ahora > b.tiron then
@@ -248,17 +248,17 @@ local function mensaje(tipo: string, b: Bicho)
 	elseif tipo == "Quema" then
 		b.quema = ahora
 		b.rugido = ahora
-		for _, nombre in { "Torso", "Cabeza", "BrazoI", "BrazoD", "PiernaI", "PiernaD" } do
+		for _, nombre in { "Lomo", "Cabeza", "BrazoI", "BrazoD", "PiernaI", "PiernaD" } do
 			local pieza = b.motores[nombre].Part1
 			if pieza then
-				prender(pieza, if nombre == "Torso" then 8 else 4)
+				prender(pieza, if nombre == "Lomo" then 8 else 4)
 			end
 		end
 		local luz = Instance.new("PointLight")
 		luz.Color = Color3.fromRGB(255, 140, 60)
 		luz.Brightness = 1
 		luz.Range = 16
-		luz.Parent = b.motores.Torso.Part1
+		luz.Parent = b.motores.Lomo.Part1
 		-- Chillido largo: varias capas, cada una más grave.
 		for i, tono in { 0.62, 0.55, 0.48 } do
 			task.delay((i - 1) * 1.3, function()

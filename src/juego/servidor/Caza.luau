@@ -23,6 +23,7 @@ export type Opciones = {
 	Pillar: number,
 	Vista: number,
 	VioEsconderse: number,
+	AltoCamino: number?, -- alto con el que calcula los caminos (8 si no); la Bestia, agachada, para caber al sótano
 }
 
 export type Bicho = typeof(setmetatable({} :: {
@@ -42,12 +43,21 @@ local azar = Random.new()
 local vivos: { [Bicho]: boolean } = {}
 local carpeta: Folder?
 
-local camino = PathfindingService:CreatePath({
-	AgentRadius = 1.6,
-	AgentHeight = 8,
-	AgentCanJump = false,
-	WaypointSpacing = 4,
-})
+-- Un Path por alto (Opciones.AltoCamino): se comparten entre los bichos del mismo alto.
+local caminos: { [number]: Path } = {}
+local function caminoDe(alto: number): Path
+	local c = caminos[alto]
+	if not c then
+		c = PathfindingService:CreatePath({
+			AgentRadius = 1.6,
+			AgentHeight = alto,
+			AgentCanJump = false,
+			WaypointSpacing = 4,
+		})
+		caminos[alto] = c
+	end
+	return c
+end
 
 local filtroVista = RaycastParams.new()
 filtroVista.FilterType = Enum.RaycastFilterType.Exclude
@@ -170,6 +180,7 @@ function Caza.pasoHacia(self: Bicho, destino: Vector3)
 		self.humanoide:MoveTo(destino)
 		return
 	end
+	local camino = caminoDe(self.o.AltoCamino or 8)
 	local ok = pcall(function()
 		camino:ComputeAsync(suelo, destino)
 	end)
