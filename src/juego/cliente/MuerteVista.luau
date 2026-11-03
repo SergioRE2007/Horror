@@ -63,15 +63,31 @@ local function bichoMasCerca(desde: Vector3): number
 	return mejor
 end
 
--- Cámara del escondite: fija, con un leve respirar.
+-- Cámara del escondite: fija, con un leve respirar. Al meterse, la cámara va de los ojos al escondite en un momento
+-- (agachándose un poco por el camino), no de golpe.
+local metiendose: { desde: CFrame, inicio: number }? = nil
+local ENTRAR = 0.5
 local function enEscondite()
 	local vista = jugador:GetAttribute("Escondido")
 	if typeof(vista) ~= "CFrame" or susto then
+		metiendose = nil
 		return
 	end
 	local t = os.clock()
+	local destino = vista * CFrame.new(0, math.sin(t * 1.6) * 0.04, 0)
+		* CFrame.Angles(math.sin(t * 0.8) * 0.01, math.sin(t * 0.5) * 0.02, 0)
+	if camara.CameraType ~= Enum.CameraType.Scriptable and not metiendose then
+		metiendose = { desde = camara.CFrame, inicio = t }
+	end
 	camara.CameraType = Enum.CameraType.Scriptable
-	camara.CFrame = vista * CFrame.new(0, math.sin(t * 1.6) * 0.04, 0) * CFrame.Angles(math.sin(t * 0.8) * 0.01, math.sin(t * 0.5) * 0.02, 0)
+	local e = metiendose
+	if e and t - e.inicio < ENTRAR then
+		local k = (t - e.inicio) / ENTRAR
+		k = k * k * (3 - 2 * k)
+		local agacha = math.sin(k * math.pi) * 0.5 -- baja un poco al meterse
+		destino = e.desde:Lerp(destino, k) * CFrame.new(0, -agacha, 0)
+	end
+	camara.CFrame = destino
 	local cerca = bichoMasCerca(vista.Position)
 	if latido then
 		latido.Volume = 0.25 + 1.2 * math.clamp(1 - cerca / 45, 0, 1)
