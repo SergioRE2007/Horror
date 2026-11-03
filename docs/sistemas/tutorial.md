@@ -13,7 +13,7 @@ Propuesta de Claude hecha sin poder ver el juego (sesión en la nube, 03-11-2026
   5. Arrancar el generador del cobertizo.
   6. "No te alejes de la casa. Se acerca la noche." hasta que se pone el sol.
   7. Al ponerse el sol (`Config.Ciclo.Aviso` s antes), cerrar las cortinas de abajo ("quedan 3").
-  8. Aguantar hasta el amanecer (la flecha señala el escondite más cercano). Al amanecer: `+100 monedas` (logro `Tutorial` de `Config.Recompensas`, a ojo).
+  8. Aguantar hasta el amanecer (la flecha señala el escondite más cercano). Al amanecer: `+100 monedas` (logro `Tutorial` de `Config.Recompensas`, a ojo), solo si esa noche se llegaron a cerrar todas las cortinas de abajo; si no, sigue la noche siguiente. Quedarse quieto no da el premio (las cortinas las puede cerrar un amigo: es cooperativo).
 - Lo ya hecho se salta solo (el generador ya encendido, el hacha ya en la mochila, un tablón en las manos). Al anochecer se dejan los pasos del día que falten. Si mueren todos y vuelve el día, se vuelve a lo del día que falte.
 - Quien entra de noche o en una partida avanzada también lo tiene: empieza por las cortinas.
 

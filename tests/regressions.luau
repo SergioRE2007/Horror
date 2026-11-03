@@ -993,7 +993,15 @@ do
 	igual(e.noche, nil, "tutorial: la noche se vuelve a apuntar")
 	PT.avanzar(e, vista({ fase = "Noche", cortinas = 1 }))
 	igual(e.paso, "Cortinas", "tutorial: esa noche otra vez las cortinas")
-	igual(PT.avanzar(e, vista({ fase = "Dia", noche = 2 })), true, "tutorial: al amanecer se acaba")
+	igual(PT.avanzar(e, vista({ fase = "Dia", noche = 2 })), false, "tutorial: amanecer sin cerrar las cortinas: no acaba")
+	igual(e.paso, "Espera", "tutorial: sin cortinas, a esperar la noche siguiente")
+	PT.avanzar(e, vista({ fase = "Noche", noche = 2, cortinas = 0 }))
+	igual(e.paso, "Amanecer", "tutorial: la noche 2, con las cortinas cerradas")
+	igual(PT.avanzar(e, vista({ fase = "Dia", noche = 3 })), true, "tutorial: al amanecer se acaba")
+	-- Quieto todo el rato (AFK): no se acaba nunca.
+	local quieto = PT.nuevo()
+	PT.avanzar(quieto, vista({ fase = "Noche", noche = 1, cortinas = 4 }))
+	igual(PT.avanzar(quieto, vista({ fase = "Dia", noche = 2 })), false, "tutorial: sin hacer nada no hay premio")
 	-- Quien entra de noche: directo a las cortinas y se acaba al amanecer.
 	local tarde = PT.nuevo()
 	PT.avanzar(tarde, vista({ fase = "Noche", noche = 4, cortinas = 0 }))

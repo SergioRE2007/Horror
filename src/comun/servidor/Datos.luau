@@ -22,6 +22,7 @@ type Partida = {
 	datos: any,
 	op: Candado.Opciones?, -- nil en el modo de pruebas (no se guarda)
 	guardando: boolean,
+	soltada: boolean?, -- el guardado de salida fue bien (lo que se juntó con él también está guardado)
 	cola: { hecho: boolean, ok: boolean }?, -- el guardado normal que espera turno (los que llegan se juntan en él)
 }
 
@@ -66,7 +67,11 @@ local function cargar(jugador: Player)
 	else
 		local op = opciones(jugador)
 		cargando += 1
-		local estado, guardado = Candado.cargar(op)
+		local cargado, estado, guardado = pcall(Candado.cargar, op)
+		if not cargado then
+			warn("[Datos] " .. tostring(estado))
+			estado, guardado = "fallo", nil
+		end
 		if fuera[jugador] or jugador.Parent == nil then
 			-- Se fue mientras cargaba (también al cerrar el servidor): soltar el candado sin perder nada.
 			if estado == "ok" then
@@ -92,7 +97,8 @@ end
 -- Guarda ya (sin esperar a nadie: quien llama ya ha mirado que no hay otro guardado en marcha).
 local function guardarYa(jugador: Player, partida: Partida, soltar: boolean): boolean
 	if partidas[jugador] ~= partida then
-		return false -- otro guardado ya lo soltó
+		-- Otro guardado ya lo soltó: si fue bien, ya llevaba lo de este (una compra hecha justo al salir).
+		return partida.soltada == true
 	end
 	if not partida.op then
 		if soltar then
@@ -102,8 +108,12 @@ local function guardarYa(jugador: Player, partida: Partida, soltar: boolean): bo
 	end
 	partida.guardando = true
 	local intentos = if soltar then Config.Guardado.Intentos else 1
-	local estado = Candado.guardar(partida.op, partida.datos, soltar, intentos)
-	partida.guardando = false
+	local ok, estado = pcall(Candado.guardar, partida.op, partida.datos, soltar, intentos)
+	partida.guardando = false -- también si falla: si no, los que esperan se quedaban esperando para siempre
+	if not ok then
+		warn("[Datos] " .. tostring(estado))
+		estado = "fallo"
+	end
 	if estado == "perdido" then
 		-- Otro servidor tiene la partida: lo de aquí está viejo. Dejar de guardar y echarlo.
 		partidas[jugador] = nil
@@ -112,6 +122,7 @@ local function guardarYa(jugador: Player, partida: Partida, soltar: boolean): bo
 		end
 	elseif soltar then
 		partidas[jugador] = nil
+		partida.soltada = estado == "ok"
 	end
 	return estado == "ok"
 end
