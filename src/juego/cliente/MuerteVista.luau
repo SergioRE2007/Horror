@@ -263,7 +263,6 @@ local function meHanPillado(cabeza: Vector3)
 	filtroSusto.FilterType = Enum.RaycastFilterType.Exclude
 	filtroSusto.FilterDescendantsInstances = { workspace:FindFirstChild("Bichos") :: Instance, personaje :: Instance }
 	camara.CameraType = Enum.CameraType.Scriptable
-	local campo = camara.FieldOfView
 	camara.FieldOfView = 60
 	Sonido.tocar("Susto")
 	rojo.BackgroundTransparency = 0.35
@@ -295,7 +294,8 @@ local function meHanPillado(cabeza: Vector3)
 	end
 	TweenService:Create(negro, TweenInfo.new(0.6), { BackgroundTransparency = 0 }):Play()
 	task.wait(1.2)
-	camara.FieldOfView = campo
+	-- El de Roblox, fijo: el que había al morir podía ser el de la mochila abierta (más cerrado) y se quedaba así.
+	camara.FieldOfView = 70
 	Ui.aviso(Lang.t(nil, "It got you. You'll wake up at dawn."), 5)
 	susto = false
 	camara.CameraType = Enum.CameraType.Custom
@@ -435,7 +435,13 @@ function MuerteVista.start()
 		if procesado or not jugador:GetAttribute("Muerto") then
 			return
 		end
-		if entrada.UserInputType == Enum.UserInputType.MouseButton1 or entrada.UserInputType == Enum.UserInputType.Touch then
+		if entrada.UserInputType == Enum.UserInputType.MouseButton1 then
+			mirarVivos(true)
+		end
+	end)
+	-- En el móvil, solo con un toque corto: arrastrar el dedo (girar la cámara) o pellizcar no cambia de vivo.
+	UserInputService.TouchTap:Connect(function(_, procesado)
+		if not procesado and jugador:GetAttribute("Muerto") then
 			mirarVivos(true)
 		end
 	end)

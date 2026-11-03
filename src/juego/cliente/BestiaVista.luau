@@ -339,14 +339,26 @@ function BestiaVista.start()
 	RunService.Stepped:Connect(function(_, dt)
 		animar(dt)
 	end)
-	-- Temblor de la cámara (pisadas, golpes, rugidos): después de la cámara normal, y baja solo.
+	-- Temblor de la cámara (pisadas, golpes, rugidos): después de la cámara normal, y baja solo. El giro de cada
+	-- fotograma se deshace antes de la cámara de Roblox, que sigue desde donde quedó: si no, se iría sumando y la mirada
+	-- se quedaría desviada tras cada golpe (como la inclinación de MochilaUi).
+	local aplicado: CFrame? = nil
+	RunService:BindToRenderStep("BestiaTemblorAntes", Enum.RenderPriority.Camera.Value - 1, function()
+		if aplicado then
+			local camara = workspace.CurrentCamera
+			camara.CFrame *= aplicado:Inverse()
+			aplicado = nil
+		end
+	end)
 	RunService:BindToRenderStep("BestiaTemblor", Enum.RenderPriority.Camera.Value + 1, function(dt)
 		if temblor < 0.002 then
 			return
 		end
 		local t = os.clock() * 40
 		local camara = workspace.CurrentCamera
-		camara.CFrame *= CFrame.Angles(math.noise(t, 1) * temblor * 0.25, math.noise(t, 2) * temblor * 0.25, math.noise(t, 3) * temblor * 0.15)
+		local giro = CFrame.Angles(math.noise(t, 1) * temblor * 0.25, math.noise(t, 2) * temblor * 0.25, math.noise(t, 3) * temblor * 0.15)
+		camara.CFrame *= giro
+		aplicado = giro
 		temblor = math.max(0, temblor - dt * 0.8)
 	end)
 	Remotes.Bestia.OnClientEvent:Connect(function(tipo: string, modelo: Model?)
