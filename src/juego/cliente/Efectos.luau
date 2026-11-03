@@ -696,6 +696,7 @@ end
 local polvoAire = 0 -- de 0 a 1: lo que flota ahora; se asienta solo
 local motas: ParticleEmitter? = nil
 local zonaMotas: BasePart? = nil
+local polvoAsentado = 0 -- cuándo se asentó el último polvo (la caja se borra 6,5 s después del último)
 
 -- Un golpe, un portazo o una pisada fuerte levanta polvo (con Rendimiento, nada: son partículas de adorno).
 local function levantarPolvo(cuanto: number)
@@ -761,8 +762,11 @@ local function moverPolvoAire(dt: number, camara: CFrame)
 		zona.CFrame = camara * POLVO_AIRE.Delante
 	end
 	if polvoAire <= 0 then
+		local asentado = os.clock()
+		polvoAsentado = asentado
 		task.delay(6.5, function()
-			if polvoAire <= 0 and zona and zonaMotas == zona then
+			-- (si después hubo otra ráfaga ya asentada, espera a la suya: que sus motas no se borren de golpe)
+			if polvoAire <= 0 and polvoAsentado == asentado and zona and zonaMotas == zona then
 				zona:Destroy()
 				zonaMotas, motas = nil, nil
 			end
