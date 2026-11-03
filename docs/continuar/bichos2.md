@@ -25,12 +25,32 @@ con Lune (y ejecutando los módulos con un Roblox de mentira, ver abajo). Númer
   comedor: hueco de 2,84 y 2,8 entre patas): no atraviesa el tablero ni el suelo en la pose; la cara queda a ~1,2 de
   alto en el borde mirándote y los dedos a 0,4-1 de ti.
 
-## Falta
+## Falta (exactamente)
 
-- **Gateo de la Bestia** (en `BestiaVista`): aplastada contra el suelo, la cabeza bajo el borde hasta donde quepa y el
-  brazo largo barriendo por debajo como la pata de un gato (con 6,35 de brazo no cabe recto en una mesa de 2,8: entra
-  en diagonal y las garras pasan a tu lado), empujando el borde (temblor y crujidos) en cada tirón.
-- Repasar las transiciones del Imitador con la mesa de la cocina (hueco de 3,29) y con el jugador de lado.
+- **Gateo de la Bestia** (en `BestiaVista`, sin empezar en el código; la vida de espera ya está y funciona). Seguir el
+  mismo esquema que el del Imitador (copiar de `ImitadorVista`: `medirMueble` con 3 rayos y bisección, `tirones`,
+  `enTiron`, `ejes`, el tipo `Gateo`, `gatear` y `terminarGateo`) y además:
+  1. En `preparar`, guardar `c0/c0i/c1/c1i` de cada motor (como el Imitador) y un `b.pose`; en `animar`, que las
+     líneas `m.X.Transform = ...` escriban en `b.pose.X` y al final se pongan con la del gateo encima. Meter
+     `b.gateo ~= nil` en `ocupada` (así se pausa su vida de espera).
+  2. Pose (suelo G bajo la raíz, -z hacia ti): lomo plano con su centro a 1,6 de alto y el frente en
+     `min(borde - 0,25, D - 3,25)` (avanza 1,3 a tirones; si el hueco < 2,7, el frente en `borde - 2,4`: no mete la
+     cabeza). Cabeza en la junta `lomo * (0, 0,7, -3)`, girada hacia ti y unos -0,2 rad hacia abajo (sube al olfatear);
+     boca abierta hasta 0,55 pero comprobando que la punta de la mandíbula `* (0, -0,275, -1,3)` no baje de 0,05.
+     Brazo derecho desde `lomo * (2,5, 0,4, -2,3)`, bajando 0,18 rad, barriendo en horizontal de 0,95 rad (hacia fuera)
+     al ángulo en que pasa a 1,6 de ti: `asin(1,6 / R) - atan2(2,5, L)` con `L = D - frente + 0,8` y
+     `R = sqrt(2,5² + L²)`; su Z hacia `(cos θ, 0, sin θ)` (las garras barren de lado, no contra el suelo). Brazo
+     izquierdo abierto atrás-fuera. Patas de atrás desde `lomo * (±1,9, -0,4, 2,5)` abiertas hacia atrás a ras de
+     suelo, con su Z hacia abajo (el pie de adorno queda hacia arriba).
+  3. Al aplastarse y al levantarse, el lomo y la cabeza con un camino de 3 tramos (atrás arriba, bajar fuera del borde
+     y meterse a ras de suelo): de pie su cara está 5,6 por delante de la raíz y pasaría por el tablero. Brazos y patas
+     en línea recta (como el Imitador, con las patas algo levantadas a medio camino).
+  4. Sonidos: al aplastarse `Paso` grave fuerte + `temblar` + gruñido (`resoplido(b, true)`); en cada tirón
+     `Aranazo` en la mano, `Cruje` en el borde y `temblar` flojo (empuja la mesa); al olfatear `resoplido(b, false)` y
+     vaho. Con Rendimiento, solo el golpe y el arañazo.
+  5. Comprobarlo con Lune como el del Imitador (mesa del comedor: hueco 2,84, 2,8 entre patas; cocina: 3,29) y con el
+     borde a 1,5, 3 y 5 de la raíz.
+- Repasar el gateo del Imitador con la mesa de la cocina (hueco de 3,29).
 - Párrafo para `docs/sistemas/bichos.md` (lo pone el principal).
 
 ## Cómo probarlo en Studio
