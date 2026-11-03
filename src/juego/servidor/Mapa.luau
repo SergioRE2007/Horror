@@ -298,9 +298,9 @@ local function ventana(centro: Vector3, fuera: Vector3, h, suelo: number)
 	modelo:SetAttribute("Alto", h.alto)
 	modelo:SetAttribute("Atacable", h.atacable == true)
 	-- Dónde se pone el bicho para golpear (en la hierba o en el porche, `fueraY`) y dónde cae al entrar (en el suelo de
-	-- la sala).
+	-- la sala, a 4 de la ventana; `dentro` si ahí hay un mueble).
 	modelo:SetAttribute("Fuera", Vector3.new(centro.X, h.fueraY or 0, centro.Z) + fuera * 4)
-	modelo:SetAttribute("Dentro", Vector3.new(centro.X, suelo, centro.Z) - fuera * 4)
+	modelo:SetAttribute("Dentro", h.dentro or (Vector3.new(centro.X, suelo, centro.Z) - fuera * 4))
 	CollectionService:AddTag(modelo, "Ventana")
 end
 
@@ -889,23 +889,42 @@ local function construirFinal()
 	for _, r in { { tx1 + 0.06, cz, 0.1, d }, { tx2 - 0.06, cz, 0.1, d }, { mx, tz1 + 0.06, w, 0.1 }, { mx, tz2 - 0.06, w, 0.1 } } do
 		adorno(Vector3.new(r[3], 2.4, r[4]), CFrame.new(r[1], -1.2, r[2]), Enum.Material.WoodPlanks)
 	end
-	-- Escalera de mano contra la pared del oeste: se ve de madera y trepa por un TrussPart invisible.
+	-- Escalera de mano contra la pared del oeste: se ve de madera y trepa por un TrussPart invisible. Con la tapa
+	-- cerrada acaba debajo de ella (asomaba por encima: un escalón invisible sobre la tapa y los largueros saliendo por
+	-- las tablas); al abrirse sube y asoma por el hueco, para poder salir trepando. La escala se mueve en vez de
+	-- encogerse: un TrussPart solo mide de 2 en 2.
 	local escala = Instance.new("TrussPart")
 	escala.Name = "Escala"
 	escala.Anchored = true
 	escala.Size = Vector3.new(2, 12, 2)
-	escala.CFrame = CFrame.new(tx1 + 1, F + 6, cz)
+	escala.CFrame = CFrame.new(tx1 + 1, F + 5, cz) -- de F - 1 (metida en el suelo del sótano) a la tapa
 	escala.Transparency = 1
 	escala.Parent = casa
 	local madera = Color3.fromRGB(70, 52, 38)
+	local largueros = {}
 	for _, dz in { -0.75, 0.75 } do
-		local larguero = adorno(Vector3.new(0.22, 12.4, 0.22), CFrame.new(tx1 + 0.6, F + 6.2, cz + dz), Enum.Material.Wood)
+		local larguero = adorno(Vector3.new(0.22, 11, 0.22), CFrame.new(tx1 + 0.6, F + 5.5, cz + dz), Enum.Material.Wood)
 		larguero.Color = madera
+		table.insert(largueros, larguero)
 	end
 	for i = 1, 11 do
 		local peldano = adorno(Vector3.new(0.18, 0.18, 1.5), CFrame.new(tx1 + 0.6, F + i, cz), Enum.Material.Wood)
 		peldano.Color = madera
 	end
+	local asoma = false
+	trampilla:GetAttributeChangedSignal("Abierto"):Connect(function()
+		local abierta = trampilla:GetAttribute("Abierto") == true
+		if abierta == asoma then
+			return
+		end
+		asoma = abierta
+		local k = if abierta then 1 else -1
+		escala.CFrame += Vector3.new(0, k, 0)
+		for _, larguero in largueros do -- crecen por arriba (sumando: Separar ya los puede haber engordado)
+			larguero.Size += Vector3.new(0, 1.4 * k, 0)
+			larguero.CFrame += Vector3.new(0, 0.7 * k, 0)
+		end
+	end)
 
 	for _, o in {
 		{ "Cadena", Vector3.new(-49.9, ABAJO + 3.7, 30.3) }, -- en el banco del garaje, entre las dos chatarras
@@ -1161,9 +1180,12 @@ local function vestirSuelos()
 					Color3.fromRGB(72, 58, 44), Enum.Material.Wood)
 			end
 			for k = 1, 4 do
+				-- Los números del azar, siempre y en el mismo orden (si no, cambiarían los cascotes de las salas de después).
 				local suelo = Vector3.new(agujero.X + azar:NextNumber(-1.5, 1.5), pisa + 0.1, agujero.Z + azar:NextNumber(-1.5, 1.5))
-				lamina(Vector3.new(azar:NextNumber(0.5, 1.4), 0.14, azar:NextNumber(0.4, 1)), CFrame.new(suelo) * CFrame.Angles(0, k, 0),
-					Color3.fromRGB(96, 90, 80), Enum.Material.Plaster)
+				local tam = Vector3.new(azar:NextNumber(0.5, 1.4), 0.14, azar:NextNumber(0.4, 1))
+				if s.suelo then -- el hueco del vestíbulo no tiene suelo: flotaban en el aire a y = 14
+					lamina(tam, CFrame.new(suelo) * CFrame.Angles(0, k, 0), Color3.fromRGB(96, 90, 80), Enum.Material.Plaster)
+				end
 			end
 		end
 	end
@@ -2640,7 +2662,10 @@ local function construirCasa(mapa: Folder)
 	muro(-43, -3, -39, -3, ABAJO, {}, DETRAS)
 	-- Lavadero (x -26..-12, z 33..45), saliendo por detrás de la cocina.
 	muro(-12, 33, -12, 45, ABAJO, {}, ESTE)
-	muro(-26, 33, -26, 45, ABAJO, { v(4, 4, 3, 9, true, true) }, OESTE)
+	-- El bicho que entra por su ventana cae junto a la pila: a 4 de ella caía dentro del armario de lamas.
+	local lavadero = v(4, 4, 3, 9, true, true)
+	lavadero.dentro = Vector3.new(-21, ABAJO, 38.5)
+	muro(-26, 33, -26, 45, ABAJO, { lavadero }, OESTE)
 	muro(-26, 45, -12, 45, ABAJO, {}, DETRAS)
 	-- Torre: el mirador del salón, con la ventana grande mirando a la esquina y dos estrechas a los lados.
 	construirTorre(ABAJO, { [7] = v(5, 2, 7, 0, true, true), [6] = v(3, 3, 5, 0, false), [0] = v(3, 3, 5, 0, false) })
@@ -3071,7 +3096,7 @@ local function construirCasa(mapa: Folder)
 		Vector3.new(17, ABAJO, 12), Vector3.new(17, ABAJO, 26), -- en el comedor, la araña (abajo); en el dormitorio, la lámpara de la mesilla
 		Vector3.new(-25.5, ABAJO, 18), Vector3.new(-19, ABAJO, 39), Vector3.new(42, ABAJO, -36),
 		Vector3.new(0, ARRIBA, 18), Vector3.new(25, ARRIBA, -14), -- la del rico, en su escritorio; la de los niños, en su mesilla
-		Vector3.new(27, ARRIBA, 21), Vector3.new(42, ARRIBA, -36),
+		Vector3.new(42, ARRIBA, -36), -- en la escalera del desván, la bombilla (vestirDesvan)
 	} do
 		lampara(luz + Vector3.new(0, ALTO - 0.3, 0))
 	end
