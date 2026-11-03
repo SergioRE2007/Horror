@@ -144,6 +144,9 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
   cancelado, mochila grande al volver a una partida, dos jugadores clavando la misma ventana, "Wait for her" con el
   Carpintero.
 
+### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
+- **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
+
 ### 14.5 Partida entera de prueba
 - Una partida de principio a fin sin órdenes de prueba: ritmo de días y noches, monedas y precios (skill `roblox-economy-balancing`), fallos que salgan.
 - **Estado:** pendiente

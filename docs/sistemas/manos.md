@@ -33,19 +33,29 @@ Hecho en una sesión en la nube **sin Studio**: las poses salen de cuentas (comp
 | Hacha, sierra, martillo, llave (TrabajoVista) | Las manos en el mango; la izquierda sujeta lo que trabajas |
 | Te pillan | Las manos se levantan temblando, abajo para no tapar la cara del bicho |
 | Cualquier otro cartel | La mano va y lo toca |
+| Cambiar la pila o el carrete | La linterna (o la cámara) en la izquierda; la derecha desenrosca, saca, mete y cierra |
+| Coger (además) | Una copia del objeto vuela hasta la palma y se va con ella al bolsillo |
+| Escalera de mano | Las manos van de peldaño en peldaño al ritmo al que subes |
+| En el aire | Los brazos se abren para no perder el equilibrio |
+| Sustos y golpes cerca | Las manos libres suben de golpe por reflejo (los golpes, uno cada 4 s como mucho) |
+| Al girar | Las manos se quedan un poco atrás (inercia) |
 
 - Para añadir uno: en `ManosGestos.alPulsar` (por el `ActionText` del cartel o la etiqueta del modelo) con `Manos.gesto(nombre, segundos, fn)`. Para algo que se lleva: `Manos.cosa` y `cosaDer` / `cosaIzq` en la pose.
 
 ## Los demás jugadores (`juego/cliente/BrazosVista`)
 
 - Cada cliente gira los hombros R15 de los otros personajes (C0 de `RightShoulder` / `LeftShoulder`) encima de su animación de andar. Se ve cuando trabajan (hacia el mango de la herramienta), cargan, alumbran, miran el móvil, hacen una foto, disparan una bengala, o corren una cortina o abren una puerta junto a ellos.
+- Su linterna se ve en la mano izquierda y la luz sale de ella (EquipoVista).
+- Mirada: cada cliente manda cuánto mira arriba o abajo (remote `Mirada`, cada 0,2 s si cambia; el servidor, en `Equipo`, lo redondea y lo publica en el atributo `Mirada`). Los demás ven su cabeza inclinada y su linterna apuntando ahí.
 - R6: se quedan con sus animaciones de serie.
+- El vendedor (VendedorUi) gira el cuello y te sigue con la mirada a menos de 28 studs.
 
 ## La cámara como un cuerpo (`juego/cliente/CuerpoVista`)
 
 - Al andar, la cabeza sube y baja con cada paso (la misma zancada que los sonidos de `Pasos`) y se mece. Al moverte de lado se inclina, al caer de alto baja de golpe y vuelve, y quieto respira (más rápido con un bicho a menos de 30 studs).
 - Con lo pesado manda `CargarVista`. Nunca en cinemáticas, escondido ni muerto.
 - Al esconderse (`MuerteVista`), la cámara va de los ojos al escondite en medio segundo agachándose, en vez de saltar.
+- De noche y fuera de la casa se ve el vaho al respirar (sin él con Rendimiento).
 
 ## Probar en Studio
 
