@@ -67,6 +67,7 @@ local rastro = false
 local montada = false
 local montando = false
 local caida = false
+local subirReja = false -- amaneció con la reja caída y el fuego corriendo: sube cuando se apague sin final
 local soltada = false -- ya se ha usado "Wait for her" (hasta volver al amanecer)
 local alSoltar: { () -> () } = {} -- lo que se hace justo antes de soltarla (Partida: la foto)
 local porche: BasePart
@@ -402,7 +403,7 @@ end
 -- Lo deja como en `t` (ya arreglado por FormatoPartida; nil = nada hecho). La reja montada, subida.
 function Preparativos.importar(t)
 	table.clear(llenos)
-	rastro, montada, caida, soltada = false, false, false, false
+	rastro, montada, caida, soltada, subirReja = false, false, false, false, false
 	if type(t) == "table" then
 		local validas = {}
 		for _, p in PUNTOS do
@@ -494,6 +495,8 @@ function Preparativos.start()
 			if caida and not workspace:GetAttribute("Final") then
 				caida = false
 				colocarReja()
+			elseif caida then
+				subirReja = true -- el fuego aún corre (Final): si se apaga sin final, la sube el bucle de abajo
 			end
 		end
 		publicar()
@@ -501,6 +504,16 @@ function Preparativos.start()
 	task.spawn(function() -- la Bestia se va o muere sin avisar: el prompt de esperarla, al día
 		while true do
 			task.wait(1)
+			-- Se prendió al final de la noche y, al amanecer, el fuego se ha apagado sin quemarla (Incendio): la reja
+			-- sube como en cualquier amanecer. Si no, seguía caída todo el día y esa noche no se la podía encerrar.
+			if subirReja and not workspace:GetAttribute("Final") then
+				subirReja = false
+				if caida then
+					caida = false
+					colocarReja()
+					publicar()
+				end
+			end
 			actualizarEsperar()
 		end
 	end)
