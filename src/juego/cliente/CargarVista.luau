@@ -39,6 +39,7 @@ local cartel: BillboardGui
 local textoCartel: TextLabel
 local objetivo: Instance? = nil
 local balanceo = 0
+local vistaPropia = false -- este módulo mueve el CameraOffset (llevando algo, o volviendo a 0 tras soltarlo)
 local buscado = 0
 
 local function soltar()
@@ -162,6 +163,9 @@ local function mover(dt: number)
 		return
 	end
 	local llevando = jugador:GetAttribute("Cargando") ~= nil
+	if not llevando and not vistaPropia then
+		return -- sin nada en las manos el CameraOffset es de CuerpoVista (agacharse y asomarse, 14.6)
+	end
 	local andando = humanoide.MoveDirection.Magnitude > 0.1 and humanoide.WalkSpeed > 0
 	if llevando and andando then
 		balanceo += dt * (2 + humanoide.WalkSpeed * 0.45)
@@ -170,6 +174,7 @@ local function mover(dt: number)
 		then Vector3.new(math.sin(balanceo) * 0.12, -0.35 - math.abs(math.cos(balanceo)) * (if andando then 0.15 else 0), 0)
 		else Vector3.zero
 	humanoide.CameraOffset = humanoide.CameraOffset:Lerp(objetivoVista, math.min(1, dt * 8))
+	vistaPropia = llevando or humanoide.CameraOffset.Magnitude > 0.01 -- tras soltarlo, hasta que vuelve a 0
 end
 
 function CargarVista.start()

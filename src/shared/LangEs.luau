@@ -271,4 +271,6 @@ return {
 	["Stay close to the house. Night is coming."] = "No te alejes de la casa. Se acerca la noche.",
 	["Close the curtains downstairs: {n} left."] = "Cierra las cortinas de abajo: quedan {n}.",
 	["Survive until dawn. If something gets in, hide."] = "Aguanta hasta el amanecer. Si entra algo, escóndete.",
+	-- Cuerpo (14.6).
+	["Crouch"] = "Agacharse",
 }

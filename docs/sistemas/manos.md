@@ -104,3 +104,26 @@ Pedido por el usuario: "que reaccionen más a los bichos". Hecho sin Studio (cue
 - Sonidos prestados mientras no haya propios: `CristalVibra` y `Latas`, más agudos y cortos, para el tintineo, y `Cruje` para la mecedora. Si se añaden `Vajilla` y `Mecedora` a `Config.Sonidos`, se usan solos.
 - Temblores de cámara (CasaVista y la reja de PreparativosVista): el giro se deshace en el fotograma siguiente antes de la cámara de Roblox (como en BestiaVista). Antes la mirada se iba desviando con cada temblor. Solo están atados mientras tiembla y nunca en cinemáticas.
 - Probar: `workspace.EfectosLocales:GetAttribute("Mecedoras")` debe dar 3.
+
+## Agacharse y asomarse (`PosturaVista`, `servidor/Postura`, `shared/PosturaReglas`, 14.6)
+
+Pedido por el usuario: "cuerpo: agacharse (botón también en el móvil) y asomarse por las esquinas". Números de la vista
+al principio de cada módulo; los de juego, en `Config.Postura`.
+- Teclas: C o Ctrl izquierdo alterna agacharse (B en el mando; en el móvil, AGACHARSE en `Hud.EquipoBotones`,
+  LayoutOrder 6, rojo con borde claro mientras vas agachado). Saltar, subir por una escalera o sentarse te levanta.
+  Asomarse: mantener Z (izquierda) o X (derecha), solo con teclado.
+- El cliente lo hace al momento con las mismas reglas que el servidor (`PosturaReglas`) y lo pide con el remote
+  `Postura`. El servidor valida (tipos, NaN, cada `Config.Postura.Cada` s, vivo, sin esconderse, sin cargar ni
+  trabajar; con la mochila abierta se agacha pero no se asoma; lo que no cambia nada ni se mira) y publica `Agachado`
+  (true o nil) y `Asomado` (-1, 1 o nil). Al morir, esconderse, reaparecer, coger algo pesado o ponerse a trabajar se
+  quitan solos. En una cinemática no se empieza; mirando por la mirilla o entre las cortinas, asomarse se queda como
+  estaba hasta acabar.
+- Agachado se anda a `Config.Postura.Velocidad` (`Cargar.ajustarVelocidad`) y tus pasos suenan la mitad (`Pasos`).
+- Tu cámara (`CuerpoVista`): agachado baja `Config.Postura.Baja` suave con un golpecito de rodillas; asomado se va
+  `Config.Postura.Asomar` de lado y se ladea `Config.Postura.Giro` grados, sin meterse en las paredes (rayos desde la
+  cabeza y desde la cámara; se queda a 0,3). Va en el `CameraOffset` del Humanoid (CargarVista solo lo toca mientras
+  llevas algo), y lo que suma (balanceo y ladeo) se deshace antes del fotograma siguiente girando en el espacio del
+  mundo: da igual el orden respecto a los temblores de otros módulos y la mirada no se desvía.
+- Los demás (`BrazosVista`, R15): agachados, la cadera baja y las piernas se doblan con los pies en el suelo y el tronco
+  algo hacia delante; asomados, el tronco ladeado. R6, como está.
+- Probado en Studio (03-11-2026): C agacha (cámara -1,7, velocidad a la mitad) y levanta; Z asoma (1,3 de lado, ~14°).
