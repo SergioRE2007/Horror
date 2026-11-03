@@ -8,6 +8,9 @@
 --   Algo se acerca o se planta fuera: las cortinas se mecen hacia dentro como por una corriente, el cristal vibra en el
 --   marco (con su traqueteo) y cae polvillo; pegado al cristal, su aliento lo empaña. La puerta se comba un poco
 --   hacia dentro, como si empujaran, y cruje.
+-- Corriente (la calcula Efectos con la `brisa` de cada ventana): con una ventana rota o una puerta echada abajo cerca,
+--   las cortinas de las demás ventanas se hinchan despacio hacia la sala a rachas largas hasta que la reparan.
+-- Un portazo del bicho (atributo Portazo) también hace temblar lo de alrededor (CasaVista.alGolpe), como un golpe.
 -- Para los demás módulos: CasaVista.temblar (temblor de cámara suave, nunca en cinemáticas), CasaVista.polvo (polvo y
 -- arenilla que caen), CasaVista.vibrar (el cristal traquetea un momento) y CasaVista.alRomper (lo pone Efectos: los
 -- trozos de cristal que quedan en el suelo).
@@ -31,6 +34,11 @@ local cfg = Config.Casa
 local jugador = Players.LocalPlayer
 local azar = Random.new()
 local PLIEGUES = 6 -- pliegues de cada paño de cortina
+-- Corriente de una ventana rota cerca (a ojo): radianes que se hinchan las cortinas hacia la sala con toda la
+-- corriente, studs que aletean de lado y el tope sumando lo de algo pegado fuera.
+local BRISA_ONDEA = 0.17
+local BRISA_ALETEO = 0.12
+local ONDEA_MAX = 0.45
 local TELA = Color3.fromRGB(86, 40, 36) -- terciopelo granate viejo
 local TELA_OSCURA = Color3.fromRGB(62, 28, 26)
 -- Terciopelo de verdad (MaterialVariant de Poly Haven, 11.8.2): con el Fabric de serie en un color tan oscuro las
@@ -41,6 +49,8 @@ local function hayTerciopelo(): boolean
 	return materiales ~= nil and materiales:FindFirstChild("Terciopelo") ~= nil
 end
 local temblor = 0 -- fuerza del temblor de la cámara, baja sola
+local giroTemblor: CFrame? = nil -- el giro que el temblor le puso a la cámara en el último fotograma
+local temblando = false -- los dos pasos de render del temblor, atados (solo mientras tiembla)
 
 -- Lo que Efectos necesita de cada ventana o puerta de fuera: dónde está y cómo avisar de que algo se acerca.
 export type Elemento = {
@@ -48,6 +58,7 @@ export type Elemento = {
 	fuera: Vector3?, -- donde se planta el bicho (solo las atacables)
 	acecho: (p: number, plantado: number, cabeza: Vector3?) -> (), -- p y plantado de 0 a 1; 0 y 0 = deja de notarse
 	vibrar: ((fuerza: number) -> ())?, -- solo ventanas
+	brisa: ((fuerza: number) -> ())?, -- solo ventanas: corriente de una ventana rota cerca, de 0 a 1 (0 = quietas)
 }
 CasaVista.elementos = {} :: { [Model]: Elemento }
 
@@ -114,6 +125,40 @@ local function ventanaReforzada(el: Model)
 	pintar()
 end
 
+-- El temblor se pinta encima de la cámara de Roblox (Camera + 1) y se deshace en el fotograma siguiente antes de ella
+-- (Camera - 1): la cámara de Roblox sigue desde donde quedó la anterior y, sin deshacerlo, cada giro se iba sumando y
+-- la mirada se quedaba desviada tras cada temblor (como en BestiaVista y MochilaUi). Los dos pasos solo están atados
+-- mientras tiembla; se desatan cuando ya no queda temblor ni giro que deshacer.
+local function deshacerTemblor()
+	local camara = workspace.CurrentCamera
+	if giroTemblor then
+		-- En una cinemática la cámara la pone un script: no se toca (ni se deshace sobre la suya).
+		if camara and camara.CameraType ~= Enum.CameraType.Scriptable then
+			camara.CFrame *= giroTemblor:Inverse()
+		end
+		giroTemblor = nil
+	end
+	if temblor <= 0.01 then
+		temblando = false
+		RunService:UnbindFromRenderStep("TemblorAntes")
+		RunService:UnbindFromRenderStep("Temblor")
+	end
+end
+
+local function aplicarTemblor(dt: number)
+	local camara = workspace.CurrentCamera
+	if temblor <= 0.01 or not camara then
+		return
+	end
+	-- Nunca en cinemáticas (la cámara la lleva un script).
+	if camara.CameraType ~= Enum.CameraType.Scriptable then
+		local giro = CFrame.Angles(azar:NextNumber(-1, 1) * temblor * 0.02, azar:NextNumber(-1, 1) * temblor * 0.02, 0)
+		camara.CFrame *= giro
+		giroTemblor = giro
+	end
+	temblor = math.max(0, temblor - dt * 2)
+end
+
 -- Temblor de la cámara si está a menos de `alcance` studs de `desde` (más flojo cuanto más lejos).
 local ultimoRespingo = 0
 function CasaVista.temblar(desde: Vector3, fuerza: number, alcance: number?)
@@ -121,6 +166,11 @@ function CasaVista.temblar(desde: Vector3, fuerza: number, alcance: number?)
 	local distancia = (workspace.CurrentCamera.CFrame.Position - desde).Magnitude
 	if distancia < lejos then
 		temblor = math.max(temblor, fuerza * (1 - distancia / lejos))
+		if temblor > 0.01 and not temblando then
+			temblando = true
+			RunService:BindToRenderStep("TemblorAntes", Enum.RenderPriority.Camera.Value - 1, deshacerTemblor)
+			RunService:BindToRenderStep("Temblor", Enum.RenderPriority.Camera.Value + 1, aplicarTemblor)
+		end
 	end
 	-- Un golpe fuerte muy cerca: las manos dan un respingo (como mucho uno cada 4 s, que los golpes van seguidos).
 	if distancia < 12 and fuerza >= 0.4 and os.clock() - ultimoRespingo > 4 then
@@ -232,6 +282,7 @@ local function ventana(el: Model)
 	local bajado = if el:GetAttribute("Persiana") then 1 else 0 -- 0 abiertas, 1 cerradas
 	local rota = false
 	local corriente = 0 -- algo pegado fuera (Efectos): las cortinas se mecen hacia dentro
+	local airea = 0 -- corriente de una ventana rota cerca (Efectos): se hinchan despacio a rachas largas
 
 	local function colocar(meneo: number)
 		if rota then
@@ -256,6 +307,14 @@ local function ventana(el: Model)
 				local racha = 0.55 + math.noise(ahora * 0.9, semilla) + 0.6 * math.noise(ahora * 2.1, i * 0.37, semilla)
 				ondea = corriente * CFG.Ondea * math.clamp(racha, 0.15, 1.3)
 				aleteo = corriente * 0.12 * math.noise(ahora * 3, i * 0.71)
+			end
+			-- El aire que entra por una ventana rota: rachas largas que hinchan los paños hacia la sala (nunca hacia el
+			-- cristal: abajo está la repisa) y un aleteo de lado, distinto en cada pliegue.
+			if airea > 0 then
+				local racha = 0.35 + math.noise(ahora * 0.35, semilla, 7) + 0.5 * math.noise(ahora * 1.1, i * 0.29, semilla)
+				ondea += airea * BRISA_ONDEA * math.clamp(racha, 0.05, 1.2)
+				aleteo += airea * BRISA_ALETEO * math.noise(ahora * 2.4, i * 0.53, semilla + 9)
+				ondea = math.min(ondea, ONDEA_MAX)
 			end
 			p.Size = Vector3.new(ancho_ / PLIEGUES * 1.25, caida - corto, 0.08)
 			p.CFrame = centro * CFrame.new(x + aleteo + azar:NextNumber(-meneo, meneo), alto / 2 + 0.55, 0.75 + zigzag * 0.06)
@@ -492,6 +551,15 @@ local function ventana(el: Model)
 				moverCristal(if corriente > 0.02 then corriente * 0.3 else 0)
 			end)
 		end,
+		brisa = function(fuerza: number)
+			if fuerza <= 0 and airea <= 0 then
+				return
+			end
+			airea = math.max(0, fuerza)
+			if not rota and not moviendo then
+				colocar(0)
+			end
+		end,
 	}
 
 	el:GetAttributeChangedSignal("Persiana"):Connect(function()
@@ -597,6 +665,11 @@ local function puerta(el: Model)
 			Sonido.en("Golpe", hoja.Position, 0.9)
 			CasaVista.temblar(hoja.Position, 0.6)
 			polvillo(16)
+			-- El portazo hace temblar lo de alrededor como un golpe (vasos, cuadros, lámparas, mecedoras, polvo en el aire).
+			local alGolpe = CasaVista.alGolpe
+			if alGolpe then
+				alGolpe(hoja.Position)
+			end
 		else
 			Sonido.en(if el:GetAttribute("Abierta") then "Puerta" else "PuertaCierra", hoja.Position)
 		end
@@ -683,16 +756,7 @@ function CasaVista.start()
 	cuando("Ventana", ventana)
 	cuando("Puerta", puerta)
 	cuando("Ventana", ventanaReforzada)
-	RunService:BindToRenderStep("Temblor", Enum.RenderPriority.Camera.Value + 1, function(dt)
-		if temblor > 0.01 then
-			local camara = workspace.CurrentCamera
-			-- Nunca en cinemáticas (la cámara la lleva un script).
-			if camara.CameraType ~= Enum.CameraType.Scriptable then
-				camara.CFrame *= CFrame.Angles(azar:NextNumber(-1, 1) * temblor * 0.02, azar:NextNumber(-1, 1) * temblor * 0.02, 0)
-			end
-			temblor = math.max(0, temblor - dt * 2)
-		end
-	end)
+	-- El temblor de la cámara se ata solo cuando hace falta (CasaVista.temblar).
 end
 
 return CasaVista
