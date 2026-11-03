@@ -1,7 +1,13 @@
 -- Esconderse, el susto al morir y mirar a los demás.
 --   Escondido (atributo Escondido del jugador = dónde va la cámara): cámara fija dentro del armario o debajo de la
 --   cama con un leve respirar, latido que sube cuanto más cerca está el bicho, bordes oscuros y botón SALIR
---   (también E, espacio o B del mando).
+--   (también E, espacio o B del mando). La puerta del armario o la colcha las mueve EsconditeVista.
+--   Contener la respiración (pedido por el usuario: "respiración contenida al esconderte con un bicho cerca"): con
+--   un bicho a menos de CONTENER studs coges aire y lo aguantas solo, sin tecla (vale igual en el móvil): suena
+--   Contener, calla la respiración (Respiracion, en bucle mientras estás escondido), la cámara deja de mecerse y
+--   tiembla un poco, los bordes se cierran y el latido sube. Cuando se aleja (a más de SOLTAR) o a los AGUANTE s (no
+--   se aguanta más: los últimos, tiembla y se cierra más), Exhalar, temblando, y jadeas un rato. Si sales o te
+--   pillan a medias, se corta todo sin sonar.
 --   Te pillan (remote Muerte): la cámara mira a la cara del bicho, temblor, destello rojo, grito y sangre en la
 --   pantalla; luego negro y a mirar a los vivos (clic o toque para cambiar, en tercera persona) hasta el amanecer.
 --   A otro: un charco de sangre donde ha muerto.
@@ -26,6 +32,23 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 
 local MuerteVista = {}
 
+-- Contener la respiración escondido. Números a ojo (para mirarlos en Studio).
+local CONTENER = 18 -- studs del bicho a los que coges aire y lo aguantas
+local SOLTAR = 24 -- más lejos, lo sueltas
+local AGUANTE = 12 -- s que se aguanta como mucho
+local APRIETA = 4 -- los últimos s del aguante: tiembla más, se cierra más y el latido corre más
+local RECUPERAR = 4 -- s jadeando después de soltarlo (sin volver a contener)
+local COGER_S = 0.35 -- s en que se nota del todo al coger aire
+local SOLTAR_S = 0.8 -- s en que se quita al soltarlo
+local TIEMBLA = 0.006 -- radianes que tiembla la cámara conteniendo, y de más al final (TIEMBLA_FIN)
+local TIEMBLA_FIN = 0.012
+local TIEMBLA_SUELTA = 0.028 -- el temblor al soltar el aire, que se apaga en SUELTA_S
+local SUELTA_S = 0.9
+local SUBE = 0.025 -- studs que sube la cámara con el aire cogido (y baja el doble al soltarlo)
+local CIERRA = 0.85 -- lo oscuros que se ponen los bordes de más conteniendo (de 0 a 1)
+local LATIDO_MAS = 0.3 -- volumen de más del latido conteniendo (el doble al final)
+local LATIDO_PRISA = 0.12 -- tono de más del latido conteniendo (y otro tanto al final)
+
 local jugador = Players.LocalPlayer
 local camara = workspace.CurrentCamera
 local azar = Random.new()
@@ -40,6 +63,19 @@ local latido: Sound?
 local susto = false -- durante el susto nadie más toca la cámara
 local mirado = 0 -- índice del vivo al que miras de muerto
 
+-- La respiración escondido.
+local ahogoLados: ImageLabel -- bordes de más (a los lados y arriba y abajo) que se cierran conteniendo
+local ahogoArriba: ImageLabel
+local conteniendo = false
+local cogido = 0 -- cuándo cogiste aire (os.clock)
+local soltado = -math.huge -- cuándo lo soltaste
+local ahogo = 0 -- de 0 a 1: cuánto se nota (cámara, bordes, latido)
+local cierreVisto = 0 -- lo puesto en los bordes de más
+local fase = 0 -- del vaivén de respirar (va más deprisa jadeando)
+local respiracion: Sound? -- en bucle mientras estás escondido (si hay grabación)
+local respiracionVolumen = 0
+local voz: Sound? -- el último Contener o Exhalar, para cortarlo si sales a medias
+
 local function personajeVisible(visible: boolean)
 	local personaje = jugador.Character
 	if personaje then
@@ -51,36 +87,108 @@ local function personajeVisible(visible: boolean)
 	end
 end
 
-local function bichoMasCerca(desde: Vector3): number
+-- Lo que tiene más cerca: cualquier bicho (el latido) y, aparte, sin el Imitador mientras finge ser una persona en
+-- la puerta (contener la respiración delataría que no es un amigo, como la tensión de AmbienteMiedo).
+local function bichoMasCerca(desde: Vector3): (number, number)
 	local carpeta = workspace:FindFirstChild("Bichos")
-	local mejor = math.huge
+	local mejor, acecha = math.huge, math.huge
 	for _, bicho in if carpeta then carpeta:GetChildren() else {} do
 		local raiz = bicho:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz then
-			mejor = math.min(mejor, (raiz.Position - desde).Magnitude)
+			local d = (raiz.Position - desde).Magnitude
+			mejor = math.min(mejor, d)
+			if not (bicho.Name == "Imitador" and not bicho:GetAttribute("Abierto")) then
+				acecha = math.min(acecha, d)
+			end
 		end
 	end
-	return mejor
+	return mejor, acecha
+end
+
+-- Contener o Exhalar (si ya hay grabación): uno solo a la vez.
+local function decir(nombre: string)
+	if voz then
+		voz:Destroy()
+	end
+	voz = if Sonido.hay(nombre) then Sonido.tocar(nombre) else nil
+end
+
+-- Deja la respiración como si nada (al salir y en el susto): sin sonar y sin que se quede nada puesto. Saliendo, el
+-- aire que ya estabas soltando acaba de sonar (se borra solo); conteniendo, o en el susto (`todo`), se corta.
+local function cortarAliento(todo: boolean)
+	if voz and (todo or conteniendo) then
+		voz:Destroy()
+		voz = nil
+	end
+	conteniendo = false
+	soltado = -math.huge
+	ahogo = 0
+	if respiracion then
+		respiracion:Destroy()
+		respiracion = nil
+	end
+	if cierreVisto ~= 0 then
+		cierreVisto = 0
+		ahogoLados.ImageTransparency = 1
+		ahogoArriba.ImageTransparency = 1
+	end
 end
 
 -- Cámara del escondite: fija, con un leve respirar. Al meterse, la cámara va de los ojos al escondite en un momento
 -- (agachándose un poco por el camino), no de golpe.
 local metiendose: { desde: CFrame, inicio: number }? = nil
 local ENTRAR = 0.5
-local function enEscondite()
+
+-- Coge aire o lo suelta según lo cerca que esté el bicho (`acecha`, en studs) y cuánto lleva aguantando. Mientras te
+-- metes no: el bicho que te ha visto ya está encima, y primero hay que llegar dentro.
+local function respirar(t: number, dt: number, acecha: number, entrando: boolean)
+	if conteniendo then
+		if acecha > SOLTAR or t - cogido >= AGUANTE then
+			conteniendo = false
+			soltado = t
+			decir("Exhalar")
+		end
+	elseif not entrando and acecha < CONTENER and t - soltado >= RECUPERAR then
+		conteniendo = true
+		cogido = t
+		decir("Contener")
+	end
+	ahogo = if conteniendo then math.min(1, ahogo + dt / COGER_S) else math.max(0, ahogo - dt / SOLTAR_S)
+end
+
+local function enEscondite(dt: number)
 	local vista = jugador:GetAttribute("Escondido")
 	if typeof(vista) ~= "CFrame" or susto then
 		metiendose = nil
+		if conteniendo or ahogo > 0 or soltado > -math.huge or respiracion then
+			cortarAliento(susto)
+		end
 		return
 	end
 	local t = os.clock()
-	local destino = vista * CFrame.new(0, math.sin(t * 1.6) * 0.04, 0)
-		* CFrame.Angles(math.sin(t * 0.8) * 0.01, math.sin(t * 0.5) * 0.02, 0)
 	if camara.CameraType ~= Enum.CameraType.Scriptable and not metiendose then
 		metiendose = { desde = camara.CFrame, inicio = t }
 	end
 	camara.CameraType = Enum.CameraType.Scriptable
 	local e = metiendose
+	local cerca, acecha = bichoMasCerca(vista.Position)
+	respirar(t, dt, acecha, e ~= nil and t - e.inicio < ENTRAR)
+	-- Los últimos segundos del aguante (no puedes más), lo que dura el jadeo y el temblor al soltar el aire: de 1 a 0.
+	local aprieta = if conteniendo then math.clamp((t - cogido - (AGUANTE - APRIETA)) / APRIETA, 0, 1) else 0
+	local jadeo = math.clamp(1 - (t - soltado) / RECUPERAR, 0, 1)
+	local suelta = math.clamp(1 - (t - soltado) / SUELTA_S, 0, 1)
+	-- El leve respirar: más deprisa y más hondo jadeando; conteniendo, quieta, con el pecho lleno (un poco más
+	-- arriba) y temblando un poco (más al final). Al soltar el aire, tiembla y baja un momento.
+	fase += dt * (1 + 0.8 * jadeo)
+	local mece = (1 - ahogo) * (1 + 0.8 * jadeo)
+	local alto = math.sin(fase * 1.6) * 0.04 * mece + SUBE * ahogo - 2 * SUBE * math.sin(suelta * math.pi)
+	local destino = vista * CFrame.new(0, alto, 0)
+		* CFrame.Angles(math.sin(fase * 0.8) * 0.01 * mece, math.sin(fase * 0.5) * 0.02 * mece, 0)
+	local tiembla = ahogo * (TIEMBLA + TIEMBLA_FIN * aprieta) + TIEMBLA_SUELTA * suelta
+	if tiembla > 0 then
+		destino *= CFrame.Angles(math.noise(t * 11, 1.7) * tiembla, math.noise(t * 11, 5.3) * tiembla,
+			math.noise(t * 7, 9.1) * tiembla * 0.5)
+	end
 	if e and t - e.inicio < ENTRAR then
 		local k = (t - e.inicio) / ENTRAR
 		k = k * k * (3 - 2 * k)
@@ -88,10 +196,20 @@ local function enEscondite()
 		destino = e.desde:Lerp(destino, k) * CFrame.new(0, -agacha, 0)
 	end
 	camara.CFrame = destino
-	local cerca = bichoMasCerca(vista.Position)
+	-- Conteniendo se cierran los bordes, calla la respiración y el latido sube; jadeando, la respiración sube.
+	local cierre = ahogo * (0.7 + 0.3 * aprieta)
+	if math.abs(cierre - cierreVisto) > 0.004 or (cierre == 0 and cierreVisto ~= 0) then
+		cierreVisto = cierre
+		ahogoLados.ImageTransparency = 1 - cierre * CIERRA
+		ahogoArriba.ImageTransparency = 1 - cierre * CIERRA
+	end
+	if respiracion then
+		respiracion.Volume = respiracionVolumen * (1 - ahogo) * (1 + 0.6 * jadeo)
+		respiracion.PlaybackSpeed = 1 + 0.15 * jadeo
+	end
 	if latido then
-		latido.Volume = 0.25 + 1.2 * math.clamp(1 - cerca / 45, 0, 1)
-		latido.PlaybackSpeed = 1 + 0.5 * math.clamp(1 - cerca / 30, 0, 1)
+		latido.Volume = 0.25 + 1.2 * math.clamp(1 - cerca / 45, 0, 1) + LATIDO_MAS * ahogo * (1 + aprieta)
+		latido.PlaybackSpeed = 1 + 0.5 * math.clamp(1 - cerca / 30, 0, 1) + LATIDO_PRISA * (ahogo + aprieta)
 	end
 end
 
@@ -102,6 +220,11 @@ local function cambiarEscondido()
 	personajeVisible(not escondido)
 	if escondido then
 		latido = latido or Sonido.bucle("Latido")
+		if not respiracion and Sonido.hay("Respiracion") then
+			local s = Sonido.bucle("Respiracion")
+			respiracionVolumen = s.Volume
+			respiracion = s
+		end
 		ContextActionService:BindAction("SalirEscondite", function(_, estado)
 			if estado == Enum.UserInputState.Begin then
 				Remotes.Salir:FireServer()
@@ -114,6 +237,7 @@ local function cambiarEscondido()
 			latido:Destroy()
 			latido = nil
 		end
+		cortarAliento(susto) -- si sales a medias, sin soltar el aire
 		if not susto then
 			camara.CameraType = Enum.CameraType.Custom
 		end
@@ -236,6 +360,7 @@ end
 
 local function meHanPillado(cabeza: Vector3)
 	susto = true
+	cortarAliento(true) -- conteniendo o soltándolo: se corta en seco
 	ContextActionService:UnbindAction("SalirEscondite")
 	salir.Visible = false
 	local personaje = jugador.Character
@@ -356,6 +481,31 @@ local function capas()
 	})
 	degradado.Parent = bordes
 	bordes.Parent = capa
+	-- Bordes de más que se cierran conteniendo la respiración: a los lados (más adentro que los de siempre) y arriba
+	-- y abajo, para que se estreche la vista.
+	local function cerrarse(giro: number): ImageLabel
+		local b = Instance.new("ImageLabel")
+		b.Name = "Ahogo"
+		b.Size = UDim2.fromScale(1, 1)
+		b.BackgroundTransparency = 1
+		b.Image = "rbxasset://textures/ui/TopBar/WhiteOverlayAsset.png"
+		b.ImageColor3 = Color3.new(0, 0, 0)
+		b.ImageTransparency = 1
+		b.ZIndex = 90
+		local d = Instance.new("UIGradient")
+		d.Rotation = giro
+		d.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.3, 1),
+			NumberSequenceKeypoint.new(0.7, 1),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		d.Parent = b
+		b.Parent = capa
+		return b
+	end
+	ahogoLados = cerrarse(0)
+	ahogoArriba = cerrarse(90)
 	rojo = Instance.new("Frame")
 	rojo.Size = UDim2.fromScale(1, 1)
 	rojo.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
@@ -445,9 +595,7 @@ function MuerteVista.start()
 			mirarVivos(true)
 		end
 	end)
-	RunService.RenderStepped:Connect(function()
-		enEscondite()
-	end)
+	RunService.RenderStepped:Connect(enEscondite)
 	task.spawn(function()
 		while true do
 			task.wait(1)
