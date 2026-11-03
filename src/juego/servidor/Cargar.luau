@@ -121,7 +121,45 @@ local function puede(jugador: Player): boolean
 		and not jugador:GetAttribute("MochilaAbierta") and not agarres[jugador] and not jugador:GetAttribute("Trabajando")
 end
 
-local function coger(jugador: Player, pieza: BasePart)
+-- ¿La alcanza sin nada sólido en medio? Para no coger cosas a través de las paredes (el bidón y la cadena del garaje
+-- cerrado se sacaban sin abrirlo). Un rayo desde su cabeza hasta el centro de la pieza o hasta 2 studs por encima (lo
+-- de encima de un estante más alto que la cabeza se coge por encima del borde). Solo tapa lo que choca: las puertas
+-- abiertas no (su hoja no se mueve en el servidor) y los muebles por su bloque de choque. No cuentan los jugadores ni
+-- lo que se coge (Pesados y Objetos). La usan coger y Mochila.
+local vista = RaycastParams.new()
+vista.FilterType = Enum.RaycastFilterType.Exclude
+vista.RespectCanCollide = true
+
+function Cargar.aLaVista(jugador: Player, pieza: BasePart): boolean
+	local personaje = jugador.Character
+	local cabeza = personaje and personaje:FindFirstChild("Head") :: BasePart?
+	local raiz = raizDe(jugador)
+	local ojo = if cabeza then cabeza.Position elseif raiz then raiz.Position + Vector3.new(0, 1.5, 0) else nil
+	if not ojo then
+		return false
+	end
+	local ignorar: { Instance } = { pieza, carpeta }
+	local objetos = workspace:FindFirstChild("Objetos") -- la carpeta de Mochila (Mochila ya pide este módulo)
+	if objetos then
+		table.insert(ignorar, objetos)
+	end
+	for _, otro in Players:GetPlayers() do
+		if otro.Character then
+			table.insert(ignorar, otro.Character)
+		end
+	end
+	vista.FilterDescendantsInstances = ignorar
+	for _, arriba in { 0, 2 } do
+		local hasta = pieza.Position + Vector3.new(0, arriba, 0)
+		if not workspace:Raycast(ojo, hasta - ojo, vista) then
+			return true
+		end
+	end
+	return false
+end
+
+-- `sinMirar`: sin mirar si hay una pared en medio (Cargar.recoger: la pieza que acaba de usar, que le sale delante).
+local function coger(jugador: Player, pieza: BasePart, sinMirar: boolean?)
 	local raiz = raizDe(jugador)
 	local lista = quienes[pieza]
 	local peso = pieza:GetAttribute("Peso")
@@ -133,6 +171,9 @@ local function coger(jugador: Player, pieza: BasePart)
 	end
 	if (pieza.Position - raiz.Position).Magnitude > Config.Casa.Alcance + pieza.Size.Magnitude / 2 then
 		return
+	end
+	if not sinMirar and not Cargar.aLaVista(jugador, pieza) then
+		return -- con una pared en medio (el cartel sí sale: el prompt no mira, ver Cargar.nuevo)
 	end
 	-- Lo de uno, por el centro; lo de varios, por el extremo más cerca que esté libre.
 	local agarre = Vector3.zero
@@ -172,7 +213,7 @@ end
 -- Vuelve a poner en las manos de `jugador` una pieza que acaba de usar, si puede llevarla (Preparativos: el bidón que
 -- aún tiene gasolina para otra cruz).
 function Cargar.recoger(jugador: Player, pieza: BasePart)
-	coger(jugador, pieza)
+	coger(jugador, pieza, true) -- se la ponen delante: aunque quede contra una pared, sigue en sus manos
 end
 
 -- La reja de hierro (12.2): `pieza` (X ancho, Y alto, Z grueso) se vuelve invisible y se le sueldan barrotes, dos
@@ -274,6 +315,7 @@ function Cargar.nuevo(tipo: string, cf: CFrame, carga: number?): BasePart
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 	prompt.MaxActivationDistance = Config.Casa.Alcance
+	-- Sin la línea de vista de Roblox: lo de al lado tapa el cartel (pasó en Pistas). La pared la mira coger.
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = pieza
 	prompt.Triggered:Connect(function(jugador)
