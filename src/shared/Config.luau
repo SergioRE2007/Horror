@@ -54,7 +54,7 @@ Config.Partida = {
 Config.Coches = {
 	Cuantos = 4,
 	Plazas = 4,
-	Salida = 5, -- segundos de cuenta atrás al arrancar
+	Salida = 7, -- segundos de cuenta atrás al arrancar (lo que dura la cinemática de salida, lobby/cliente/SalidaVista)
 }
 
 -- Día y noche (juego/servidor/Ciclo). Segundos.
