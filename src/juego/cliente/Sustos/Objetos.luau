@@ -50,21 +50,26 @@ local function lanzarPortazo(d)
 	local a0 = math.atan2(-rel.Position.Z, rel.Position.X)
 	local baseHoja = CFrame.Angles(0, -a0, 0) * rel
 	local basePomo = CFrame.Angles(0, -a0, 0) * bisagra:ToObjectSpace(pomo.CFrame)
+	-- Si el servidor toca esta puerta, se deja: CasaVista la pone donde toca (y aquí ya no se mueve la hoja).
+	local tocada = false
 	local function poner(a: number)
+		if tocada then
+			return
+		end
 		local cf = bisagra * CFrame.Angles(0, a, 0)
 		hoja.CFrame = cf * baseHoja
 		pomo.CFrame = cf * basePomo
 	end
-	-- Si el servidor toca esta puerta, se deja: CasaVista la pone donde toca.
-	local tocada = false
 	for _, atributo in { "Abierta", "Golpes", "Intentos", "Portazo", "Refuerzo" } do
 		Util.temporal(d.puerta:GetAttributeChangedSignal(atributo):Connect(function()
 			tocada = true
 		end))
 	end
 	local choca = hoja.CanCollide
+	-- Al acabar, la colisión como la tiene ahora el servidor (Casa.publicar: choca si está cerrada), por si alguien la
+	-- ha abierto o cerrado durante el susto.
 	Util.alAcabar(function()
-		hoja.CanCollide = choca
+		hoja.CanCollide = not d.puerta:GetAttribute("Abierta")
 	end)
 	local function animar(desde: number, hasta: number, segundos: number, estilo: (number) -> number): boolean
 		local t0 = os.clock()
@@ -108,10 +113,13 @@ local function lanzarPortazo(d)
 			return (1 - math.cos(k * math.pi)) / 2
 		end)
 	else
-		-- Cerrada: algo la golpea desde el otro lado y luego intenta abrirla.
+		-- Cerrada: algo la golpea desde el otro lado y luego intenta abrirla (si alguien la toca mientras, se para).
 		local otroLado = (hoja.Position - cam) * Vector3.new(1, 0, 1)
 		local desde = hoja.Position + (if otroLado.Magnitude > 0 then otroLado.Unit else Vector3.zero) * 1.5
 		for golpe = 1, 2 do
+			if tocada then
+				return
+			end
 			Sonido.en("PuertaGolpe", desde, if golpe == 1 then 1 else 0.92)
 			Util.polvo(hoja.Position + Vector3.new(0, hoja.Size.Y / 2 + 0.3, 0), 0.6)
 			if (hoja.Position - cam).Magnitude < 20 then
@@ -125,6 +133,9 @@ local function lanzarPortazo(d)
 			task.wait(0.7)
 		end
 		task.wait(1.2)
+		if tocada then
+			return
+		end
 		Sonido.en("Puerta", pomo.Position, 1.3) -- el pomo traquetea
 		for i = 1, 8 do
 			poner(a0 + math.rad(if i % 2 == 0 then 0.8 else -0.8))
@@ -318,7 +329,14 @@ local function lanzarBombilla(d)
 		task.delay(5, trozo.Destroy, trozo)
 	end
 	apagar(luz)
+	-- El servidor no sabe que está rota: si el generador vuelve a arrancar la encendería. Se mantiene apagada hasta el alba.
+	local vigila = luz:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if luz.Enabled then
+			apagar(luz)
+		end
+	end)
 	Util.alAlba(function()
+		vigila:Disconnect()
 		encender(luz)
 	end)
 	for _, otra in d.demas do
