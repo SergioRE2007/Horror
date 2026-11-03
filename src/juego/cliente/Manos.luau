@@ -418,7 +418,10 @@ local function llevar(b: Brazo, nombre: string?, mano: CFrame?)
 		local m = c.crear()
 		c.modelo = m
 		local base = m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart")
-		local origen = if base then base.CFrame else CFrame.new()
+		-- Respecto al origen del modelo tal como lo monta `crear` (sus ejes, sin el giro de la pieza principal): enMano
+		-- cuenta con ellos, y la pieza principal de la linterna, la pila y el carrete va girada (ALO_LARGO). Con su
+		-- giro, la linterna salía de pie a lo largo del antebrazo y la luz no salía de ella.
+		local origen = if base then CFrame.new(base.Position) else CFrame.new()
 		for _, p in m:GetDescendants() do
 			if p:IsA("BasePart") then
 				p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = true, false, false, false, false
