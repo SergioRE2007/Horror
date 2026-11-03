@@ -630,7 +630,11 @@ function Bestia.soltar()
 	Imitador.irse()
 	Acechador.irse()
 	e.hilo = task.spawn(function()
-		noche(e)
+		-- Con pcall: si falla, se quita igual (si no, Bestia.activa() seguía en true hasta el amanecer).
+		local ok, fallo = pcall(noche, e)
+		if not ok then
+			warn("[Bestia] " .. tostring(fallo))
+		end
 		if not e.quemada then
 			terminar(e)
 		end

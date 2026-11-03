@@ -13,6 +13,7 @@
 --   ("Prender", camino: { Vector3 }, porSala: number, inicio: number) el fuego sale de camino[1] (el porche) a la hora del
 --     servidor `inicio` y llega a camino[i] a los (i - 1) * porSala s. El último punto es el sótano (donde está ella).
 --   ("Final", segundos: number) la escena final.
+--   ("Apagar") el fuego se ha cancelado antes del final (han muerto todos o ha amanecido).
 -- Modo de pruebas: ServerStorage.Prueba:Fire("Quemar") lo prende ya, sin mirar nada (ni cerillas ni si está listo).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -132,6 +133,9 @@ local function prender(jugador: Player?, forzado: boolean?)
 	if not Bestia.atrapada() or #Muerte.vivos() == 0 then
 		ardiendo = false
 		workspace:SetAttribute("Final", nil)
+		-- Que los clientes lo apaguen y que quien entre después no lo vea prender otra vez.
+		mensaje = nil
+		Remotes.Incendio:FireAllClients("Apagar")
 		return
 	end
 	Bestia.quemar()

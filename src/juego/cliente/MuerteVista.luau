@@ -9,6 +9,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -378,6 +379,16 @@ end
 
 function MuerteVista.start()
 	capas()
+	-- Sin el botón de reiniciar de Roblox: aquí no se reaparece (quedabas muerto hasta el amanecer y, solo, volvía a
+	-- empezar el día). SetCore falla hasta que el CoreGui está listo: se reintenta.
+	task.spawn(function()
+		for _ = 1, 20 do
+			if pcall(StarterGui.SetCore, StarterGui, "ResetButtonCallback", false) then
+				break
+			end
+			task.wait(0.5)
+		end
+	end)
 	jugador:GetAttributeChangedSignal("Escondido"):Connect(cambiarEscondido)
 	jugador:GetAttributeChangedSignal("Muerto"):Connect(function()
 		if not jugador:GetAttribute("Muerto") then
