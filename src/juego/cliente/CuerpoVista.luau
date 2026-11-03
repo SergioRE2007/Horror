@@ -38,7 +38,6 @@ local respiracion = 0
 local miedo = 0
 local bichoCerca = 0 -- se mira cada poco
 local proximoVaho = 0
-local miradaDicha = 0 -- la última inclinación que se ha mandado al servidor
 local proximaMirada = 0
 local vaho: ParticleEmitter? = nil
 local boca: Attachment? = nil
@@ -126,9 +125,17 @@ local function paso(dt: number)
 	local deLado = plano:Dot(cf.RightVector)
 	inclinado += (-deLado / 16 * INCLINA - inclinado) * (1 - math.exp(-dt * 5))
 
-	-- Caer: la cabeza baja de golpe y vuelve con un muelle.
-	velCaida += (-caida * 120 - velCaida * 16) * dt
-	caida += velCaida * dt
+	-- Caer: la cabeza baja de golpe y vuelve con un muelle. A pasitos de 1/60 s como mucho: con fotogramas largos (un
+	-- móvil lento, un tirón al aterrizar) el muelle se disparaba y la cámara salía volando.
+	local pasos = math.clamp(math.ceil(dt * 60), 1, 15)
+	local h = math.min(dt, 0.25) / pasos
+	for _ = 1, pasos do
+		velCaida += (-caida * 120 - velCaida * 16) * h
+		caida += velCaida * h
+	end
+	if caida ~= caida or velCaida ~= velCaida then
+		caida, velCaida = 0, 0 -- por si acaso (NaN): que no se rompa la cámara
+	end
 
 	-- Respirar, con miedo si hay un bicho cerca.
 	bichoCerca -= dt
@@ -143,11 +150,15 @@ local function paso(dt: number)
 	camara.CFrame = cf * CFrame.new(lado, sube + respira + caida, 0) * CFrame.Angles(0, 0, mece + inclinado)
 
 	-- Hacia dónde miras, para que los demás vean tu cabeza y tu linterna (BrazosVista), cada 0,2 s si ha cambiado.
+	-- Se compara con lo que ha publicado el servidor (atributo Mirada, entre -1,4 y 1,4 y redondeado a 0,05), no con lo
+	-- último mandado: si tiró un envío (dos llegaron muy seguidos), se vuelve a mandar hasta que se publique y la de
+	-- antes no se queda atascada.
 	if os.clock() >= proximaMirada then
 		proximaMirada = os.clock() + 0.2
 		local inclinacion = math.asin(math.clamp(cf.LookVector.Y, -1, 1))
-		if math.abs(inclinacion - miradaDicha) >= 0.05 then
-			miradaDicha = inclinacion
+		local publicada = jugador:GetAttribute("Mirada")
+		local dicha = if type(publicada) == "number" then publicada else 0
+		if math.abs(math.clamp(inclinacion, -1.4, 1.4) - dicha) >= 0.05 then
 			Remotes.Mirada:FireServer(inclinacion)
 		end
 	end

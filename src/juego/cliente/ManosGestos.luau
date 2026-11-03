@@ -286,13 +286,19 @@ local function coger(objeto: BasePart)
 	local donde = objeto.Position
 	local copia = copiaDe(objeto)
 	local desde = objeto.CFrame
+	local vuela: number? = nil -- cuándo echa a volar la copia
 	Manos.gesto("Mano", 0.75, function(_, s)
 		local c = copia
 		if c then
 			local palma = Manos.mano("der")
-			if s >= 0.22 and palma then
+			-- Vuela solo cuando el servidor ha quitado el de verdad: con la mochila llena se queda en el suelo y la
+			-- copia, justo encima de él, no se mueve (no se ve otro igual volando a la mano).
+			if not vuela and s >= 0.22 and objeto.Parent == nil then
+				vuela = s
+			end
+			if vuela and palma then
 				-- De donde estaba a la mano, y luego pegado a ella hasta el bolsillo.
-				local k = suave((s - 0.22) / 0.14)
+				local k = suave((s - (vuela :: number)) / 0.14)
 				c.CFrame = desde:Lerp(palma * CFrame.new(0, -0.15, -0.1), k)
 			end
 			if s > 0.62 then
@@ -567,7 +573,8 @@ end
 -- ===== Sostener =====
 
 local L = Config.Linterna
-local sacudida = 0 -- con poca pila, cuándo le toca la próxima sacudida
+local sacudida = 0 -- con poca pila, cuándo empezó la última sacudida
+local proximaSacudida = 0 -- y cuándo le toca la siguiente (sorteado una vez: de 3,5 a 7 s)
 
 -- La linterna encendida, en la izquierda, apuntando adonde miras (un poco hacia la derecha, al centro).
 local function capaLinterna(): Manos.Pose?
@@ -579,8 +586,9 @@ local function capaLinterna(): Manos.Pose?
 	local meneo = CFrame.new()
 	if (jugador:GetAttribute("Pila") or 1) < L.Poca then
 		-- Poca pila: de vez en cuando la sacude, como para que vuelva.
-		if ahora > sacudida + 0.45 and ahora - sacudida > azar:NextNumber(3.5, 7) then
+		if ahora >= proximaSacudida then
 			sacudida = ahora
+			proximaSacudida = ahora + azar:NextNumber(3.5, 7)
 		end
 		local k = ahora - sacudida
 		if k < 0.45 then
