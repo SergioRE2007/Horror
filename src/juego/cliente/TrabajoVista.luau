@@ -14,6 +14,7 @@ local TweenService = game:GetService("TweenService")
 local CollectionService = game:GetService("CollectionService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Manos = require(script.Parent.Manos)
 local Sonido = require(script.Parent.Sonido)
 
 local TrabajoVista = {}
@@ -29,6 +30,8 @@ local METAL = Color3.fromRGB(95, 96, 100)
 type Pieza = { parte: BasePart, sitio: CFrame }
 type Activo = { piezas: { Pieza }, accion: string, inicio: number, fin: number, golpes: number, pieza: BasePart? }
 local activos: { [Player]: Activo } = {}
+local agarresOtros: { [Player]: CFrame } = {} -- el agarre de la herramienta de cada uno de los demás (BrazosVista)
+local agarreMio: CFrame? = nil -- dónde está el agarre de tu herramienta ahora, respecto a la cámara (para Manos)
 
 local function parte(tamano: Vector3, color: Color3, material: Enum.Material?): BasePart
 	local p = Instance.new("Part")
@@ -74,6 +77,7 @@ local function herramienta(accion: string): { Pieza }
 end
 
 local function quitar(quien: Player)
+	agarresOtros[quien] = nil
 	local activo = activos[quien]
 	if activo then
 		activos[quien] = nil
@@ -225,7 +229,7 @@ end
 
 -- Dónde va el agarre de cada herramienta: delante de tu cámara o del pecho de otro.
 local SITIO = {
-	Hachazo = { CFrame.new(1.1, -1.3, -2.1), CFrame.new(0.9, 0.3, -1.4) },
+	Hachazo = { CFrame.new(0.25, -0.95, -1.45), CFrame.new(0.9, 0.3, -1.4) }, -- la tuya, más al centro: la cogen las dos manos
 	Serrar = { CFrame.new(0.35, -1.2, -1.1), CFrame.new(0.5, 0.2, -0.9) },
 	Clavar = { CFrame.new(0.8, -1.2, -1.8), CFrame.new(0.8, 0.4, -1.4) },
 	Montar = { CFrame.new(0.7, -1.1, -1.7), CFrame.new(0.8, 0.2, -1.4) },
@@ -374,7 +378,51 @@ local function mover()
 		for _, p in a.piezas do
 			p.parte.CFrame = base * pose * p.sitio
 		end
+		if quien == jugador then
+			agarreMio = camara.CFrame:ToObjectSpace(base * pose) -- respecto a la cámara: sin un fotograma de retraso
+		else
+			agarresOtros[quien] = base * pose
+		end
 	end
+	if not activos[jugador] then
+		agarreMio = nil
+	end
+end
+
+-- Tus manos en la herramienta (Manos): la derecha en el mango (pegada: la herramienta va deprisa) y la izquierda en
+-- el mango del hacha o sujetando lo que trabajas (el tronco en el caballete, el tablón, la pieza del coche).
+local function manosEnHerramienta(): Manos.Pose?
+	local a = activos[jugador]
+	if not a or not agarreMio then
+		return nil
+	end
+	local g = camara.CFrame * (agarreMio :: CFrame)
+	local arriba, lado = g.UpVector, g.RightVector
+	local izq: CFrame? = nil
+	local der: CFrame
+	if a.accion == "Hachazo" then
+		-- Las dos en el mango, una encima de otra.
+		der = Manos.vara("der", (g * CFrame.new(0, 0.05, 0)).Position, arriba, lado)
+		izq = Manos.vara("izq", (g * CFrame.new(0, 0.7, 0)).Position, arriba, lado)
+	elseif a.accion == "Serrar" then
+		der = Manos.vara("der", g.Position, arriba, lado)
+	elseif a.accion == "Montar" then
+		der = Manos.vara("der", (g * CFrame.new(0, 0.3, 0)).Position, arriba, -g.LookVector)
+	else -- Clavar y Fabricar: el martillo
+		der = Manos.vara("der", (g * CFrame.new(0, 0.15, 0)).Position, arriba, lado)
+	end
+	local pieza = a.pieza
+	if not izq and pieza and pieza.Parent then
+		-- La izquierda apoyada en lo que trabajas, del lado que queda cerca, sujetándolo.
+		local cf = camara.CFrame
+		local natural = cf * Vector3.new(-0.6, -1.0, -1.4)
+		local caja, medio = pieza.CFrame, pieza.Size / 2
+		local l = caja:PointToObjectSpace(natural)
+		local punto = caja * Vector3.new(math.clamp(l.X, -medio.X, medio.X), math.clamp(l.Y, -medio.Y, medio.Y),
+			math.clamp(l.Z, -medio.Z, medio.Z))
+		izq = Manos.hacia("izq", punto + Vector3.new(0, 0.1, 0), "abajo")
+	end
+	return { der = der, izq = izq, velocidad = math.huge }
 end
 
 -- ===== Generador =====
@@ -459,6 +507,12 @@ local function generador(gen: Instance)
 	end)
 end
 
+-- Dónde tiene ahora otro jugador el mango de su herramienta y qué hace (nil si no trabaja). Para BrazosVista.
+function TrabajoVista.agarreDe(quien: Player): (CFrame?, string?)
+	local a = activos[quien]
+	return agarresOtros[quien], if a then a.accion else nil
+end
+
 function TrabajoVista.start()
 	Remotes.Trabajo.OnClientEvent:Connect(function(quien: Player?, accion: string, pieza: BasePart?, segundos: number, ...)
 		if accion == "Parte" then
@@ -487,6 +541,7 @@ function TrabajoVista.start()
 	end)
 	Players.PlayerRemoving:Connect(quitar)
 	RunService.RenderStepped:Connect(mover)
+	Manos.capa("Herramienta", 40, manosEnHerramienta)
 end
 
 return TrabajoVista
