@@ -50,7 +50,8 @@ local function puedeSilueta(ctx): any?
 		then
 			continue
 		end
-		if not ctx.forzado and ((el:GetAttribute("Persiana") or 0) > 0.5 or Util.mirada(centro.Position) > 0.6) then
+		-- Persiana es un booleano del servidor (true = cortinas cerradas).
+		if not ctx.forzado and (el:GetAttribute("Persiana") == true or Util.mirada(centro.Position) > 0.6) then
 			continue -- con las cortinas corridas no se ve; mirando ya hacia ella, no sorprende
 		end
 		if Util.libre(cam, centro.Position, { el }) then
