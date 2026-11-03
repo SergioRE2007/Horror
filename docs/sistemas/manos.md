@@ -148,3 +148,33 @@ Pedido por el usuario: "manos que se apoyan en la pared al pegarte a ella". Núm
   (el muelle de cada mano), `codoDer`/`codoIzq` y `meneoDer`/`meneoIzq` (de 1 a 0).
 - Probado en Studio (03-11-2026): de cara a la pared del salón la mano derecha se apoya (a 0,6 de la pared). Falta
   juzgar la pose con buena luz.
+
+## Mirar sin abrir: mirilla y entre las cortinas (`juego/cliente/MirarVista`, 14.6)
+
+Pedido por el usuario: "mirar entre las cortinas o por la mirilla de la puerta principal (útil con el Imitador)".
+Números de la vista al principio del módulo.
+- **Carteles** (los crea el cliente): MIRAR POR LA MIRILLA en la puerta principal (por dentro, cerrada y entera) y MIRAR
+  ENTRE LAS CORTINAS en cada ventana con las cortinas cerradas y entera. Tecla L, L2 en el mando y, en el móvil, el
+  botón grande de acción. No salen con la mochila o el móvil abiertos, cargando, trabajando, escondido, muerto ni
+  asomado.
+- **Mirilla:** la hoja lleva una mirilla de latón por las dos caras. La mano derecha aparta la tapita al llegar y la
+  izquierda baja la linterna; la cabeza se acerca, se cierra en negro y se ve desde fuera: ojo de pez (campo 100),
+  círculo negro con el borde difuminado, algo de desenfoque y frío, la respiración meciendo la vista y, de noche, una
+  luz floja fuera. Mientras, atributo local `Mirilla` = true (ImitadorVista hace reaccionar al Imitador).
+- **Cortinas:** la mano coge el borde, la cabeza pasa por la ranura (la tela tapa la pantalla) hasta casi el cristal y
+  se ve fuera entre dos bandas de tela con viñeta; de noche tu aliento empaña el cristal. Las cortinas no se mueven.
+- **Mirando:** se gira un poco la vista (ratón, palanca derecha o dedo). Se sale volviendo a pulsar, con B, un clic o un
+  toque; al moverse o saltar, a los 6 s, con la mochila o el móvil, al agacharse o asomarse; de golpe y con respingo si
+  golpean, agrietan o rompen lo que miras; si te pillan, te escondes o empieza una cinemática, la cámara se deja a quien
+  la coge (y si nadie la coge en 5 s, vuelve sola).
+- **Bichos:** uno a la vista (con un rayo: tras una pared no cuenta) da golpe de tensión, contienes el aire
+  (`Contener`) y al acabar `Exhalar`. El Imitador mientras finge no cuenta (lo delataría); cuando se pega a la mirilla,
+  solo el respingo (el susto lo pone ImitadorVista).
+- Mientras dura: cámara Scriptable, HUD y carteles 3D fuera, atributo local `Vistazo` ("Mirilla" o "Ventana");
+  AmbienteMiedo no lo toma por una cinemática. Todo se devuelve aunque algo falle. Con Rendimiento, sin desenfoque, vaho
+  ni vaivenes.
+- Probar (datamodel Client): `PlayerScripts:FindFirstChild("MirarVista", true).Probar:Fire("Mirilla")` (o "Ventana")
+  mira por lo más cercano; `workspace:SetAttribute("MirarQuieto", true)` no deja que se acabe. Ojo: `execute_luau`
+  devuelve la cámara a Custom si el script la cambia; lanzarlo con `task.delay` y volver enseguida.
+- Probado en Studio (03-11-2026): la mirilla (vista de fuera con el círculo), el Imitador que se pega a la mirilla,
+  entre las cortinas, y salir con L (cámara, campo, HUD, carteles y atributos vuelven).
