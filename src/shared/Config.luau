@@ -413,6 +413,16 @@ Config.Bestia = {
 }
 Config.Insignias = { Bestia = 0 } -- Id de la insignia (BadgeService) al publicar (13.2); 0 = no se da
 
+-- Postura en la partida (14.6, pedido por el usuario: "agacharse (botón también en el móvil) y asomarse por las
+-- esquinas"). Solo cuerpo y cámara: los bichos no lo notan. Números a ojo.
+Config.Postura = {
+	Velocidad = 0.5, -- agachado se anda a la mitad
+	Baja = 1.7, -- studs que baja la cámara al agacharse
+	Asomar = 1.3, -- studs que se mueve la cabeza de lado al asomarte
+	Giro = 14, -- grados que se ladea al asomarte
+	Cada = 0.15, -- segundos como mínimo entre dos cambios (servidor)
+}
+
 Config.Movil = {
 	Duracion = 150, -- segundos mirándolo con la batería llena
 	Carga = 60, -- segundos en el enchufe hasta llenarse
@@ -521,6 +531,11 @@ Config.Sonidos = {
 	CasaFondo = { Id = 78347978132756, Volumen = 0.38 }, -- fondo de dentro de la casa de noche, en bucle (Ambiente)
 	Rafaga = { Id = 108230513932897, Volumen = 0.8, Alcance = 60 }, -- ráfaga de viento contra una ventana (Ambiente)
 	Papel = { Id = { 102356296355745, 123486080921232, 140510968287147 }, Volumen = 0.75 }, -- papel al coger o leer una pista
+	-- Inmersión (14.6, docs/sistemas/manos.md): FALTAN, para hacer con ElevenLabs. Con Id = 0 no suenan (Sonido.hay).
+	Respiracion = { Id = 0, Volumen = 0.5 }, -- respiración nerviosa en bucle, escondido
+	Contener = { Id = 0, Volumen = 0.6 }, -- coger aire de golpe y aguantarlo (escondido, con un bicho cerca)
+	Exhalar = { Id = 0, Volumen = 0.6 }, -- soltar el aire temblando cuando se va
+	Mirilla = { Id = 0, Volumen = 0.5, Alcance = 12 }, -- la tapita de metal de la mirilla al apartarla
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.
