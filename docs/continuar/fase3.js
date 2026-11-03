@@ -6,14 +6,16 @@ export const meta = {
   ],
 }
 
-const ROOT = '/home/user/Horror'
-const SCRATCH = '/tmp/herramientas' // tools/nube/herramientas.sh deja ahí selene y lune
-const SELENE = SCRATCH + '/bin/selene'
-const LUNE = SCRATCH + '/bin/lune'
+// Vale en local (Windows, Rokit: selene y lune en el PATH) y en la nube (pasar args.nube = true tras
+// bash tools/nube/herramientas.sh, que los deja en /tmp/herramientas/bin).
+const NUBE = !!(args && !Array.isArray(args) && args.nube)
+const ROOT = 'la raíz del repo (el directorio de trabajo)'
+const SELENE = NUBE ? '/tmp/herramientas/bin/selene' : 'selene'
+const LUNE = NUBE ? '/tmp/herramientas/bin/lune' : 'lune'
 
 const COMUN = `CONTEXTO
 - Juego de terror cooperativo de Roblox en primera persona (siempre primera persona en la partida, pedido por el usuario), repo ${ROOT}, Luau con Rojo. Proyecto de la partida: juego.project.json (src/juego/servidor -> ServerScriptService.Servidor, src/juego/cliente -> StarterPlayerScripts.Cliente; los módulos cuelgan del init: hermanos con script.Parent.X).
-- No hay Roblox Studio: NO se puede ejecutar ni ver nada. Razona cada CFrame (comprueba cuentas con ${LUNE} y @lune/roblox si dudas) y deja preparado lo que haya que mirar en Studio.
+- No le des a Play en Roblox Studio aunque esté conectado: lo prueba el principal al juntarlo todo (CLAUDE.md: solo uno usa Play a la vez). Razona cada CFrame (comprueba cuentas con ${LUNE} y @lune/roblox si dudas; ojo, en Lune 0.10.5 CFrame.lookAt falla mirando justo hacia ±Z) y deja preparado lo que haya que mirar en Studio.
 - Pedido por el usuario: "que todo esté animado y que la experiencia sea inmersiva". Lee docs/sistemas/manos.md (arquitectura de Manos: capas con prioridad y gestos; Manos.gesto(nombre, segundos, fn, prioridad?), Manos.capa, Manos.cosa) y los docs/sistemas/*.md de lo que toques.
 - Reglas de CLAUDE.md que aplican: etiqueta Moderate (miedo de verdad, algo de sangre, sin pasarse); brillos flojos; nada de Neon en piezas grandes; lo animado en un solo bucle por sistema que solo corre cuando hace falta y solo cerca de la cámara; respetar el atributo Rendimiento del jugador (leerlo en cada uso: menos partículas, sin adornos animados); pensar en móvil (botones de un dedo con Ui.alto/Ui.DEDO, nada pequeño arriba a la derecha); textos del jugador en inglés con Lang.t(nil, "Frase") y su español en LangEs (NO edites LangEs: di las frases nuevas y su traducción en tu respuesta); los números de equilibrio van en Config (NO lo edites: di lo que haga falta); los números visuales, como constantes al principio de tu módulo; las cinemáticas esconden la interfaz y lo devuelven siempre aunque falle; comentarios en español; no cambiar nombres de objetos, rutas, RemoteEvents ni claves guardadas.
 - Sonidos: juego/cliente/Sonido (Sonido.en(nombre, pos, tono?), Sonido.tocar, Sonido.bucle, Sonido.hay(nombre)). Los que faltan tienen Id 0 y suenan mudos sin fallar: Respiracion, Contener, Exhalar, Mirilla. Los que ya existen están en Config.Sonidos (Latido, Susto, Sobresalto, Cruje, Puerta, PuertaCierra, Cortina, CristalVibra, Polvo, Retumbo, Rafaga…). No inventes ids.
@@ -87,7 +89,9 @@ const RESULT = {
   required: ['archivos', 'hecho', 'doc', 'frases', 'necesita', 'selene', 'studio', 'riesgos'],
 }
 
-const ELEGIDOS = Array.isArray(args) && args.length ? TAREAS.filter(t => args.includes(t.key)) : TAREAS
+// args: la lista de grupos (p. ej. ["cuerpo", "paredes"]) o { grupos: [...], nube: true }.
+const LISTA = Array.isArray(args) ? args : (args && args.grupos) || []
+const ELEGIDOS = LISTA.length ? TAREAS.filter(t => LISTA.includes(t.key)) : TAREAS
 // Para seguir la sesión del 03-11-2026 (docs/continuar/LEEME.md): el trabajo de cada grupo quedó a medias en
 // docs/continuar/<key>.patch; antes de lanzar un grupo, aplicar su parche (git apply) para que el agente siga desde ahí.
 const SEGUIR = `IMPORTANTE: una sesión anterior dejó esta tarea A MEDIAS y su trabajo ya está aplicado en el árbol (salía de docs/continuar/<grupo>.patch). Empieza mirando git diff y git status de tus archivos: sigue desde ahí y termínala, sin empezar de cero ni deshacer lo que ya esté bien hecho (sí arregla lo que esté roto o a medio escribir: comprueba con selene).`

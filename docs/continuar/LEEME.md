@@ -1,17 +1,26 @@
 # Seguir la sesión del 03-11-2026 (rama `claude/admiring-bell-jvgvch`, PR #24)
 
-Sesión en la nube, sin Studio. Se paró a mitad de la Fase 3 porque se acababa el uso (pedido por el usuario: "prepara
+La sesión fue en la nube, sin Studio. Se paró a mitad de la Fase 3 porque se acababa el uso (pedido por el usuario: "prepara
 el repo para que cuando tenga uso le diga continue y ya sepa qué hacer"). El encargo entero (4 fases) está resumido
 abajo; lo hecho, en los commits de la rama. **Al acabar todo, borrar esta carpeta `docs/continuar/`.**
 
 ## 0. Antes de nada
 
-1. `git fetch origin claude/admiring-bell-jvgvch` y `git switch claude/admiring-bell-jvgvch` (seguir en esa rama: los
-   commits se suman a la PR #24; no tocar `main` ni juntar sin preguntar).
-2. `bash tools/nube/herramientas.sh`: deja selene y lune en `/tmp/herramientas/bin` y el `roblox.yml`. Comprobar:
-   `/tmp/herramientas/bin/selene src` sin avisos y `/tmp/herramientas/bin/lune run tests/regressions.luau` en verde.
-3. En la nube cada Workflow corre como mucho **2 agentes a la vez**: para ir deprisa, lanzar varios Workflow a la vez
-   (cada uno con 2 grupos) en vez de uno grande. Ningún archivo en dos agentes a la vez.
+Sergio sigue **en local, en su ordenador con Roblox Studio** (dicho por el usuario, 03-11-2026). Allí:
+1. Esta vez NO `git switch main`: `git fetch origin` y `git switch claude/admiring-bell-jvgvch` y `git pull` (seguir en
+   esa rama: los commits se suman a la PR #24; no tocar `main` ni juntar sin preguntar).
+2. Selene y Lune con Rokit, como siempre (`selene src`, `lune run tests/regressions.luau`). `tools/nube/herramientas.sh`
+   es solo para las sesiones en la nube (y entonces los scripts se lanzan con `args: { grupos: [...], nube: true }`).
+3. Rojo y Studio como dice el `CLAUDE.md` ("Al empezar una sesión"). El lobby se prueba en su propia ventana de Studio
+   (`docs/sistemas/datos.md`: `rojo build lobby.project.json -o lobby.rbxl` y servirlo a mano en el puerto 34873).
+4. Ahora sí se puede probar: después de juntar cada grupo, probarlo en Studio (Play) antes del commit, como en el flujo
+   del `CLAUDE.md`. Los agentes no le dan a Play (solo uno a la vez: el principal). Lo que ya está subido sin probar
+   (Fase 1, lobby, escondite y casa) está en la lista "Pendientes para Studio" de `TASKS.md`: probarlo también.
+5. Workflow: a la vez corren como mucho (núcleos - 2) agentes por Workflow (en la nube eran 2): si hay pocos núcleos,
+   lanzar varios Workflow a la vez con 2 grupos cada uno. Ningún archivo en dos agentes a la vez.
+
+En una sesión en la nube (sin Studio): `bash tools/nube/herramientas.sh` deja selene y lune en `/tmp/herramientas/bin`
+y el `roblox.yml`, y nada se puede probar en el juego.
 
 ## 1. Lo que queda de la Fase 3 (inmersión en la partida), a medias en parches
 
@@ -62,10 +71,13 @@ solo; tarda). Antes, aplicar y terminar `lobbyui`, que toca CochesUi/TiendaUi.
 
 1. Agente `reviewer` sobre todo lo nuevo de la rama (`git diff main...HEAD`, por grupos de archivos); arreglar GRAVE y
    MEDIO; un commit por tema.
-2. Docs: `docs/sistemas/manos.md` (lo de la Fase 3), `miedo.md` (sonidos que faltan), `TASKS.md` (marcar lo hecho y
+2. En local: probar en Studio lo de "Pendientes para Studio" de `TASKS.md` (skill `roblox-playtest-qa`; partida con
+   `Config.Test`, lobby en su ventana), retocar lo que se vea mal (poses de las manos, luces, lluvia, cinemática) y
+   quitar de la lista lo probado. Lo que solo va publicado (teletransporte, compras, DataStores), decirlo como no probado.
+3. Docs: `docs/sistemas/manos.md` (lo de la Fase 3), `miedo.md` (sonidos que faltan), `TASKS.md` (marcar lo hecho y
    la lista de pendientes para Studio), y borrar `docs/continuar/`.
-3. Push y descripción de la PR #24 al día (con la herramienta de GitHub).
-4. Entregar a Sergio, en español y corto: qué se ha hecho por fases, los fallos arreglados por prioridad, qué probar
+4. Push y descripción de la PR #24 al día (en local, `gh pr edit`).
+5. Entregar a Sergio, en español y corto: qué se ha hecho por fases, los fallos arreglados por prioridad, qué probar
    en Studio con pasos, las ideas no hechas y los sonidos o imágenes que faltan.
 
 ## Notas para el resumen final
