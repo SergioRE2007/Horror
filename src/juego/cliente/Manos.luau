@@ -15,6 +15,9 @@
 --   `velocidad = math.huge` para ir pegada (las herramientas que se mueven deprisa).
 --   Cosas en la mano (la linterna, la cámara, una cerilla): Manos.cosa(nombre, crear, enMano) las registra y una capa
 --   las pide con `cosaDer` / `cosaIzq`.
+--   Una capa puede llevar cada mano con su muelle (`velDer` / `velIzq`), decir hacia dónde sale cada codo (`codoDer` /
+--   `codoIzq`) y cuánto se mece (`meneoDer` / `meneoIzq`), y saber si una mano está libre (Manos.ocupadaPor): así se
+--   apoyan en la pared (ManosGestos), por debajo de todo lo demás.
 -- Se esconden muerto, escondido, con la mochila abierta, en tercera persona o en las cinemáticas (cámara Scriptable),
 -- salvo los gestos con `siempre` (el susto al morir).
 local Players = game:GetService("Players")
@@ -28,6 +31,14 @@ export type Pose = {
 	cosaDer: string?, -- cosa registrada que lleva en esa mano
 	cosaIzq: string?,
 	velocidad: number?, -- del muelle (por defecto VELOCIDAD); math.huge = pegada
+	velDer: number?, -- el muelle de esa mano, si va a otro ritmo que la otra (manda sobre `velocidad`)
+	velIzq: number?,
+	codoDer: Vector3?, -- hacia dónde sale el codo de esa mano, en el mundo (sin él, hacia fuera y hacia abajo)
+	codoIzq: Vector3?,
+	-- Cuánto se mece esa mano al andar, respirar y girar, de 1 (lo de siempre) a 0 (quieta en su sitio). Para llegar a
+	-- una pose pegada (`math.huge`) sin el saltito del meneo que se quita de golpe: se apaga poco a poco antes.
+	meneoDer: number?,
+	meneoIzq: number?,
 	siempre: boolean?, -- también cuando se esconden (el susto)
 }
 type Capa = { prioridad: number, fn: (dt: number) -> Pose?, gesto: boolean }
@@ -43,6 +54,8 @@ local REPOSO = { -- abajo, fuera de la vista
 	der = CFrame.new(0.8, -2.5, -0.45) * CFrame.Angles(math.rad(-80), 0, 0),
 	izq = CFrame.new(-0.8, -2.5, -0.45) * CFrame.Angles(math.rad(-80), 0, 0),
 }
+-- Hacia dónde sale el codo si la pose no dice otra cosa (en la cámara): hacia fuera y hacia abajo.
+local POLO = { der = Vector3.new(0.7, -1, 0), izq = Vector3.new(-0.7, -1, 0) }
 local LADOS = { "der", "izq" }
 local SIGNO = { der = 1, izq = -1 }
 local NOMBRES = { -- las piezas R15 de cada lado y sus juntas
@@ -57,11 +70,13 @@ local PIEL = Color3.fromRGB(204, 160, 128)
 
 local capas: { [string]: Capa } = {}
 local cosas: { [string]: Cosa } = {}
+local duenas: { [string]: number? } = {} -- la prioridad de la capa que movió cada mano en el último fotograma
 
 -- Un trozo del brazo: la pieza y dónde tiene sus dos juntas (arriba = hacia el hombro), en su espacio.
 type Trozo = { parte: BasePart, arriba: Vector3, abajo: Vector3 }
 type Brazo = {
 	rel: CFrame, -- donde está la palma ahora, en el espacio de la cámara
+	polo: Vector3, -- hacia dónde sale el codo ahora, en la cámara (va con el mismo muelle que la mano)
 	brazo: Trozo,
 	antebrazo: Trozo,
 	mano: Trozo, -- arriba = la muñeca
@@ -103,6 +118,7 @@ local function brazoSencillo(lado: string): Brazo
 	end
 	return {
 		rel = REPOSO[lado],
+		polo = POLO[lado],
 		brazo = trozo("Brazo", Vector3.new(0.42, L1, 0.42), CHAQUETA, Enum.Material.Fabric),
 		antebrazo = trozo("Antebrazo", Vector3.new(0.38, L2, 0.38), CHAQUETA, Enum.Material.Fabric),
 		mano = trozo("Mano", Vector3.new(0.36, 0.36, 0.3), PIEL, Enum.Material.SmoothPlastic),
@@ -153,6 +169,7 @@ local function brazoDelAvatar(personaje: Model, lado: string): Brazo?
 	local finMano = munecaB.Position - Vector3.new(0, mano.Size.Y, 0) -- la punta de la mano (sin junta)
 	return {
 		rel = REPOSO[lado],
+		polo = POLO[lado],
 		brazo = copia(superior, hombro.Position, codoA.Position, 0.42, L1),
 		antebrazo = copia(inferior, codoB.Position, munecaA.Position, 0.38, L2),
 		mano = copia(mano, munecaB.Position, finMano, 0.36, 0.36),
@@ -200,6 +217,7 @@ local function rehacer(personaje: Model?)
 		local viejo = brazos[lado]
 		if viejo then
 			b.rel = viejo.rel
+			b.polo = viejo.polo
 		end
 		brazos[lado] = b
 	end
@@ -290,8 +308,19 @@ function Manos.mano(lado: string): CFrame?
 	return camara.CFrame * b.rel
 end
 
--- Una capa de sostener: fn(dt) devuelve la pose mientras dure, o nil. Prioridades: 10 linterna, 20 móvil,
--- 25 pistola, 30 cargar, 40 herramientas; los gestos van por encima (50).
+-- Dónde descansa esa mano (abajo, fuera de la vista), en el mundo. Para bajarla poco a poco al soltar algo.
+function Manos.reposo(lado: string): CFrame
+	return camara.CFrame * REPOSO[lado]
+end
+
+-- La prioridad de la capa que movió esa mano en el último fotograma (nil si ninguna: estaba abajo). Para que una capa
+-- baja (apoyarse en la pared) sepa si la mano está libre.
+function Manos.ocupadaPor(lado: string): number?
+	return duenas[lado]
+end
+
+-- Una capa de sostener: fn(dt) devuelve la pose mientras dure, o nil. Prioridades: 4 apoyarse en la pared, 5 en el
+-- aire, 10 linterna, 20 móvil, 25 pistola, 30 cargar, 35 trepar, 40 herramientas; los gestos van por encima (50).
 function Manos.capa(nombre: string, prioridad: number, fn: (dt: number) -> Pose?)
 	capas[nombre] = { prioridad = prioridad, fn = fn, gesto = false }
 end
@@ -334,7 +363,9 @@ end
 
 -- ===== Cada fotograma =====
 
-local function escondidas(): boolean
+-- Si ahora no se ven (muerto, escondido, con la mochila abierta, en una cinemática o en tercera persona): solo los
+-- gestos con `siempre`.
+function Manos.escondidas(): boolean
 	local personaje = jugador.Character
 	local cabeza = personaje and personaje:FindFirstChild("Head") :: BasePart?
 	if not cabeza or jugador:GetAttribute("Muerto") or jugador:GetAttribute("Escondido")
@@ -381,8 +412,8 @@ local function colocar(lado: string, b: Brazo, mano: CFrame)
 	local l1, l2 = b.l1, b.l2
 	local dist = math.clamp(d.Magnitude, 0.3, l1 + l2 - 0.01)
 	local dir = if d.Magnitude > 1e-3 then d.Unit else cf.LookVector
-	-- El codo hacia fuera y hacia abajo.
-	local polo = cf.RightVector * s * 0.7 - cf.UpVector
+	-- El codo hacia fuera y hacia abajo (o hacia donde diga la pose: apoyado en una pared cercana, más hacia fuera).
+	local polo = cf:VectorToWorldSpace(b.polo)
 	polo = polo - dir * polo:Dot(dir)
 	polo = if polo.Magnitude > 1e-3 then polo.Unit else -cf.UpVector
 	local cosA = math.clamp((l1 * l1 + dist * dist - l2 * l2) / (2 * l1 * dist), -1, 1)
@@ -457,7 +488,7 @@ local function paso(dt: number)
 	table.sort(poses, function(a, b)
 		return a.prioridad > b.prioridad
 	end)
-	local fuera = escondidas()
+	local fuera = Manos.escondidas()
 	local cf = camara.CFrame
 	local hum = jugador.Character and jugador.Character:FindFirstChildOfClass("Humanoid")
 	local andando = hum ~= nil and hum.MoveDirection.Magnitude > 0.1 and hum.WalkSpeed > 0
@@ -484,23 +515,37 @@ local function paso(dt: number)
 		local b = brazos[lado]
 		local objetivo: CFrame? = nil
 		local cosa, velocidad = nil, VELOCIDAD
+		local duena: number? = nil
+		local codo: Vector3? = nil
+		local mece = 1 -- cuánto meneo lleva (Pose.meneoDer / meneoIzq)
 		for _, p in poses do
 			local mano = p.pose[lado] :: CFrame?
 			if mano and (not fuera or p.pose.siempre) then
 				objetivo = mano
 				cosa = if lado == "der" then p.pose.cosaDer else p.pose.cosaIzq
-				velocidad = p.pose.velocidad or VELOCIDAD
+				velocidad = (if lado == "der" then p.pose.velDer else p.pose.velIzq) or p.pose.velocidad or VELOCIDAD
+				duena = p.prioridad
+				codo = if lado == "der" then p.pose.codoDer else p.pose.codoIzq
+				mece = math.clamp((if lado == "der" then p.pose.meneoDer else p.pose.meneoIzq) or 1, 0, 1)
 				break
 			end
 		end
-		local destino = if objetivo then cf:ToObjectSpace(objetivo) * (if velocidad < math.huge then meneo else CFrame.new())
-			else REPOSO[lado]
+		duenas[lado] = duena
+		-- El meneo es solo un desplazamiento: con menos peso, el mismo pero más corto.
+		local suMeneo = if velocidad == math.huge then CFrame.new() elseif mece >= 1 then meneo
+			else CFrame.new(meneo.Position * mece)
+		local destino = if objetivo then cf:ToObjectSpace(objetivo) * suMeneo else REPOSO[lado]
+		local polo = if codo then cf:VectorToObjectSpace(codo) else POLO[lado]
 		if fuera and not objetivo then
 			b.rel = REPOSO[lado] -- escondidas de golpe: al volver suben desde abajo
+			b.polo = POLO[lado]
 		elseif velocidad == math.huge then
 			b.rel = destino
+			b.polo = polo
 		else
-			b.rel = b.rel:Lerp(destino, 1 - math.exp(-dt * velocidad))
+			local k = 1 - math.exp(-dt * velocidad)
+			b.rel = b.rel:Lerp(destino, k)
+			b.polo = b.polo:Lerp(polo, k)
 		end
 		-- Las dos manos se colocan siempre (la que no se usa, abajo, fuera de la vista: si no, se quedaba donde
 		-- estuvo, flotando en el mundo); el modelo solo se cuelga si alguna se ve.

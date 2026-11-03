@@ -11,7 +11,7 @@ Hecho en una sesión en la nube **sin Studio**: las poses salen de cuentas (comp
 
 - Son copias de los brazos R15 de tu avatar (con tu camiseta y tu piel), adelgazadas a 0,42 de grueso (las de verdad miden 1 stud y taparían media pantalla) y con el mismo largo con cualquier avatar. Con R6, un brazo de bloques con manga oscura. Cuelgan de la cámara; los hombros quedan fuera de la vista.
 - Cada mano va hacia un objetivo (la palma: -Z los dedos, +Y el dorso) y el codo sale solo (cinemática inversa de dos huesos). Un muelle la lleva hasta allí; al andar se mecen y quietas respiran.
-- Capas por prioridad: linterna 10, móvil 20, pistola 25, cargar 30, herramienta 40, gestos 50, foto 60 y susto 90. Sin capa, bajan fuera de la vista.
+- Capas por prioridad: pared 4, aire 5, linterna 10, móvil 20, pistola 25, cargar 30, trepar 35, herramienta 40, cambiar 45, gestos 50, foto 60 y susto 90. Sin capa, bajan fuera de la vista.
 - Se esconden muerto, escondido, con la mochila abierta y en las cinemáticas (cámara Scriptable), menos el susto al morir.
 
 | Qué | Cómo |
@@ -127,3 +127,24 @@ al principio de cada módulo; los de juego, en `Config.Postura`.
 - Los demás (`BrazosVista`, R15): agachados, la cadera baja y las piernas se doblan con los pies en el suelo y el tronco
   algo hacia delante; asomados, el tronco ladeado. R6, como está.
 - Probado en Studio (03-11-2026): C agacha (cámara -1,7, velocidad a la mitad) y levanta; Z asoma (1,3 de lado, ~14°).
+
+## Apoyarse en las paredes (`ManosGestos`, capa "Pared", prioridad 4)
+
+Pedido por el usuario: "manos que se apoyan en la pared al pegarte a ella". Números a ojo en `APOYO`, al principio de
+`ManosGestos` (poses y codos comprobados con Lune en un mundo de cajas).
+- **Pared:** pegado a una pared (a 1,6 studs de los ojos o menos, y a menos de ~63° de donde miras), yendo hacia ella o
+  quieto, cada mano libre se apoya: palma contra la pared, dedos arriba y algo hacia fuera; el codo hacia abajo (pegado
+  del todo, hacia fuera). Con pared solo a un lado, la mano de ese lado; en algo estrecho (un poste), una.
+- **Asomado** (atributo `Asomado`): la mano de ese lado se agarra al borde de la esquina o del marco (con la pared al
+  lado, la palma en la cara y los dedos rodeando el borde; por delante del borde, lo coge por el canto, como una C).
+- **Agachado** (atributo `Agachado`): la mano va encima de lo bajo que tengas delante (una mesa, un mostrador).
+- La mano se queda pegada a lo que toca (no resbala al mirar alrededor) y baja suave al pasar por delante, resbalar,
+  irte o darte la vuelta; un sondeo suelto sin pared no la suelta (hacen falta dos) y el meneo se apaga al pegarse.
+  Con las cortinas corridas se apoya en la tela. Al apoyarse suena flojo el cristal y, a veces, una puerta cruje.
+- Nada con esa mano ocupada (cualquier otra capa manda), escondido, muerto, con la mochila, en cinemáticas ni mirando
+  por la mirilla o entre las cortinas. Rayos cada 0,1 s (0,2 con Rendimiento); no tocan personajes, bichos ni objetos
+  sueltos; los muebles cuentan por su bloque de choque.
+- Para otras capas: `Manos.ocupadaPor(lado)`, `Manos.reposo(lado)`, `Manos.escondidas()`; en la pose, `velDer`/`velIzq`
+  (el muelle de cada mano), `codoDer`/`codoIzq` y `meneoDer`/`meneoIzq` (de 1 a 0).
+- Probado en Studio (03-11-2026): de cara a la pared del salón la mano derecha se apoya (a 0,6 de la pared). Falta
+  juzgar la pose con buena luz.
