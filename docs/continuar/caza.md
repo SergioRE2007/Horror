@@ -32,3 +32,24 @@ Pedido por el usuario (03-11-2026): "agacharte también debería servir para esc
 - Si una zona Debajo cruza una pared, se podría pillar a través de ella. Las zonas deben quedarse dentro de su sala.
 - El bicho puede subirse a una mesa baja si va recto (es como ya pasaba). Si no llega al borde, a los 4 s le deja.
 - Sin probar en Studio: el gateo, el olor y los rayos con las sillas de verdad.
+
+## Prueba de `Caza.borde` para `tests/regressions.luau` (la dio el agente; pasarla y comprobarla con Lune)
+
+```lua
+do -- Caza.borde: por dónde se mete el bicho debajo de un mueble (sacada del texto: Caza necesita Roblox)
+	local roblox = require("@lune/roblox")
+	local V3, CF = roblox.Vector3, roblox.CFrame
+	local fuente = fs.readFile("src/juego/servidor/Caza.luau")
+	local i = string.find(fuente, "function Caza.borde(", 1, true)
+	local _, f = string.find(fuente, "\r?\nend\r?\n", i)
+	local borde = luau.load("local Caza = {}\n" .. string.sub(fuente, i, f) .. "\nreturn Caza.borde",
+		{ debugName = "Caza.borde", environment = { Vector3 = V3, CFrame = CF } })()
+	local caja, tam, lejos = CF.new(0, 1.3, 0), V3.new(4, 2.6, 6), V3.new(0, 3, -40)
+	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5), V3.new(4.5, 0, 0.5), "debajo: el lado más cercano, a ras de suelo")
+	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5, function(b) return b.X < 2 end), V3.new(1, 0, -5.5),
+		"debajo: pared en ese lado, el siguiente (nunca a través de ella)")
+	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5, function(b) return not (b.X > 2 and b.Z > -1) end),
+		V3.new(4.5, 0, -1), "debajo: entre sillas, se corre a lo largo del lado")
+	igual((borde(caja, tam, V3.zero, lejos, 2.5, function() return false end)), nil, "debajo: sin sitio, nada")
+end
+```
