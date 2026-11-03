@@ -1,4 +1,5 @@
 -- El incendio de la casa y la escena final de la Bestia (servidor: Incendio, remote Incendio). Todo local.
+--   ("Apagar"): el fuego se ha cancelado antes del final (han muerto todos o ha amanecido): se quita todo.
 --   ("Prender", camino, porSala, inicio): el fuego corre del porche por el rastro y por los puntos de gasolina, uno cada
 --     porSala s, y desde ellos se come la casa entera (pedido por el usuario: "el fuego se ve pequeño"):
 --       - cada punto, una hoguera que llena la sala;
@@ -25,6 +26,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Sonido = require(script.Parent.Sonido)
@@ -842,9 +844,40 @@ local function escena(segundos: number, devolver: { () -> () })
 	end
 end
 
+-- El fuego se ha cancelado (han muerto todos mientras corría o ha amanecido): todo como antes de prender.
+local function apagar()
+	if enMarcha then
+		return
+	end
+	if bucle then
+		bucle:Disconnect()
+		bucle = nil
+	end
+	if carpeta then
+		carpeta:Destroy() -- llamas, humo, luces y sonidos cuelgan de aquí
+		carpeta = nil
+	end
+	table.clear(focos)
+	table.clear(fuera)
+	for modelo in rotas do
+		local cristal = modelo:FindFirstChild("Cristal")
+		if cristal and cristal:IsA("BasePart") then
+			-- Como lo pinta CasaVista: roto por un bicho, sigue sin verse.
+			local roto = (modelo:GetAttribute("Cristal") or 0) >= Config.Casa.GolpesCristal
+			cristal.LocalTransparencyModifier = if roto then 1 else 0
+		end
+	end
+	table.clear(rotas)
+	envuelta = false
+	horaFuera = math.huge
+	fuerzaLuz = 1
+end
+
 function IncendioVista.start()
 	Remotes.Incendio.OnClientEvent:Connect(function(que, a, b, c)
-		if que == "Prender" and type(a) == "table" and #a >= 2 and type(b) == "number" and type(c) == "number" then
+		if que == "Apagar" then
+			apagar()
+		elseif que == "Prender" and type(a) == "table" and #a >= 2 and type(b) == "number" and type(c) == "number" then
 			prender(a, b, c)
 		elseif que == "Final" and type(a) == "number" and not enMarcha then
 			enMarcha = true

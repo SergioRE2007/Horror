@@ -251,7 +251,11 @@ function Acechador.atacar(jugador: Player)
 	local a: Ataque = { bicho = nil, hilo = nil, prisa = false, presa = jugador }
 	ataques[a] = true
 	a.hilo = task.spawn(function()
-		ataque(a)
+		-- Con pcall: si el ataque falla, el bicho se quita igual (si no, se quedaba en el mapa y en `ataques` para siempre).
+		local ok, fallo = pcall(ataque, a)
+		if not ok then
+			warn("[Acechador] " .. tostring(fallo))
+		end
 		terminar(a)
 	end)
 end

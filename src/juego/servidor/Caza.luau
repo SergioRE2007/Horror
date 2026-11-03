@@ -43,10 +43,11 @@ local azar = Random.new()
 local vivos: { [Bicho]: boolean } = {}
 local carpeta: Folder?
 
--- Un Path por alto (Opciones.AltoCamino): se comparten entre los bichos del mismo alto.
-local caminos: { [number]: Path } = {}
-local function caminoDe(alto: number): Path
-	local c = caminos[alto]
+-- Un Path por bicho: ComputeAsync espera, y con uno compartido un bicho leía con GetWaypoints el camino que acababa
+-- de calcular otro (con dos ataques a la vez iban a tirones o se atascaban).
+local caminos: { [any]: Path } = setmetatable({}, { __mode = "k" }) :: any
+local function caminoDe(bicho: any, alto: number): Path
+	local c = caminos[bicho]
 	if not c then
 		c = PathfindingService:CreatePath({
 			AgentRadius = 1.6,
@@ -54,7 +55,7 @@ local function caminoDe(alto: number): Path
 			AgentCanJump = false,
 			WaypointSpacing = 4,
 		})
-		caminos[alto] = c
+		caminos[bicho] = c
 	end
 	return c
 end
@@ -183,7 +184,7 @@ function Caza.pasoHacia(self: Bicho, destino: Vector3)
 		self.humanoide:MoveTo(destino)
 		return
 	end
-	local camino = caminoDe(self.o.AltoCamino or 8)
+	local camino = caminoDe(self, self.o.AltoCamino or 8)
 	local ok = pcall(function()
 		camino:ComputeAsync(suelo, destino)
 	end)

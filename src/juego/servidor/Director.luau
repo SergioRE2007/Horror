@@ -237,7 +237,10 @@ function Director.start()
 			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Nobody made it. The day starts again."))
 		end
 		task.wait(Config.Ciclo.Reinicio)
-		if turno ~= mio or #Muerte.vivos() > 0 then
+		-- Si mientras tanto ha amanecido, ya han revivido. Pero si lo que ha empezado es la noche (han muerto en los
+		-- últimos segundos del día: el Acechador), hay que volver al día igual: si no, la noche pasaba con todos muertos
+		-- y se cobraba y guardaba como superada.
+		if (turno ~= mio and Ciclo.fase() == "Dia") or #Muerte.vivos() > 0 then
 			return
 		end
 		Golpeador.quitar()

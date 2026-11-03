@@ -274,7 +274,11 @@ function Trepador.atacar(noche: number, paciencia: number?): () -> boolean
 	local a: Ataque = { bicho = nil, hilo = nil, prisa = false }
 	ataques[a] = true
 	a.hilo = task.spawn(function()
-		ataque(a, noche, paciencia or 1)
+		-- Con pcall: si el ataque falla, el bicho se quita igual (si no, se quedaba en el mapa y en `ataques` para siempre).
+		local ok, fallo = pcall(ataque, a, noche, paciencia or 1)
+		if not ok then
+			warn("[Trepador] " .. tostring(fallo))
+		end
 		terminar(a)
 	end)
 	return function()
