@@ -234,6 +234,9 @@ local function ventana(el: Model)
 	local corriente = 0 -- algo pegado fuera (Efectos): las cortinas se mecen hacia dentro
 
 	local function colocar(meneo: number)
+		if rota then
+			return -- arrancadas: caen solas (romperCortinas); colocarlas las devolvería a la barra
+		end
 		local danio = 1 - (el:GetAttribute("Vida") or 1) / (el:GetAttribute("VidaMax") or 1)
 		local fuera = ancho / 2 + 0.6 -- el borde de fuera de cada paño, tras el marco
 		local dentro_ = fuera - (0.9 + (fuera - 0.9) * bajado) -- el de dentro: recogido o en el medio
@@ -281,15 +284,30 @@ local function ventana(el: Model)
 		end
 		colocar(0)
 		moviendo = false
+		-- Si las han vuelto a correr mientras se movían (machacando E, o dos a la vez), ese cambio se descartó arriba:
+		-- se sigue hacia lo que dice el servidor ahora, para que no se queden al revés hasta el siguiente cambio.
+		local ahora = if el:GetAttribute("Persiana") then 1 else 0
+		if not rota and ahora ~= hacia then
+			task.spawn(mover, ahora)
+		end
 	end
 
-	-- Rota la ventana: las cortinas se arrancan y caen hacia dentro.
+	-- Rota la ventana: las cortinas se arrancan y caen hacia dentro. Chocan para quedarse tiradas en el suelo (si no,
+	-- lo atravesaban), pero no con los jugadores (grupo "Cargado", lo registra juego/servidor/Cargar). Antes se apartan
+	-- un poco hacia la sala: colgadas, su borde de abajo se mete en la repisa y al chocar saldrían disparadas.
 	local function romperCortinas()
 		rota = true
 		for _, p in pliegues do
+			p.CFrame += dentro * 0.4
+			p.CanCollide = true
+			p.CollisionGroup = "Cargado"
 			p.Anchored = false
 			p.AssemblyLinearVelocity = dentro * azar:NextNumber(4, 10)
 		end
+	end
+	-- Quien llega con la ventana ya rota (entra a mitad de noche): las cortinas, en el suelo como las vieron los demás.
+	if (el:GetAttribute("Vida") or 1) <= 0 then
+		romperCortinas()
 	end
 
 	local grietas = Instance.new("Folder")

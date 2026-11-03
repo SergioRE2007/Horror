@@ -142,9 +142,11 @@ local function guardar()
 	mira.Visible = false
 end
 
--- ¿Puede tener la pistola en la mano ahora mismo?
+-- ¿Puede tener la pistola en la mano ahora mismo? En las cinemáticas (la cámara la lleva un script) tampoco: como las
+-- manos (Manos), se guarda, que si no se quedaba flotando delante de la cámara de cine.
 local function libre(): boolean
-	return not jugador:GetAttribute("Muerto") and not jugador:GetAttribute("Escondido")
+	return camara.CameraType == Enum.CameraType.Custom
+		and not jugador:GetAttribute("Muerto") and not jugador:GetAttribute("Escondido")
 		and not jugador:GetAttribute("Cargando") and not jugador:GetAttribute("MochilaAbierta")
 		and not jugador:GetAttribute("Trabajando")
 end
@@ -391,14 +393,16 @@ function BengalasVista.start()
 			guardar()
 		end
 	end)
-	-- Con las manos ocupadas, escondido o muerto, se guarda sola.
-	for _, atributo in { "Muerto", "Escondido", "Cargando", "MochilaAbierta", "Trabajando" } do
-		jugador:GetAttributeChangedSignal(atributo):Connect(function()
-			if mano and not libre() then
-				guardar()
-			end
-		end)
+	-- Con las manos ocupadas, escondido, muerto o en una cinemática, se guarda sola.
+	local function mirarLibre()
+		if mano and not libre() then
+			guardar()
+		end
 	end
+	for _, atributo in { "Muerto", "Escondido", "Cargando", "MochilaAbierta", "Trabajando" } do
+		jugador:GetAttributeChangedSignal(atributo):Connect(mirarLibre)
+	end
+	camara:GetPropertyChangedSignal("CameraType"):Connect(mirarLibre)
 	UserInputService.InputBegan:Connect(function(entrada, procesado)
 		if procesado then
 			return
