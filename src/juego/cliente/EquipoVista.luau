@@ -38,6 +38,18 @@ local function colorDe(otro: Player): Color3
 	return COLORES[otro:GetAttribute("PuestoLinterna")] or COLOR_LUZ
 end
 
+-- Hasta dónde llega la luz que se ve y cuánto brillo de más lleva. Roblox no deja pasar el Range de un SpotLight de 60
+-- studs, y con el pase "Better flashlight" (ventaja Luz) el alcance no cabe entero (55 × 1,25 ≈ 69): lo que no cabe se
+-- pasa a brillo, que hace que el final del haz se vea más y que llegue más lejos (a ojo: con el cuadrado, como la luz de
+-- verdad, que hoy da un 31 % más, y nunca más de un 50 % para no deslumbrar). Sin el pase no cambia nada. El servidor
+-- frena a los bichos con el alcance entero (juego/servidor/Equipo).
+local RANGO_MAX = 60
+local function haz(otro: Player): (number, number)
+	local alcance = L.Alcance * Stats.valor(otro, "Luz")
+	local rango = math.min(RANGO_MAX, alcance)
+	return rango, math.min(1.5, (alcance / rango) ^ 2)
+end
+
 type Luz = { punto: Attachment, foco: SpotLight }
 local luces: { [Player]: Luz } = {}
 local blanco: Frame
@@ -46,6 +58,7 @@ local barra: Frame
 local repuesto: TextLabel
 local fotos: TextLabel
 local cartelHasta = 0
+local ultimaFoto = -math.huge -- cuándo subieron las manos la cámara por última vez (os.clock)
 
 local function nuevaLuz(otro: Player): Luz
 	local punto = Instance.new("Attachment")
@@ -53,7 +66,7 @@ local function nuevaLuz(otro: Player): Luz
 	local foco = Instance.new("SpotLight")
 	foco.Color = colorDe(otro)
 	foco.Brightness = L.Brillo
-	foco.Range = L.Alcance * Stats.valor(otro, "Luz")
+	foco.Range = (haz(otro))
 	foco.Angle = L.Angulo * 2
 	foco.Shadows = true
 	foco.Face = Enum.NormalId.Front
@@ -89,6 +102,9 @@ local function actualizarLuces()
 			local enMano = Manos.dondeCosa("Linterna")
 			luz.punto.WorldCFrame = if enMano then camara.CFrame * enMano * CFrame.new(0, 0, -0.66)
 				else camara.CFrame * CFrame.new(0.6, -0.5, -0.5)
+			-- En las cinemáticas (la cámara la lleva un script) se apaga, solo aquí: si no, saldría de la cámara de cine.
+			-- Vuelve sola al acabar. Escondido o muerto ya la apaga el servidor.
+			luz.foco.Enabled = camara.CameraType == Enum.CameraType.Custom
 		else
 			-- La de los demás, desde su mano izquierda (BrazosVista le levanta el brazo y le pone la linterna); sin mano
 			-- (R6), desde la cabeza.
@@ -112,9 +128,10 @@ local function actualizarLuces()
 				brillo *= 0.75 + 0.25 * math.noise(ahora * 30, 3.1)
 			end
 		end
-		luz.foco.Brightness = brillo
+		local rango, masBrillo = haz(otro)
+		luz.foco.Brightness = brillo * masBrillo
 		luz.foco.Color = colorDe(otro)
-		luz.foco.Range = L.Alcance * Stats.valor(otro, "Luz")
+		luz.foco.Range = rango
 	end
 	for otro, luz in luces do
 		if not otro.Parent then
@@ -147,12 +164,26 @@ local function pedirLinterna()
 	Remotes.Linterna:FireServer()
 end
 
+-- ¿Va a salir la foto? Lo mismo que mira el servidor (juego/servidor/Equipo): con las manos ocupadas, cambiando la pila
+-- o el carrete, sin fotos (sin cámara, Fotos vale 0) o aún recargando, no sale.
+local function saleFoto(): boolean
+	return not (jugador:GetAttribute("Cargando") or jugador:GetAttribute("Trabajando")
+		or jugador:GetAttribute("MochilaAbierta") or jugador:GetAttribute("Cambiando"))
+		and (jugador:GetAttribute("Fotos") or 0) > 0
+		and os.clock() - ultimaFoto >= Config.Flash.Recarga * Stats.valor(jugador, "Recarga")
+end
+
 local function pedirFlash()
 	if jugador:GetAttribute("Escondido") or jugador:GetAttribute("Muerto") or BengalasVista.enMano() then
 		return
 	end
+	-- El remote va siempre: si no sale, el servidor avisa de por qué. El gesto, solo si sale (si no, se veía la cámara
+	-- en la cara sin flash, o soltando el tablón que llevas).
 	Remotes.Flash:FireServer(camara.CFrame.LookVector)
-	ManosGestos.foto() -- las dos manos suben la cámara a la cara
+	if saleFoto() then
+		ultimaFoto = os.clock()
+		ManosGestos.foto() -- las dos manos suben la cámara a la cara
+	end
 end
 
 -- Destello de un flash: luz fuerte un instante en la cabeza de quien hace la foto.
@@ -172,6 +203,11 @@ local function destello(quien: Player)
 	TweenService:Create(luz, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Brightness = 0 }):Play()
 	task.delay(0.4, punto.Destroy, punto)
 	if quien == jugador then
+		-- Una foto que aquí parecía que no saldría (la recarga del servidor va un poco desfasada): el gesto, tarde.
+		if os.clock() - ultimaFoto > 0.7 then
+			ultimaFoto = os.clock()
+			ManosGestos.foto()
+		end
 		Sonido.tocar("Flash")
 		blanco.BackgroundTransparency = 0.05
 		TweenService:Create(blanco, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { BackgroundTransparency = 1 }):Play()
