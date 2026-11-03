@@ -397,6 +397,25 @@ local function manosEnHerramienta(): Manos.Pose?
 		return nil
 	end
 	local g = camara.CFrame * (agarreMio :: CFrame)
+	local pieza = a.pieza
+	if not HERRAMIENTAS[a.accion] then
+		-- Sin herramienta (echar un tronco al fuego, verter el bidón): las dos manos en la pieza, por sus lados.
+		if not pieza or not pieza.Parent then
+			return nil
+		end
+		local cf = camara.CFrame
+		local function lado(x: number): CFrame
+			local natural = cf * Vector3.new(x, -1.0, -1.3)
+			local caja, medio = pieza.CFrame, pieza.Size / 2
+			local l = caja:PointToObjectSpace(natural)
+			local punto = caja * Vector3.new(math.clamp(l.X, -medio.X, medio.X), math.clamp(l.Y, -medio.Y, medio.Y),
+				math.clamp(l.Z, -medio.Z, medio.Z))
+			local fuera = punto - pieza.Position
+			fuera = if fuera.Magnitude > 1e-3 then fuera.Unit else cf.RightVector * math.sign(x)
+			return Manos.palma(punto + fuera * 0.12, cf.LookVector - cf.UpVector * 0.3, fuera)
+		end
+		return { der = lado(0.7), izq = lado(-0.7), velocidad = 20 }
+	end
 	local arriba, lado = g.UpVector, g.RightVector
 	local izq: CFrame? = nil
 	local der: CFrame
@@ -411,7 +430,6 @@ local function manosEnHerramienta(): Manos.Pose?
 	else -- Clavar y Fabricar: el martillo
 		der = Manos.vara("der", (g * CFrame.new(0, 0.15, 0)).Position, arriba, lado)
 	end
-	local pieza = a.pieza
 	if not izq and pieza and pieza.Parent then
 		-- La izquierda apoyada en lo que trabajas, del lado que queda cerca, sujetándolo.
 		local cf = camara.CFrame
