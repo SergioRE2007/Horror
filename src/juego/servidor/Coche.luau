@@ -19,6 +19,7 @@ local Lang = require(ReplicatedStorage.Shared.Lang)
 local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Recetas = require(ReplicatedStorage.Shared.Recetas)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Stats = require(ReplicatedStorage.Shared.Stats)
 local Viaje = require(ServerScriptService:WaitForChild("Comun").Viaje)
 local Recompensas = require(ServerScriptService:WaitForChild("Comun").Recompensas)
 local Cargar = require(script.Parent.Cargar)
@@ -43,6 +44,7 @@ local FALTA = {
 
 local coche: Model
 local hojaPorton: BasePart
+local mandoPorton: BasePart -- donde sale su prompt (la hoja, subida, queda muy alta para medir la distancia)
 local cerradoPorton: CFrame
 local estado: Recetas.Coche = Recetas.nuevoCoche()
 local enCurso: { [string]: number } = {} -- piezas que alguien está montando ahora (para no montar dos en un hueco)
@@ -179,7 +181,8 @@ local function reparar(jugador: Player)
 			continue
 		end
 		enCurso[tipo] = (enCurso[tipo] or 0) + 1
-		local bien = Cargar.trabajar(jugador, "Montar", mando, C.Montar)
+		-- Con la ventaja Trabajo (el Mecánico), como lo que se monta con R: Cargar.trabajar no la aplica.
+		local bien = Cargar.trabajar(jugador, "Montar", mando, C.Montar * Stats.valor(jugador, "Trabajo"))
 		enCurso[tipo] = math.max(0, (enCurso[tipo] or 0) - 1)
 		if bien and not huyendo and Recetas.necesita(estado, tipo, C) and Mochila.sacar(jugador, tipo) then
 			Recetas.montar(estado, tipo, C)
@@ -205,6 +208,13 @@ local function huir(jugador: Player)
 	publicar()
 	Golpeador.quitar()
 	Raspador.quitar()
+	-- Y los demás: si no, seguían cazando y mataban a los que esperan quietos la escena (igual que Bestia.quemar).
+	-- En diferido (Acechador -> Partida -> Coche sería un require en círculo); a estas alturas ya están cargados. Sin
+	-- esperas hasta alHuir: el Director no llega a lanzar otro antes de que la partida esté terminada.
+	require(script.Parent.Trepador).quitar()
+	require(script.Parent.Imitador).quitar()
+	require(script.Parent.Acechador).quitar()
+	require(script.Parent.Bestia).quitar()
 	if alHuir then
 		alHuir()
 	end
@@ -228,7 +238,7 @@ local function huir(jugador: Player)
 end
 
 local function porton(jugador: Player)
-	if huyendo or not cerca(jugador, hojaPorton) then
+	if huyendo or not cerca(jugador, mandoPorton) then
 		return
 	end
 	if table.find(Casa.cerradas(), "LlaveGaraje") then
@@ -275,13 +285,14 @@ function Coche.start()
 	coche = CollectionService:GetTagged("Coche")[1] :: Model
 	local modeloPorton = CollectionService:GetTagged("Porton")[1] :: Model
 	hojaPorton = modeloPorton:FindFirstChild("Hoja") :: BasePart
+	mandoPorton = modeloPorton:FindFirstChild("Mando") :: BasePart
 	cerradoPorton = hojaPorton.CFrame
 	promptReparar = nuevoPrompt(coche:FindFirstChild("Mando") :: BasePart, "Repair")
 	promptReparar.Triggered:Connect(reparar)
 	promptHuir = nuevoPrompt(coche:FindFirstChild("Conducir") :: BasePart, "Escape")
 	promptHuir.HoldDuration = C.Huir
 	promptHuir.Triggered:Connect(huir)
-	promptPorton = nuevoPrompt(modeloPorton:FindFirstChild("Mando") :: BasePart, "Open")
+	promptPorton = nuevoPrompt(mandoPorton, "Open")
 	promptPorton.Triggered:Connect(porton)
 	for tipo in PARTES do
 		if Config.Pesados[tipo] then
