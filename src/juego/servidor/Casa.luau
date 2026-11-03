@@ -54,6 +54,9 @@ local function publicar(el: Model)
 		end
 		local hoja = el:FindFirstChild("Hoja") :: BasePart
 		hoja.CanCollide = not e.abierta
+		-- El servidor nunca gira la hoja (lo hace cada cliente): abierta sigue en el marco, así que tampoco tapa rayos.
+		-- Si no, los bichos no veían ni pillaban por una puerta abierta (Caza) y el flash no pasaba (Equipo).
+		hoja.CanQuery = not e.abierta
 		-- El bicho planea su camino a través de las puertas sin llave: las abre a golpes.
 		local modificador = hoja:FindFirstChildOfClass("PathfindingModifier")
 		if not e.bloqueada and not modificador then
@@ -374,7 +377,8 @@ function Casa.start()
 	for _, el in CollectionService:GetTagged("Ventana") do
 		preparar(el, "Ventana")
 	end
-	-- Con las manos ocupadas no salen los prompts: una puerta cerrada se abre de un empujón al ir hacia ella.
+	-- Con las manos ocupadas no salen los prompts: una puerta cerrada se abre de un empujón al ir hacia ella. Menos la
+	-- que está golpeando el bicho: al llevarle un tablón para clavarlo se abría sin querer y le dejaba entrar.
 	task.spawn(function()
 		while true do
 			task.wait(0.2)
@@ -386,7 +390,7 @@ function Casa.start()
 				for el, e in estados do
 					local mando = el:FindFirstChild("Mando") :: BasePart
 					local hacia = (mando.Position - raiz.Position) * Vector3.new(1, 0, 1)
-					if e.tipo == "Puerta" and not e.abierta and not e.bloqueada and hacia.Magnitude < 4.5
+					if e.tipo == "Puerta" and not e.abierta and not e.bloqueada and not e.atacada and hacia.Magnitude < 4.5
 						and hacia.Unit:Dot(raiz.CFrame.LookVector) > 0.5 and Defensa.puerta(e, ahora(), cfg) then
 						publicar(el)
 					end

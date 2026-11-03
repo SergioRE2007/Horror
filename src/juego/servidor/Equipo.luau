@@ -28,6 +28,9 @@ local ultimoFlash: { [Player]: number } = {}
 local cristales: { Instance } = {}
 local filtro = RaycastParams.new()
 filtro.FilterType = Enum.RaycastFilterType.Exclude
+-- Solo tapa lo que choca: una puerta abierta no (el servidor no gira su hoja, solo le quita la colisión, y el flash no
+-- aturdía al bicho que estaba al otro lado del marco). Las cerradas y las paredes sí. Como en Bengalas.
+filtro.RespectCanCollide = true
 
 local function cabezaDe(jugador: Player): BasePart?
 	local personaje = jugador.Character
@@ -89,7 +92,15 @@ local function cambiar(jugador: Player, que: string): boolean
 	return true
 end
 
+-- Como mucho un cambio cada 0,25 s (a ojo): un cliente con trampas la hacía parpadear para todos cientos de veces por
+-- segundo (una luz estroboscópica). Así no pasa de dos destellos por segundo.
+local ultimaLinterna: { [Player]: number } = {}
 local function alternarLinterna(jugador: Player)
+	local ahora = os.clock()
+	if ahora - (ultimaLinterna[jugador] or -math.huge) < 0.25 then
+		return
+	end
+	ultimaLinterna[jugador] = ahora
 	if not puedeUsar(jugador) or jugador:GetAttribute("Cambiando") then
 		return
 	end
@@ -218,6 +229,7 @@ function Equipo.start()
 	Players.PlayerRemoving:Connect(function(jugador)
 		ultimoFlash[jugador] = nil
 		ultimaMirada[jugador] = nil
+		ultimaLinterna[jugador] = nil
 	end)
 	Remotes.Mirada.OnServerEvent:Connect(mirada)
 	Remotes.Linterna.OnServerEvent:Connect(alternarLinterna)
