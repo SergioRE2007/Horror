@@ -157,7 +157,15 @@ local function mostrarCartel()
 	end)
 end
 
+local ultimaLinterna = -math.huge
 local function pedirLinterna()
+	-- El servidor no deja cambiarla más de una vez cada 0,25 s (Equipo): sin el clic de un cambio que no va a pasar
+	-- (aquí algo más, por lo que varía la red).
+	local ahora = os.clock()
+	if ahora - ultimaLinterna < 0.3 then
+		return
+	end
+	ultimaLinterna = ahora
 	-- Si tiene pila y está apagada, se enciende; si no, el clic de apagar (pedido por el usuario: dos sonidos).
 	local enciende = not jugador:GetAttribute("Linterna") and (jugador:GetAttribute("Pila") or 0) > 0
 	Sonido.tocar(if enciende then "Linterna" else "LinternaApaga")
