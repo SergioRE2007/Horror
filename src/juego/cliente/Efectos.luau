@@ -10,6 +10,17 @@
 --     debajo de donde pisa.
 --   Cristales: al romperse una ventana los trozos saltan hacia dentro, se quedan en el suelo hasta el amanecer (o hasta
 --     que se repare) y crujen al pisarlos (jugadores y bichos).
+-- La casa reacciona más a los bichos (pedido por el usuario: "que reaccionen más a los bichos"):
+--   Mecedoras (la del cuarto de la abuela, con su manta, y la del porche): las pisadas y los golpes cerca las ponen a
+--     mecerse solas; siguen un buen rato, cada vez más despacio, y crujen al dar la vuelta.
+--   Lo que tiembla fuerte suena: platos, copas, tarros, botellas y el juego de té tintinean; latas, ollas y
+--     candeleros repiquetean (el que más tiembla de cada pisada; con un golpe, los dos que más).
+--   Polvo en el aire: tras un golpe, un portazo, la reja o una pisada pesada cerca (o por encima), motas que flotan
+--     unos segundos delante de la cámara. A oscuras no se ven: brillan donde da la luz, sobre todo en el haz de la
+--     linterna.
+--   Corriente: con una ventana rota o una puerta echada abajo en la misma sala (sin pared en medio), las cortinas de
+--     las demás ventanas se hinchan a rachas (CasaVista, `brisa`) y las lámparas colgantes se mecen, hasta repararla.
+--   Con Rendimiento, sin mecedoras, sin polvo en el aire y sin corriente (el tintineo, que solo es sonido, sí).
 -- Un solo Heartbeat que solo trabaja con lo que está cerca de la cámara. Lámparas y adornos de la casa se buscan al
 -- cargar el mapa (y otra vez si cambia). Las bombillas tiemblan con Ambiente.factor, sin pisar el parpadeo de
 -- DetallesVista (si DetallesVista está con una, se le deja).
@@ -33,6 +44,58 @@ local CFG = Config.Efectos
 local ADORNOS = {
 	CopasPH = true, JarraPH = true, JarronPH = true, PlatoPH = true, TarroPH = true, TarrosSotano = true,
 	CandeleroPH = true, CandelabroPH = true, LataOxidadaPH = true,
+	JuegoTePH = true, Licores = true, LamparaAceitePH = true, LatasPH = true, OllaPH = true, SartenPH = true,
+	FotoPH1 = true, FotoPH2 = true, RelojRepisaPH = true,
+}
+-- Los que suenan al temblar fuerte: vajilla y cristal (tintinean) o metal (repiquetean).
+local SUENA: { [string]: string } = {
+	CopasPH = "Vajilla", JarraPH = "Vajilla", JarronPH = "Vajilla", PlatoPH = "Vajilla", TarroPH = "Vajilla",
+	TarrosSotano = "Vajilla", JuegoTePH = "Vajilla", Licores = "Vajilla", LamparaAceitePH = "Vajilla",
+	CandeleroPH = "Metal", CandelabroPH = "Metal", LataOxidadaPH = "Metal", LatasPH = "Metal", OllaPH = "Metal",
+	SartenPH = "Metal",
+}
+-- Números a ojo de lo nuevo (visuales, no de equilibrio).
+local TINTINEO = {
+	Desde = 0.35, -- lo fuerte que tiembla un adorno (de 0 a 1,4) para que suene
+	Max = 1, -- como mucho por pisada (el que más tiembla)...
+	MaxFuerte = 2, -- ...y por golpe o pisada de la Bestia (peso desde 1,2)
+	Cada = { 0.8, 1.5 }, -- segundos entre dos del mismo adorno
+	-- Mientras no haya uno propio ("Vajilla"): CristalVibra y Latas, más agudos, solo el principio y a este volumen.
+	Vajilla = 0.55,
+	Metal = 0.22,
+	Corta = 0.3,
+	Alcance = 30,
+}
+-- Mecedoras: se mecen sobre el canto de abajo, como un péndulo amortiguado.
+local MECEDORAS = { MecedoraPH = true, Mecedora = true }
+local MECE = {
+	Alcance = 16, -- studs (en planta) de la pisada o el golpe a los que se pone a mecerse
+	K = 12, -- (2π / periodo)²: unos 1,8 s de ida y vuelta
+	Amortigua = 0.3, -- se va parando sola en unos 15-20 s
+	Empuje = 0.14, -- radianes/s por pisada de peso 1 justo al lado
+	Max = math.rad(5.5), -- lo más que se inclina
+	Cruje = math.rad(1.8), -- con más que esto, cruje al dar la vuelta
+	Quieta = math.rad(0.25), -- con menos vaivén que esto, se para
+	Volumen = 0.4,
+	Manta = 3, -- studs: la manta (otro modelo) más cerca que esto va con ella
+}
+-- Polvo que flota en el aire después de un golpe fuerte.
+local POLVO_AIRE = {
+	Motas = 26, -- por segundo con todo el polvo levantado
+	Asienta = 10, -- segundos hasta que se asienta del todo
+	Golpe = 16, -- studs de un golpe, un portazo o la reja a los que se levanta
+	Pesado = 14, -- studs de una pisada de peso 1 o más
+	Delante = CFrame.new(0, -0.3, -5), -- dónde nacen, respecto a la cámara (lo que alumbra la linterna)
+	Zona = Vector3.new(7, 4.5, 8),
+}
+-- Corriente por una ventana rota o una puerta echada abajo.
+local CORRIENTE = {
+	Alcance = 18, -- studs en planta de la entrada del aire (y en la misma planta: menos de 7 de alto)
+	Cerca = 45, -- studs de la cámara: más lejos no se mueve nada
+	Dentro = 1.5, -- studs hacia la sala desde el centro de la ventana: de ahí sale el rayo que busca paredes
+	Sube = 0.5, -- lo deprisa que llega y se va (por segundo)
+	Lampara = 0.09, -- radianes/s de cada racha en una lámpara colgante
+	Racha = { 1.2, 3 }, -- segundos entre dos rachas en la misma lámpara
 }
 local ENCENDIDA = Color3.fromRGB(255, 214, 160) -- los colores de la bombilla (como DetallesVista)
 local APAGADA = Color3.fromRGB(70, 66, 60)
@@ -89,11 +152,13 @@ local function original(p: BasePart): CFrame
 	return cf
 end
 
--- Caja (en ejes del mundo) de unas piezas en su sitio original: centro y tamaño.
-local function caja(partes: { BasePart }): (Vector3, Vector3)
+-- Caja de unas piezas en su sitio original, en los ejes de `ejes` (sin él, los del mundo): centro (en el mundo) y
+-- tamaño (en esos ejes).
+local function caja(partes: { BasePart }, ejes: CFrame?): (Vector3, Vector3)
+	local giro = if ejes then ejes.Rotation else CFrame.identity
 	local menor, mayor = Vector3.one * math.huge, -Vector3.one * math.huge
 	for _, p in partes do
-		local cf, t = original(p), p.Size / 2
+		local cf, t = giro:ToObjectSpace(original(p)), p.Size / 2
 		local r, u, l = cf.RightVector, cf.UpVector, cf.LookVector
 		local ext = Vector3.new(
 			math.abs(r.X) * t.X + math.abs(u.X) * t.Y + math.abs(l.X) * t.Z,
@@ -102,7 +167,31 @@ local function caja(partes: { BasePart }): (Vector3, Vector3)
 		menor = menor:Min(cf.Position - ext)
 		mayor = mayor:Max(cf.Position + ext)
 	end
-	return (menor + mayor) / 2, mayor - menor
+	return giro * ((menor + mayor) / 2), mayor - menor
+end
+
+-- Un modelo que no es de nadie: sin cartel para tocarlo ni etiqueta (lo de otros sistemas no se mueve).
+local function libre(modelo: Instance): boolean
+	return not modelo:FindFirstChildWhichIsA("ProximityPrompt", true) and #CollectionService:GetTags(modelo) == 0
+end
+
+local function piezasDe(modelo: Instance): { BasePart }
+	local partes = {}
+	for _, p in modelo:GetDescendants() do
+		if p:IsA("BasePart") then
+			table.insert(partes, p)
+		end
+	end
+	return partes
+end
+
+-- De un sonido prestado de otra cosa, solo el principio: se apaga en un momento.
+local function corta(s: Sound, segundos: number)
+	task.delay(segundos, function()
+		if s.Parent then
+			TweenService:Create(s, TweenInfo.new(0.12), { Volume = 0 }):Play()
+		end
+	end)
 end
 
 ---------------------------------------------------------------- lo que se mueve (adornos, cuadros, lámparas)
@@ -127,14 +216,23 @@ type Movil = {
 	k: number, -- gravedad / largo
 	angulo: Vector2,
 	vel: Vector2,
+	racha: number, -- cuándo le toca la siguiente racha de corriente (os.clock)
+	-- Mecedora: se mece sobre el eje de lado de `pivote` (abajo en el centro, con sus ejes) con `giro` y `vgiro`.
+	mecedora: boolean,
+	lado: number, -- hacia dónde iba (1 o -1): cruje al dar la vuelta
+	-- Lo que suena al temblar (SUENA) y cuándo puede volver a sonar.
+	suena: string?,
+	proximoSuena: number,
 	ultimo: Vector3, -- dónde dejamos la primera pieza: si está en otro sitio, la ha movido otro módulo
 	ajeno: boolean, -- y entonces no se toca hasta que vuelva a su sitio (revisarAjeno)
 }
 local adornos: { Movil } = {}
 local lamparas: { Movil } = {}
+local mecedoras: { Movil } = {}
 type Bombilla = { luz: PointLight, pieza: BasePart }
 local bombillas: { Bombilla } = {}
 local activos: { [Movil]: boolean } = {}
+local corrienteLampara: { [Movil]: number } = {} -- la corriente de una ventana rota que le llega a cada lámpara
 
 local function movil(partes: { BasePart }, pivote: CFrame, centro: Vector3): Movil
 	local rel = {}
@@ -144,7 +242,8 @@ local function movil(partes: { BasePart }, pivote: CFrame, centro: Vector3): Mov
 	return {
 		partes = partes, rel = rel, pivote = pivote, centro = centro, semilla = azar:NextNumber(0, 100), sacude = 0,
 		cuadro = false, eje = Vector3.xAxis, giro = 0, vgiro = 0, torcido = 0, lampara = false, k = 0,
-		angulo = Vector2.zero, vel = Vector2.zero, ultimo = partes[1].Position, ajeno = false,
+		angulo = Vector2.zero, vel = Vector2.zero, racha = 0, mecedora = false, lado = 1, suena = nil, proximoSuena = 0,
+		ultimo = partes[1].Position, ajeno = false,
 	}
 end
 
@@ -186,12 +285,16 @@ local function buscar(casa: Instance)
 		colocarMovil(m, if m.cuadro then CFrame.fromAxisAngle(m.eje, m.torcido) else CFrame.identity)
 	end
 	table.clear(activos)
+	table.clear(corrienteLampara) -- eran de las lámparas de antes (se vuelve a mirar en medio segundo)
 	-- Los de antes (por su primera pieza), para no perder lo torcido ni lo que tiene otro módulo.
 	local previos: { [BasePart]: Movil } = {}
 	for _, m in adornos do
 		previos[m.partes[1]] = m
 	end
 	for _, m in lamparas do
+		previos[m.partes[1]] = m
+	end
+	for _, m in mecedoras do
 		previos[m.partes[1]] = m
 	end
 	local function heredar(m: Movil)
@@ -208,19 +311,16 @@ local function buscar(casa: Instance)
 	table.clear(adornos)
 	table.clear(lamparas)
 	table.clear(bombillas)
+	table.clear(mecedoras)
 	local sueltas: { BasePart } = {} -- piezas pequeñas (cables, cadenas, portalámparas)
 	local aranas: { Model } = {}
+	local sillas: { Model } = {} -- mecedoras
+	local mantas: { Model } = {} -- la de la mecedora es otro modelo, encima
 	for _, d in casa:GetDescendants() do
 		if d:IsA("Model") then
 			local esCuadro = string.sub(d.Name, 1, 6) == "Cuadro"
-			if (ADORNOS[d.Name] or esCuadro) and not d:FindFirstChildWhichIsA("ProximityPrompt", true)
-				and #CollectionService:GetTags(d) == 0 then
-				local partes = {}
-				for _, p in d:GetDescendants() do
-					if p:IsA("BasePart") then
-						table.insert(partes, p)
-					end
-				end
+			if (ADORNOS[d.Name] or esCuadro) and libre(d) then
+				local partes = piezasDe(d)
 				if #partes > 0 then
 					local centro, tam = caja(partes)
 					if math.max(tam.X, tam.Y, tam.Z) < (if esCuadro then 6 else 4) then
@@ -233,6 +333,7 @@ local function buscar(casa: Instance)
 							table.insert(adornos, m)
 						else
 							local m = movil(partes, CFrame.new(centro - Vector3.new(0, tam.Y / 2, 0)), centro)
+							m.suena = SUENA[d.Name]
 							heredar(m)
 							table.insert(adornos, m)
 						end
@@ -240,6 +341,10 @@ local function buscar(casa: Instance)
 				end
 			elseif string.sub(d.Name, 1, 5) == "Arana" then
 				table.insert(aranas, d)
+			elseif MECEDORAS[d.Name] and libre(d) then
+				table.insert(sillas, d)
+			elseif d.Name == "MantaMecedora" then
+				table.insert(mantas, d)
 			end
 		elseif d:IsA("BasePart") then
 			if d.Name == "Lampara" then
@@ -269,12 +374,7 @@ local function buscar(casa: Instance)
 	end
 	-- Arañas (vestíbulo y comedor): el modelo entero, su cadena y su bombilla.
 	for _, arana in aranas do
-		local partes = {}
-		for _, p in arana:GetDescendants() do
-			if p:IsA("BasePart") then
-				table.insert(partes, p)
-			end
-		end
+		local partes = piezasDe(arana)
 		if #partes == 0 then
 			continue
 		end
@@ -320,15 +420,95 @@ local function buscar(casa: Instance)
 			colgar(partes, bombilla.Position, techo, bombilla.Position.Y)
 		end
 	end
+	-- Mecedoras: los ejes salen de su pieza más grande (en el molde va sin girar, con el frente hacia -Z: la de
+	-- Poly Haven es una sola malla y en la del porche es el asiento) y se mecen sobre el centro de abajo, donde los
+	-- patines tocan el suelo (para ángulos pequeños es lo mismo que rodar: se hunden menos de 0,03 studs). La manta
+	-- de encima (otro modelo) va con ella.
+	for _, silla in sillas do
+		local partes = piezasDe(silla)
+		if #partes == 0 then
+			continue
+		end
+		local mayor = partes[1]
+		for _, p in partes do
+			if p.Size.X * p.Size.Y * p.Size.Z > mayor.Size.X * mayor.Size.Y * mayor.Size.Z then
+				mayor = p
+			end
+		end
+		local ejes = original(mayor).Rotation
+		local centro, tam = caja(partes, ejes)
+		for i = #mantas, 1, -1 do
+			local deManta = piezasDe(mantas[i])
+			if #deManta > 0 and (caja(deManta) - centro).Magnitude < MECE.Manta then
+				for _, p in deManta do
+					table.insert(partes, p)
+				end
+				table.remove(mantas, i)
+			end
+		end
+		local m = movil(partes, CFrame.new(centro - ejes.UpVector * (tam.Y / 2)) * ejes, centro)
+		m.mecedora = true
+		heredar(m)
+		table.insert(mecedoras, m)
+	end
 	-- Para comprobar en Studio cuánto ha encontrado.
 	carpeta:SetAttribute("Adornos", #adornos)
 	carpeta:SetAttribute("Lamparas", #lamparas)
 	carpeta:SetAttribute("Bombillas", #bombillas)
+	carpeta:SetAttribute("Mecedoras", #mecedoras)
+end
+
+-- Un adorno que tiembla fuerte suena: la vajilla tintinea y el metal repiquetea. Mientras no haya uno propio
+-- ("Vajilla"), el traqueteo del cristal (CristalVibra) y el de las latas, más agudos y solo el principio.
+local function tintinear(m: Movil, k: number)
+	local s: Sound
+	if m.suena == "Metal" then
+		s = Sonido.en("Latas", m.centro, azar:NextNumber(1.2, 1.45))
+		s.Volume *= TINTINEO.Metal
+		corta(s, TINTINEO.Corta)
+	elseif Sonido.hay("Vajilla") then
+		s = Sonido.en("Vajilla", m.centro, azar:NextNumber(0.94, 1.06))
+	else
+		s = Sonido.en("CristalVibra", m.centro, azar:NextNumber(1.3, 1.6))
+		s.Volume *= TINTINEO.Vajilla
+		corta(s, TINTINEO.Corta)
+	end
+	s.Volume *= math.clamp(k, 0.3, 1)
+	s.RollOffMaxDistance = TINTINEO.Alcance
+end
+
+-- La mecedora cruje al dar la vuelta (más fuerte cuanto más se mece). Mientras no haya uno propio ("Mecedora"), el
+-- crujido de la casa, más agudo y corto.
+local function crujirMecedora(m: Movil)
+	local s: Sound
+	if Sonido.hay("Mecedora") then
+		s = Sonido.en("Mecedora", m.centro, azar:NextNumber(0.94, 1.06))
+	else
+		s = Sonido.en("Cruje", m.centro, azar:NextNumber(1.15, 1.35))
+		corta(s, 0.45)
+	end
+	s.Volume *= MECE.Volumen * math.clamp(math.abs(m.giro) / MECE.Max, 0.3, 1)
+	s.RollOffMaxDistance = 30
+end
+
+-- Empuja la mecedora en el sentido en que ya va (quieta, hacia un lado al azar), como quien empuja un columpio, sin
+-- pasar de MECE.Max: con el ángulo que ya tiene, la velocidad no pasa de la que la llevaría justo al tope.
+local function mecer(m: Movil, empuje: number)
+	if empuje <= 0 then
+		return
+	end
+	local sentido = if m.vgiro > 0 then 1 elseif m.vgiro < 0 then -1 elseif azar:NextNumber() < 0.5 then -1 else 1
+	local a = math.min(math.abs(m.giro), MECE.Max)
+	local tope = math.sqrt(MECE.K * (MECE.Max * MECE.Max - a * a))
+	m.vgiro = math.clamp(m.vgiro + sentido * empuje, -tope, tope)
+	activos[m] = true
 end
 
 -- Una pisada hace temblar lo que hay cerca de `donde` (`fuerza` ya lleva el peso).
 local function sacudirCosas(donde: Vector3, peso: number, encima: boolean)
 	local alcance = CFG.Objetos
+	local ahora = os.clock()
+	local suenan: { { m: Movil, k: number } } = {}
 	for _, m in adornos do
 		local d = m.centro - donde
 		local h = plano(d).Magnitude
@@ -340,7 +520,29 @@ local function sacudirCosas(donde: Vector3, peso: number, encima: boolean)
 				m.torcido = math.clamp(m.torcido + paso, -math.rad(CFG.CuadroMax), math.rad(CFG.CuadroMax))
 				m.vgiro += paso * 6
 			end
+			if m.suena and k > TINTINEO.Desde and ahora >= m.proximoSuena then
+				table.insert(suenan, { m = m, k = k })
+			end
 			activos[m] = true
+		end
+	end
+	-- Suenan los que más tiemblan (no todos a la vez: sería un estruendo).
+	table.sort(suenan, function(a, b)
+		return a.k > b.k
+	end)
+	for i = 1, math.min(if peso >= 1.2 then TINTINEO.MaxFuerte else TINTINEO.Max, #suenan) do
+		local s = suenan[i]
+		s.m.proximoSuena = ahora + azar:NextNumber(TINTINEO.Cada[1], TINTINEO.Cada[2])
+		tintinear(s.m, s.k)
+	end
+	-- Las mecedoras se ponen a mecerse (con Rendimiento, no: es un adorno animado).
+	if not poco() then
+		for _, m in mecedoras do
+			local d = m.centro - donde
+			local h = plano(d).Magnitude
+			if h < MECE.Alcance and math.abs(d.Y) < 9 and not m.ajeno then
+				mecer(m, peso * (1 - h / MECE.Alcance) * MECE.Empuje)
+			end
 		end
 	end
 	for _, m in lamparas do
@@ -378,6 +580,31 @@ local function moverActivos(dt: number, ahora: number, camara: Vector3)
 			m.sacude, m.vel, m.angulo = 0, Vector2.zero, Vector2.zero
 			m.giro, m.vgiro = m.torcido, 0
 			activos[m] = nil
+			continue
+		end
+		if m.mecedora then
+			-- Péndulo amortiguado (con el paso acotado: un tirón de fotogramas no la dispara). Con Rendimiento, quieta.
+			local paso = math.min(dt, 0.05)
+			if poco() then
+				m.giro, m.vgiro = 0, 0
+			end
+			m.vgiro += (-m.giro * MECE.K - m.vgiro * MECE.Amortigua) * paso
+			m.giro += m.vgiro * paso
+			local lado = if m.vgiro >= 0 then 1 else -1
+			if lado ~= m.lado then
+				m.lado = lado
+				if math.abs(m.giro) > MECE.Cruje then
+					crujirMecedora(m)
+				end
+			end
+			-- El vaivén que le queda (el ángulo al que llegaría con la velocidad que lleva).
+			if m.giro * m.giro + m.vgiro * m.vgiro / MECE.K < MECE.Quieta * MECE.Quieta then
+				m.giro, m.vgiro = 0, 0
+				colocarMovil(m, CFrame.identity)
+				activos[m] = nil
+			else
+				colocarMovil(m, CFrame.Angles(m.giro, 0, 0))
+			end
 			continue
 		end
 		if m.lampara then
@@ -464,6 +691,85 @@ local function moverBombillas(ahora: number)
 	end
 end
 
+---------------------------------------------------------------- polvo en el aire
+
+local polvoAire = 0 -- de 0 a 1: lo que flota ahora; se asienta solo
+local motas: ParticleEmitter? = nil
+local zonaMotas: BasePart? = nil
+
+-- Un golpe, un portazo o una pisada fuerte levanta polvo (con Rendimiento, nada: son partículas de adorno).
+local function levantarPolvo(cuanto: number)
+	if cuanto > 0.02 and not poco() then
+		polvoAire = math.max(polvoAire, math.min(cuanto, 1))
+	end
+end
+
+-- Las motas nacen en una caja delante de la cámara (lo que alumbra la linterna) y se quedan flotando donde nacen, sin
+-- ir con ella. Con LightInfluence 1, a oscuras no se ven: brillan donde da la luz.
+local function hacerMotas(): ParticleEmitter
+	local zona = Instance.new("Part")
+	zona.Name = "PolvoAire"
+	zona.Anchored = true
+	zona.CanCollide = false
+	zona.CanQuery = false
+	zona.CanTouch = false
+	zona.CastShadow = false
+	zona.Transparency = 1
+	zona.Size = POLVO_AIRE.Zona
+	zona.Parent = carpeta
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	e.Color = ColorSequence.new(Color3.fromRGB(214, 204, 186))
+	e.LightInfluence = 1
+	e.LightEmission = 0
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.07, 0.03), NumberSequenceKeypoint.new(1, 0.06, 0.03) })
+	e.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, 0.35), NumberSequenceKeypoint.new(0.75, 0.45),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	e.Lifetime = NumberRange.new(3.5, 6)
+	e.Speed = NumberRange.new(0.05, 0.25)
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Acceleration = Vector3.new(0, -0.05, 0) -- bajan muy despacio
+	e.Drag = 0.5
+	e.Rotation = NumberRange.new(0, 360)
+	e.RotSpeed = NumberRange.new(-25, 25)
+	e.Shape = Enum.ParticleEmitterShape.Box
+	e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	e.Rate = 0
+	e.Parent = zona
+	zonaMotas = zona
+	return e
+end
+
+-- Solo con la cámara dentro de la casa y fuera de cinemáticas; las que ya flotan se apagan solas. Asentado del todo,
+-- la caja se borra cuando se apagan las últimas motas (si no ha vuelto a hacer falta).
+local function moverPolvoAire(dt: number, camara: CFrame)
+	if polvoAire <= 0 then
+		return
+	end
+	polvoAire = math.max(0, polvoAire - dt / POLVO_AIRE.Asienta)
+	local e, zona = motas, zonaMotas
+	if not e or not zona or not zona:IsDescendantOf(workspace) then
+		e = hacerMotas()
+		motas, zona = e, zonaMotas
+	end
+	local sale = polvoAire > 0 and dentroDeCasa(camara.Position) and not poco()
+		and workspace.CurrentCamera.CameraType ~= Enum.CameraType.Scriptable
+	e.Rate = if sale then POLVO_AIRE.Motas * polvoAire else 0
+	if sale and zona then
+		zona.CFrame = camara * POLVO_AIRE.Delante
+	end
+	if polvoAire <= 0 then
+		task.delay(6.5, function()
+			if polvoAire <= 0 and zona and zonaMotas == zona then
+				zona:Destroy()
+				zonaMotas, motas = nil, nil
+			end
+		end)
+	end
+end
+
 ---------------------------------------------------------------- pisadas
 
 type Bicho = {
@@ -539,6 +845,12 @@ local function pisada(b: Bicho, pies: Vector3, camara: Vector3)
 	-- Lo que tiembla: lo de la sala de debajo si pisa encima; si no, lo de alrededor.
 	local donde = if encima then Vector3.new(pies.X, camara.Y, pies.Z) else pies
 	temblarCerca(donde, peso, fuerza, encima)
+	-- Y el polvo que se queda flotando: lo que cae del techo o lo que levanta algo muy pesado al lado.
+	if encima then
+		levantarPolvo(fuerza * 0.6)
+	elseif peso >= 1 and distancia < POLVO_AIRE.Pesado then
+		levantarPolvo((1 - distancia / POLVO_AIRE.Pesado) * 0.7)
+	end
 end
 
 local function moverBichos(camara: Vector3)
@@ -619,6 +931,116 @@ local function moverAcechos(dt: number, camara: Vector3)
 	for el in acechos do
 		if not CasaVista.elementos[el] then
 			acechos[el] = nil
+		end
+	end
+end
+
+---------------------------------------------------------------- corriente por una ventana rota
+
+local corrienteVentana: { [Model]: number } = {} -- lo que debería llegarle a cada ventana (se mira cada medio segundo)
+local corrientes: { [Model]: number } = {} -- lo que le llega ahora a cada ventana (suavizado)
+local proximoMirar = 0
+
+-- Por dónde entra el aire: un cristal roto o una ventana o puerta echada abajo.
+local function entraAire(el: Model): boolean
+	return (el:GetAttribute("Cristal") or 0) >= Config.Casa.GolpesCristal or (el:GetAttribute("Vida") or 1) <= 0
+end
+
+-- Cada medio segundo: de dónde entra aire cerca y a qué ventanas y lámparas llega. Llega de la entrada más cercana en
+-- la misma planta y sin pared en medio (un rayo de sala a sala, sin las ventanas, que tienen el cristal).
+local function mirarCorrientes(camara: Vector3)
+	table.clear(corrienteVentana)
+	table.clear(corrienteLampara)
+	if poco() or not dentroDeCasa(camara) then
+		return
+	end
+	local entradas: { Vector3 } = {}
+	local fuera: { Instance } = {}
+	for el, e in CasaVista.elementos do
+		if el.Parent and entraAire(el) and (e.centro.Position - camara).Magnitude < CORRIENTE.Cerca + CORRIENTE.Alcance then
+			table.insert(entradas, e.centro.Position - e.centro.LookVector * CORRIENTE.Dentro)
+		end
+		if e.brisa then
+			table.insert(fuera, el)
+		end
+	end
+	if #entradas == 0 then
+		return
+	end
+	for _, m in lamparas do
+		for _, p in m.partes do
+			table.insert(fuera, p)
+		end
+	end
+	local rayo = filtro(fuera)
+	local function llega(aqui: Vector3): number
+		local mejor = 0
+		for _, entrada in entradas do
+			local d = entrada - aqui
+			local h = plano(d).Magnitude
+			local k = 1 - h / CORRIENTE.Alcance
+			if h > 1 and k > mejor and math.abs(d.Y) < 7 and not workspace:Raycast(aqui, d, rayo) then
+				mejor = k
+			end
+		end
+		return mejor
+	end
+	for el, e in CasaVista.elementos do
+		if e.brisa and el.Parent and (e.centro.Position - camara).Magnitude < CORRIENTE.Cerca then
+			local k = llega(e.centro.Position - e.centro.LookVector * CORRIENTE.Dentro)
+			if k > 0 then
+				corrienteVentana[el] = k
+			end
+		end
+	end
+	for _, m in lamparas do
+		if not m.ajeno and (m.centro - camara).Magnitude < CORRIENTE.Cerca then
+			local k = llega(m.centro - Vector3.new(0, 0.4, 0))
+			if k > 0 then
+				corrienteLampara[m] = k
+			end
+		end
+	end
+end
+
+-- Cada fotograma: las cortinas van poco a poco hacia la corriente que les llega (y vuelven a quedarse quietas) y las
+-- lámparas reciben una racha de vez en cuando.
+local function moverCorrientes(dt: number, ahora: number, camara: Vector3)
+	if ahora >= proximoMirar then
+		proximoMirar = ahora + 0.5
+		mirarCorrientes(camara)
+	end
+	if next(corrienteVentana) == nil and next(corrientes) == nil and next(corrienteLampara) == nil then
+		return
+	end
+	local paso = dt * CORRIENTE.Sube
+	for el, e in CasaVista.elementos do
+		local brisa = e.brisa
+		local actual = corrientes[el]
+		local objetivo = corrienteVentana[el] or 0
+		if not brisa or (not actual and objetivo <= 0) then
+			continue
+		end
+		local nueva = (actual or 0) + math.clamp(objetivo - (actual or 0), -paso, paso)
+		if nueva <= 0.002 and objetivo <= 0 then
+			corrientes[el] = nil
+			brisa(0)
+		else
+			corrientes[el] = nueva
+			brisa(nueva)
+		end
+	end
+	for el in corrientes do
+		if not CasaVista.elementos[el] then
+			corrientes[el] = nil
+		end
+	end
+	for m, k in corrienteLampara do
+		if ahora >= m.racha and not m.ajeno and m.partes[1].Parent then
+			m.racha = ahora + azar:NextNumber(CORRIENTE.Racha[1], CORRIENTE.Racha[2])
+			local a = azar:NextNumber(0, math.pi * 2)
+			m.vel += Vector2.new(math.cos(a), math.sin(a)) * CORRIENTE.Lampara * k
+			activos[m] = true
 		end
 	end
 end
@@ -850,6 +1272,9 @@ function Efectos.start()
 		if d < CFG.Pasos then
 			temblarCerca(donde, CFG.Golpe, CFG.Golpe * (1 - d / CFG.Pasos), false)
 		end
+		if d < POLVO_AIRE.Golpe then
+			levantarPolvo(1 - d / POLVO_AIRE.Golpe)
+		end
 	end
 
 	-- Al amanecer se barren los cristales y los cuadros vuelven rectos (de noche se quedan torcidos, a propósito).
@@ -898,6 +1323,9 @@ function Efectos.start()
 			for _, m in lamparas do
 				revisarAjeno(m)
 			end
+			for _, m in mecedoras do
+				revisarAjeno(m)
+			end
 			local casa = mapa:FindFirstChild("Casa")
 			local ahora = os.clock()
 			if sucio and casa and ahora - cambio > 2 and ahora - ultima > 15 then
@@ -909,12 +1337,15 @@ function Efectos.start()
 
 	RunService.Heartbeat:Connect(function(dt)
 		local ahora = os.clock()
-		local camara = workspace.CurrentCamera.CFrame.Position
+		local vista = workspace.CurrentCamera.CFrame
+		local camara = vista.Position
 		moverBichos(camara)
 		moverAcechos(dt, camara)
+		moverCorrientes(dt, ahora, camara)
 		moverActivos(dt, ahora, camara)
 		moverBombillas(ahora)
 		moverCristales(dt, ahora, camara)
+		moverPolvoAire(dt, vista)
 	end)
 end
 

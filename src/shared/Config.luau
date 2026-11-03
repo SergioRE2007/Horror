@@ -537,6 +537,8 @@ Config.Sonidos = {
 	Contener = { Id = 0, Volumen = 0.6 }, -- coger aire de golpe y aguantarlo (escondido, con un bicho cerca)
 	Exhalar = { Id = 0, Volumen = 0.6 }, -- soltar el aire temblando cuando se va
 	Mirilla = { Id = 0, Volumen = 0.5, Alcance = 12 }, -- la tapita de metal de la mirilla al apartarla
+	Vajilla = { Id = 0, Volumen = 0.5, Alcance = 30 }, -- platos y vasos que tintinean al temblar (mientras, CristalVibra)
+	Mecedora = { Id = 0, Volumen = 0.6, Alcance = 30 }, -- crujido de la mecedora al mecerse sola (mientras, Cruje)
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.

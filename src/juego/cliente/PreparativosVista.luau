@@ -5,7 +5,8 @@
 --   (atributo Desde) hasta el porche.
 --   Palanca (atributo Bajada): el mango baja de golpe con un tirón.
 --   Trampilla (atributo Abierto): cruje al abrirse (la tapa la mueve el servidor: deja de chocar).
---   Remote Preparativos ("Reja", posición): la reja acaba de caer: golpe de hierro, polvo y un temblor si estás cerca.
+--   Remote Preparativos ("Reja", posición): la reja acaba de caer: golpe de hierro, polvo y un temblor si estás cerca;
+--     lo de alrededor tiembla como con un golpe (CasaVista.alGolpe: tarros, bombillas colgadas, polvo en el aire).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +14,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local CasaVista = require(script.Parent.CasaVista)
 local Sonido = require(script.Parent.Sonido)
 
 local PreparativosVista = {}
@@ -143,6 +145,48 @@ local function moverPalanca(modelo: Instance, animar: boolean)
 	Sonido.en("Tiron", pivote.Position)
 end
 
+-- Temblor de la vista por la reja: el giro se pinta encima de la cámara de Roblox (Camera + 1) y se deshace en el
+-- fotograma siguiente antes de ella (Camera - 1); si no, la cámara seguía desde el giro y la mirada se quedaba desviada
+-- (como en BestiaVista). Los dos pasos se desatan al acabar, con el último giro ya deshecho.
+local TEMBLOR_REJA = 0.45 -- segundos
+local finReja = 0 -- hasta cuándo tiembla (os.clock)
+local giroReja: CFrame? = nil -- el giro del último fotograma
+local temblandoReja = false
+
+local function temblarReja()
+	finReja = math.max(finReja, os.clock() + TEMBLOR_REJA)
+	if temblandoReja then
+		return -- ya tiembla: solo dura más
+	end
+	temblandoReja = true
+	RunService:BindToRenderStep("TemblorRejaAntes", Enum.RenderPriority.Camera.Value - 1, function()
+		local camara = workspace.CurrentCamera
+		if giroReja then
+			-- En una cinemática la cámara la pone un script: no se toca.
+			if camara and camara.CameraType ~= Enum.CameraType.Scriptable then
+				camara.CFrame *= giroReja:Inverse()
+			end
+			giroReja = nil
+		end
+		if os.clock() >= finReja then
+			temblandoReja = false
+			RunService:UnbindFromRenderStep("TemblorRejaAntes")
+			RunService:UnbindFromRenderStep("TemblorReja")
+		end
+	end)
+	RunService:BindToRenderStep("TemblorReja", Enum.RenderPriority.Camera.Value + 1, function()
+		local quedan = finReja - os.clock()
+		local camara = workspace.CurrentCamera
+		if quedan <= 0 or not camara or camara.CameraType == Enum.CameraType.Scriptable then
+			return
+		end
+		local f = quedan * 0.05
+		local giro = CFrame.Angles(azar:NextNumber(-f, f), azar:NextNumber(-f, f), 0)
+		camara.CFrame *= giro
+		giroReja = giro
+	end)
+end
+
 -- La reja cae: golpe de hierro, polvo y, si estás cerca, la vista tiembla un momento.
 local function rejaCae(posicion: Vector3)
 	Sonido.en("Golpe", posicion, 0.6)
@@ -170,20 +214,15 @@ local function rejaCae(posicion: Vector3)
 	task.delay(3, function()
 		suelo:Destroy()
 	end)
-	local camara = workspace.CurrentCamera
-	if (camara.CFrame.Position - posicion).Magnitude > 35 then
+	-- La casa lo nota como un golpe fuerte (Efectos: solo si la cámara está cerca).
+	local alGolpe = CasaVista.alGolpe
+	if alGolpe then
+		alGolpe(posicion)
+	end
+	if (workspace.CurrentCamera.CFrame.Position - posicion).Magnitude > 35 then
 		return
 	end
-	local fin = os.clock() + 0.45
-	RunService:BindToRenderStep("TemblorReja", Enum.RenderPriority.Camera.Value + 1, function()
-		local quedan = fin - os.clock()
-		if quedan <= 0 then
-			RunService:UnbindFromRenderStep("TemblorReja")
-			return
-		end
-		local f = quedan * 0.05
-		camara.CFrame *= CFrame.Angles(azar:NextNumber(-f, f), azar:NextNumber(-f, f), 0)
-	end)
+	temblarReja()
 end
 
 -- Cada cosa etiquetada, la que ya está y la que llega (con streaming puede llegar tarde).
