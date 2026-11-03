@@ -15,6 +15,7 @@
 --   Cambiar la pila de la linterna o el carrete de la cámara: con las dos manos, todo el rato que dura.
 --   Lo que coges vuela hasta tu mano (una copia: el de verdad lo quita el servidor).
 --   Trepando por una escalera de mano, las manos van de peldaño en peldaño; en el aire, los brazos se abren.
+--   Un susto (Sustos): las manos libres suben de golpe por reflejo.
 --   Al salir del escondite, las dos manos empujan para salir. Al morir, las manos se levantan temblando ante el bicho.
 -- Las herramientas (hacha, sierra, martillo, llave) las agarra TrabajoVista con su propia capa.
 local CollectionService = game:GetService("CollectionService")
@@ -784,6 +785,22 @@ function ManosGestos.foto()
 			velocidad = 24,
 		}
 	end, 60)
+end
+
+-- Un respingo (los sustos: Sustos/Util.tiron): las manos libres suben de golpe hacia el pecho y bajan despacio. No
+-- sueltan lo que llevan (va por debajo de cargar y de las herramientas).
+function ManosGestos.sobresalto(fuerza: number)
+	local f = math.clamp(fuerza, 0.2, 1)
+	Manos.gesto("Sobresalto", 0.9, function(_, s)
+		local cf = camara.CFrame
+		local sube = if s < 0.1 then suave(s / 0.1) else 1 - suave((s - 0.1) / 0.8)
+		local y = lerp(-1.2, -0.55, sube * f)
+		return {
+			der = Manos.palma(cf * Vector3.new(0.42, y, -0.8), cf.UpVector + cf.RightVector * 0.2, -cf.LookVector),
+			izq = Manos.palma(cf * Vector3.new(-0.42, y, -0.8), cf.UpVector - cf.RightVector * 0.2, -cf.LookVector),
+			velocidad = 26,
+		}
+	end, 28)
 end
 
 -- ===== Escondite y muerte =====

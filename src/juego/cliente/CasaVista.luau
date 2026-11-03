@@ -19,6 +19,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local ManosGestos = require(script.Parent.ManosGestos)
 local Sonido = require(script.Parent.Sonido)
 
 local CasaVista = {}
@@ -114,11 +115,17 @@ local function ventanaReforzada(el: Model)
 end
 
 -- Temblor de la cámara si está a menos de `alcance` studs de `desde` (más flojo cuanto más lejos).
+local ultimoRespingo = 0
 function CasaVista.temblar(desde: Vector3, fuerza: number, alcance: number?)
 	local lejos = alcance or 35
 	local distancia = (workspace.CurrentCamera.CFrame.Position - desde).Magnitude
 	if distancia < lejos then
 		temblor = math.max(temblor, fuerza * (1 - distancia / lejos))
+	end
+	-- Un golpe fuerte muy cerca: las manos dan un respingo (como mucho uno cada 4 s, que los golpes van seguidos).
+	if distancia < 12 and fuerza >= 0.4 and os.clock() - ultimoRespingo > 4 then
+		ultimoRespingo = os.clock()
+		ManosGestos.sobresalto(fuerza * (1 - distancia / 12) + 0.3)
 	end
 end
 

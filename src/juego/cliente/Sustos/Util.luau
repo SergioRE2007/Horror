@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Ambiente = require(script.Parent.Parent.Ambiente)
+local ManosGestos = require(script.Parent.Parent.ManosGestos)
 
 local Util = {}
 
@@ -410,6 +411,7 @@ end
 
 -- Un tirón de la cámara, como un respingo (más flojo cuanto más lejos esté `desde`, si se da).
 function Util.tiron(fuerza: number)
+	ManosGestos.sobresalto(fuerza) -- y las manos suben de golpe, por reflejo
 	local nombre = "SustosTiron"
 	local fin = os.clock() + 0.35
 	pcall(RunService.UnbindFromRenderStep, RunService, nombre)
