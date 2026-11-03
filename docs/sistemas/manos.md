@@ -73,3 +73,34 @@ Hecho en una sesión en la nube **sin Studio**: las poses salen de cuentas (comp
   - `HOMBRO`, `REPOSO`, `L1` y `L2` en `Manos`;
   - las posiciones de cada gesto en `ManosGestos`;
   - `SITIO` en `TrabajoVista` (dónde va tu herramienta).
+
+## Escondites: contener la respiración y verlo desde fuera (`MuerteVista`, `EsconditeVista`)
+
+Pedido por el usuario: "respiración contenida al esconderte con un bicho cerca" y "ver a los demás jugadores esconderse y salir (la puerta del armario)". Hecho sin Studio: los números van al principio de cada módulo, para mirarlos y retocarlos.
+
+- **Contener la respiración (MuerteVista):** escondido, con un bicho a menos de 18 studs, coges aire y lo aguantas solo, sin tecla (vale igual en el móvil). No cuenta el Imitador mientras finge en la puerta: lo delataría.
+  - Suena `Contener` y se calla `Respiracion`, que suena en bucle mientras estás escondido.
+  - La cámara deja de mecerse, sube un poco y tiembla un poquito. Se cierran unos bordes negros de más (a los lados y arriba y abajo) y el latido sube.
+  - A más de 24 studs, o a los 12 s (los 4 últimos tiembla más), suena `Exhalar`: la cámara tiembla, baja un momento y jadeas 4 s antes de poder volver a contener.
+  - Si sales o te pillan a medias, se corta sin sonar y no se queda nada puesto.
+- **El escondite desde fuera (EsconditeVista, atributo `Ocupado` del escondite):**
+  - Armario: abre sus dos puertas de lamas hacia fuera y las cierra detrás. Son hojas hechas en el cliente (cada lama partida en dos, con largueros solo abierta y los tiradores); mientras se mueven, las lamas de verdad se esconden.
+  - Cama: la colcha se levanta por el lado de la salida y vuelve a caer. Es `Blanket` de Blender o, de la tienda, `ColchaCama_2`, `ColchaDosel` o `CamaNino_2`. Si se cambia el mueble, cambiar `COLCHAS`.
+  - Si le saca un bicho, se abre de golpe y al rato se cierra sola, crujiendo.
+  - Suenan `Puerta` y `PuertaCierra` flojos y agudos, y en las camas `Cruje`.
+  - El que entra o sale se esconde un momento y vuelve a verse dentro, con la puerta a medio cerrar (o fuera, con ella abierta): no se le ve saltar.
+  - Tu escondite se anima igual. Solo a menos de 60 studs de la cámara; con Rendimiento, de los demás solo el sonido.
+- **Probar en Studio sin otro jugador** (datamodel Client), con el escondite más cerca de la cámara: `game.Players.LocalPlayer.PlayerScripts:FindFirstChild("EsconditeVista", true).Probar:Fire("Entrar")`. También vale `"Salir"` y `"Sacado"`.
+
+## La casa reacciona más a los bichos (`cliente/Efectos`, `cliente/CasaVista`)
+
+Pedido por el usuario: "que reaccionen más a los bichos". Hecho sin Studio (cuentas comprobadas con Lune): falta verlo. Números visuales a ojo al principio de `Efectos` (`MECE`, `TINTINEO`, `POLVO_AIRE`, `CORRIENTE`) y de `CasaVista` (`BRISA_ONDEA`, `BRISA_ALETEO`).
+- **Mecedoras** (la del cuarto de la abuela con su manta, la del desván y la del porche): las pisadas y los golpes a menos de 16 studs las ponen a mecerse solas, hasta 5,5° y cada vez menos (unos 20 s), y crujen al dar la vuelta. Se mecen sobre el centro de abajo con los ejes de su pieza más grande (en el molde, sin girar).
+- **Lo que tiembla suena**: vajilla, botellas y el juego de té tintinean; latas, ollas y candeleros repiquetean (uno por pisada, dos por golpe). Tiemblan también el juego de té, los licores, el quinqué, latas, ollas, sartenes, las fotos de pie y el reloj de la repisa.
+- **Polvo en el aire**: tras un golpe, un portazo, la reja o una pisada pesada cerca o encima, motas que flotan unos 10 s delante de la cámara; solo se ven donde da la luz (el haz de la linterna).
+- **Corriente**: con una ventana rota o una puerta echada abajo en la misma sala (un rayo mira que no haya pared en medio), las cortinas de las demás ventanas se hinchan a rachas (`brisa` de CasaVista) y las lámparas colgantes se mecen, hasta repararla.
+- El portazo del bicho y la caída de la reja hacen temblar lo de alrededor como un golpe (`CasaVista.alGolpe`).
+- Con Rendimiento: sin mecedoras, sin polvo en el aire y sin corriente (el tintineo sí).
+- Sonidos prestados mientras no haya propios: `CristalVibra` y `Latas`, más agudos y cortos, para el tintineo, y `Cruje` para la mecedora. Si se añaden `Vajilla` y `Mecedora` a `Config.Sonidos`, se usan solos.
+- Temblores de cámara (CasaVista y la reja de PreparativosVista): el giro se deshace en el fotograma siguiente antes de la cámara de Roblox (como en BestiaVista). Antes la mirada se iba desviando con cada temblor. Solo están atados mientras tiembla y nunca en cinemáticas.
+- Probar: `workspace.EfectosLocales:GetAttribute("Mecedoras")` debe dar 3.

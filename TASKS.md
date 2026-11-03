@@ -4,6 +4,8 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
+0. **Seguir la sesión en la nube del 03-11-2026 (rama `claude/admiring-bell-jvgvch`, PR #24): `docs/continuar/LEEME.md`**
+   (Fase 3 de inmersión a medias en parches, revisión del lobby y cierre). Al acabar, borrar `docs/continuar/`.
 1. 14 Pulido, fase a fase (14.1 → 14.5; la 14.2 es el tutorial 13.1).
 2. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
@@ -143,9 +145,23 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
   antes de anochecer, botón de reiniciar quitado, dos bichos a la vez, bengala a la cabeza de la Bestia, fuego
   cancelado, mochila grande al volver a una partida, dos jugadores clavando la misma ventana, "Wait for her" con el
   Carpintero.
+- Probar la revisión entera del 03-11-2026 (14 commits "arreglos de la revisión"; los pasos de cada uno, en su commit y
+  en `docs/continuar/LEEME.md`). Lo más importante: el Acechador no debe ir a por quien está en la torre, las esquinas
+  o el garaje; las cerillas no se pierden si amanece con el fuego en marcha; tras un viaje el coche del lobby vuelve a
+  quedar libre (solo publicado); no se cogen cosas a través de las paredes del garaje; los bichos no pillan a través de
+  las paredes pero sí por una puerta abierta; teclas nuevas V (revivir), K (saltar tutorial) y P (ajustes) en PC.
+- Probar el lobby nuevo (`docs/sistemas/lobby.md`, "Probar en Studio"): niebla, lluvia, luces que fallan, la puerta,
+  los coches y la cinemática de salida, la sombra entre los árboles y el rendimiento en móvil.
+- Probar la respiración contenida y los escondites vistos desde fuera, y las reacciones nuevas de la casa
+  (`docs/sistemas/manos.md`, al final).
 
 ### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
 - **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
+- **Segunda tanda (03-11-2026, en curso, sin Studio):** hecho: respiración contenida en el escondite, ver esconderse a los demás y la casa que reacciona más (mecedoras, vajilla, polvo, corriente). A medias (`docs/continuar/`): agacharse y asomarse (botón también en el móvil), manos en la pared, mirilla y cortinas, bichos con más vida mientras esperan. Idea no hecha: tropezar o frenar al correr cansado (no hay sistema de correr ni de cansancio: preguntar a Sergio).
+
+### 14.7 Lobby nuevo (pedido por el usuario, 03-11-2026: "es un poco feo")
+- Gasolinera vieja de noche por código, al nivel de la casa y el pueblo: tienda por dentro, marquesina, surtidores, cartel GAS que falla, cabina, coches viejos, bosque y carretera en la niebla; lluvia, relámpagos, luces que fallan, puerta automática, faros y limpias, polillas, algo entre los árboles; cinemática de salida del coche (`docs/sistemas/lobby.md`).
+- **Estado:** hecho sin Studio. Falta: la revisión con `reviewer` a medias, la interfaz del lobby (CochesUi y TiendaUi) a medias (`docs/continuar/`), probarlo en Studio y 6 sonidos de ElevenLabs (`Config.SonidosLobby`).
 
 ### 14.5 Partida entera de prueba
 - Una partida de principio a fin sin órdenes de prueba: ritmo de días y noches, monedas y precios (skill `roblox-economy-balancing`), fallos que salgan.
