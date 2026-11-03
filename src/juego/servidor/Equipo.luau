@@ -190,6 +190,24 @@ local function gastar(dt: number)
 	end
 end
 
+-- Hacia dónde mira cada uno, arriba o abajo (CuerpoVista lo manda; BrazosVista inclina su cabeza y su linterna en
+-- los demás clientes). Solo se ve: no cambia nada del juego. Como mucho unas 6 veces por segundo y redondeado.
+local ultimaMirada: { [Player]: number } = {}
+local function mirada(jugador: Player, inclinacion: unknown)
+	if type(inclinacion) ~= "number" or inclinacion ~= inclinacion then
+		return
+	end
+	local ahora = os.clock()
+	if ahora - (ultimaMirada[jugador] or -math.huge) < 0.15 then
+		return
+	end
+	ultimaMirada[jugador] = ahora
+	local v = math.floor(math.clamp(inclinacion, -1.4, 1.4) * 20 + 0.5) / 20
+	if jugador:GetAttribute("Mirada") ~= v then
+		jugador:SetAttribute("Mirada", v)
+	end
+end
+
 function Equipo.start()
 	for _, el in CollectionService:GetTagged("Ventana") do
 		local cristal = el:FindFirstChild("Cristal")
@@ -199,7 +217,9 @@ function Equipo.start()
 	end
 	Players.PlayerRemoving:Connect(function(jugador)
 		ultimoFlash[jugador] = nil
+		ultimaMirada[jugador] = nil
 	end)
+	Remotes.Mirada.OnServerEvent:Connect(mirada)
 	Remotes.Linterna.OnServerEvent:Connect(alternarLinterna)
 	Remotes.Flash.OnServerEvent:Connect(flash)
 	RunService.Heartbeat:Connect(gastar)

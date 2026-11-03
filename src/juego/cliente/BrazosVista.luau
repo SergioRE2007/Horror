@@ -5,6 +5,7 @@
 --   Cargando algo pesado: los dos brazos a sus lados. Linterna encendida: el izquierdo delante, alumbrando.
 --   Móvil abierto: el derecho delante, doblado. Una foto: los dos a la cara. Una bengala: el derecho hacia donde da.
 --   Una cortina o una puerta que se mueve junto a él (y más cerca de él que de ti): los brazos hacia ella.
+--   La cabeza (y la linterna), inclinada hacia donde mira arriba o abajo (atributo Mirada, lo manda CuerpoVista).
 -- Solo los que están a menos de CERCA studs de la cámara.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -25,9 +26,10 @@ local ABAJO = Vector3.new(0, -1, 0) -- hacia donde cuelga el brazo en el espacio
 
 type Hombro = { motor: Motor6D, original: CFrame, giro: CFrame }
 type Gesto = { hasta: number, der: Vector3?, izq: Vector3? }
-type Otro = { personaje: Model, der: Hombro?, izq: Hombro?, gesto: Gesto?, linterna: { BasePart }? }
+type Otro = { personaje: Model, der: Hombro?, izq: Hombro?, cuello: Hombro?, gesto: Gesto?, linterna: { BasePart }? }
 local otros: { [Player]: Otro } = {}
 local ponerLinterna: (o: Otro, encendida: boolean) -> () -- más abajo
+local miradaDe: (otro: Player) -> number -- más abajo
 
 local function hombroDe(personaje: Model, pieza: string, nombre: string): Hombro?
 	local brazo = personaje:FindFirstChild(pieza)
@@ -51,6 +53,7 @@ local function preparar(otro: Player, personaje: Model)
 			personaje = personaje,
 			der = hombroDe(personaje, "RightUpperArm", "RightShoulder"),
 			izq = hombroDe(personaje, "LeftUpperArm", "LeftShoulder"),
+			cuello = hombroDe(personaje, "Head", "Neck"),
 			gesto = nil,
 		}
 	end)
@@ -183,7 +186,10 @@ local function objetivos(otro: Player, o: Otro, raiz: BasePart): (Vector3?, Vect
 		o.gesto = nil
 	end
 	local der = if otro:GetAttribute("MovilAbierto") then (cf * CFrame.new(0.3, 0.9, -1.6)).Position else nil
-	local izq = if otro:GetAttribute("Linterna") then (cf * CFrame.new(-0.3, 1.2, -5)).Position else nil
+	-- La linterna, hacia donde mira (arriba o abajo: atributo Mirada).
+	local izq = if otro:GetAttribute("Linterna")
+		then (cf * CFrame.new(-0.3, 1.4, 0) * CFrame.Angles(miradaDe(otro), 0, 0) * CFrame.new(0, 0, -5)).Position
+		else nil
 	return der, izq
 end
 
@@ -219,6 +225,22 @@ function ponerLinterna(o: Otro, encendida: boolean)
 		end
 		o.linterna = nil
 	end
+end
+
+function miradaDe(otro: Player): number
+	local m = otro:GetAttribute("Mirada")
+	return if type(m) == "number" and m == m then math.clamp(m, -1.4, 1.4) else 0
+end
+
+-- La cabeza de otro, inclinada hacia donde mira (sin pasarse: el cuello no dobla tanto).
+local function cabecear(o: Otro, inclinacion: number, dt: number)
+	local h = o.cuello
+	if not h or not h.motor.Parent then
+		return
+	end
+	local destino = CFrame.Angles(math.clamp(inclinacion * 0.75, -0.9, 0.9), 0, 0)
+	h.giro = h.giro:Lerp(destino, 1 - math.exp(-dt * SUAVE))
+	h.motor.C0 = h.original * h.giro
 end
 
 local function girar(h: Hombro?, hacia: Vector3?, dt: number)
@@ -266,8 +288,10 @@ local function paso(dt: number)
 		if (raiz.Position - ojo).Magnitude > CERCA or otro:GetAttribute("Muerto") or otro:GetAttribute("Escondido") then
 			girar(o.der, nil, 1) -- lejos o fuera de juego: como estaban, sin gastar
 			girar(o.izq, nil, 1)
+			cabecear(o, 0, 1)
 			continue
 		end
+		cabecear(o, miradaDe(otro), dt)
 		local der, izq = objetivos(otro, o, raiz)
 		girar(o.der, der, dt)
 		girar(o.izq, izq, dt)

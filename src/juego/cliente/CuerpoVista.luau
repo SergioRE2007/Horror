@@ -6,6 +6,7 @@
 --   Al caer de una altura, la cabeza baja de golpe y vuelve.
 --   Con un bicho cerca, respira más rápido y más hondo (el miedo).
 --   De noche y fuera de la casa, se ve el vaho al respirar (sin él con Rendimiento).
+--   Manda al servidor cuánto miras arriba o abajo (remote Mirada) para que los demás lo vean (BrazosVista).
 -- Con lo pesado en las manos el balanceo lo pone CargarVista: aquí no se suma.
 -- Se pinta encima de la cámara de Roblox (BindToRenderStep, Camera + 1): solo mueve la posición y la inclina de lado,
 -- que la cámara rehace cada fotograma (no se acumula).
@@ -14,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 local CuerpoVista = {}
 
@@ -36,6 +38,8 @@ local respiracion = 0
 local miedo = 0
 local bichoCerca = 0 -- se mira cada poco
 local proximoVaho = 0
+local miradaDicha = 0 -- la última inclinación que se ha mandado al servidor
+local proximaMirada = 0
 local vaho: ParticleEmitter? = nil
 local boca: Attachment? = nil
 
@@ -137,6 +141,16 @@ local function paso(dt: number)
 	local respira = math.sin(respiracion) * (0.012 + miedo * 0.03)
 
 	camara.CFrame = cf * CFrame.new(lado, sube + respira + caida, 0) * CFrame.Angles(0, 0, mece + inclinado)
+
+	-- Hacia dónde miras, para que los demás vean tu cabeza y tu linterna (BrazosVista), cada 0,2 s si ha cambiado.
+	if os.clock() >= proximaMirada then
+		proximaMirada = os.clock() + 0.2
+		local inclinacion = math.asin(math.clamp(cf.LookVector.Y, -1, 1))
+		if math.abs(inclinacion - miradaDicha) >= 0.05 then
+			miradaDicha = inclinacion
+			Remotes.Mirada:FireServer(inclinacion)
+		end
+	end
 
 	-- Vaho de noche fuera de casa, al soltar el aire (más seguido con miedo).
 	local ahora = os.clock()
