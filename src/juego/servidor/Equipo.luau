@@ -106,7 +106,8 @@ local function alternarLinterna(jugador: Player)
 end
 
 local function flash(jugador: Player, hacia: unknown)
-	if typeof(hacia) ~= "Vector3" or hacia.Magnitude ~= hacia.Magnitude or hacia.Magnitude < 0.1 then
+	-- NaN e infinito fuera: con un infinito, .Unit da NaN y no descartaba a ningún bicho (los aturdía a todos).
+	if typeof(hacia) ~= "Vector3" or hacia.Magnitude ~= hacia.Magnitude or hacia.Magnitude < 0.1 or hacia.Magnitude > 1e6 then
 		return
 	end
 	local cabeza = cabezaDe(jugador)

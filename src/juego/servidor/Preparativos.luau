@@ -310,21 +310,16 @@ local function abrirTrampilla(jugador: Player)
 end
 
 -- La puerta principal se cierra de golpe (14.1): así siempre la revienta al llegar. Se deja entera, que es la que
--- revienta. Casa no tiene un "cerrar" para el servidor: se le pasa su propio estado con esa puerta cambiada.
+-- revienta.
 local function cerrarPrincipal()
 	local puerta = Casa.principal()
-	local clave = puerta and puerta:GetAttribute("Clave")
-	local estado = Casa.exportar()
-	local suya = if type(clave) == "string" then estado[clave] else nil
-	if not suya then
+	if not puerta then
 		return
 	end
-	if suya.abierta then
-		(puerta :: Model):SetAttribute("Portazo", ((puerta :: Model):GetAttribute("Portazo") or 0) + 1)
+	if puerta:GetAttribute("Abierta") then
+		puerta:SetAttribute("Portazo", (puerta:GetAttribute("Portazo") or 0) + 1)
 	end
-	suya.abierta = false
-	suya.vida = math.huge -- importar la deja en su vida máxima
-	Casa.importar(estado)
+	Casa.cerrar(puerta)
 end
 
 -- Empieza la noche final (de día, con todo listo y una vez).

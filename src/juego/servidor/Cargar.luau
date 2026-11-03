@@ -125,7 +125,10 @@ local function coger(jugador: Player, pieza: BasePart)
 	local raiz = raizDe(jugador)
 	local lista = quienes[pieza]
 	local peso = pieza:GetAttribute("Peso")
-	if not raiz or not puede(jugador) or #lista >= peso then
+	-- Ni lo que se está trabajando (anclado en el caballete, la ventana…): su prompt está apagado, pero por si acaso
+	-- (si no, la misma pieza servía para dos trabajos).
+	if not raiz or not puede(jugador) or not lista or #lista >= peso or pieza.Parent ~= carpeta
+		or pieza:GetAttribute("Trabajo") then
 		return
 	end
 	if (pieza.Position - raiz.Position).Magnitude > Config.Casa.Alcance + pieza.Size.Magnitude / 2 then
@@ -277,6 +280,9 @@ function Cargar.nuevo(tipo: string, cf: CFrame, carga: number?): BasePart
 		coger(jugador, pieza)
 	end)
 	quienes[pieza] = {}
+	pieza.Destroying:Connect(function() -- las gastadas (serradas, clavadas, quemadas…) no se quedan apuntadas
+		quienes[pieza] = nil
+	end)
 	pieza.Parent = carpeta
 	return pieza
 end

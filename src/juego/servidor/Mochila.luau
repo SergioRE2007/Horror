@@ -276,6 +276,29 @@ end
 
 -- Lo que no le cupo al cargar su mochila guardada: si luego llega el pase MochilaGrande, vuelve a la mochila.
 local caidos: { [Player]: { BasePart } } = setmetatable({}, { __mode = "k" }) :: any
+-- Lo mismo cuando aún no tenía personaje para tirarlo a sus pies (al entrar, el pase llega tarde y el personaje
+-- también): espera aquí. Antes se perdía para siempre.
+local pendientes: { [Player]: { Rejilla.Cosa } } = setmetatable({}, { __mode = "k" }) :: any
+
+local function raizDe(jugador: Player): BasePart?
+	return jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+end
+
+-- Tira a sus pies lo que esperaba (cuando ya tiene personaje).
+local function soltarPendientes(jugador: Player)
+	local lista, raiz = pendientes[jugador], raizDe(jugador)
+	if not lista or not raiz then
+		return
+	end
+	pendientes[jugador] = nil
+	local piezas = desparramar(lista, raiz.Position)
+	local ya = caidos[jugador]
+	if ya then
+		table.move(piezas, 1, #piezas, #ya + 1, ya)
+	else
+		caidos[jugador] = piezas
+	end
+end
 
 -- Lo que se guarda de su mochila (Partida): { cosas = las de la rejilla }.
 function Mochila.exportar(jugador: Player)
@@ -299,9 +322,11 @@ function Mochila.importar(jugador: Player, datos)
 		local ancho, alto = Stats.mochila(jugador)
 		local r, sobran = Rejilla.desde(datos, CAT, ancho, alto)
 		rejillas[jugador] = r
-		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local raiz = raizDe(jugador)
 		if raiz then
 			caidos[jugador] = desparramar(sobran, raiz.Position)
+		elseif #sobran > 0 then
+			pendientes[jugador] = sobran -- al aparecer su personaje (alEntrar)
 		end
 	else
 		rejillas[jugador] = deInicio(jugador)
@@ -347,10 +372,26 @@ local function ajustarTamano(jugador: Player)
 		end
 	end
 	caidos[jugador] = nil
-	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	-- Y lo que esperaba sin personaje: a la mochila si cabe; si no, sigue esperando.
+	local esperan = pendientes[jugador]
+	if esperan then
+		local quedan = {}
+		for _, cosa in esperan do
+			if not Rejilla.meter(nueva, CAT, cosa.tipo, cosa.carga) then
+				table.insert(quedan, cosa)
+			end
+		end
+		pendientes[jugador] = if #quedan > 0 then quedan else nil
+	end
+	local raiz = raizDe(jugador)
 	if raiz then
 		desparramar(sobran, raiz.Position)
+	elseif #sobran > 0 then
+		local lista = pendientes[jugador] or {}
+		table.move(sobran, 1, #sobran, #lista + 1, lista)
+		pendientes[jugador] = lista
 	end
+	soltarPendientes(jugador)
 	Mochila.publicar(jugador)
 end
 
@@ -360,6 +401,10 @@ local function alEntrar(jugador: Player)
 		ajustarTamano(jugador)
 	end)
 	jugador.CharacterAdded:Connect(espalda)
+	jugador.CharacterAdded:Connect(function(personaje)
+		personaje:WaitForChild("HumanoidRootPart", 10)
+		soltarPendientes(jugador)
+	end)
 	if jugador.Character then
 		task.spawn(espalda, jugador.Character)
 	end
