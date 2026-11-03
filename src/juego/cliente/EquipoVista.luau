@@ -75,6 +75,9 @@ local function actualizarLuces()
 			end
 			continue
 		end
+		if luz and not luz.punto:IsDescendantOf(game) then
+			luz = nil -- se fue con el personaje viejo (se destruye con él)
+		end
 		if not luz then
 			luz = nuevaLuz(otro)
 			luces[otro] = luz
@@ -286,7 +289,8 @@ function EquipoVista.start()
 		end)
 	end
 	Remotes.Flash.OnClientEvent:Connect(destello)
-	RunService:BindToRenderStep("Linterna", Enum.RenderPriority.Camera.Value + 1, actualizarLuces)
+	-- Después de lo que mueve la cámara (Camera + 1: CuerpoVista, temblores) y antes de las manos (Camera + 5).
+	RunService:BindToRenderStep("Linterna", Enum.RenderPriority.Camera.Value + 4, actualizarLuces)
 end
 
 return EquipoVista
