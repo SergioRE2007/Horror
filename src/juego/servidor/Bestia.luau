@@ -13,6 +13,9 @@
 -- ("Herida", modelo), ("Atrapada", modelo), ("Quema", modelo), ("Flash", modelo), ("Arana", modelo) bajo la trampilla.
 -- Sube y baja por la escalera del vestíbulo (ir). La trampilla no la cruza: se queda debajo arañando. Atributos: "Cojea" (hora
 -- del servidor hasta la que cojea), "Atrapada", "Quema". En workspace, atributo "Bestia" = es la noche final.
+-- Debajo de los muebles (pedido por el usuario: "que sea útil agacharte"): como los demás (Caza), a quien está debajo
+-- de algo solo le nota muy de cerca y le huele; al olerle va al borde del mueble y gatea a por él (Caza.aPorDebajo,
+-- atributos Gatea y GateaHora). Su olfato de siempre (oler) no cuenta a los que están debajo de algo.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -49,6 +52,7 @@ local OLFATO_ALTO = Config.Bestia.OlfatoAlto
 local ARANAR = Config.Bestia.Aranar
 local SIN_TRAMPILLA = Config.Bestia.SinTrampilla
 local CERCA_TRAMPILLA = Config.Bestia.CercaTrampilla
+local FUERA_MUEBLE = 3 -- studs fuera del mueble donde se para a gatear (es enorme; los demás, 2,5). A ojo.
 
 -- La escalera del vestíbulo (Mapa): los caminos no la suben (con los peldaños de arriba sueltos PathfindingService
 -- pide saltos), así que ella va al pie o a lo alto y la sube o baja recta por el medio.
@@ -186,6 +190,7 @@ local function crear(cf: CFrame): Caza.Bicho
 		VioEsconderse = VIO_ESCONDERSE,
 		-- Con 8 el camino no cabía por la escalera del sótano y daba la vuelta por la trampilla del patio.
 		AltoCamino = B.AltoCamino,
+		Fuera = FUERA_MUEBLE,
 	})
 end
 
@@ -302,9 +307,18 @@ local function ir(b: Caza.Bicho, destino: Vector3)
 	end
 end
 
--- Pilla a `presa` si la alcanza; si no, un paso hacia `destino`. true si la ha pillado.
-local function perseguir(e: Estado, b: Caza.Bicho, presa: Player, destino: Vector3): boolean
+-- Pilla a `presa` si la alcanza; si no, un paso hacia `destino`. Si está debajo de un mueble (`bajo`, de
+-- elegirPresa), `destino` es el borde: va (ir, también por las escaleras) y allí gatea a por ella. true si ya ha
+-- acabado con ella: la ha pillado o la deja (se ha escapado de debajo o no llega al borde).
+local function perseguir(e: Estado, b: Caza.Bicho, presa: Player, destino: Vector3, bajo: Caza.Debajo?): boolean
 	b.humanoide.WalkSpeed = velocidad(e, b.o.Correr)
+	if bajo then
+		local que = b:aPorDebajo(presa, bajo, ir)
+		if que == "Pilla" then
+			task.wait(2.5)
+		end
+		return que ~= nil
+	end
 	local escondido = Muerte.escondite(presa) ~= nil
 	local suRaiz = raizDe(presa)
 	local alcanza = if escondido or not suRaiz then b:cerca(destino, 5)
@@ -369,6 +383,7 @@ end
 -- Sin ver a nadie, huele al más cercano que no esté escondido, a menos de Config.Bestia.Olfato y en su planta: así te
 -- sigue escaleras abajo hasta el sótano aunque dobles una esquina (si no, se volvía al llegar a donde te vio). Si le
 -- vio hace nada (OLFATO_RECIENTE), también en la otra planta: le ha visto subir la escalera o salir por la trampilla.
+-- A quien está debajo de un mueble (Cubierto) no: a ese le huele Caza, despacio (elegirPresa), y se mete a por él.
 local sinOlfato = 0 -- os.clock hasta el que no huele (tras atascarse yendo a por alguien que no alcanza)
 local function oler(b: Caza.Bicho): Vector3?
 	if os.clock() < sinOlfato then
@@ -381,7 +396,7 @@ local function oler(b: Caza.Bicho): Vector3?
 	local mejor, distancia = nil, math.huge
 	for _, jugador in Muerte.vivos() do
 		local raiz = raizDe(jugador)
-		if raiz and not jugador:GetAttribute("Escondido") then
+		if raiz and not jugador:GetAttribute("Escondido") and not jugador:GetAttribute("Cubierto") then
 			local pies = raiz.Position - Vector3.new(0, 3, 0)
 			local d = (pies - suelo).Magnitude
 			local visto = b.vistoEn[jugador]
@@ -440,7 +455,7 @@ local function aranar(e: Estado, b: Caza.Bicho): boolean
 end
 
 local function cazar(e: Estado, b: Caza.Bicho)
-	local presa, destino = b:elegirPresa(false)
+	local presa, destino, bajo = b:elegirPresa(false)
 	-- Alguien ha vuelto a bajar al sótano mientras arañaba: a por él.
 	if aranaHasta > 0 and destino and destino.Y < -8 then
 		aranaHasta = 0
@@ -474,7 +489,7 @@ local function cazar(e: Estado, b: Caza.Bicho)
 		b.humanoide:MoveTo(b.raiz.Position)
 	elseif presa and destino then
 		ultimoVisto = destino
-		if perseguir(e, b, presa, destino) then
+		if perseguir(e, b, presa, destino, bajo) then
 			ultimoVisto = nil
 		end
 	elseif ultimoVisto then
@@ -522,10 +537,10 @@ local function encerrada(e: Estado, b: Caza.Bicho)
 		b.humanoide:MoveTo(b.raiz.Position)
 		return
 	end
-	local presa, destino = b:elegirPresa(false)
+	local presa, destino, bajo = b:elegirPresa(false)
 	if presa and destino and dentro(destino + Vector3.new(0, 3, 0)) then
 		atascada = 0
-		perseguir(e, b, presa, destino)
+		perseguir(e, b, presa, destino, bajo)
 	elseif presa and destino and (destino - b.raiz.Position).Magnitude < CERCA_REJA then
 		-- Le ve fuera, cerca: va hacia él hasta la reja y la golpea.
 		b.humanoide.WalkSpeed = velocidad(e, b.o.Correr)
@@ -707,6 +722,9 @@ function Bestia.quemar()
 	if b and b.modelo then
 		b.humanoide:MoveTo(b.raiz.Position)
 		b.raiz.Anchored = true
+		-- Si gateaba a por alguien, su hilo ya no los quita (task.cancel): se quitan aquí.
+		b.modelo:SetAttribute("Gatea", nil)
+		b.modelo:SetAttribute("GateaHora", nil)
 		b.modelo:SetAttribute("Quema", true)
 		Remotes.Bestia:FireAllClients("Quema", b.modelo)
 		task.delay(QUEMA, function()
