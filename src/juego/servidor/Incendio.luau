@@ -1,8 +1,8 @@
 -- El final difícil (12.2, TASKS.md): con la Bestia encerrada en el sótano, se prende el rastro de gasolina desde el
 -- porche y arde la casa con ella dentro.
 --   Prompt "Light" (mantener E Config.Bestia.Prender s) en Preparativos.porche(); sale cuando el rastro está listo
---   (Preparativos.listo). Al prender: la Bestia atrapada, vivo, cerca y con cerillas en la mochila (se gasta una). Si
---   falta algo, aviso de una línea con lo primero que falta.
+--   (Preparativos.listo). Al prender: la Bestia atrapada, vivo, cerca y con cerillas en la mochila (se gasta una cuando
+--   el fuego llega a ella: si se cancela, no se pierde). Si falta algo, aviso de una línea con lo primero que falta.
 --   El fuego sale del porche, corre por el rastro y por Preparativos.puntos() en orden (uno cada Config.Bestia.PorSala s)
 --   y por último llega al sótano: Bestia.quemar(). Desde ahí se come la casa entera (IncendioVista) y a los
 --   Chillido + ARDE s empieza la escena final.
@@ -111,9 +111,9 @@ local function prender(jugador: Player?, forzado: boolean?)
 			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, falta))
 			return
 		end
-		if not Mochila.sacar(jugador, "Cerillas") then -- sin esperas desde que se miró: no se puede gastar dos veces
-			return
-		end
+		-- La cerilla no se gasta aún (al final, antes de quemarla): si amanecía o morían todos mientras corría el fuego,
+		-- la única caja del mapa se perdía y el final ya no se podía hacer. Entre mirar `ardiendo` (arriba) y ponerlo
+		-- (abajo) no hay esperas: no salen dos fuegos a la vez.
 	end
 	ardiendo = true
 	workspace:SetAttribute("Final", true)
@@ -136,7 +136,11 @@ local function prender(jugador: Player?, forzado: boolean?)
 		-- Que los clientes lo apaguen y que quien entre después no lo vea prender otra vez.
 		mensaje = nil
 		Remotes.Incendio:FireAllClients("Apagar")
-		return
+		return -- no hay nada que devolver: la cerilla no se ha gastado
+	end
+	-- Ahora sí se gasta (si se ha ido o la ha soltado, nada: la partida acaba igual con este final).
+	if jugador then
+		Mochila.sacar(jugador, "Cerillas")
 	end
 	Bestia.quemar()
 	task.wait(Config.Bestia.Chillido + ARDE) -- que se oiga su chillido y se vea arder la casa antes de la escena

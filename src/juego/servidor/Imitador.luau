@@ -126,7 +126,7 @@ local function alguienCerca(b: Caza.Bicho): boolean
 	return presa ~= nil and destino ~= nil and (destino - b:suelo()).Magnitude < 22
 end
 
-local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, apagon: boolean)
+local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, apagon: boolean, alApagar: (() -> ())?)
 	local centro = el:GetAttribute("Centro") :: CFrame
 	local fuera = el:GetAttribute("Fuera") :: Vector3
 	local dentro = el:GetAttribute("Dentro") :: Vector3
@@ -164,7 +164,11 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 		Remotes.Imitador:FireAllClients("Llama", modelo)
 		decir(centro.Position, FRASES[math.min(i, #FRASES)], amigo)
 		if i == 1 and apagon then
-			-- Se va la luz justo al llamar (solo si estaba encendida).
+			-- Se va la luz justo al llamar (solo si estaba encendida). Solo aquí se da el apagón por hecho: si se va sin
+			-- llamar (caza fuera o se encuentra la puerta abierta), le toca al siguiente Imitador de la noche.
+			if alApagar then
+				alApagar()
+			end
 			task.delay(1.5, function()
 				if Generador.apagon() then
 					for _, jugador in Players:GetPlayers() do
@@ -221,13 +225,13 @@ local function terminar(a: Ataque)
 end
 
 -- Empieza un ataque a la puerta `el` y devuelve una función que dice si sigue en marcha. `paciencia` multiplica lo
--- que espera entre llamadas; `apagon`: al primer golpe se va la luz.
-function Imitador.atacar(el: Model, noche: number, paciencia: number?, apagon: boolean?): () -> boolean
+-- que espera entre llamadas; `apagon`: al primer golpe se va la luz, y entonces llama a `alApagar` (Director lo apunta).
+function Imitador.atacar(el: Model, noche: number, paciencia: number?, apagon: boolean?, alApagar: (() -> ())?): () -> boolean
 	local a: Ataque = { bicho = nil, hilo = nil, prisa = false }
 	ataques[a] = true
 	a.hilo = task.spawn(function()
 		-- Con pcall: si el ataque falla, el bicho se quita igual (si no, se quedaba en el mapa y en `ataques` para siempre).
-		local ok, fallo = pcall(ataque, a, el, noche, paciencia or 1, apagon == true)
+		local ok, fallo = pcall(ataque, a, el, noche, paciencia or 1, apagon == true, alApagar)
 		if not ok then
 			warn("[Imitador] " .. tostring(fallo))
 		end
