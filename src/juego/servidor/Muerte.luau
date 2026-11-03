@@ -138,6 +138,7 @@ function Muerte.revivir(jugador: Player)
 	if not vivo(jugador) then
 		soltarSitio(jugador)
 		jugador:SetAttribute("Muerto", nil)
+		jugador.ReplicationFocus = nil
 		task.spawn(jugador.LoadCharacter, jugador)
 	end
 end
@@ -171,7 +172,21 @@ local function alEntrar(jugador: Player)
 	jugador:LoadCharacter()
 end
 
+-- De muerto, la cámara sigue a otro (MuerteVista): con el mapa por partes (StreamingEnabled, rendimiento.md) el
+-- servidor manda el mapa alrededor de él y no del cuerpo. Sin el mapa por partes no cambia nada.
+local function mirar(jugador: Player, objetivo: unknown)
+	if not jugador:GetAttribute("Muerto") or typeof(objetivo) ~= "Instance" or not objetivo:IsA("Player")
+		or objetivo.Parent ~= Players or objetivo == jugador or not vivo(objetivo) then
+		return
+	end
+	local raiz = objetivo.Character and objetivo.Character:FindFirstChild("HumanoidRootPart")
+	if raiz and raiz:IsA("BasePart") then
+		jugador.ReplicationFocus = raiz
+	end
+end
+
 function Muerte.start()
+	Remotes.Mirar.OnServerEvent:Connect(mirar)
 	Players.CharacterAutoLoads = false
 	-- Primera persona también en StarterPlayer: en Studio el jugador salía con el CameraMode de StarterPlayer (14.4).
 	StarterPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
