@@ -8,10 +8,12 @@ export const meta = {
   ],
 }
 
-const ROOT = '/home/user/Horror'
-const SCRATCH = '/tmp/herramientas' // tools/nube/herramientas.sh deja ahí selene y lune
-const SELENE = SCRATCH + '/bin/selene'
-const LUNE = SCRATCH + '/bin/lune'
+// Vale en local (Windows, Rokit: selene y lune en el PATH) y en la nube (pasar args.nube = true tras
+// bash tools/nube/herramientas.sh, que los deja en /tmp/herramientas/bin).
+const NUBE = !!(args && !Array.isArray(args) && args.nube)
+const ROOT = 'la raíz del repo (el directorio de trabajo)'
+const SELENE = NUBE ? '/tmp/herramientas/bin/selene' : 'selene'
+const LUNE = NUBE ? '/tmp/herramientas/bin/lune' : 'lune'
 
 const GRUPOS = [
   { key: 'base', files: ['src/lobby/servidor/Gasolinera.luau', 'src/lobby/servidor/GasolineraCoches.luau', 'src/lobby/servidor/GasolineraPiezas.luau'] },
@@ -20,7 +22,7 @@ const GRUPOS = [
   { key: 'salida', files: ['src/lobby/cliente/SalidaVista.luau', 'src/lobby/cliente/Bucle.luau', 'src/lobby/cliente/Sonido.luau', 'src/lobby/cliente/init.client.luau'] },
 ]
 
-const CONTEXTO = `El lobby de este juego de terror de Roblox (repo ${ROOT}, proyecto lobby.project.json) se acaba de rehacer entero por código (commits acf45ed, a963947 y 51e2817 de la rama actual; mira git show --stat). No hay Roblox Studio: nada se ha podido ejecutar, salvo un arnés de Lune del mapa del servidor. Contrato entre servidor y cliente (etiquetas y atributos): LuzFalla (Fallo, Zumba), Polillas, Charco, Goteo, PuertaAuto (Hoja1/Hoja2 con Desliza, Centro), Nevera, Radio, Chapa, Dentro, Sombra (Hacia, Largo), coches en workspace.Coches con etiqueta Coche (Carroceria, Asiento1..4, Faro con SpotLight Haz y PointLight Brillo, Piloto, Limpia1/2 con Eje y Normal, Attachment Escape, Rueda), Mostrador con su ProximityPrompt Tienda, atributo local SaliendoLocal. Lobby/servidor/Coches pone en el coche el atributo Salida (hora del servidor) y lo quita al pararse o al vaciarse tras un viaje. Reglas: brillos flojos, nada de Neon en piezas grandes, un solo bucle (lobby/cliente/Bucle) y solo cerca de la cámara, Rendimiento, móvil, cinemáticas que esconden la interfaz y la devuelven siempre.`
+const CONTEXTO = `El lobby de este juego de terror de Roblox (repo ${ROOT}, proyecto lobby.project.json) se acaba de rehacer entero por código (commits acf45ed, a963947 y 51e2817 de la rama actual; mira git show --stat). Se hizo sin Roblox Studio (solo un arnés de Lune del mapa del servidor); no le des a Play aunque esté conectado: lo prueba el principal. Contrato entre servidor y cliente (etiquetas y atributos): LuzFalla (Fallo, Zumba), Polillas, Charco, Goteo, PuertaAuto (Hoja1/Hoja2 con Desliza, Centro), Nevera, Radio, Chapa, Dentro, Sombra (Hacia, Largo), coches en workspace.Coches con etiqueta Coche (Carroceria, Asiento1..4, Faro con SpotLight Haz y PointLight Brillo, Piloto, Limpia1/2 con Eje y Normal, Attachment Escape, Rueda), Mostrador con su ProximityPrompt Tienda, atributo local SaliendoLocal. Lobby/servidor/Coches pone en el coche el atributo Salida (hora del servidor) y lo quita al pararse o al vaciarse tras un viaje. Reglas: brillos flojos, nada de Neon en piezas grandes, un solo bucle (lobby/cliente/Bucle) y solo cerca de la cámara, Rendimiento, móvil, cinemáticas que esconden la interfaz y la devuelven siempre.`
 
 const FINDINGS = {
   type: 'object',
