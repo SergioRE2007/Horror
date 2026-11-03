@@ -1023,4 +1023,77 @@ do
 	end
 end
 
+-- Postura (14.6): agacharse y asomarse. Solo ("Agachado", sí/no) y ("Asomar", -1/0/1), como poco cada
+-- Config.Postura.Cada s, y nada muerto, escondido ni cargando (con la mochila abierta, agacharse sí y asomarse no).
+do
+	local PR = cargar("src/shared/PosturaReglas")
+	local cada = Config.Postura.Cada
+	local function quien(cambios)
+		local j = { vivo = true, escondido = false, cargando = false, mochila = false }
+		for clave, valor in cambios or {} do
+			j[clave] = valor
+		end
+		return j
+	end
+	local e = PR.nuevo()
+	local cambia, agachado = PR.pedir(e, "Agachado", true, 10, quien())
+	igual(cambia, true, "postura: agacharse")
+	igual(agachado.agachado, true, "postura: queda agachado")
+	igual(e.agachado, false, "postura: el estado de antes no se toca")
+	igual((PR.pedir(agachado, "Agachado", false, 10 + cada / 2, quien())), false, "postura: demasiado seguido, no cambia")
+	igual((PR.pedir(agachado, "Agachado", true, 20, quien())), false, "postura: pedir lo que ya está no es un cambio")
+	local _, igualQue = PR.pedir(agachado, "Agachado", true, 20, quien())
+	igual(igualQue.ultimo, 10, "postura: lo que no cambia no cuenta para Cada")
+	local asomado
+	cambia, asomado = PR.pedir(agachado, "Asomar", 1, 10 + cada + 0.01, quien())
+	igual(cambia, true, "postura: asomarse pasado Cada")
+	igual(asomado.asomado, 1, "postura: asomado a la derecha")
+	igual(asomado.agachado, true, "postura: se puede asomar agachado")
+	local _, izquierda = PR.pedir(asomado, "Asomar", -1, 30, quien())
+	igual(izquierda.asomado, -1, "postura: de un lado al otro")
+	local _, derecho = PR.pedir(izquierda, "Asomar", -0, 31, quien())
+	igual(1 / derecho.asomado, math.huge, "postura: -0 queda en 0")
+	-- Lo que llega del cliente puede ser cualquier cosa.
+	local raros = {
+		{ "Asomar", 0.5 }, { "Asomar", 2 }, { "Asomar", -2 }, { "Asomar", 0 / 0 }, { "Asomar", math.huge },
+		{ "Asomar", "1" }, { "Asomar", true }, { "Asomar" }, { "Agachado", 1 }, { "Agachado", "true" }, { "Agachado" },
+		{ "Agachado", {} }, { "Saltar", true }, { 5, true }, {},
+	}
+	for i, raro in raros do
+		igual((PR.pedir(PR.nuevo(), raro[1], raro[2], 100, quien())), false, `postura: petición rara {i} no cambia`)
+	end
+	-- Muerto, escondido o cargando: nada (tampoco levantarse: Postura ya lo ha quitado).
+	igual((PR.pedir(PR.nuevo(), "Agachado", true, 100, quien({ vivo = false }))), false, "postura: muerto no se agacha")
+	igual((PR.pedir(PR.nuevo(), "Agachado", true, 100, quien({ escondido = true }))), false, "postura: escondido no se agacha")
+	igual((PR.pedir(PR.nuevo(), "Asomar", -1, 100, quien({ cargando = true }))), false, "postura: cargando no se asoma")
+	igual((PR.pedir(agachado, "Agachado", false, 100, quien({ vivo = false }))), false, "postura: muerto no cambia nada")
+	-- Mochila abierta: agacharse sí; asomarse no, pero dejar de asomarse sí.
+	igual((PR.pedir(PR.nuevo(), "Agachado", true, 100, quien({ mochila = true }))), true, "postura: agacharse con la mochila")
+	igual((PR.pedir(PR.nuevo(), "Asomar", 1, 100, quien({ mochila = true }))), false, "postura: con la mochila no se asoma")
+	igual((PR.pedir(asomado, "Asomar", 0, 100, quien({ mochila = true }))), true, "postura: con la mochila se deja de asomar")
+	-- Limpiar: lo que ya no puede ser se quita, sin contar como cambio.
+	local todo = { agachado = true, asomado = 1, ultimo = 5 }
+	local quita, limpio = PR.limpiar(todo, quien({ escondido = true }))
+	igual(quita, true, "postura: al esconderse se quita")
+	igual(limpio.agachado, false, "postura: escondido, de pie")
+	igual(limpio.asomado, 0, "postura: escondido, sin asomarse")
+	igual(limpio.ultimo, 5, "postura: quitarla no cuenta para Cada")
+	igual(todo.agachado, true, "postura: limpiar no toca el de antes")
+	igual(select(2, PR.limpiar(todo, quien({ cargando = true }))).agachado, false, "postura: al cargar algo, de pie")
+	igual(select(2, PR.limpiar(todo, quien({ vivo = false }))).asomado, 0, "postura: al morir, sin asomarse")
+	quita, limpio = PR.limpiar(todo, quien({ mochila = true }))
+	igual(limpio.agachado, true, "postura: al abrir la mochila sigue agachado")
+	igual(limpio.asomado, 0, "postura: al abrir la mochila deja de asomarse")
+	igual((PR.limpiar(todo, quien())), false, "postura: vivo y libre, no se quita nada")
+	igual((PR.limpiar(PR.nuevo(), quien({ vivo = false }))), false, "postura: de pie ya, nada que quitar")
+	local reaparece = PR.quitar(todo)
+	igual(reaparece.agachado or reaparece.asomado ~= 0, false, "postura: al reaparecer, de pie y derecho")
+	igual(Config.Postura.Velocidad > 0 and Config.Postura.Velocidad < 1, true, "postura: agachado anda más despacio")
+	local CP = Config.Postura
+	igual(CP.Baja > 0 and CP.Baja < 2.5 and CP.Asomar > 0 and CP.Asomar < 2, true, "postura: la cámara no sale del cuerpo")
+	igual(CP.Giro > 0 and CP.Giro < 30 and CP.Cada > 0 and CP.Cada < 1, true, "postura: ladeo y espera razonables")
+	local remotes = fs.readFile("src/shared/Remotes.luau")
+	igual(string.find(remotes, '"Postura"', 1, true) ~= nil, true, "postura: existe el remote Postura")
+end
+
 print(`Todo bien: {comprobaciones} comprobaciones.`)

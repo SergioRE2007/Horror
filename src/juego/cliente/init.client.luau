@@ -26,6 +26,7 @@ require(Sistemas.ManosPrueba).start() -- solo en Studio: lanzar gestos a mano
 require(Sistemas.EquipoVista).start()
 require(Sistemas.MochilaUi).start() -- después de EquipoVista: su botón va en la misma fila
 require(Sistemas.MovilUi).start() -- después de EquipoVista: su botón va en la misma fila
+require(Sistemas.PosturaVista).start() -- agacharse y asomarse (14.6); después de EquipoVista: su botón va en la misma fila
 require(Sistemas.CargarVista).start()
 require(Sistemas.TrabajoVista).start()
 require(Sistemas.BrazosVista).start() -- los brazos de los demás jugadores

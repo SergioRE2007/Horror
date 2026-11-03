@@ -47,7 +47,8 @@ local function raizDe(jugador: Player): BasePart?
 	return jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 end
 
--- Velocidad y salto según lo que lleva y si tiene la mochila abierta (Mochila también lo llama).
+-- Velocidad y salto según lo que lleva, si tiene la mochila abierta o si va agachado (Mochila y Postura también lo
+-- llaman).
 function Cargar.ajustarVelocidad(jugador: Player)
 	local humanoide = humanoideDe(jugador)
 	if not humanoide then
@@ -59,6 +60,10 @@ function Cargar.ajustarVelocidad(jugador: Player)
 	end
 	if jugador:GetAttribute("Trabajando") then
 		factor, salto = 0, false
+	end
+	-- Agachado (14.6, lo pone Postura): anda más despacio. Saltar le levanta (PosturaVista).
+	if jugador:GetAttribute("Agachado") then
+		factor = math.min(factor, Config.Postura.Velocidad)
 	end
 	local agarre = agarres[jugador]
 	if agarre then
