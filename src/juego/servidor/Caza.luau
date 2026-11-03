@@ -63,6 +63,7 @@ export type Bicho = typeof(setmetatable({} :: {
 	rumboMejor: number, -- lo más cerca que ha estado de él
 	rumboDesde: number, -- os.clock desde el que no se acerca más
 	rumboVisto: number, -- os.clock de la última vez que fue hacia él
+	sinSalida: Vector3?, -- el último borde al que no llegó (no lo vuelve a elegir)
 }, Caza))
 
 -- Debajo de los muebles. Números a ojo.
@@ -294,6 +295,7 @@ function Caza.nuevo(modelo: Model, humanoide: Humanoid, o: Opciones): Bicho
 		rumboMejor = math.huge,
 		rumboDesde = 0,
 		rumboVisto = -math.huge,
+		sinSalida = nil,
 	}, Caza)
 	vivos[b] = true
 	return b
@@ -398,7 +400,8 @@ function Caza.irA(self: Bicho, destino: Vector3, velocidad: number, limite: numb
 end
 
 -- Por dónde se mete a por `jugador`, que tiene la raíz en `p` debajo de un mueble (nil si no está en ninguna zona
--- Debajo). Se guarda por jugador y solo se rehace si él se mueve, cambia de mueble o pasan 2 s.
+-- Debajo). Se guarda por jugador y solo se rehace si él se mueve, cambia de mueble o pasan 2 s. Nunca el último borde
+-- al que no llegó (sinSalida): así prueba por otro lado.
 local function debajoDe(self: Bicho, jugador: Player, p: Vector3): Debajo?
 	local c = self.debajo[jugador]
 	local zona = if c and c.zona.Parent and enZona(c.zona, p, 0.5) then c.zona else zonaDe(p)
@@ -416,9 +419,10 @@ local function debajoDe(self: Bicho, jugador: Player, p: Vector3): Debajo?
 		end
 	end
 	filtroChoque.FilterDescendantsInstances = ignorar -- para todos los sitioLibre de abajo
+	local sinSalida = self.sinSalida
 	local borde, cara = Caza.borde(zona.CFrame, zona.Size, p, self.raiz.Position, self.o.Fuera or FUERA,
 		function(b: Vector3, f: Vector3): boolean
-			return sitioLibre(zona, b, f)
+			return not (sinSalida and (b - sinSalida).Magnitude < 2) and sitioLibre(zona, b, f)
 		end)
 	if c then
 		c.zona, c.punto, c.hora, c.borde, c.cara = zona, p, ahora, borde, cara
@@ -582,6 +586,8 @@ function Caza.aPorDebajo(self: Bicho, presa: Player, bajo: Debajo, paso: ((Bicho
 		self.rumbo, self.rumboMejor, self.rumboDesde = borde, d, ahora
 	elseif ahora - self.rumboDesde > ATASCO then
 		self.rumbo = nil
+		self.sinSalida = borde -- la próxima vez, por otro sitio
+		bajo.hora = -math.huge
 		self.olor[presa] = 0
 		return "Deja"
 	end
