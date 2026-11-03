@@ -1,102 +1,108 @@
-# Seguir la sesión del 03-11-2026 (rama `claude/admiring-bell-jvgvch`, PR #24)
+# Seguir la sesión del 03-11-2026, tarde (rama `claude/admiring-bell-jvgvch`, PR #24)
 
-La sesión fue en la nube, sin Studio. Se paró a mitad de la Fase 3 porque se acababa el uso (pedido por el usuario: "prepara
-el repo para que cuando tenga uso le diga continue y ya sepa qué hacer"). El encargo entero (4 fases) está resumido
-abajo; lo hecho, en los commits de la rama. **Al acabar todo, borrar esta carpeta `docs/continuar/`.**
+Sesión en local con Studio. Se paró por falta de uso (pedido por el usuario: "apunta por donde nos hemos quedado y
+prepara un prompt para cuando se me vuelva a reiniciar el uso"). **Al acabar todo, borrar esta carpeta.**
 
 ## 0. Antes de nada
 
-Sergio sigue **en local, en su ordenador con Roblox Studio** (dicho por el usuario, 03-11-2026). Allí:
-1. Esta vez NO `git switch main`: `git fetch origin` y `git switch claude/admiring-bell-jvgvch` y `git pull` (seguir en
-   esa rama: los commits se suman a la PR #24; no tocar `main` ni juntar sin preguntar).
-2. Selene y Lune con Rokit, como siempre (`selene src`, `lune run tests/regressions.luau`). `tools/nube/herramientas.sh`
-   es solo para las sesiones en la nube (y entonces los scripts se lanzan con `args: { grupos: [...], nube: true }`).
-3. Rojo y Studio como dice el `CLAUDE.md` ("Al empezar una sesión"). El lobby se prueba en su propia ventana de Studio
-   (`docs/sistemas/datos.md`: `rojo build lobby.project.json -o lobby.rbxl` y servirlo a mano en el puerto 34873).
-4. Ahora sí se puede probar: después de juntar cada grupo, probarlo en Studio (Play) antes del commit, como en el flujo
-   del `CLAUDE.md`. Los agentes no le dan a Play (solo uno a la vez: el principal). Lo que ya está subido sin probar
-   (Fase 1, lobby, escondite y casa) está en la lista "Pendientes para Studio" de `TASKS.md`: probarlo también.
-5. Workflow: a la vez corren como mucho (núcleos - 2) agentes por Workflow (en la nube eran 2): si hay pocos núcleos,
-   lanzar varios Workflow a la vez con 2 grupos cada uno. Ningún archivo en dos agentes a la vez.
+- `git fetch` y `git switch claude/admiring-bell-jvgvch` y `git pull` (seguir en esa rama; los commits se suman a la PR #24).
+- Rojo de la partida: tarea "Rojo Horror" (puerto 34872). El lobby se sirve a mano: `rojo serve lobby.project.json`
+  (34873); ventanas de Studio con `Start-Process juego.rbxl` y `Start-Process lobby.rbxl`, y Sergio pulsa Connect.
+- Agentes: con esfuerzo **alto** (no max: pedido por el usuario, gasta demasiado), commits frecuentes de solo sus
+  archivos (`git commit -- <rutas>`) y una nota suya en `docs/continuar/<grupo>.md` al día.
+- Trucos nuevos de Studio (ya en `CLAUDE.md`): `execute_luau` devuelve la cámara a Custom si el script la cambia
+  (lanzar con `task.delay`); `user_mouse_input` va en coordenadas de la GUI (~56 px más arriba que la captura).
 
-En una sesión en la nube (sin Studio): `bash tools/nube/herramientas.sh` deja selene y lune en `/tmp/herramientas/bin`
-y el `roblox.yml`, y nada se puede probar en el juego.
+## 1. Hecho en esta sesión (commits, probado en Studio salvo lo dicho)
 
-## 1. Lo que queda de la Fase 3 (inmersión en la partida), a medias en parches
+- `c56b347` Lobby: arreglos de la revisión (máquina en la nevera, banco en la papelera, faros de la copia, puerta,
+  clima). `0057fe9` Lobby: CochesUi y TiendaUi al estilo oscuro, a prueba de doble toque, y bajar del coche por la
+  puerta (fallo visto en Studio: al saltar te quedabas dentro del coche).
+- `5f35e6b` Agacharse y asomarse. `f592cba` Manos en la pared. `216c184` Mirilla y cortinas (con el Imitador que se
+  pega a la mirilla). `c9bb0c6` Escondite y casa: arreglos de la revisión (sin probar el streaming de verdad).
+- `12ecc97` Esconderse agachado (a medias): reglas puras con pruebas, números en `Config.Postura` y mesas con hueco
+  (`Mapa`, `HUECOS`: comedor 2,84 y cocina 3,29, zonas "Debajo").
+- Revisados con `reviewer` y arreglados sus GRAVE y MEDIO: lobby, interfaz del lobby, agacharse, pared, mirilla,
+  escondite y casa, y los seis bichos.
 
-Cada grupo está guardado en `docs/continuar/<grupo>.patch` (sobre la rama tal cual; aplican limpios con
-`git apply docs/continuar/<grupo>.patch`). Las órdenes exactas de cada agente están en `docs/continuar/fase3.js`
-(script de Workflow, con un aviso de "sigue desde lo que hay"). Para seguir: aplicar los parches y lanzar
-`Workflow({ scriptPath: "docs/continuar/fase3.js", args: ["cuerpo", "paredes"] })`, y en otros Workflow a la vez
-`["mirar", "lobbyui"]` y `["bichos1", "bichos2"]`.
+## 2. A medias: esconderse agachado (pedido por el usuario, 03-11-2026)
 
-| Grupo | Qué es (pedido por el usuario) | Archivos | Estado al parar |
-|---|---|---|---|
-| `cuerpo` | Agacharse (C / Ctrl / ButtonB y botón en el móvil) y asomarse (Z / X) | `PosturaVista` (nuevo), `servidor/Postura` (nuevo), `shared/PosturaReglas` (nuevo, puro), `CuerpoVista`, `BrazosVista`, `tests/regressions.luau` | Reglas y sus pruebas hechas (Lune: 796 comprobaciones bien); lo demás a medias |
-| `paredes` | Manos que se apoyan en la pared y se agarran a la esquina al asomarse | `Manos`, `ManosGestos` | A medias |
-| `mirar` | Mirar por la mirilla de la puerta principal y entre las cortinas (útil con el Imitador) | `MirarVista` (nuevo) | A medias |
-| `bichos1` | Golpeador, Raspador y Trepador con más vida mientras esperan | `GolpeadorVista`, `RaspadorVista`, `TrepadorVista` | Golpeador y Raspador a medias; Trepador sin empezar |
-| `bichos2` | Imitador, Acechador y Bestia con más vida; el Imitador reacciona a la mirilla | `ImitadorVista`, `AcechadorVista`, `BestiaVista` | A medias; **BestiaVista no pasa selene** (se paró en mitad de un cambio) |
-| `lobbyui` | La interfaz del lobby (CochesUi, TiendaUi) al estilo oscuro y bien en el móvil | `CochesUi`, `TiendaUi` | Muy avanzado (TiendaUi casi rehecha) |
+"agacharte también debería servir para esconderte, por ejemplo debajo de mesas, y que el monstruo pueda gatear si te
+huele con una animación guapa para pillarte debajo de sitios… que sea útil agacharte es la finalidad".
 
-Lo que hay que poner a mano al acabar (lo hace el principal, no los agentes):
-- `init.server.luau`: `require(Sistemas.Postura).start()`. `init.client.luau`: `PosturaVista` y `MirarVista`.
-- `Cargar.ajustarVelocidad`: agachado anda a `Config.Postura.Velocidad` (Config.Postura y el remote Postura ya existen).
-- `LangEs`: "Crouch" → "Agacharse"; "Look through" → "Mirar por la mirilla"; "Peek" → "Mirar entre las cortinas"
-  (o lo que digan los agentes en su respuesta).
-- `docs/sistemas/manos.md`: un párrafo por grupo (lo devuelve cada agente).
+Contrato: agachado, lo que choca del cuerpo no pasa de `Config.Postura.Alto` (2,6) y cabes bajo las mesas con zona
+"Debajo"; el servidor pone `Cubierto` en el jugador (agachado con la raíz en una zona). Los bichos te ven y oyen peor
+agachado (`PosturaReglas.alcanceVista/alcanceOido`); cubierto solo muy de cerca, pero te huelen (`oler`/`huele`): van
+al borde del mueble, ponen en su modelo `Gatea` (Vector3) y `GateaHora`, y a `Config.Postura.Gatear` s te pillan
+(Muerte.matar) o lo dejan si sales y te alejas. Cada Vista anima su gateo mientras haya `Gatea`.
 
-Ya hecho de la Fase 3 (commits `1c5b307` y `eb6ed89`): respiración contenida en el escondite y ver esconderse a los
-demás (`EsconditeVista`), y la casa que reacciona más (mecedoras, vajilla que tintinea, polvo en el haz, corriente en
-las cortinas) con el arreglo de la mirada que se desviaba con los temblores.
+Estado de cada parte (cada agente lo apunta en su nota de esta carpeta):
+- Cuerpo (`PosturaVista`, `CuerpoVista`, `BrazosVista`, `servidor/Postura`, `MuerteVista`): `cuerpo.md`.
+- Bichos en el servidor (`Caza`, `Bestia`): `caza.md`.
+- Gateo de Golpeador, Raspador y Trepador (y su vida de espera, ya hecha y revisada): `bichos1.md`.
+- Gateo de Imitador y Bestia (y la vida de espera de los tres, con el Acechador): `bichos2.md`.
 
-## 2. Revisión del lobby (a medias)
+Lo que falte de cada parte: relanzar su agente (esfuerzo alto) con su nota y "sigue desde lo que hay". Luego, el
+principal: párrafos en `docs/sistemas/manos.md` y `bichos.md`, `selene src` y Lune, y **probar en Studio**: entrar
+agachado bajo la mesa del comedor (personaje en `CFrame.lookAt(Vector3.new(-20.5, 4, -17.7), Vector3.new(-26, 4, -17.7))`,
+agacharse y andar hacia -X: debe salir `Cubierto`), que no te puedas levantar debajo, y un bicho
+(`ServerStorage.Prueba:Fire("Noche")` y `("Ataque", punto)`) que te huela y gatee; también poner `Gatea` y `GateaHora`
+a mano en un bicho para ver la animación. Después, `reviewer` sobre todo esto, arreglar GRAVE y MEDIO, commit.
+La vida de espera de los seis bichos aún no se ha visto en Studio: mirarla también (pasos en `bichos1.md` y
+`bichos2.md`).
 
-Se revisó el lobby nuevo con 4 agentes `reviewer`; solo se verificó el grupo del mapa base (sus dos MEDIO eran falsos).
-Quedan por verificar y arreglar estos MEDIO (y los LEVE, si son de pocas líneas):
-- `GasolineraFuera.luau:~1032`: la máquina expendedora se mete dentro de la nevera de hielo de la tienda.
-- `GasolineraFuera.luau:~1007`: el banco choca con la papelera de la acera de la tienda.
-- `SalidaVista.luau:~571`: el parpadeo de faros y pilotos de la copia parte de colores equivocados.
-- `lobby/cliente/init.client.luau:11`: un `require` o `start()` que falle deja sin arrancar los sistemas de detrás
-  (proteger cada uno con `pcall` y `warn`, como en el servidor).
-- LEVE: la puerta automática se pasa de su sitio; la sombra solo mira si estás en la tienda; `Resume()` del zumbido
-  en cada fotograma; un fallo puntual apaga una parte del clima; `Volume` escrito cada fotograma; Sonido (la primera
-  grabación nunca es la 1, WorldPosition antes del padre, `tocar` que no se borra); Bucle crea una tabla por fotograma.
-Para hacerlo con agentes: `Workflow({ scriptPath: "docs/continuar/revisar-lobby.js" })` (revisa, verifica y arregla
-solo; tarda). Antes, aplicar y terminar `lobbyui`, que toca CochesUi/TiendaUi.
-- Idea pendiente del lobby: cuando el coche se va de verdad, el coche real reaparece de golpe en su plaza para quien
-  mira desde fuera (el diseño dice "nada que aparezca de golpe"): que llegue uno conduciendo desde la carretera.
+## 3. Fase 4 (sin empezar)
 
-## 3. Fase 4 (cierre), sin empezar
-
-1. Agente `reviewer` sobre todo lo nuevo de la rama (`git diff main...HEAD`, por grupos de archivos); arreglar GRAVE y
-   MEDIO; un commit por tema.
-2. En local: probar en Studio lo de "Pendientes para Studio" de `TASKS.md` (skill `roblox-playtest-qa`; partida con
-   `Config.Test`, lobby en su ventana), retocar lo que se vea mal (poses de las manos, luces, lluvia, cinemática) y
-   quitar de la lista lo probado. Lo que solo va publicado (teletransporte, compras, DataStores), decirlo como no probado.
-3. Docs: `docs/sistemas/manos.md` (lo de la Fase 3), `miedo.md` (sonidos que faltan), `TASKS.md` (marcar lo hecho y
-   la lista de pendientes para Studio), y borrar `docs/continuar/`.
-4. Push y descripción de la PR #24 al día (en local, `gh pr edit`).
-5. Entregar a Sergio, en español y corto: qué se ha hecho por fases, los fallos arreglados por prioridad, qué probar
-   en Studio con pasos, las ideas no hechas y los sonidos o imágenes que faltan.
+1. Probar en Studio lo de "Pendientes para Studio" de `TASKS.md` (lo más importante: el tutorial con
+   `Config.Test.Tutorial = true` para que Sergio lo apruebe; el Acechador que no va a por quien está en la torre, las
+   esquinas o el garaje; las cerillas si amanece con el fuego en marcha; las teclas V, K y P). Del lobby falta el
+   emulador de móvil, dos jugadores, la sombra y Rendimiento.
+2. Docs al día y `TASKS.md` (14.6 segunda tanda, 14.7 lobby y la lista de pendientes); borrar `docs/continuar/`.
+3. Push y descripción de la PR #24 (`gh pr edit 24 --body-file ...`).
+4. Juntar en `main` (pedido por el usuario: "me gustaría que se juntaran todas las ramas ya en main, hay demasiadas
+   ramas y borrar las obsoletas"), preguntando antes de juntar:
+   - PR #24: `gh pr merge 24 --squash --delete-branch`.
+   - `paso-11-salas` (0 commits por delante de main): borrar local y remota.
+   - `sala-desvan`, `sala-detalles`, `sala-garaje`, `sala-ninos`, `sala-pistas`, `sala-sotano` (remotas, 1 commit
+     cada una) y `base` (con la PR #1 abierta): ver con `git diff origin/main...origin/<rama> --stat` si lo suyo ya
+     está en main (salas de la 11.x, juntadas a mano). Si ya está, borrarlas y cerrar la PR #1; si no, decírselo a
+     Sergio antes de juntar nada.
+5. Entregar a Sergio, en español y corto: qué se ha hecho por fases, fallos arreglados por prioridad, qué está probado
+   en Studio y qué falta, ideas no hechas y sonidos o imágenes que faltan.
 
 ## Notas para el resumen final
 
-- Revisión de la Fase 1: 76 hallazgos, 75 confirmados por un verificador escéptico (3 GRAVE, 26 MEDIO, 46 MENOR);
-  arreglados todos los GRAVE y MEDIO y casi todos los MENOR, en 14 commits. Los 3 GRAVE: el coche del lobby que se
-  quedaba inservible tras un viaje, el Acechador que mataba dentro de la casa (torre, esquinas, lavadero) y las
-  cerillas que se perdían si amanecía con el fuego camino del sótano (sin final de la Bestia).
-- MENOR sin arreglar: las manos pueden agarrar el tablón de otro (`ManosGestos`, haría falta un atributo `Quien` en el
-  agarre desde `Cargar.coger`); posible pérdida de la mochila guardada si alguien se va antes de cargar la partida
-  (`Partida`, sin comprobar).
-- Ideas no hechas: tropezar o frenar al correr cansado (no hay sistema de cansancio ni de correr: sería cambiar la
-  jugabilidad, preguntar a Sergio).
-- Teclas nuevas: V revivir a un compañero (cruceta izquierda), K saltar el tutorial (cruceta derecha), P ajustes; y las
-  de la Fase 3 (C/Ctrl/ButtonB agacharse, Z/X asomarse, la de mirar que elija el agente de `mirar`).
+- Fallos arreglados que salieron en Studio: bajar del coche del lobby (te quedabas dentro). Y del agente de los
+  bichos: las juntas del Golpeador y del Raspador recibían NaN (salían rotos) hasta la primera sacudida.
+- Ideas no hechas: tropezar o frenar al correr cansado (no hay sistema de correr: preguntar a Sergio); que en el
+  lobby llegue un coche conduciendo cuando uno se va (ahora reaparece de golpe para quien mira desde fuera).
 - Sonidos que faltan (ElevenLabs): del lobby `Config.SonidosLobby` (Lluvia, LluviaChapa, Trueno, Radio, Campanilla,
-  Arranque); de la partida, en `Config.Sonidos` con Id 0 (Respiracion, Contener, Exhalar, Mirilla, Vajilla, Mecedora);
-  y los 8 provisionales de 14.3 que ya estaban apuntados.
-- Lune 0.10.5 tiene un fallo en `CFrame.lookAt` mirando justo hacia ±Z (lo notaron tres agentes): no afecta al juego,
-  solo a las pruebas que lo usen.
-- Copia de seguridad del árbol a medias, por si un parche no aplicara: no la hay en el repo (estaba en el scratchpad
-  de la sesión, que se pierde); los parches son la única copia.
+  Arranque); de la partida con Id 0 en `Config.Sonidos` (Respiracion, Contener, Exhalar, Mirilla, Vajilla, Mecedora,
+  Resoplido) y los 8 provisionales de 14.3. Un sonido de clic o de sello para los botones de la tienda (idea del
+  agente de la interfaz del lobby).
+- Las cabezas de bloques provisionales se ven poco miedosas en la mirilla (el Imitador): cuando haya modelos de
+  verdad, mirarlo otra vez.
+
+## Prompt para la próxima sesión (copiar y pegar)
+
+```
+Seguimos con el juego de terror en local con Roblox Studio, en la rama claude/admiring-bell-jvgvch (PR #24). Lee
+primero CLAUDE.md, TASKS.md y docs/continuar/LEEME.md con las notas de esa carpeta: ahí está qué se ha hecho, qué
+queda y cómo seguir.
+
+Trabaja de forma autónoma como un senior developer. Usa los agentes que hagan falta con esfuerzo alto (no max), sin
+dos agentes en el mismo archivo, con commits frecuentes de solo sus archivos y su nota al día. Los agentes no le dan
+a Play: Play solo lo usa la conversación principal.
+
+1. Termina "esconderse agachado" (debajo de las mesas, y los bichos que huelen y gatean): relanza lo que falte de cada
+   parte, júntalo, pruébalo en Studio con el gateo de los bichos y mira también la vida de espera de los seis bichos.
+   Reviewer, arregla lo GRAVE y lo MEDIO, y commit.
+2. Fase 4: prueba en Studio lo más importante de "Pendientes para Studio" de TASKS.md, pon al día los docs y
+   TASKS.md, borra docs/continuar/, haz push y actualiza la descripción de la PR #24.
+3. Junta todo en main y borra las ramas obsoletas como dice el LEEME (pregúntame antes de juntar).
+
+Antes de cada commit: selene src y lune run tests/regressions.luau en verde. Un commit por tema.
+
+Al acabar, dame en español y corto: qué se ha hecho, los fallos arreglados por prioridad, qué está probado en Studio
+y qué falta, las ideas no hechas y los sonidos o imágenes que faltan para ElevenLabs o ChatGPT.
+```
