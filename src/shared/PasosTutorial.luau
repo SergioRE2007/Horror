@@ -4,7 +4,8 @@
 --   De día, en orden: abrir la mochila, coger un hacha, talar y cargar un tronco, serrarlo y arrancar el generador. Si
 --   ya estaba hecho (el generador encendido, el hacha en la mochila) se salta solo.
 --   Al ponerse el sol (Config.Ciclo.Aviso s antes) se dejan los del día y se pasa a cerrar las cortinas de abajo; con
---   todas cerradas, "aguanta hasta el amanecer". Al amanecer se acaba (y Tutorial da el premio).
+--   todas cerradas, "aguanta hasta el amanecer". Al amanecer se acaba (y Tutorial da el premio), solo si las cerró:
+--   quedarse quieto hasta el amanecer no lo acaba.
 --   Si mueren todos y se vuelve al principio del día, se vuelve a los pasos del día que falten.
 local PasosTutorial = {}
 
@@ -61,10 +62,11 @@ function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 	local anochece = v.fase == "Noche" or (v.fase == "Dia" and v.quedan <= v.aviso)
 	if not anochece then
 		if e.noche then
-			if v.noche > e.noche then
-				return true -- ha amanecido tras la noche que le enseñaba
+			if v.noche > e.noche and h.Cortinas then
+				return true -- ha amanecido tras la noche que le enseñaba, con las cortinas cerradas
 			end
-			-- Ha vuelto el mismo día (han muerto todos): otra vez lo del día y las cortinas de esa noche.
+			-- Ha vuelto el mismo día (han muerto todos) o ha amanecido sin cerrar las cortinas: otra vez lo del día
+			-- que falte y las cortinas de la noche que viene. Sin hacer nada no se cobra el premio.
 			e.noche, h.Cortinas = nil, nil
 		end
 		for _, paso in PasosTutorial.DIA do
@@ -78,7 +80,10 @@ function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 	end
 
 	if e.noche and v.noche > e.noche then
-		return true -- ya es el día siguiente (aunque se haya visto tarde, con el sol bajando otra vez)
+		if h.Cortinas then
+			return true -- ya es el día siguiente (aunque se haya visto tarde, con el sol bajando otra vez)
+		end
+		e.noche = nil -- la noche nueva cuenta como la suya
 	end
 	e.noche = e.noche or v.noche
 	if v.cortinas <= 0 then

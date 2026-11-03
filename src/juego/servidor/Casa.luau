@@ -325,7 +325,7 @@ local function prepararClavar(jugador: Player, el: Instance, pieza: BasePart): (
 end
 
 -- Una ventana o puerta que ya se está clavando: si llegaba otro con un tablón, el suyo se gastaba sin hacer nada.
-local clavando: { [Instance]: boolean } = {}
+local clavando: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 local function empezarClavar(jugador: Player, el: Instance, pieza: BasePart): (CFrame?, number?)
 	if clavando[el] then
