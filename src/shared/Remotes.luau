@@ -43,6 +43,7 @@ local NOMBRES = {
 	-- Tutorial (14.2).
 	"Tutorial", -- cliente -> servidor: ("Saltar") no quiero el tutorial (juego/servidor/Tutorial)
 	"Mirar", -- cliente -> servidor: (jugador vivo) de muerto, a quién sigue mi cámara (Muerte: el mapa por partes carga ahí)
+	"Mirada", -- cliente -> servidor: (radianes) cuánto miro hacia arriba o abajo; Equipo lo publica en el atributo Mirada
 }
 
 local Remotes = {}
