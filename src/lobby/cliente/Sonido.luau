@@ -72,8 +72,9 @@ local function copia(nombre: string): Sound?
 	end
 	local n = 1
 	if #lista > 1 then
-		n = azar:NextInteger(1, #lista - 1)
-		if n >= (ultima[nombre] or 0) then
+		local antes = ultima[nombre] -- nil la primera vez: vale cualquiera
+		n = azar:NextInteger(1, if antes then #lista - 1 else #lista)
+		if antes and n >= antes then
 			n += 1 -- se salta la de la vez anterior
 		end
 	end

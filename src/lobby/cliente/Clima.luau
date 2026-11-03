@@ -1072,19 +1072,26 @@ end
 
 -- SONIDOS ---------------------------------------------------------------------------------------------------------
 
+-- Solo si cambia de verdad: ya en su sitio, no se toca la propiedad en cada fotograma.
+local function ponerVolumen(s: Sound, v: number)
+	if math.abs(s.Volume - v) > 0.002 then
+		s.Volume = v
+	end
+end
+
 local function volumenes(dt: number)
 	local k = math.min(1, dt * 3)
 	for clave, quiere in objetivo do
 		volumen[clave] += (quiere - volumen[clave]) * k
 	end
 	if lluvia then
-		lluvia.Volume = Config.SonidosLobby.Lluvia.Volumen * volumen.Lluvia
+		ponerVolumen(lluvia, Config.SonidosLobby.Lluvia.Volumen * volumen.Lluvia)
 	end
 	if vientoSonido then
-		vientoSonido.Volume = Config.Sonidos.Viento.Volumen * volumen.Viento
+		ponerVolumen(vientoSonido, Config.Sonidos.Viento.Volumen * volumen.Viento)
 	end
 	for _, s in chapas do
-		s.Volume = Config.SonidosLobby.LluviaChapa.Volumen * volumen.Chapa
+		ponerVolumen(s, Config.SonidosLobby.LluviaChapa.Volumen * volumen.Chapa)
 	end
 end
 
@@ -1130,16 +1137,22 @@ end
 
 -- ARRANQUE --------------------------------------------------------------------------------------------------------
 
-local rotos: { [string]: boolean } = {}
--- Un trozo que falla avisa una vez y se deja de hacer, sin parar lo demás (Bucle quitaría toda la tarea).
+local avisados: { [string]: boolean } = {}
+local pausa: { [string]: number } = {} -- hasta cuándo se salta un trozo que acaba de fallar
+-- Un trozo que falla avisa una vez y se salta un par de segundos, sin parar lo demás (Bucle quitaría toda la tarea);
+-- luego se vuelve a intentar: un fallo suelto no lo apaga para siempre (ni se repite en cada fotograma si sigue mal).
 local function seguro(nombre: string, fn: (...any) -> (), ...: any)
-	if rotos[nombre] then
+	local ahora = os.clock()
+	if ahora < (pausa[nombre] or 0) then
 		return
 	end
 	local ok, fallo = pcall(fn, ...)
 	if not ok then
-		rotos[nombre] = true
-		warn(`[Clima] {nombre}: {fallo}`)
+		pausa[nombre] = ahora + 2
+		if not avisados[nombre] then
+			avisados[nombre] = true
+			warn(`[Clima] {nombre}: {fallo}`)
+		end
 		if nombre == "Relampago" then
 			pcall(restaurar)
 		end

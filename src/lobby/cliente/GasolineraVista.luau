@@ -482,7 +482,8 @@ type Puerta = {
 local puertas: { [Model]: Puerta } = {}
 local HOJAS = { "Hoja1", "Hoja2" }
 
--- Suave y, al final, un tironcito con un pelín de rebote (puerta automática vieja). u de 0 a 1.
+-- Suave y, al final, un tironcito con un pelín de rebote (puerta automática vieja). u de 0 a 1. Nunca pasa de 1: llega
+-- al tope y rebota un poco hacia atrás (si se pasara, al cerrarse las dos hojas se meterían una en la otra).
 local function curva(u: number): number
 	if u >= 1 then
 		return 1
@@ -492,7 +493,8 @@ local function curva(u: number): number
 		return 0.93 -- el motor duda
 	end
 	local k = (u - 0.88) / 0.12
-	return 0.93 + 0.07 * (1 - (1 - k) ^ 3) + 0.035 * math.sin(k * math.pi)
+	local v = 0.93 + 0.07 * (1 - (1 - k) ^ 3) + 0.035 * math.sin(k * math.pi) -- sube hasta ~1,03
+	return if v > 1 then 2 - v else v
 end
 
 -- La hoja y su sitio cerrada (puede llegar después que el modelo, o volver a llegar con el mapa por partes).

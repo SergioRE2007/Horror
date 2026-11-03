@@ -128,6 +128,9 @@ local vigilados: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) ::
 -- Dónde están los limpias de cada coche respecto a su carrocería cuando están quietos (GasolineraVista los mueve con
 -- gente dentro; la copia los quiere en su sitio).
 local reposo: { [Instance]: { [BasePart]: CFrame } } = setmetatable({}, { __mode = "k" }) :: any
+-- Y el color de sus faros y pilotos apagados (GasolineraVista los aclara con gente dentro; la copia parpadea desde
+-- apagados).
+local apagados: { [Instance]: { [BasePart]: Color3 } } = setmetatable({}, { __mode = "k" }) :: any
 local capaNegro: ScreenGui
 local negro: Frame
 local tweenNegro: Tween? = nil
@@ -429,6 +432,27 @@ local function apuntarReposo(modelo: Model)
 		end
 	end
 	reposo[modelo] = apuntadas
+end
+
+-- Si alguna luz de la pieza está encendida.
+local function encendida(parte: BasePart): boolean
+	for _, l in parte:GetDescendants() do
+		if l:IsA("Light") and l.Enabled then
+			return true
+		end
+	end
+	return false
+end
+
+-- Apunta el color de los faros y pilotos de un coche (al verlo por primera vez; los que ya estén encendidos, no).
+local function apuntarApagados(modelo: Model)
+	local colores = {}
+	for _, d in modelo:GetDescendants() do
+		if (d.Name == "Faro" or d.Name == "Piloto") and d:IsA("BasePart") and not encendida(d) then
+			colores[d] = d.Color
+		end
+	end
+	apagados[modelo] = colores
 end
 
 -- La copia que se mueve: sin asientos, prompts, scripts, juntas ni sonidos, sin etiquetas (que ningún otro sistema la
@@ -971,19 +995,26 @@ local function preparar(s: Salida)
 	local _, _, psi1 = enCamino(s.camino, 1)
 	s.curva0 = psi1
 
-	-- Los limpias del coche de verdad, en su sitio antes de copiarlo.
+	-- Lo que se le cambia al coche de verdad (s.guardado) vuelve al acabar, aunque falle lo de después.
+	table.insert(s.devolver, function()
+		devolverGuardado(s.guardado)
+		modelo:SetAttribute("SaliendoLocal", nil)
+	end)
+	-- Antes de copiarlo, sus limpias en su sitio y sus faros y pilotos apagados (con gente dentro, GasolineraVista los
+	-- tiene encendidos: la copia los apuntaría encendidos y parpadearía mal).
 	for parte, relativo in reposo[modelo] or {} do
 		if parte.Parent then
 			parte.CFrame = carroceria.CFrame * relativo
 		end
 	end
+	for parte, color in apagados[modelo] or {} do
+		if parte.Parent then
+			cambiar(s.guardado, parte, "Color", color)
+		end
+	end
 	local copia = hacerCopia(modelo)
 
 	-- El de verdad, escondido en este cliente (GasolineraVista no lo toca mientras) y sin prompt.
-	table.insert(s.devolver, function()
-		devolverGuardado(s.guardado)
-		modelo:SetAttribute("SaliendoLocal", nil)
-	end)
 	modelo:SetAttribute("SaliendoLocal", true)
 	esconder(modelo, s.guardado, true)
 	for _, d in modelo:GetDescendants() do
@@ -1108,6 +1139,7 @@ local function registrar(objeto: Instance)
 	local modelo = objeto :: Model
 	vigilados[modelo] = true
 	apuntarReposo(modelo)
+	apuntarApagados(modelo)
 	local function mirar()
 		local hora = modelo:GetAttribute("Salida")
 		local s = salidas[modelo]
