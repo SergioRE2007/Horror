@@ -137,6 +137,13 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 - Aviso suelto del asset 203785492 en la consola.
 - **Estado:** hecho (`docs/sistemas/movil.md`, `ajustes.md`, `rendimiento.md`; probado en Studio en PC el 02-11-2026; el HUD táctil, sin probar aún con el emulador de teléfono). Mapa por partes (StreamingEnabled) preparado pero apagado: antes hay que poner Atomic los bichos (ver `rendimiento.md`)
 
+### Pendientes para Studio (sesión en la nube del 03-11-2026, sin Studio)
+- Probar el tutorial (`Config.Test.Tutorial = true`, `docs/sistemas/tutorial.md`) y que Sergio lo apruebe.
+- Probar los arreglos de la revisión del código (commits de la rama `claude/admiring-bell-jvgvch`): morir todos justo
+  antes de anochecer, botón de reiniciar quitado, dos bichos a la vez, bengala a la cabeza de la Bestia, fuego
+  cancelado, mochila grande al volver a una partida, dos jugadores clavando la misma ventana, "Wait for her" con el
+  Carpintero.
+
 ### 14.5 Partida entera de prueba
 - Una partida de principio a fin sin órdenes de prueba: ritmo de días y noches, monedas y precios (skill `roblox-economy-balancing`), fallos que salgan.
 - **Estado:** pendiente
