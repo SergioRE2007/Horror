@@ -130,7 +130,7 @@ local function entregar(jugador: Player, cual: any, id: string): Enum.ProductPur
 		local monedas, frase = 0, "+{monedas} coins"
 		if type(cual) == "table" then
 			monedas = cual.Monedas
-		elseif not encargos[cual].dar(jugador) then
+		elseif not encargos[cual] or not encargos[cual].dar(jugador) then -- sin encargo aquí (el lobby): monedas
 			monedas, frase = C.Reembolso, "It could not be done. You get {monedas} coins."
 		else
 			frase = ""
@@ -160,6 +160,11 @@ local function productoDe(id: number): any
 		if encargo.producto.Id > 0 and encargo.producto.Id == id then
 			return nombre
 		end
+	end
+	-- Un revivir pagado que Roblox entrega en el lobby (pagó y se fue de la partida antes): allí no hay encargo, se
+	-- devuelve en monedas. Antes se quedaba sin entregar para siempre.
+	if C.Revivir.Id > 0 and C.Revivir.Id == id then
+		return "Revivir"
 	end
 	return nil
 end
