@@ -12,6 +12,8 @@
 --   Sostener: la linterna encendida en la izquierda (de ella sale la luz; con poca pila, la sacude), el móvil abierto
 --     en la derecha, la pistola de bengalas, y lo pesado en las dos manos mientras lo llevas.
 --   Foto: las dos manos suben la cámara a la cara (lo pide EquipoVista al hacer la foto).
+--   Cambiar la pila de la linterna o el carrete de la cámara: con las dos manos, todo el rato que dura.
+--   Lo que coges vuela hasta tu mano (una copia: el de verdad lo quita el servidor).
 --   Al salir del escondite, las dos manos empujan para salir. Al morir, las manos se levantan temblando ante el bicho.
 -- Las herramientas (hacha, sierra, martillo, llave) las agarra TrabajoVista con su propia capa.
 local CollectionService = game:GetService("CollectionService")
@@ -112,6 +114,29 @@ local function cerilla(): Model
 	return m
 end
 
+-- Una pila gorda vieja (para cambiar la de la linterna).
+local function pila(): Model
+	local m = Instance.new("Model")
+	m.Name = "PilaMano"
+	local cuerpo = pieza(m, "Cuerpo", Vector3.new(0.34, 0.13, 0.13), ALO_LARGO, Color3.fromRGB(150, 40, 30),
+		Enum.Material.SmoothPlastic, true)
+	m.PrimaryPart = cuerpo
+	pieza(m, "Polo", Vector3.new(0.04, 0.06, 0.06), CFrame.new(0, 0, -0.19) * ALO_LARGO, Color3.fromRGB(180, 170, 150),
+		Enum.Material.Metal, true)
+	return m
+end
+
+-- Un carrete de fotos (para la cámara).
+local function carrete(): Model
+	local m = Instance.new("Model")
+	m.Name = "CarreteMano"
+	local cuerpo = pieza(m, "Cuerpo", Vector3.new(0.26, 0.16, 0.16), ALO_LARGO, Color3.fromRGB(30, 30, 32),
+		Enum.Material.SmoothPlastic, true)
+	m.PrimaryPart = cuerpo
+	pieza(m, "Banda", Vector3.new(0.12, 0.165, 0.165), ALO_LARGO, Color3.fromRGB(190, 150, 40), Enum.Material.SmoothPlastic, true)
+	return m
+end
+
 -- Dónde va cada cosa respecto a la palma (-Z dedos, +Y dorso; el pulgar de la izquierda en +X, el de la derecha en -X).
 -- La linterna, en la izquierda: a lo largo del pulgar (+X de la palma) y por debajo de ella, dentro del puño.
 Manos.cosa("Linterna", linterna, CFrame.new(0, -0.13, 0)
@@ -125,6 +150,12 @@ Manos.cosa("Movil", movil, CFrame.new(0, -0.1, -0.15)
 	* CFrame.fromMatrix(Vector3.zero, Vector3.new(1, 0, 0), Vector3.new(0, 0, -1), Vector3.new(0, 1, 0)))
 -- La cerilla, entre los dedos de la derecha, saliendo hacia delante.
 Manos.cosa("Cerilla", cerilla, CFrame.new(0, -0.05, -0.32))
+-- La pila y el carrete, cogidos con la punta de los dedos.
+Manos.cosa("Pila", pila, CFrame.new(0, -0.1, -0.22))
+Manos.cosa("Carrete", carrete, CFrame.new(0, -0.1, -0.22))
+-- La cámara en la izquierda (para cambiar el carrete con la derecha): como la de la derecha, en espejo.
+Manos.cosa("CamaraIzq", camaraFotos, CFrame.new(0, -0.4, 0)
+	* CFrame.fromMatrix(Vector3.zero, Vector3.new(0, -1, 0), Vector3.new(0, 0, -1), Vector3.new(1, 0, 0)))
 
 -- ===== Ayudas =====
 
@@ -220,10 +251,50 @@ local function puerta(el: Instance)
 	end)
 end
 
--- Coger un objeto suelto: baja la mano, lo coge (el servidor lo quita) y la mano se va hacia el bolsillo.
+-- Una copia de lo que coges (el servidor quita el de verdad enseguida) que va hasta la palma y desaparece con ella
+-- en el bolsillo: que se vea que lo has cogido tú.
+local function copiaDe(objeto: BasePart): BasePart?
+	local ok, copia = pcall(function()
+		local archivable = objeto.Archivable
+		objeto.Archivable = true
+		local c = objeto:Clone()
+		objeto.Archivable = archivable
+		return c
+	end)
+	if not ok or not copia then
+		return nil
+	end
+	local c = copia :: BasePart
+	for _, hijo in c:GetDescendants() do
+		if hijo:IsA("ProximityPrompt") or hijo:IsA("Script") or hijo:IsA("LocalScript") or hijo:IsA("Light")
+			or hijo:IsA("Sound") or hijo:IsA("Constraint") or hijo:IsA("Highlight") then
+			hijo:Destroy()
+		end
+	end
+	c.Anchored, c.CanCollide, c.CanQuery, c.CanTouch = true, false, false, false
+	c.Parent = camara
+	return c
+end
+
+-- Coger un objeto suelto: baja la mano, lo coge (vuela a la palma) y la mano se va hacia el bolsillo.
 local function coger(objeto: BasePart)
 	local donde = objeto.Position
+	local copia = copiaDe(objeto)
+	local desde = objeto.CFrame
 	Manos.gesto("Mano", 0.75, function(_, s)
+		local c = copia
+		if c then
+			local palma = Manos.mano("der")
+			if s >= 0.22 and palma then
+				-- De donde estaba a la mano, y luego pegado a ella hasta el bolsillo.
+				local k = suave((s - 0.22) / 0.14)
+				c.CFrame = desde:Lerp(palma * CFrame.new(0, -0.15, -0.1), k)
+			end
+			if s > 0.62 then
+				c:Destroy()
+				copia = nil
+			end
+		end
 		if s < 0.3 then
 			return { der = Manos.hacia("der", donde + Vector3.new(0, 0.15, 0), "abajo"), velocidad = 18 }
 		elseif s < 0.4 then
@@ -232,6 +303,11 @@ local function coger(objeto: BasePart)
 		local cf = camara.CFrame
 		return { der = Manos.palma(cf * Vector3.new(0.55, -1.0, -0.6), -cf.UpVector + cf.LookVector * 0.3, cf.RightVector),
 			velocidad = 14 }
+	end)
+	task.delay(1, function()
+		if copia then
+			copia:Destroy()
+		end
 	end)
 end
 
@@ -294,6 +370,7 @@ local function esconderse(sitio: Instance)
 			der = Manos.hacia("der", (p :: Vector3) + cf.RightVector * 0.5, "delante"),
 			izq = Manos.hacia("izq", (p :: Vector3) - cf.RightVector * 0.5, "delante"),
 			velocidad = 20,
+			siempre = true, -- también mientras la cámara se mete en el escondite (MuerteVista)
 		}
 	end)
 end
@@ -354,7 +431,7 @@ end
 
 -- ===== Mantener pulsado =====
 
-local sosteniendo: { [ProximityPrompt]: boolean } = {}
+local sosteniendo: { [ProximityPrompt]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 -- La palanca: las dos manos la cogen y tiran de ella hacia ti mientras se mantiene.
 local function palanca(prompt: ProximityPrompt, mando: Instance)
@@ -424,6 +501,8 @@ local function volante(prompt: ProximityPrompt)
 	end)
 end
 
+-- Ojo: se reconoce cada cartel por su ActionText en inglés tal como lo pone el servidor (Casa, Cargar, Mochila,
+-- Generador, Pistas, Preparativos, Coche, Incendio, Taller…). Si se cambia un texto allí, cambiarlo también aquí.
 local function alPulsar(prompt: ProximityPrompt, quien: Player)
 	if quien ~= jugador or prompt.HoldDuration > 0 then
 		return -- los de mantener, en alEmpezarAMantener
@@ -461,7 +540,7 @@ local function alPulsar(prompt: ProximityPrompt, quien: Player)
 end
 
 local function alEmpezarAMantener(prompt: ProximityPrompt, quien: Player)
-	if quien ~= jugador then
+	if quien ~= jugador or prompt.HoldDuration <= 0 then
 		return
 	end
 	sosteniendo[prompt] = true
@@ -538,11 +617,16 @@ end
 
 -- Lo pesado que llevas: las dos manos en su lado más cercano (la pieza la mueve el servidor con física).
 local llevando: BasePart? = nil
+local buscado = 0
 local function buscarPesado(tipo: string): BasePart?
 	if llevando and llevando.Parent and llevando:GetAttribute("Tipo") == tipo
 		and (llevando.Position - camara.CFrame.Position).Magnitude < 10 then
 		return llevando
 	end
+	if os.clock() - buscado < 0.25 then
+		return nil -- buscar entre todas las piezas, como mucho cuatro veces por segundo
+	end
+	buscado = os.clock()
 	local mejor, distancia = nil, 10
 	local cf = camara.CFrame
 	for _, p in CollectionService:GetTagged("Pesado") do
@@ -581,6 +665,61 @@ local function capaCargar(): Manos.Pose?
 		izq = Manos.palma(izq + fuera(izq) * 0.12, cf.LookVector - cf.UpVector * 0.3, fuera(izq)),
 		velocidad = 22,
 	}
+end
+
+-- Cambiar la pila (atributo Cambiando = "Pila", Config.Linterna.Cambiar s): la linterna en la izquierda, de lado; la
+-- derecha desenrosca la culata, saca la vieja, mete la nueva y vuelve a enroscar. El carrete (Config.Flash.Cambiar):
+-- la cámara en la izquierda y la derecha abre la tapa, saca el carrete y mete otro.
+local cambioInicio = 0
+local function capaCambiar(): Manos.Pose?
+	local que = jugador:GetAttribute("Cambiando")
+	if que ~= "Pila" and que ~= "Carrete" then
+		cambioInicio = 0
+		return nil
+	end
+	if cambioInicio == 0 then
+		cambioInicio = os.clock()
+	end
+	local dura = if que == "Pila" then Config.Linterna.Cambiar else Config.Flash.Cambiar
+	local k = math.clamp((os.clock() - cambioInicio) / dura, 0, 1)
+	local cf = camara.CFrame
+	if que == "Pila" then
+		-- La linterna atravesada delante, con la culata hacia la derecha.
+		local centro = cf * Vector3.new(-0.15, -0.62, -1.15)
+		local izq = Manos.vara("izq", centro, -cf.RightVector + cf.UpVector * 0.25, -cf.UpVector * 0.4 - cf.LookVector)
+		local culata = cf * Vector3.new(0.32, -0.6, -1.12)
+		local der, cosa
+		if k < 0.3 then -- desenrosca: la muñeca gira
+			der = Manos.hacia("der", culata, "agarra") * CFrame.Angles(0, 0, math.sin(k * 40) * 0.6)
+		elseif k < 0.5 then -- saca la vieja y la deja caer
+			der = Manos.hacia("der", culata + cf.RightVector * 0.25 - cf.UpVector * 0.2 * (k - 0.3) / 0.2, "abajo")
+			cosa = "Pila"
+		elseif k < 0.75 then -- coge la nueva (del bolsillo) y la mete
+			local mete = suave((k - 0.5) / 0.25)
+			der = Manos.hacia("der", culata + cf.RightVector * (0.35 * (1 - mete)) - cf.UpVector * 0.3 * (1 - mete), "dentro")
+			cosa = "Pila"
+		else -- enrosca
+			der = Manos.hacia("der", culata, "agarra") * CFrame.Angles(0, 0, -math.sin(k * 40) * 0.6)
+		end
+		return { izq = izq, cosaIzq = "Linterna", der = der, cosaDer = cosa, velocidad = 18 }
+	end
+	-- El carrete: la cámara en la izquierda, boca abajo; la derecha por detrás.
+	local izq = Manos.palma(cf * Vector3.new(-0.35, -0.7, -1.05), cf.UpVector, -cf.RightVector - cf.LookVector * 0.2)
+	local tapa = cf * Vector3.new(0.05, -0.62, -0.95)
+	local der, cosa
+	if k < 0.25 then
+		der = Manos.hacia("der", tapa, "agarra") * CFrame.Angles(math.rad(-25 * k / 0.25), 0, 0) -- abre la tapa
+	elseif k < 0.5 then
+		der = Manos.hacia("der", tapa + cf.RightVector * 0.3 - cf.UpVector * 0.25, "abajo")
+		cosa = "Carrete"
+	elseif k < 0.8 then
+		local mete = suave((k - 0.5) / 0.3)
+		der = Manos.hacia("der", tapa + (cf.RightVector * 0.35 - cf.UpVector * 0.3) * (1 - mete), "dentro")
+		cosa = "Carrete"
+	else
+		der = Manos.hacia("der", tapa, "delante") -- cierra la tapa de un golpe
+	end
+	return { izq = izq, cosaIzq = "CamaraIzq", der = der, cosaDer = cosa, velocidad = 18 }
 end
 
 -- ===== Lo que piden otros módulos =====
@@ -647,6 +786,7 @@ function ManosGestos.start()
 	Manos.capa("Movil", 20, capaMovil)
 	Manos.capa("Pistola", 25, capaPistola)
 	Manos.capa("Cargar", 30, capaCargar)
+	Manos.capa("Cambiar", 45, capaCambiar)
 	local escondido = jugador:GetAttribute("Escondido") ~= nil
 	jugador:GetAttributeChangedSignal("Escondido"):Connect(function()
 		local ahora = jugador:GetAttribute("Escondido") ~= nil
