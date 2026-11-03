@@ -1094,6 +1094,30 @@ do
 	igual(CP.Giro > 0 and CP.Giro < 30 and CP.Cada > 0 and CP.Cada < 1, true, "postura: ladeo y espera razonables")
 	local remotes = fs.readFile("src/shared/Remotes.luau")
 	igual(string.find(remotes, '"Postura"', 1, true) ~= nil, true, "postura: existe el remote Postura")
+
+	-- Esconderse agachado: debajo de algo solo te ven y te oyen muy de cerca; agachado, peor; te pueden oler.
+	igual(PR.alcanceVista(60, false, false), 60, "esconderse: de pie te ven como siempre")
+	igual(PR.alcanceVista(60, true, false), 60 * CP.VistaAgachado, "esconderse: agachado te ven peor")
+	igual(PR.alcanceVista(60, true, true), CP.VerCubierto, "esconderse: debajo de algo, solo muy de cerca")
+	igual(PR.alcanceVista(2, true, true), 2, "esconderse: nunca más lejos que su vista")
+	igual(PR.alcanceOido(8, false, false), 8, "esconderse: de pie te oyen como siempre")
+	igual(PR.alcanceOido(8, true, false), math.min(8, CP.OirAgachado), "esconderse: agachado te oyen peor")
+	igual(PR.alcanceOido(8, true, true), math.min(8, CP.VerCubierto), "esconderse: debajo de algo casi no te oyen")
+	local olor = 0
+	for _ = 1, 10 do
+		olor = PR.oler(olor, 0.25, CP.Olfato - 1)
+	end
+	igual(olor, 2.5, "esconderse: cerca, el olor sube 1 por segundo")
+	igual(PR.huele(olor), false, "esconderse: aún no sabe dónde estás")
+	igual(PR.oler(olor, 1, CP.Olfato + 1), 2, "esconderse: lejos, se le olvida a la mitad de deprisa")
+	igual(PR.oler(0.1, 1, CP.Olfato + 1), 0, "esconderse: el olor no baja de 0")
+	igual(PR.oler(CP.Huele - 0.1, 1, 0), CP.Huele, "esconderse: el olor no pasa de Huele")
+	igual(PR.huele(PR.oler(CP.Huele - 0.1, 1, 0)), true, "esconderse: a Huele s ya te ha olido")
+	igual(CP.Alto > 1.5 and CP.Alto < 3.2, true, "esconderse: agachado cabe bajo una mesa y no atraviesa nada")
+	igual(CP.VerCubierto < CP.OirAgachado and CP.OirAgachado < 8 and CP.Olfato > CP.VerCubierto, true,
+		"esconderse: cubierto se nota menos que agachado, y agachado menos que de pie")
+	igual(CP.Huele > 0 and CP.Gatear > 0 and CP.VistaAgachado > 0 and CP.VistaAgachado < 1, true,
+		"esconderse: tiempos y vista razonables")
 end
 
 print(`Todo bien: {comprobaciones} comprobaciones.`)

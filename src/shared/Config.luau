@@ -422,6 +422,15 @@ Config.Postura = {
 	Asomar = 1.3, -- studs que se mueve la cabeza de lado al asomarte
 	Giro = 14, -- grados que se ladea al asomarte
 	Cada = 0.15, -- segundos como mínimo entre dos cambios (servidor)
+	-- Esconderse agachado (pedido por el usuario, 03-11-2026: "agacharte también debería servir para esconderte, por
+	-- ejemplo debajo de mesas, y que el monstruo pueda gatear si te huele… que sea útil agacharte es la finalidad").
+	Alto = 2.6, -- studs de alto de lo que choca de tu cuerpo agachado: cabes bajo un tablero algo más alto
+	VistaAgachado = 0.6, -- agachado y sin cubrirte, los bichos te ven a esta parte de su Vista
+	OirAgachado = 4, -- y te oyen a estos studs (de pie, a 8)
+	VerCubierto = 3, -- debajo de algo (atributo Cubierto) solo te ven o te oyen así de cerca
+	Olfato = 14, -- studs a los que un bicho te huele debajo de algo
+	Huele = 5, -- segundos oliéndote hasta saber dónde estás (lejos, se le olvida a la mitad de deprisa)
+	Gatear = 2, -- segundos que tarda en meterse a por ti debajo del mueble (si sales y te alejas antes, lo deja)
 }
 
 Config.Movil = {
@@ -539,6 +548,7 @@ Config.Sonidos = {
 	Mirilla = { Id = 0, Volumen = 0.5, Alcance = 12 }, -- la tapita de metal de la mirilla al apartarla
 	Vajilla = { Id = 0, Volumen = 0.5, Alcance = 30 }, -- platos y vasos que tintinean al temblar (mientras, CristalVibra)
 	Mecedora = { Id = 0, Volumen = 0.6, Alcance = 30 }, -- crujido de la mecedora al mecerse sola (mientras, Cruje)
+	Resoplido = { Id = 0, Volumen = 0.8, Alcance = 40 }, -- la Bestia al soltar el aire (mientras, el Rugido muy grave y cortado)
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.

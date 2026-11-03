@@ -94,4 +94,41 @@ function PosturaReglas.quitar(estado: Estado): Estado
 	return nuevo
 end
 
+-- Esconderse agachado (pedido por el usuario: "que sea útil agacharte"). Lo usan los bichos (Caza, Bestia) con los
+-- atributos Agachado y Cubierto (agachado debajo de un mueble) del jugador.
+
+-- Hasta dónde ve un bicho a un jugador, con `vista` la de siempre (de pie).
+function PosturaReglas.alcanceVista(vista: number, agachado: boolean, cubierto: boolean): number
+	if cubierto then
+		return math.min(vista, Config.Postura.VerCubierto)
+	elseif agachado then
+		return vista * Config.Postura.VistaAgachado
+	end
+	return vista
+end
+
+-- Hasta dónde le oye, con `oido` lo de siempre (de pie).
+function PosturaReglas.alcanceOido(oido: number, agachado: boolean, cubierto: boolean): number
+	if cubierto then
+		return math.min(oido, Config.Postura.VerCubierto)
+	elseif agachado then
+		return math.min(oido, Config.Postura.OirAgachado)
+	end
+	return oido
+end
+
+-- Lo que un bicho lleva oliendo a un jugador escondido debajo de algo, tras `dt` s a `distancia` studs: sube 1 por
+-- segundo a menos de Config.Postura.Olfato y baja a la mitad de deprisa si está más lejos (de 0 a Config.Postura.Huele).
+function PosturaReglas.oler(olor: number, dt: number, distancia: number): number
+	if distancia < Config.Postura.Olfato then
+		return math.min(olor + dt, Config.Postura.Huele)
+	end
+	return math.max(0, olor - dt * 0.5)
+end
+
+-- Ya sabe dónde está (va a por él y gatea para sacarle).
+function PosturaReglas.huele(olor: number): boolean
+	return olor >= Config.Postura.Huele
+end
+
 return PosturaReglas

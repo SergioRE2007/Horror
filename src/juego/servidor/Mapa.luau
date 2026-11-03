@@ -176,9 +176,77 @@ local function mueble(nombre: string, cf: CFrame, tapa: { BasePart }?, padre: In
 	return partes
 end
 
+-- Muebles con hueco debajo donde esconderse agachado (pedido por el usuario, 03-11-2026: "agacharte también debería
+-- servir para esconderte, por ejemplo debajo de mesas… que sea útil agacharte es la finalidad"). En vez de la caja
+-- maciza de `tienda` chocan el tablero (una losa de su cara de abajo hasta arriba, con la planta de la caja de siempre)
+-- y las patas, así que se entra agachado (Config.Postura.Alto) por los lados libres; y en el hueco, entre las patas, una
+-- pieza "Debajo" (etiqueta y atributo Mueble) marca dónde se está cubierto. Medidas de cada malla, sacadas en Blender,
+-- en ejes del molde (pivote abajo en el centro, frente a -Z):
+--   abajo = cara de abajo del tablero; cajas = { x1, x2, y1, y2, z1, z2 } que chocan (patas, caballetes, vigas);
+--   hueco = { x1, x2, z1, z2 } de la zona Debajo, del suelo a `abajo`.
+-- Solo los que dejan Config.Postura.Alto + 0,2 de alto y unos 2,2 × 2,2 libres. No valen el escritorio del rico (bajo
+-- el cajón quedan 2,1), la mesa del revelado (faldones a 2,6 y balda abajo) ni la del té (tablero a 1,6).
+type Hueco = { abajo: number, cajas: { { number } }, hueco: { number } }
+local HUECOS: { [string]: Hueco } = {
+	-- 2,84 bajo el marco del tablero; cuatro patas metidas 1 hacia dentro de las esquinas. El mantel cuelga y no choca.
+	MesaComedorPH = {
+		abajo = 2.84,
+		cajas = {
+			{ -5.22, -4.54, 0, 2.84, -1.82, -1.37 },
+			{ -5.22, -4.54, 0, 2.84, 1.44, 1.92 },
+			{ 4.54, 5.22, 0, 2.84, -1.82, -1.37 },
+			{ 4.54, 5.22, 0, 2.84, 1.44, 1.92 },
+		},
+		hueco = { -4.54, 4.54, -1.37, 1.44 },
+	},
+	-- Mesa de caballetes: 3,29 bajo los travesaños. La viga baja del medio también choca, así que solo se entra en la
+	-- mitad de delante (-Z; la de atrás da a la pared de la cocina).
+	MesaCocinaPH = {
+		abajo = 3.29,
+		cajas = {
+			{ -2.33, -2.11, 0, 3.29, -1.63, 1.61 },
+			{ 2.11, 2.33, 0, 3.29, -1.63, 1.61 },
+			{ -2.11, 2.11, 0.88, 1.49, -0.08, 0.09 },
+		},
+		hueco = { -2.11, 2.11, -1.63, -0.08 },
+	},
+}
+
+-- Caja invisible que choca, en ejes del mueble (`cf`, su pivote): de (x1, y1, z1) a (x2, y2, z2). Como la de `tienda`,
+-- no tapa la vista de los bichos.
+local function choqueEn(cf: CFrame, x1: number, x2: number, y1: number, y2: number, z1: number, z2: number)
+	local p = bloque("Choque", Vector3.new(x2 - x1, y2 - y1, z2 - z1), cf * CFrame.new((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2))
+	p.Transparency = 1
+	p.CanQuery = false
+	p.CanTouch = false
+end
+
+-- Lo que choca de un mueble de HUECOS y su zona Debajo, colgada del modelo para que vaya con la casa (Persistent en
+-- `porPartes`: el cliente la tiene siempre).
+local function conHueco(nombre: string, modelo: Model, cf: CFrame, tam: Vector3, h: Hueco)
+	if h.abajo < Config.Postura.Alto + 0.2 then
+		warn(`[Mapa] {nombre}: debajo no se cabe agachado (Config.Postura.Alto)`)
+	end
+	choqueEn(cf, -tam.X * 0.45, tam.X * 0.45, h.abajo, tam.Y, -tam.Z * 0.45, tam.Z * 0.45)
+	for _, c in h.cajas do
+		choqueEn(cf, c[1], c[2], c[3], c[4], c[5], c[6])
+	end
+	local x1, x2, z1, z2 = h.hueco[1], h.hueco[2], h.hueco[3], h.hueco[4]
+	local zona = bloque("Debajo", Vector3.new(x2 - x1, h.abajo, z2 - z1), cf * CFrame.new((x1 + x2) / 2, h.abajo / 2, (z1 + z2) / 2),
+		nil, nil, modelo)
+	zona.Transparency = 1
+	zona.CanCollide = false
+	zona.CanQuery = false
+	zona.CanTouch = false
+	zona.CastShadow = false
+	zona:SetAttribute("Mueble", nombre)
+	CollectionService:AddTag(zona, "Debajo")
+end
+
 -- Pone un mueble del Creator Store (ServerStorage.Muebles: limpios de scripts, escalados, con el frente hacia -Z y el
 -- pivote abajo en el centro; su tamaño en el atributo Tam) en `cf`. Solo se ve: choca una caja invisible un poco más
--- pequeña, que no tapa la vista de los bichos. Sin la carpeta (lugar sin Rojo) no pone nada.
+-- pequeña, que no tapa la vista de los bichos (o, si tiene hueco debajo, su tablero y sus patas: HUECOS). Sin la
+-- carpeta (lugar sin Rojo) no pone nada.
 local function tienda(nombre: string, cf: CFrame, sinChoque: boolean?): Model?
 	local molde = MUEBLES[nombre]
 	if not molde then
@@ -221,9 +289,14 @@ local function tienda(nombre: string, cf: CFrame, sinChoque: boolean?): Model?
 	modelo.Parent = casa
 	if not sinChoque then
 		local tam = modelo:GetAttribute("Tam") :: Vector3
-		local choque = bloque("Choque", tam * Vector3.new(0.9, 1, 0.9), cf * CFrame.new(0, tam.Y / 2, 0))
-		choque.Transparency = 1
-		choque.CanQuery = false
+		local hueco = HUECOS[nombre]
+		if hueco then
+			conHueco(nombre, modelo, cf, tam, hueco)
+		else
+			local choque = bloque("Choque", tam * Vector3.new(0.9, 1, 0.9), cf * CFrame.new(0, tam.Y / 2, 0))
+			choque.Transparency = 1
+			choque.CanQuery = false
+		end
 	end
 	return modelo
 end
