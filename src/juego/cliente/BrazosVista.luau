@@ -6,9 +6,12 @@
 --   Móvil abierto: el derecho delante, doblado. Una foto: los dos a la cara. Una bengala: el derecho hacia donde da.
 --   Una cortina o una puerta que se mueve junto a él (y más cerca de él que de ti): los brazos hacia ella.
 --   La cabeza (y la linterna), inclinada hacia donde mira arriba o abajo (atributo Mirada, lo manda CuerpoVista).
---   Agachado (atributo Agachado, 14.6): la raíz (Root) más abajo y las caderas, rodillas y tobillos doblados para que
---   los pies sigan en el suelo (C0, suave), con el tronco algo hacia delante. Asomado (atributo Asomado): el tronco
---   ladeado (cintura) hacia ese lado. R6, como está.
+--   Agachado (atributo Agachado, 14.6): su cliente ya le baja de verdad (PosturaVista baja su HipHeight y la física lo
+--   replica), así que aquí no se le baja otra vez: las caderas, rodillas y tobillos (C0, suave) se doblan lo que de
+--   verdad ha bajado su raíz respecto al suelo (un rayo hacia abajo cada MEDIR s) para que los pies sigan en el suelo,
+--   con el tronco algo hacia delante. Debajo de algo (un rayo hacia arriba desde la cintura), se encorva lo que haga
+--   falta para que la cabeza quepa (esconderse debajo de una mesa, pedido por el usuario). Asomado (atributo
+--   Asomado): el tronco ladeado (cintura) hacia ese lado. R6, como está.
 -- Solo los que están a menos de CERCA studs de la cámara.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -17,6 +20,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local PosturaVista = require(script.Parent.PosturaVista)
 local TrabajoVista = require(script.Parent.TrabajoVista)
 
 local BrazosVista = {}
@@ -26,19 +30,29 @@ local camara = workspace.CurrentCamera
 local CERCA = 120
 local SUAVE = 10 -- lo deprisa que gira el hombro hacia su objetivo
 local ABAJO = Vector3.new(0, -1, 0) -- hacia donde cuelga el brazo en el espacio del hombro
-local BAJA_PIERNA = 0.6 -- agachado, la cadera baja esta parte del largo de la pierna (como mucho, Config.Postura.Baja)
 local INCLINA = math.rad(18) -- agachado, el tronco hacia delante
 local LADEO = 1.6 -- asomado, el tronco se ladea esto por los grados de Config.Postura.Giro (la cabeza va más de lado)
+local MEDIR = 0.1 -- s entre dos medidas de lo que ha bajado un agachado y de lo que tiene encima
+local CABEZA_LIBRE = 0.1 -- studs que deja la coronilla bajo lo de arriba al encorvarse
+local ENCORVA = math.rad(70) -- lo más que se encorva debajo de algo
+local LEVANTA = 0.7 -- radianes que, como mucho, levanta la cabeza para seguir mirando al frente encorvado
 
 type Hombro = { motor: Motor6D, original: CFrame, giro: CFrame }
 type Gesto = { hasta: number, der: Vector3?, izq: Vector3? }
 type Junta = { motor: Motor6D, original: CFrame }
 type Pierna = { cadera: Junta, rodilla: Junta, tobillo: Junta?, muslo: number, pierna: number }
 type Postura = {
-	raiz: Junta,
 	cintura: Junta?,
+	cuello: Junta?, -- (solo para medir el tronco: la cabeza la gira cabecear)
+	cabeza: BasePart?,
 	piernas: { Pierna },
-	baja: number, -- studs que baja la cadera del todo agachado
+	largo: number, -- de la cadera al tobillo de la pierna más corta: lo más que se puede doblar
+	tronco: number, -- de la cintura a la coronilla con el tronco derecho (0 si no se sabe)
+	baja: number, -- studs que ha bajado su raíz respecto a de pie (suave)
+	bajaMeta: number, -- lo medido
+	techo: number, -- radianes que se encorva para caber debajo de algo (suave)
+	techoMeta: number, -- lo medido
+	medido: number, -- cuándo se midió (os.clock)
 	t: number, -- 0..1: cuánto está agachado (suave)
 	lado: number, -- -1..1: cuánto está asomado (suave)
 	quieta: boolean, -- todo como lo dejan sus animaciones (no se toca)
@@ -76,10 +90,9 @@ local function juntaDe(personaje: Model, pieza: string, nombre: string): Junta?
 	return nil
 end
 
--- Lo que miden los huesos de las piernas y cómo están las juntas ahora (sin tocar): al preparar y cada vez que se
--- agacha o se asoma (por si el avatar ha cambiado de tamaño). false si algo no tiene sentido.
+-- Lo que miden los huesos de las piernas y del tronco y cómo están las juntas ahora (sin tocar): al preparar y cada
+-- vez que se agacha o se asoma (por si el avatar ha cambiado de tamaño). false si algo no tiene sentido.
 local function medir(p: Postura): boolean
-	p.raiz.original = p.raiz.motor.C0
 	if p.cintura then
 		p.cintura.original = p.cintura.motor.C0
 	end
@@ -98,14 +111,19 @@ local function medir(p: Postura): boolean
 		corta = math.min(corta, pierna.muslo + pierna.pierna)
 		hueso = math.min(hueso, pierna.muslo, pierna.pierna)
 	end
-	p.baja = math.min(Config.Postura.Baja, corta * BAJA_PIERNA)
+	p.largo = corta
+	-- De la cintura a la coronilla, derecho: el cuello sobre la cintura (los dos en el UpperTorso), el centro de la
+	-- cabeza sobre el cuello (en la cabeza) y media cabeza.
+	local cintura, cuello, cabeza = p.cintura, p.cuello, p.cabeza
+	p.tronco = if cintura and cuello and cabeza
+		then (cuello.motor.C0.Position - cintura.motor.C1.Position).Y - cuello.motor.C1.Position.Y + cabeza.Size.Y / 2
+		else 0
 	return hueso > 0.05 and corta < math.huge -- un hueso de largo 0 daría NaN en los ángulos
 end
 
 -- Las juntas de agacharse y asomarse (R15). nil si falta alguna: se queda sin postura.
 local function prepararPostura(personaje: Model): Postura?
-	local raiz = juntaDe(personaje, "LowerTorso", "Root")
-	if not raiz then
+	if not juntaDe(personaje, "LowerTorso", "Root") then
 		return nil
 	end
 	local piernas = {}
@@ -123,11 +141,19 @@ local function prepararPostura(personaje: Model): Postura?
 			pierna = 0,
 		})
 	end
+	local cabeza = personaje:FindFirstChild("Head")
 	local p: Postura = {
-		raiz = raiz,
 		cintura = juntaDe(personaje, "UpperTorso", "Waist"),
+		cuello = juntaDe(personaje, "Head", "Neck"),
+		cabeza = if cabeza and cabeza:IsA("BasePart") then cabeza else nil,
 		piernas = piernas,
+		largo = 0,
+		tronco = 0,
 		baja = 0,
+		bajaMeta = 0,
+		techo = 0,
+		techoMeta = 0,
+		medido = -math.huge,
 		t = 0,
 		lado = 0,
 		quieta = true,
@@ -155,12 +181,6 @@ local function preparar(otro: Player, personaje: Model)
 			reintento = 0,
 		}
 	end)
-end
-
--- Lo que ha bajado agachado (para apuntar sus brazos más abajo).
-local function bajadoDe(o: Otro): number
-	local p = o.postura
-	return if p then p.baja * p.t else 0
 end
 
 local function alEntrar(otro: Player)
@@ -289,12 +309,11 @@ local function objetivos(otro: Player, o: Otro, raiz: BasePart): (Vector3?, Vect
 		end
 		o.gesto = nil
 	end
-	-- Lo de su cuerpo (el móvil, la linterna), más abajo si está agachado.
-	local cuerpo = cf * CFrame.new(0, -bajadoDe(o), 0)
-	local der = if otro:GetAttribute("MovilAbierto") then (cuerpo * CFrame.new(0.3, 0.9, -1.6)).Position else nil
+	-- Lo de su cuerpo (el móvil, la linterna): agachado, su raíz ya está más abajo de verdad y esto baja con ella.
+	local der = if otro:GetAttribute("MovilAbierto") then (cf * CFrame.new(0.3, 0.9, -1.6)).Position else nil
 	-- La linterna, hacia donde mira (arriba o abajo: atributo Mirada).
 	local izq = if otro:GetAttribute("Linterna")
-		then (cuerpo * CFrame.new(-0.3, 1.4, 0) * CFrame.Angles(miradaDe(otro), 0, 0) * CFrame.new(0, 0, -5)).Position
+		then (cf * CFrame.new(-0.3, 1.4, 0) * CFrame.Angles(miradaDe(otro), 0, 0) * CFrame.new(0, 0, -5)).Position
 		else nil
 	return der, izq
 end
@@ -386,7 +405,6 @@ end
 
 -- Todo como lo dejan sus animaciones.
 local function soltarPostura(p: Postura)
-	p.raiz.motor.C0 = p.raiz.original
 	if p.cintura then
 		p.cintura.motor.C0 = p.cintura.original
 	end
@@ -397,28 +415,71 @@ local function soltarPostura(p: Postura)
 			pierna.tobillo.motor.C0 = pierna.tobillo.original
 		end
 	end
-	p.t, p.lado, p.quieta, p.fija = 0, 0, true, false
+	p.t, p.lado, p.baja, p.bajaMeta, p.techo, p.techoMeta = 0, 0, 0, 0, 0, 0
+	p.quieta, p.fija = true, false
 end
 
--- Agachado y asomado, suave hacia lo que publica el servidor (atributos Agachado y Asomado). Agachado, la cadera baja y
--- cada pierna se dobla para que el tobillo siga donde estaba (dos huesos, como las manos): el muslo va hacia delante,
--- la pierna hacia atrás y el pie se queda plano. Todo encima de su animación de andar.
+-- Lo que de verdad ha bajado su raíz respecto a de pie (un rayo al suelo) y, si tiene algo encima, lo que tiene que
+-- encorvarse para que la cabeza quepa (un rayo hacia arriba desde la cintura). De pie, su raíz va a HipHeight y medio
+-- alto sobre el suelo: el HipHeight que se ve aquí es el del servidor (el que baja su cliente no se replica).
+local suelo = RaycastParams.new()
+suelo.FilterType = Enum.RaycastFilterType.Exclude
+suelo.RespectCanCollide = true
+local function medirCuerpo(o: Otro, p: Postura, raiz: BasePart)
+	p.medido = os.clock()
+	local hum = o.personaje:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		return
+	end
+	suelo.FilterDescendantsInstances = { o.personaje, camara }
+	local dePie = hum.HipHeight + raiz.Size.Y / 2
+	local abajo = workspace:Raycast(raiz.Position, Vector3.new(0, -(dePie + 1), 0), suelo)
+	p.bajaMeta = if abajo then math.clamp(dePie - (raiz.Position.Y - abajo.Position.Y), 0, p.largo) else 0
+	p.techoMeta = 0
+	local cintura = p.cintura
+	local torso = cintura and cintura.motor.Part0
+	if cintura and torso and p.tronco > 0 and p.bajaMeta > 0.05 then
+		local desde = (torso.CFrame * cintura.original).Position
+		-- El tablero de un mueble (sus zonas Debajo: lo que choca de los muebles no se ve con rayos) o lo demás.
+		local y = PosturaVista.techoDebajo(desde) or math.huge
+		local encima = workspace:Raycast(desde, Vector3.new(0, p.tronco + CABEZA_LIBRE, 0), suelo)
+		if encima then
+			y = math.min(y, encima.Position.Y)
+		end
+		local cabe = y - CABEZA_LIBRE - desde.Y
+		if cabe < p.tronco then
+			p.techoMeta = math.min(ENCORVA, math.acos(math.clamp(cabe / p.tronco, -1, 1)))
+		end
+	end
+end
+
+-- Lo que va hacia delante el tronco: agachado, un poco; debajo de algo, lo que haga falta.
+local function inclinacion(p: Postura): number
+	return math.max(INCLINA * p.t, p.techo)
+end
+
+-- Agachado y asomado, suave hacia lo que publica el servidor (atributos Agachado y Asomado) y lo medido. Agachado,
+-- cada pierna se dobla lo que ha bajado su raíz para que el tobillo siga donde estaba (dos huesos, como las manos): el
+-- muslo va hacia delante, la pierna hacia atrás y el pie se queda plano. Todo encima de su animación de andar.
 local function posar(p: Postura, agachado: boolean, asomado: number, dt: number)
 	local meta = if agachado then 1 else 0
 	-- Ya ha llegado: las juntas se escriben una última vez y luego no se tocan (su andar va aparte, en el Transform).
 	local llegada = math.abs(meta - p.t) < 1e-3 and math.abs(asomado - p.lado) < 1e-3
+		and math.abs(p.bajaMeta - p.baja) < 1e-3 and math.abs(p.techoMeta - p.techo) < 1e-3
 	if llegada and (p.fija or p.quieta) then
 		return
 	end
 	p.fija = llegada
 	if llegada then
-		p.t, p.lado = meta, asomado
+		p.t, p.lado, p.baja, p.techo = meta, asomado, p.bajaMeta, p.techoMeta
 	else
 		local k = 1 - math.exp(-dt * SUAVE)
 		p.t += (meta - p.t) * k
 		p.lado += (asomado - p.lado) * k
+		p.baja += (p.bajaMeta - p.baja) * k
+		p.techo += (p.techoMeta - p.techo) * k
 	end
-	if meta == 0 and asomado == 0 and p.t < 0.01 and math.abs(p.lado) < 0.01 then
+	if meta == 0 and asomado == 0 and p.t < 0.01 and math.abs(p.lado) < 0.01 and p.baja < 0.01 and p.techo < 0.01 then
 		if not p.quieta then
 			soltarPostura(p)
 		end
@@ -426,13 +487,12 @@ local function posar(p: Postura, agachado: boolean, asomado: number, dt: number)
 	end
 	if p.quieta then
 		if not medir(p) then
-			p.t, p.lado = 0, 0 -- un avatar raro: se queda como está
+			p.t, p.lado, p.baja, p.techo = 0, 0, 0, 0 -- un avatar raro: se queda como está
 			return
 		end
 		p.quieta = false
 	end
-	local baja = p.baja * p.t
-	p.raiz.motor.C0 = CFrame.new(0, -baja, 0) * p.raiz.original
+	local baja = p.baja
 	for _, pierna in p.piernas do
 		local l1, l2 = pierna.muslo, pierna.pierna
 		local h = math.clamp(l1 + l2 - baja, math.abs(l1 - l2) + 0.05, l1 + l2) -- de la cadera al tobillo
@@ -447,7 +507,7 @@ local function posar(p: Postura, agachado: boolean, asomado: number, dt: number)
 	if p.cintura then
 		-- A la derecha (lado 1), lo de arriba del tronco hacia su derecha.
 		p.cintura.motor.C0 = girada(p.cintura.original,
-			CFrame.Angles(-INCLINA * p.t, 0, -p.lado * math.rad(Config.Postura.Giro) * LADEO))
+			CFrame.Angles(-inclinacion(p), 0, -p.lado * math.rad(Config.Postura.Giro) * LADEO))
 	end
 end
 
@@ -484,9 +544,17 @@ local function paso(dt: number)
 			p = o.postura
 		end
 		if p then
+			-- Lo de verdad bajado y lo que tiene encima, cada MEDIR s mientras está agachado o aún abajo.
+			if agachado or p.bajaMeta > 0.05 then
+				if os.clock() - p.medido >= MEDIR then
+					medirCuerpo(o, p, raiz)
+				end
+			else
+				p.bajaMeta, p.techoMeta = 0, 0
+			end
 			posar(p, agachado, asomado, dt)
 		end
-		cabecear(o, miradaDe(otro), if p then INCLINA * p.t else 0, dt)
+		cabecear(o, miradaDe(otro), if p then math.min(inclinacion(p), LEVANTA) else 0, dt)
 		local der, izq = objetivos(otro, o, raiz)
 		girar(o.der, der, dt)
 		girar(o.izq, izq, dt)
@@ -518,7 +586,7 @@ function BrazosVista.start()
 		local raiz = quien ~= jugador and raizDe(quien)
 		local o = otros[quien]
 		if raiz and o then
-			local cara = (raiz.CFrame * CFrame.new(0, 1.6 - bajadoDe(o), -1.2)).Position
+			local cara = (raiz.CFrame * CFrame.new(0, 1.6, -1.2)).Position
 			gesto(quien, 0.5, cara + raiz.CFrame.RightVector * 0.3, cara - raiz.CFrame.RightVector * 0.3)
 		end
 	end)

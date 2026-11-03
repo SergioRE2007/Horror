@@ -13,6 +13,11 @@
 --   queda HOLGURA antes). Mirando por la mirilla (atributo local Mirilla), derecho y de pie. Agachado se sigue con la
 --   mochila abierta (la vista no salta al abrirla) y el ladeo vuelve suave; escondido, muerto o en una cinemática la
 --   cámara no es de Roblox y no se nota (al volver, el ladeo entra suave).
+--   Esconderse agachado (pedido por el usuario: "debajo de mesas"): agachado el cuerpo baja de verdad (PosturaVista
+--   baja el HipHeight) y la vista baja eso de menos, así que queda a la misma altura que antes. Debajo de algo (un
+--   tablero) baja más: nunca se mete dentro (rayos hacia arriba donde está la cabeza y donde va la cámara) y andando
+--   hacia ello empieza a bajar ANTICIPA s antes de llegar. Sin sitio para levantarte, sigue abajo (PosturaVista.bajo)
+--   y, al intentarlo, la cabeza da un respingo contra lo de arriba (PosturaVista.tope).
 -- Con lo pesado en las manos el balanceo lo pone CargarVista: aquí no se suma.
 -- Se pinta encima de la cámara de Roblox (BindToRenderStep, Camera + 1): solo mueve la posición y la inclina de lado.
 -- Lo sumado se quita antes del fotograma siguiente (Camera - 1), girando en el espacio del mundo: los temblores de
@@ -48,6 +53,9 @@ local VUELVE_LADEO = 3 -- por segundo: lo que tarda el ladeo en volver tras una 
 local HOLGURA = 0.3 -- studs que se queda la cámara antes de una pared al asomarte
 local ATRAS = 0.5 -- studs que pone la cámara de Roblox los ojos detrás de la cabeza en primera persona
 local RODILLAS = 2.5 -- golpecito al agacharte (velocidad que se suma al muelle de la caída; al levantarte, menos)
+local CERCA_TECHO = 0.15 -- studs que se queda la cámara por debajo de lo de arriba (un tablero), además de ATRAS
+local ANTICIPA = 0.3 -- s: andando agachado se mira lo de arriba donde estarás, para ir bajando la vista antes
+local TOPE = 1.6 -- respingo hacia arriba al darte con lo de arriba queriendo levantarte (como RODILLAS)
 
 local fase = 0
 local fuerza = 0 -- cuánto se nota el andar (sube y baja suave al empezar y al parar)
@@ -68,9 +76,11 @@ local lateral = 0 -- studs de lado ahora mismo (lo que deja la pared)
 local aplicado = Vector3.zero -- lo puesto este fotograma
 local duenoDe: Humanoid? = nil -- el Humanoid cuyo CameraOffset se lleva aquí (nil con algo pesado: es de CargarVista)
 local estabaAgachado = false
+local topeVisto = -math.huge -- el último golpe contra lo de arriba ya hecho (PosturaVista.tope)
 local pesoLadeo = 1 -- 0..1: cuánto se nota el ladeo (a 0 mientras la cámara es de otro; luego vuelve suave)
 local giroAplicado: CFrame? = nil -- lo que `paso` le ha sumado a la cámara este fotograma
 local camaraTras: CFrame? = nil -- y cómo quedó la cámara justo después
+local filtroDe: Model? = nil -- el personaje que tienen fuera los rayos de `rayo`
 local rayo = RaycastParams.new()
 rayo.FilterType = Enum.RaycastFilterType.Exclude
 rayo.RespectCanCollide = true -- cortinas, hojas y lo que no choca no paran la cabeza
@@ -125,15 +135,33 @@ local function libreDesde(desde: Vector3, lado: Vector3): number
 	return if choque then math.max(0, choque.Distance - HOLGURA) else P.Asomar
 end
 
--- Hasta dónde puede ir la cabeza hacia `signo` (1 derecha, -1 izquierda) sin meterse en una pared.
-local function hueco(personaje: Model, raiz: BasePart, signo: number): number
-	-- Donde pone la cámara de Roblox el centro de la cabeza (1,5 sobre la raíz, más lo que mida de más), ya agachado.
-	local ojo = raiz.CFrame:PointToWorldSpace(Vector3.new(0, 1.5 + (raiz.Size.Y - 2) / 2 - bajado, 0))
+-- Hasta dónde puede ir la cabeza hacia `signo` (1 derecha, -1 izquierda) sin meterse en una pared. `alturaOjo`: donde
+-- está ahora la cabeza sobre el centro de la raíz (ya agachado).
+local function hueco(raiz: BasePart, signo: number, alturaOjo: number): number
+	local ojo = raiz.CFrame:PointToWorldSpace(Vector3.new(0, alturaOjo, 0))
 	local lado = raiz.CFrame.RightVector * (signo * (P.Asomar + HOLGURA))
-	rayo.FilterDescendantsInstances = { personaje, camara }
 	-- Y desde donde va de verdad la cámara: ATRAS studs detrás, hacia donde miras. Asomándote junto a una esquina que
 	-- acaba justo a tu altura, la cabeza ya ha pasado el borde pero la cámara aún no, y se metería en la pared.
 	return math.min(libreDesde(ojo, lado), libreDesde(ojo - camara.CFrame.LookVector * ATRAS, lado))
+end
+
+-- Lo que hay que bajar la vista (desde los ojos de pie, a la altura `ojoPie`) para no meter la cámara en lo que haya
+-- encima del punto (x, z): el tablero de un mueble (sus zonas Debajo, PosturaVista.techoDebajo: lo que choca de los
+-- muebles no se ve con rayos) o lo demás (un rayo: el hueco de una escalera, una viga). El rayo sale de la altura de
+-- la raíz (`desdeY`), que agachado queda siempre por debajo de lo que tapa (la banda de PosturaVista no deja que se
+-- meta nada ahí). 0 si no hay nada a esa altura.
+local function techoEn(punto: Vector3, desdeY: number, ojoPie: number): number
+	local tope = ojoPie + ATRAS + CERCA_TECHO
+	if tope <= desdeY then
+		return 0
+	end
+	local desde = Vector3.new(punto.X, desdeY, punto.Z)
+	local y = PosturaVista.techoDebajo(desde) or math.huge
+	local choque = workspace:Raycast(desde, Vector3.new(0, tope - desdeY, 0), rayo)
+	if choque then
+		y = math.min(y, choque.Position.Y)
+	end
+	return if y < tope then tope - y else 0
 end
 
 -- Quita lo que `paso` le sumó a la cámara el fotograma anterior (ver la cabecera). Por la izquierda, en el espacio del
@@ -165,24 +193,46 @@ local function postura(dt: number)
 		asomo = if math.abs(asomo) < 1e-3 then 0 else asomo * math.exp(-dt * SUAVE_POSTURA) -- el ladeo vuelve igual
 		return
 	end
+	-- Lo que ha bajado el cuerpo de verdad (el HipHeight, PosturaVista): la cámara baja eso de menos.
+	local cuerpoBaja = PosturaVista.cuerpo()
 	if duenoDe ~= hum then
 		-- Vuelve aquí (al soltar lo pesado, o un personaje nuevo): desde donde lo dejó CargarVista, sin saltos.
 		duenoDe = hum
-		bajado, lateral, asomo = math.max(0, -hum.CameraOffset.Y), hum.CameraOffset.X, 0
+		bajado, lateral, asomo = math.max(0, cuerpoBaja - hum.CameraOffset.Y), hum.CameraOffset.X, 0
 	end
 	local muerto = hum.Health <= 0 or jugador:GetAttribute("Muerto") == true
 	local derecho = muerto or jugador:GetAttribute("Mirilla") == true -- por la mirilla, de pie y sin asomarse
-	local metaBaja = if PosturaVista.agachado() and not derecho then P.Baja else 0
+	local abajo = PosturaVista.bajo() -- agachado, o sin sitio para levantarte
+	local metaBaja = if abajo and not derecho then P.Baja else 0
 	local metaAsomo = if derecho then 0 else PosturaVista.asomado()
 	local k = if muerto then 1 else 1 - math.exp(-dt * SUAVE_POSTURA)
+	local cabezaRaiz = 1.5 + (raiz.Size.Y - 2) / 2 -- donde pone la cámara de Roblox la cabeza sobre la raíz
+	if filtroDe ~= personaje then
+		filtroDe = personaje -- los rayos no ven tu cuerpo ni lo que cuelga de la cámara (sin una tabla por fotograma)
+		rayo.FilterDescendantsInstances = { personaje, camara }
+	end
+	-- Agachado, lo de arriba (debajo de una mesa la vista va más baja): hacia donde vas, para ir bajando antes de llegar.
+	local mirarTecho = (abajo or cuerpoBaja > 0.01) and not muerto
+	local ojoPie = raiz.Position.Y + cuerpoBaja + cabezaRaiz -- donde tendrías los ojos de pie
+	if mirarTecho then
+		local v = raiz.AssemblyLinearVelocity
+		metaBaja = math.max(metaBaja, techoEn(raiz.Position + Vector3.new(v.X, 0, v.Z) * ANTICIPA, raiz.Position.Y, ojoPie))
+	end
 	bajado += (metaBaja - bajado) * k
 	asomo += (metaAsomo - asomo) * k
 	-- De lado: lo que deja la pared de cada lado por el que va o va a ir (hacia la pared, al momento: nunca dentro).
 	local metaLado = metaAsomo * P.Asomar
-	local der = if lateral > 0.01 or metaLado > 0 then hueco(personaje, raiz, 1) else P.Asomar
-	local izq = if lateral < -0.01 or metaLado < 0 then hueco(personaje, raiz, -1) else P.Asomar
+	local alturaOjo = cabezaRaiz + cuerpoBaja - bajado
+	local der = if lateral > 0.01 or metaLado > 0 then hueco(raiz, 1, alturaOjo) else P.Asomar
+	local izq = if lateral < -0.01 or metaLado < 0 then hueco(raiz, -1, alturaOjo) else P.Asomar
 	lateral += (math.clamp(metaLado, -izq, der) - lateral) * k
 	lateral = math.clamp(lateral, -izq, der)
+	if mirarTecho then
+		-- Y nunca dentro de lo de arriba: donde está la cabeza y donde va la cámara (ATRAS detrás), al momento.
+		local foco = raiz.CFrame:PointToWorldSpace(Vector3.new(lateral, 0, 0))
+		bajado = math.max(bajado, techoEn(foco, raiz.Position.Y, ojoPie),
+			techoEn(foco - camara.CFrame.LookVector * ATRAS, raiz.Position.Y, ojoPie))
+	end
 	if bajado < 1e-3 then
 		bajado = 0
 	end
@@ -192,7 +242,7 @@ local function postura(dt: number)
 	if math.abs(asomo) < 1e-3 then
 		asomo = 0
 	end
-	aplicado = Vector3.new(lateral, -bajado, 0)
+	aplicado = Vector3.new(lateral, cuerpoBaja - bajado, 0)
 	if hum.CameraOffset ~= aplicado then
 		hum.CameraOffset = aplicado
 	end
@@ -232,6 +282,13 @@ local function paso(dt: number)
 	-- Al agacharte, las rodillas: la cabeza baja un poco de más y vuelve (con el muelle de la caída).
 	if cambioPostura and jugador:GetAttribute("Rendimiento") ~= true then
 		velCaida += if agachado then -RODILLAS else RODILLAS * 0.4
+	end
+	-- Queriendo levantarte debajo de algo: la cabeza da contra ello (un respingo hacia arriba que vuelve). Con
+	-- Rendimiento también: es lo que te dice que no cabes.
+	local tope = PosturaVista.tope()
+	if tope ~= topeVisto then
+		topeVisto = tope
+		velCaida += TOPE
 	end
 	local cf = camara.CFrame
 	local v = raiz.AssemblyLinearVelocity
