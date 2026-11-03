@@ -27,8 +27,18 @@ local function mapa()
 end
 
 -- Teletransporta con un reintento (fallan a veces sin motivo).
-local function teletransportar(lugar: number, jugadores: { Player }, opciones: TeleportOptions?): boolean
+local function teletransportar(lugar: number, todos: { Player }, opciones: TeleportOptions?): boolean
 	for intento = 1, 2 do
+		-- Sin los que se han ido mientras se reservaba el servidor: con uno que ya no está falla para todos.
+		local jugadores = {}
+		for _, jugador in todos do
+			if jugador.Parent == Players then
+				table.insert(jugadores, jugador)
+			end
+		end
+		if #jugadores == 0 then
+			return false
+		end
 		local ok, fallo = pcall(function()
 			TeleportService:TeleportAsync(lugar, jugadores, opciones)
 		end)

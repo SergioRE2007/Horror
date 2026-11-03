@@ -66,7 +66,9 @@ local function rehacer(c: Coche)
 		c.modelo:SetAttribute("Dueno", id)
 		c.modelo:SetAttribute("Ranura", 1)
 		c.modelo:SetAttribute("Nueva", false)
-		parar(c)
+		if not c.saliendo then -- mientras Viaje.ir espera, no: el nuevo dueño podía arrancar un segundo viaje a la vez
+			parar(c)
+		end
 	end
 	c.prompt.Enabled = #c.orden < #c.asientos and not c.saliendo
 end

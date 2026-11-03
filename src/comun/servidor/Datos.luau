@@ -22,11 +22,13 @@ type Partida = {
 	datos: any,
 	op: Candado.Opciones?, -- nil en el modo de pruebas (no se guarda)
 	guardando: boolean,
+	cola: { hecho: boolean, ok: boolean }?, -- el guardado normal que espera turno (los que llegan se juntan en él)
 }
 
 local partidas: { [Player]: Partida } = {}
 local fuera: { [Player]: boolean } = setmetatable({}, { __mode = "k" }) :: any -- los que ya se han ido
 local almacen = nil
+local cargando = 0 -- cargas a medias: al cerrar el servidor también se esperan (si no, su candado se quedaba cogido)
 
 local function publicar(jugador: Player, datos)
 	jugador:SetAttribute("Monedas", datos.monedas)
@@ -63,14 +65,17 @@ local function cargar(jugador: Player)
 		partidas[jugador] = { datos = datosDePrueba(), guardando = false }
 	else
 		local op = opciones(jugador)
+		cargando += 1
 		local estado, guardado = Candado.cargar(op)
 		if fuera[jugador] or jugador.Parent == nil then
-			-- Se fue mientras cargaba: soltar el candado sin perder nada.
+			-- Se fue mientras cargaba (también al cerrar el servidor): soltar el candado sin perder nada.
 			if estado == "ok" then
 				Candado.guardar(op, Formato.arreglarJugador(guardado), true, Config.Guardado.Intentos)
 			end
+			cargando -= 1
 			return
 		end
+		cargando -= 1
 		if estado == "ocupado" then
 			jugador:Kick(Lang.t(jugador, "Your save is open in another server. Try again in a minute."))
 			return
@@ -84,16 +89,8 @@ local function cargar(jugador: Player)
 	jugador:SetAttribute("DatosListos", true)
 end
 
--- Guarda y, con `soltar`, suelta el candado y olvida al jugador. Un guardado a la vez por jugador. true si ha quedado
--- guardado (con el modo de pruebas no se guarda nada y también es true).
-local function guardar(jugador: Player, soltar: boolean): boolean
-	local partida = partidas[jugador]
-	if not partida then
-		return false
-	end
-	while partida.guardando do
-		task.wait()
-	end
+-- Guarda ya (sin esperar a nadie: quien llama ya ha mirado que no hay otro guardado en marcha).
+local function guardarYa(jugador: Player, partida: Partida, soltar: boolean): boolean
 	if partidas[jugador] ~= partida then
 		return false -- otro guardado ya lo soltó
 	end
@@ -117,6 +114,40 @@ local function guardar(jugador: Player, soltar: boolean): boolean
 		partidas[jugador] = nil
 	end
 	return estado == "ok"
+end
+
+-- Guarda y, con `soltar`, suelta el candado y olvida al jugador. Un guardado a la vez por jugador. true si ha quedado
+-- guardado (con el modo de pruebas no se guarda nada y también es true).
+-- Los guardados normales que llegan mientras otro está en marcha se juntan: el primero que espera guarda también lo
+-- de los demás (aún no ha leído los datos) y todos reciben su resultado. Así pulsar muchas veces algo que guarda no
+-- gasta el cupo de DataStore del servidor, que es de todos.
+local function guardar(jugador: Player, soltar: boolean): boolean
+	local partida = partidas[jugador]
+	if not partida then
+		return false
+	end
+	if not soltar and partida.guardando then
+		local cola = partida.cola
+		if cola then
+			while not cola.hecho do
+				task.wait()
+			end
+			return cola.ok
+		end
+		cola = { hecho = false, ok = false }
+		partida.cola = cola
+		while partida.guardando do
+			task.wait()
+		end
+		partida.cola = nil -- desde aquí, lo que llegue espera al siguiente
+		cola.ok = guardarYa(jugador, partida, false)
+		cola.hecho = true
+		return cola.ok
+	end
+	while partida.guardando do
+		task.wait()
+	end
+	return guardarYa(jugador, partida, soltar)
 end
 
 -- Los datos del jugador, o nil si aún no están cargados. Solo para mirar: los cambios, con Datos.editar.
@@ -170,7 +201,7 @@ function Datos.start()
 			end)
 		end
 		local inicio = os.clock()
-		while pendientes > 0 and os.clock() - inicio < Config.Guardado.Cierre do
+		while (pendientes > 0 or cargando > 0) and os.clock() - inicio < Config.Guardado.Cierre do
 			task.wait(0.1)
 		end
 	end)
