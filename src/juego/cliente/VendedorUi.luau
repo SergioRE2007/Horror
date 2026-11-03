@@ -176,13 +176,25 @@ local function mirarte(dt: number)
 		end
 		local destino = CFrame.new()
 		local hacia = camara.CFrame.Position - cabeza.Position
-		if hacia.Magnitude < MIRA then
+		local lejos = hacia.Magnitude >= MIRA
+		if lejos and c.giro == CFrame.identity then
+			continue -- lejos y ya mirando al frente: nada que mover ni que escribir
+		end
+		if not lejos then
 			local d = ((cuello.Part0 :: BasePart).CFrame * c.original):VectorToObjectSpace(hacia)
 			local giro = math.clamp(math.atan2(-d.X, -d.Z), math.rad(-70), math.rad(70))
 			local alto = math.clamp(math.atan2(d.Y, Vector2.new(d.X, d.Z).Magnitude), math.rad(-30), math.rad(30))
 			destino = CFrame.Angles(0, giro, 0) * CFrame.Angles(alto, 0, 0)
 		end
 		c.giro = c.giro:Lerp(destino, 1 - math.exp(-dt * 4))
+		if lejos then
+			-- Casi al frente: se deja justo al frente y esta es la última vez que se escribe (el "not" vale también si
+			-- el ángulo sale NaN).
+			local _, angulo = c.giro:ToAxisAngle()
+			if not (angulo > 0.001) then
+				c.giro = CFrame.identity
+			end
+		end
 		cuello.C0 = c.original * c.giro
 	end
 end

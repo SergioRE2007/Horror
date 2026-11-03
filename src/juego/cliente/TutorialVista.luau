@@ -1,6 +1,7 @@
 -- Lo que se ve del tutorial (14.2; lo manda juego/servidor/Tutorial con el atributo "Tutorial" del jugador). Pedido
 -- por el usuario en el primer juego: muy visible, "que te diga más vistoso dónde clicar".
---   Arriba en el centro, un cartel de papel viejo con el paso ("3/8") y una frase corta, y SALTAR.
+--   Arriba en el centro, un cartel de papel viejo con el paso ("3/8") y una frase corta, y SALTAR (también con la K
+--   o la cruceta a la derecha: en el ordenador el ratón va bloqueado).
 --   Sobre lo que hay que tocar, una flecha roja grande que sube y baja (a través de las paredes) y un contorno; si no
 --   está en pantalla, otra flecha en el borde que señala hacia dónde girarse.
 --   En el móvil, el paso de la mochila señala su botón.
@@ -167,6 +168,32 @@ local flechaMundo: Frame
 local flechaBorde: Frame
 local contorno: Highlight
 local flechaBoton: Frame
+local saltar: TextButton
+local pulsado = 0 -- cuándo se pulsó SALTAR la primera vez
+
+-- Ordenador: teclado sin pantalla táctil. Ahí el ratón va bloqueado en primera persona y SALTAR no se puede pulsar:
+-- se pulsa con la K (ver start), que va en su texto.
+local function conTecla(): boolean
+	return UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled
+end
+
+local function textoSaltar(ingles: string): string
+	return Ui.mayusculas(Lang.t(nil, ingles)) .. (if conTecla() then "  [K]" else "")
+end
+
+-- Dos toques (como NUEVA PARTIDA en el lobby): que no se salte sin querer.
+local function pulsarSaltar()
+	local ahora = os.clock()
+	if ahora - pulsado < 3 then
+		Remotes.Tutorial:FireServer("Saltar")
+	else
+		pulsado = ahora
+		saltar.Text = textoSaltar("Sure?")
+		task.delay(3, function()
+			saltar.Text = textoSaltar("Skip")
+		end)
+	end
+end
 
 local function construir()
 	local hud = Ui.hud()
@@ -210,28 +237,15 @@ local function construir()
 	Ui.queQuepa(textoPaso, 30)
 	textoPaso.Parent = cartel
 
-	local saltar = Ui.boton(Lang.t(nil, "Skip"), {
+	saltar = Ui.boton(textoSaltar("Skip"), {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -8, 0, 6),
-		Size = UDim2.fromOffset(110, Ui.alto(30)),
+		Size = UDim2.fromOffset(if conTecla() then 140 else 110, Ui.alto(30)), -- con la tecla: "¿SEGURO?  [K]"
 		TextSize = 16,
 		ZIndex = 42,
 	})
 	saltar.Parent = cartel
-	local pulsado = 0
-	saltar.Activated:Connect(function()
-		-- Dos toques (como NUEVA PARTIDA en el lobby): que no se salte sin querer.
-		local ahora = os.clock()
-		if ahora - pulsado < 3 then
-			Remotes.Tutorial:FireServer("Saltar")
-		else
-			pulsado = ahora
-			saltar.Text = Ui.mayusculas(Lang.t(nil, "Sure?"))
-			task.delay(3, function()
-				saltar.Text = Ui.mayusculas(Lang.t(nil, "Skip"))
-			end)
-		end
-	end)
+	saltar.Activated:Connect(pulsarSaltar)
 	cartel.Parent = hud
 
 	-- La flecha del mundo: en un BillboardGui (en PlayerGui, para que las cinemáticas la escondan con todo lo demás).
@@ -389,6 +403,15 @@ function TutorialVista.start()
 	yo:GetAttributeChangedSignal("Tutorial"):Connect(pintarCartel)
 	yo:GetAttributeChangedSignal("TutorialFalta"):Connect(pintarCartel)
 	pintarCartel()
+	-- SALTAR también con la K (en el mando, la cruceta a la derecha), mientras se ve el cartel (no en las cinemáticas,
+	-- que apagan el HUD).
+	UserInputService.InputBegan:Connect(function(entrada, procesado)
+		local tecla = entrada.KeyCode
+		if not procesado and cartel.Visible and Ui.hud().Enabled
+			and (tecla == Enum.KeyCode.K or tecla == Enum.KeyCode.DPadRight) then
+			pulsarSaltar()
+		end
+	end)
 	-- El bucle solo hace algo mientras hay tutorial (cadaFotograma sale enseguida si no).
 	RunService.RenderStepped:Connect(cadaFotograma)
 end
