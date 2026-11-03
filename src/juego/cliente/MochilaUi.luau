@@ -48,6 +48,8 @@ local apertura = Instance.new("NumberValue") -- 0 cerrada .. 1 abierta
 local prop: Model
 local tapa: BasePart
 local desenfoque: BlurEffect
+-- El campo de visión de siempre (el de Roblox), fijo: leído al abrir, morir con la mochila abierta lo dejaba cerrado
+-- (MuerteVista devolvía el de la mochila) y se quedaba así el resto de la partida.
 local campoNormal = 70
 
 local function textoCosa(tipo: string): string
@@ -320,13 +322,12 @@ local function cerrar(avisar: boolean)
 end
 
 local function abrir()
-	if abierta or jugador:GetAttribute("Muerto") or jugador:GetAttribute("Escondido") or jugador:GetAttribute("Cargando") then
+	-- Lo mismo que mira el servidor (Mochila.abrir): si la rechaza, el atributo no cambia y aquí no se enteraría.
+	if abierta or jugador:GetAttribute("Muerto") or jugador:GetAttribute("Escondido") or jugador:GetAttribute("Cargando")
+		or jugador:GetAttribute("Trabajando") then
 		return
 	end
 	abierta = true
-	if apertura.Value < 0.01 then
-		campoNormal = camara.FieldOfView
-	end
 	Remotes.Mochila:FireServer("Abrir", true)
 	pintar()
 	raiz.Visible = true
@@ -394,6 +395,17 @@ local function crearGui()
 	panel.BackgroundTransparency = 0.08
 	panel.GroupTransparency = 1
 	panel.Parent = raiz
+	-- El papel se queda los clics que no caen en una casilla ni en un botón (título, márgenes, entre botones): si no,
+	-- pasarían al fondo y la cerrarían. Debajo de todo lo del panel (ZIndex 0).
+	local papel = Instance.new("TextButton")
+	papel.Name = "Papel"
+	papel.Text = ""
+	papel.AutoButtonColor = false
+	papel.Selectable = false
+	papel.BackgroundTransparency = 1
+	papel.Size = UDim2.fromScale(1, 1)
+	papel.ZIndex = 0
+	papel.Parent = panel
 	local borde = Instance.new("UIStroke")
 	borde.Color = Ui.Color.Hueso
 	borde.Transparency = 0.75
@@ -492,10 +504,14 @@ function MochilaUi.start()
 	desenfoque.Parent = camara
 	jugador:GetAttributeChangedSignal("Mochila"):Connect(leer)
 	leer()
-	-- Si el servidor la cierra (te escondes, mueres), se cierra aquí también.
+	-- Si el servidor la cierra (te escondes, mueres), se cierra aquí también. Si dice abierta y aquí ya está cerrada
+	-- (cerrar y abrir más rápido que el ping: llega el "cerrada" de la primera y luego el "abierta"), se le pide que la
+	-- cierre: si no, seguiría abierta allí sin verse y no te dejaría moverte. Pedirlo de más no hace nada.
 	jugador:GetAttributeChangedSignal("MochilaAbierta"):Connect(function()
 		if not jugador:GetAttribute("MochilaAbierta") then
 			cerrar(false)
+		elseif not abierta then
+			Remotes.Mochila:FireServer("Abrir", false)
 		end
 	end)
 	UserInputService.InputBegan:Connect(function(entrada, procesado)
