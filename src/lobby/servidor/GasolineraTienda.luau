@@ -244,8 +244,9 @@ local function paredes()
 	end
 	pieza("Escuadra", Vector3.new(0.08, 0.5, 0.08), CFrame.new(50.5, alturaCanalon(8.6) - 0.1, 8.6) * CFrame.Angles(0, 0, math.rad(35)),
 		COLOR.OxidoOscuro, chapa)
-	-- Gotas del borde de delante del tejado (Clima): por el canalón que pierde, sin caer encima de los muebles de la acera.
-	for _, z in { -13, -11.2, -4.6, -1.6, 1.8, 4.4, 10.2, 12.8 } do
+	-- Gotas del borde de delante del tejado (Clima): por el canalón que pierde, sin caer encima de los muebles de la acera
+	-- (ni del banco de GasolineraFuera, de z 10,3 a 14,4: la última cae por el final del canalón).
+	for _, z in { -13, -11.2, -4.6, -1.6, 1.8, 4.4, 10.2, 14.6 } do
 		P.etiqueta(P.punto(tejado, "Goteo", punto(z) - Vector3.new(0, 0.27, 0)), "Goteo")
 	end
 	local bajante = Vector3.new(51.72, 0, -13.55)
@@ -564,7 +565,8 @@ local function trasera()
 	pale(CFrame.new(71.62, 0.62, -10.45) * CFrame.Angles(0, math.pi / 2 - 0.09, 0))
 	pieza("Caja", Vector3.new(1.6, 1.2, 1.4), CFrame.new(71.05, 0.8, 3.1) * CFrame.Angles(0, 0.2, 0), CARTON_MOJADO, Enum.Material.Cardboard)
 	pieza("Caja", Vector3.new(1.2, 0.9, 1.1), CFrame.new(71.1, 1.85, 3.15) * CFrame.Angles(0, -0.3, 0.05), CARTON_MOJADO, Enum.Material.Cardboard)
-	pieza("Caja", Vector3.new(1.6, 0.22, 1.9), CFrame.new(72.2, 0.31, 1.3) * CFrame.Angles(0.04, 0.7, 0), CARTON_MOJADO, Enum.Material.Cardboard)
+	-- La aplastada, sin meterse en el bordillo de la explanada (GasolineraFuera, de x 72,8 a 73,4).
+	pieza("Caja", Vector3.new(1.6, 0.22, 1.9), CFrame.new(71.65, 0.31, 1.0) * CFrame.Angles(0.04, 0.35, 0), CARTON_MOJADO, Enum.Material.Cardboard)
 	for _, b in { { 71.7, 11.4, 1.2 }, { 72.5, 12.4, 1.05 }, { 71.6, 13.4, 1.0 } } do
 		local d = b[3]
 		local bolsa = P.bola(grupo, "Bolsa", Vector3.new(d, d, d), CFrame.new(b[1], 0.2 + d * 0.45, b[2]), COLOR.Goma, Enum.Material.Plastic)

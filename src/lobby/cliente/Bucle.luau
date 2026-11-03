@@ -10,14 +10,15 @@ local RunService = game:GetService("RunService")
 local Bucle = {}
 
 type Tarea = { nombre: string, fn: (number, number, Camera) -> () }
+-- La lista no se cambia nunca: apuntar o quitar hace una nueva. Así paso la recorre tal cual aunque una tarea apunte o
+-- quite otras mientras corre, sin copiarla en cada fotograma.
 local tareas: { Tarea } = {}
 local conexion: RBXScriptConnection? = nil
 
 local function paso(dt: number)
 	local camara = workspace.CurrentCamera
 	local ahora = os.clock()
-	-- Sobre una copia: una tarea puede apuntar o quitar otras mientras corre.
-	for _, t in table.clone(tareas) do
+	for _, t in tareas do
 		local ok, fallo = pcall(t.fn, dt, ahora, camara)
 		if not ok then
 			warn(`[Bucle] {t.nombre}: {fallo}`)
@@ -29,7 +30,9 @@ end
 function Bucle.quitar(nombre: string)
 	for i, t in tareas do
 		if t.nombre == nombre then
-			table.remove(tareas, i)
+			local nuevas = table.clone(tareas)
+			table.remove(nuevas, i)
+			tareas = nuevas
 			break
 		end
 	end
@@ -46,7 +49,9 @@ function Bucle.cada(nombre: string, fn: (number, number, Camera) -> ())
 			return
 		end
 	end
-	table.insert(tareas, { nombre = nombre, fn = fn })
+	local nuevas = table.clone(tareas)
+	table.insert(nuevas, { nombre = nombre, fn = fn })
+	tareas = nuevas
 	if not conexion then
 		conexion = RunService.RenderStepped:Connect(paso)
 	end

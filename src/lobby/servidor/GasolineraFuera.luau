@@ -18,6 +18,8 @@ local GasolineraFuera = {}
 local C = P.COLOR
 local SUELO = 0.2 -- cara de arriba de la explanada (x 7..73, z -40..40)
 local TIENDA = { x0 = 52, x1 = 70, z0 = -14, z1 = 14 } -- la tienda va aparte: debajo no van losas
+-- La acera de delante de la tienda (la hace GasolineraTienda encima de las losas, con su cara de arriba en 0,5).
+local ACERA = { x0 = 48.6, x1 = 52, z0 = -14.8, z1 = 14.8, y = 0.5 }
 local MQ = { x = 32, z = 0, ancho = 20, largo = 26, abajo = 12.4, alto = 1.2 } -- marquesina: x 22..42, z -13..13
 local ISLAS = { -5, 5 } -- z de cada isla (centradas en x = 32, de x 25,5 a 38,5)
 local PUNTA = 4.9 -- de su centro a sus puntas redondas, donde van los pilares
@@ -143,7 +145,7 @@ local function parche(padre: Instance, cara: CFrame, u: number, v: number, ancho
 		Enum.Material.CorrodedMetal)
 end
 
--- Cara de arriba de lo que hay debajo de (x, z), para posar basura: islas, explanada o hierba.
+-- Cara de arriba de lo que hay debajo de (x, z), para posar basura: islas, la acera de la tienda, explanada o hierba.
 local function sueloEn(x: number, z: number): number
 	if x > MQ.x - PUNTA - 1.6 and x < MQ.x + PUNTA + 1.6 then
 		for _, zc in ISLAS do
@@ -151,6 +153,9 @@ local function sueloEn(x: number, z: number): number
 				return ALTO_ISLA
 			end
 		end
+	end
+	if x >= ACERA.x0 and x <= ACERA.x1 and z >= ACERA.z0 and z <= ACERA.z1 then
+		return ACERA.y
 	end
 	if x >= 7 and x <= 73 and z >= -40 and z <= 40 then
 		return SUELO
@@ -1004,7 +1009,8 @@ end
 
 local function banco()
 	local m = grupo("Banco")
-	local cf = CFrame.new(50.25, SUELO, 9.2) * CFrame.Angles(0, math.rad(93), 0) -- contra la tienda, mirando a la marquesina
+	-- En la acera, contra la tienda y mirando a la marquesina: al sur de la papelera, delante del escaparate.
+	local cf = CFrame.new(50.75, ACERA.y, 12.35) * CFrame.Angles(0, math.rad(93), 0)
 	local choque = solido(m, "Choque", Vector3.new(4, 1.55, 1.3), cf * CFrame.new(0, 0.78, 0), C.MetalOscuro, Enum.Material.SmoothPlastic)
 	choque.Transparency = 1
 	choque.CanQuery = false
@@ -1029,7 +1035,8 @@ end
 
 local function maquina()
 	local m = grupo("Maquina")
-	local cf = CFrame.new(49.75, SUELO, -10.1) * CFrame.Angles(0, math.rad(90), 0) -- contra la tienda, mirando a -X
+	-- Contra la pared norte de la tienda, mirando al norte (-Z): en la acera de delante no cabe (hielo y bajante).
+	local cf = CFrame.new(55.5, SUELO, -15.25)
 	solido(m, "Cuerpo", Vector3.new(2.9, 5.2, 2.3), cf * CFrame.new(0, 2.8, 0), Color3.fromRGB(44, 50, 60), Enum.Material.Metal)
 	pieza(m, "Pie", Vector3.new(2.8, 0.2, 2.2), cf * CFrame.new(0, 0.1, 0), C.MetalOscuro, Enum.Material.Metal)
 	local frente = cf * CFrame.new(0, 0, -1.15)
@@ -1107,8 +1114,12 @@ local OCUPADO = {
 	{ 56, 64, 17.6, 22.4 }, -- contenedor
 	{ 46, 53.3, -26.4, -20.3 }, -- neumáticos
 	{ 39.6, 42.4, -34.2, -31.8 }, -- poste de aire y agua
-	{ 48, 51.2, -11.7, -8.4 }, -- máquina
+	{ 53.7, 57.3, -16.9, -13.9 }, -- máquina
 	{ TIENDA.x0 - 0.6, TIENDA.x1 + 0.6, TIENDA.z0 - 0.6, TIENDA.z1 + 0.6 }, -- la tienda
+	-- Lo de GasolineraTienda: en la acera, hasta el banco, el bajante caído, el hielo, los periódicos, la papelera y los
+	-- bolardos (y el bolardo de delante del banco); detrás, el escalón, los palés, las cajas y las bolsas.
+	{ ACERA.x0 - 0.2, ACERA.x1, ACERA.z0 - 0.2, 10.8 }, { 48.5, 49.5, 12.4, 13.4 },
+	{ 69.9, 71.5, 7.3, 10.7 }, { 69.9, 73.3, -12.5, -8.4 }, { 69.9, 73, -0.4, 4.2 }, { 69.9, 73.3, 10.6, 14.2 },
 }
 
 local function libre(x: number, z: number): boolean
@@ -1150,13 +1161,13 @@ local function basura()
 		tirar(m, 4, zona, colilla)
 	end
 	tirar(m, 2, { 24, 40, -12, 12 }, lata)
-	-- Colillas, una lata y papeles bajo el banco y delante de él; latas junto a la máquina.
-	tirar(m, 10, { 48.4, 51, 7, 11.4 }, colilla)
-	tirar(m, 2, { 47.5, 49.5, 6.5, 12 }, papel)
-	lata(m, 48.9, 10.6)
-	vaso(m, 47.8, 8.1)
-	tirar(m, 2, { 46.6, 47.9, -12, -8.2 }, lata)
-	vaso(m, 47.2, -12.6)
+	-- Colillas, una lata y papeles bajo el banco y delante de él (en la acera); latas delante de la máquina.
+	tirar(m, 10, { 49.4, 51.3, 10.5, 14.3 }, colilla)
+	tirar(m, 2, { 49.3, 50.2, 10.5, 14.3 }, papel)
+	lata(m, 49.7, 13.9)
+	vaso(m, 48.1, 11.9)
+	tirar(m, 2, { 54, 57, -17.9, -16.9 }, lata)
+	vaso(m, 57.7, -16.6)
 	-- Por toda la explanada, pocas cosas sueltas; detrás de la tienda, más.
 	tirar(m, 6, { 8, 72, -38, 38 }, papel)
 	tirar(m, 3, { 8, 72, -38, 38 }, lata)
