@@ -4,15 +4,15 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 
 ## Lobby (`src/lobby`)
 
-- `Gasolinera`: gasolinera vieja de noche junto a la carretera (x = 0, el bosque hacia -Z): marquesina con dos fluorescentes flojos, dos surtidores, la tienda (caja vacía con puerta; dentro irá la de clases y cosméticos), cartel rojo "GAS" que parpadea como un fluorescente viejo, bosque de troncos alrededor y 4 coches en `workspace.Coches` (etiqueta `Coche`, asientos `Asiento1..4`).
-- `Coches` (servidor): prompt "Get in" (E) te sienta en el primer asiento libre. El primero que sube es el dueño; si se baja, lo es el siguiente que subió (y se vuelve a elegir de cero). El dueño elige ranura (1..`Ranuras`), si empieza de cero y arranca: cuenta atrás de `Salida` s y `Viaje.ir`. Atributos del coche: `Dueno`, `Ranura`, `Nueva`, `Salida`; del jugador: `Coche`. Remote `Coche`: ("Ranura", n), ("Nueva", bool), ("Arrancar"), solo del dueño.
+- `Gasolinera` y los suyos: la gasolinera vieja de noche junto a la carretera, con lluvia, la tienda dentro y 4 coches en `workspace.Coches` (etiqueta `Coche`, asientos `Asiento1..4`). Rehecha en 14.7: ver `lobby.md`.
+- `Coches` (servidor): prompt "Get in" (E) te sienta en el primer asiento libre. El primero que sube es el dueño; si se baja, lo es el siguiente que subió (y se vuelve a elegir de cero). El dueño elige ranura (1..`Ranuras`), si empieza de cero y arranca: cuenta atrás de `Salida` s y `Viaje.ir`. Atributos del coche: `Dueno`, `Ranura`, `Nueva`, `Salida`; del jugador: `Coche`. Remote `Coche`: ("Ranura", n), ("Nueva", bool), ("Arrancar"), solo del dueño; Ranura y Nueva, como mucho una petición cada 0,2 s. Tras un viaje que sale bien, el coche vuelve a quedar libre (`Salida` a nil) cuando se vacía (antes se quedaba inservible para siempre en ese servidor).
 - `CochesUi` (cliente): panel oscuro abajo con esquina de sangre. Dueño: las 3 ranuras ("1 NOCHE 4" / "VACÍA", la elegida con borde claro), NUEVA PARTIDA en una ranura guardada (dos toques; luego "SEGUIR CON LA GUARDADA") y EMPEZAR / CONTINUAR / EMPEZAR DE CERO. Los demás: "Esperando a {name}…". Cuenta atrás "SALÍS EN 3…", fundido a negro al salir; si el servidor para el coche (falla o Studio) vuelve la imagen. BAJAR (`Sit = false`: `Jump` desde un script no levanta del asiento).
 - `Controles` pasó a `comun/cliente` (vale en los dos lugares). `Ui.mancha(panel)`: la esquina de sangre de los paneles.
 
 ## Viaje (`comun/servidor/Viaje`)
 
 - Lobby: `ReserveServer` del lugar Juego, apunta en MemoryStore (`Config.Partida.Viajes`, clave = id del servidor privado, caduca en un día) `{ dueno, ranura, nueva, jugadores }` y `TeleportAsync` a todos juntos (un reintento).
-- Juego: `Viaje.leer()` lo lee de MemoryStore (nunca de los datos del teletransporte, que pasan por el cliente). `Viaje.volver(jugadores, texto)`: aviso y de vuelta al lobby (sin lobby publicado, los echa con el texto; en Studio solo avisa).
+- Juego: `Viaje.leer()` lo lee de MemoryStore (nunca de los datos del teletransporte, que pasan por el cliente). `Viaje.volver(jugadores, texto)`: aviso y de vuelta al lobby (sin lobby publicado, los echa con el texto; en Studio solo avisa). Si la vuelta falla al llegar (`TeleportInitFailed`), se reintenta una vez y si no se echa al jugador con el texto.
 - En Studio no hay teletransporte: el coche avisa "El teletransporte no funciona en Studio." y el lugar Juego arranca con el dueño falso de `Config.Test` (`Dueno` = nil → el primero que entra, `Ranura`, `Nueva`).
 
 ## Partida (`juego/servidor/Partida` y `FormatoPartida`)
@@ -39,5 +39,5 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 
 - Sin probar (solo funciona publicado): reservar servidor, MemoryStore, teletransporte de ida y vuelta, DataStore real de la partida, dueño que se va con otros dentro. `Config.Lugares` sigue a 0.
 - Sin probar en Studio: volver al amanecer al morir todos (usa el mismo `aplicar` que Cargar), dos jugadores en el coche (el que no es dueño).
-- Monedas al amanecer (paso 10). Lluvia del lobby, cinemáticas del coche (salida del lobby y llegada a la casa) y volver a una partida tras un corte (el dueño no puede volver a entrar a un servidor reservado: haría falta que el lobby lo mande de vuelta).
+- Monedas al amanecer (paso 10). La cinemática de llegada a la casa (la de salida del lobby está hecha: `lobby.md`) y volver a una partida tras un corte (el dueño no puede volver a entrar a un servidor reservado: haría falta que el lobby lo mande de vuelta).
 - Para probar el lobby en el mismo Studio: `rojo serve lobby.project.json --port 34872` y Rojo → Connect (el lugar se genera entero por código).
