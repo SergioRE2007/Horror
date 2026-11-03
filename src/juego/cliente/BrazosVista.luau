@@ -25,8 +25,9 @@ local ABAJO = Vector3.new(0, -1, 0) -- hacia donde cuelga el brazo en el espacio
 
 type Hombro = { motor: Motor6D, original: CFrame, giro: CFrame }
 type Gesto = { hasta: number, der: Vector3?, izq: Vector3? }
-type Otro = { personaje: Model, der: Hombro?, izq: Hombro?, gesto: Gesto? }
+type Otro = { personaje: Model, der: Hombro?, izq: Hombro?, gesto: Gesto?, linterna: { BasePart }? }
 local otros: { [Player]: Otro } = {}
+local ponerLinterna: (o: Otro, encendida: boolean) -> () -- más abajo
 
 local function hombroDe(personaje: Model, pieza: string, nombre: string): Hombro?
 	local brazo = personaje:FindFirstChild(pieza)
@@ -60,6 +61,10 @@ local function alEntrar(otro: Player)
 		return
 	end
 	otro.CharacterAdded:Connect(function(personaje)
+		local viejo = otros[otro]
+		if viejo then
+			ponerLinterna(viejo, false)
+		end
 		otros[otro] = nil
 		preparar(otro, personaje)
 	end)
@@ -182,6 +187,40 @@ local function objetivos(otro: Player, o: Otro, raiz: BasePart): (Vector3?, Vect
 	return der, izq
 end
 
+-- La linterna que se le ve en la mano izquierda mientras la lleva encendida (la luz la pone EquipoVista en esa mano).
+local LINTERNA = { -- { tamaño, sitio respecto a la mano (el brazo baja por su -Y), color }
+	{ Vector3.new(0.75, 0.18, 0.18), CFrame.new(0, -0.25, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(52, 52, 55) },
+	{ Vector3.new(0.22, 0.28, 0.28), CFrame.new(0, -0.62, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(52, 52, 55) },
+}
+function ponerLinterna(o: Otro, encendida: boolean)
+	local mano = o.personaje:FindFirstChild("LeftHand") :: BasePart?
+	if encendida and mano then
+		if not o.linterna then
+			local partes = {}
+			for _, d in LINTERNA do
+				local p = Instance.new("Part")
+				p.Name = "LinternaOtro"
+				p.Shape = Enum.PartType.Cylinder
+				p.Size = d[1]
+				p.Color = d[3]
+				p.Material = Enum.Material.Metal
+				p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = true, false, false, false, false
+				p.Parent = camara
+				table.insert(partes, p)
+			end
+			o.linterna = partes
+		end
+		for i, p in o.linterna :: { BasePart } do
+			p.CFrame = mano.CFrame * LINTERNA[i][2]
+		end
+	elseif o.linterna then
+		for _, p in o.linterna do
+			p:Destroy()
+		end
+		o.linterna = nil
+	end
+end
+
 local function girar(h: Hombro?, hacia: Vector3?, dt: number)
 	if not h then
 		return
@@ -215,9 +254,11 @@ local function paso(dt: number)
 	local ojo = camara.CFrame.Position
 	for otro, o in otros do
 		if not otro.Parent or otro.Character ~= o.personaje then
+			ponerLinterna(o, false)
 			otros[otro] = nil
 			continue
 		end
+		ponerLinterna(o, otro:GetAttribute("Linterna") == true and not otro:GetAttribute("Muerto"))
 		local raiz = raizDe(otro)
 		if not raiz then
 			continue
@@ -239,6 +280,10 @@ function BrazosVista.start()
 		alEntrar(otro)
 	end
 	Players.PlayerRemoving:Connect(function(otro)
+		local o = otros[otro]
+		if o then
+			ponerLinterna(o, false)
+		end
 		otros[otro] = nil
 	end)
 	for _, el in CollectionService:GetTagged("Ventana") do

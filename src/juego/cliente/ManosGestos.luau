@@ -14,6 +14,7 @@
 --   Foto: las dos manos suben la cámara a la cara (lo pide EquipoVista al hacer la foto).
 --   Cambiar la pila de la linterna o el carrete de la cámara: con las dos manos, todo el rato que dura.
 --   Lo que coges vuela hasta tu mano (una copia: el de verdad lo quita el servidor).
+--   Trepando por una escalera de mano, las manos van de peldaño en peldaño; en el aire, los brazos se abren.
 --   Al salir del escondite, las dos manos empujan para salir. Al morir, las manos se levantan temblando ante el bicho.
 -- Las herramientas (hacha, sierra, martillo, llave) las agarra TrabajoVista con su propia capa.
 local CollectionService = game:GetService("CollectionService")
@@ -722,6 +723,50 @@ local function capaCambiar(): Manos.Pose?
 	return { izq = izq, cosaIzq = "CamaraIzq", der = der, cosaDer = cosa, velocidad = 18 }
 end
 
+-- Trepar por una escalera de mano (la del sótano a la trampilla, la del desván): las manos se van agarrando a los
+-- peldaños, una y otra, al ritmo al que subes o bajas. Van con el cuerpo (mirando a la escalera), no con la cámara.
+local trepado = 0
+local function capaTrepar(dt: number): Manos.Pose?
+	local personaje = jugador.Character
+	local hum = personaje and personaje:FindFirstChildOfClass("Humanoid")
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not hum or not raiz or hum:GetState() ~= Enum.HumanoidStateType.Climbing then
+		return nil
+	end
+	trepado += raiz.AssemblyLinearVelocity.Y * dt / 1.1 * math.pi -- un peldaño cada ~1,1 studs
+	local r = raiz.CFrame
+	local function mano(lado: number, fase: number): CFrame
+		-- Sube mientras la otra agarra: arriba del todo, se cierra en el peldaño y baja con el cuerpo.
+		local alto = 1.25 + math.sin(fase) * 0.45
+		local suelta = math.max(0, math.cos(fase)) * 0.18 -- separada de la escalera mientras sube
+		local p = (r * CFrame.new(lado * 0.42, alto, -0.95 + suelta)).Position
+		return Manos.palma(p, r.UpVector + r.LookVector * 0.3, -r.LookVector)
+	end
+	return { der = mano(1, trepado), izq = mano(-1, trepado + math.pi), velocidad = 20 }
+end
+
+-- En el aire (saltando o cayendo más de un momento): los brazos se abren un poco, para no perder el equilibrio.
+local enElAire = 0
+local function capaAire(dt: number): Manos.Pose?
+	local hum = jugador.Character and jugador.Character:FindFirstChildOfClass("Humanoid")
+	local estado = hum and hum:GetState()
+	if estado == Enum.HumanoidStateType.Freefall or estado == Enum.HumanoidStateType.Jumping then
+		enElAire += dt
+	else
+		enElAire = 0
+	end
+	if enElAire < 0.3 then
+		return nil
+	end
+	local cf = camara.CFrame
+	local abre = math.min(1, (enElAire - 0.3) / 0.3)
+	return {
+		der = Manos.palma(cf * Vector3.new(0.7 + 0.15 * abre, -0.9 + 0.25 * abre, -1.0), cf.LookVector + cf.RightVector * 0.4, cf.UpVector),
+		izq = Manos.palma(cf * Vector3.new(-0.7 - 0.15 * abre, -0.9 + 0.25 * abre, -1.0), cf.LookVector - cf.RightVector * 0.4, cf.UpVector),
+		velocidad = 10,
+	}
+end
+
 -- ===== Lo que piden otros módulos =====
 
 -- La foto (EquipoVista, al pedirla): sube la cámara a la cara con las dos manos, da el disparo y la baja.
@@ -787,6 +832,8 @@ function ManosGestos.start()
 	Manos.capa("Pistola", 25, capaPistola)
 	Manos.capa("Cargar", 30, capaCargar)
 	Manos.capa("Cambiar", 45, capaCambiar)
+	Manos.capa("Trepar", 35, capaTrepar)
+	Manos.capa("Aire", 5, capaAire)
 	local escondido = jugador:GetAttribute("Escondido") ~= nil
 	jugador:GetAttributeChangedSignal("Escondido"):Connect(function()
 		local ahora = jugador:GetAttribute("Escondido") ~= nil

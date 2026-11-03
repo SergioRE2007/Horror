@@ -86,9 +86,16 @@ local function actualizarLuces()
 			local enMano = Manos.dondeCosa("Linterna")
 			luz.punto.WorldCFrame = if enMano then camara.CFrame * enMano * CFrame.new(0, 0, -0.66)
 				else camara.CFrame * CFrame.new(0.6, -0.5, -0.5)
-		elseif luz.punto.Parent ~= cabeza then
-			luz.punto.Parent = cabeza
-			luz.punto.CFrame = CFrame.new(0.4, -0.3, -0.6)
+		else
+			-- La de los demás, desde su mano izquierda (BrazosVista le levanta el brazo y le pone la linterna); sin mano
+			-- (R6), desde la cabeza.
+			local mano = otro.Character and otro.Character:FindFirstChild("LeftHand") :: BasePart?
+			local donde: Instance = mano or cabeza
+			if luz.punto.Parent ~= donde then
+				luz.punto.Parent = donde
+				luz.punto.CFrame = if mano then CFrame.new(0, -0.55, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+					else CFrame.new(0.4, -0.3, -0.6)
+			end
 		end
 		local pila = otro:GetAttribute("Pila") or 1
 		local brillo = L.Brillo
