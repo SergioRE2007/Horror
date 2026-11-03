@@ -45,6 +45,22 @@ sesión, fuera del repo: si hace falta, se rehace.
   cabeza o sus rodillas quedan sobre la mesa, y se cuela a tirones.
 - Para los dos, seguir el mismo esquema que `gatear` en GolpeadorVista: el camino de la cara (fuera, abajo, dentro);
   probar con la mesa del comedor.
+- Cómo seguir:
+  - Copiar a cada Vista lo de GolpeadorVista: `GATEO`, `type Gateo`, `orientar`, `mirarCara`, `duraGateo`,
+    `buscarBorde`, `avanceGateo`, `ruidoGateo` y `gatear`.
+  - Añadir los campos `gateo`, `gatea` y `agarra` en `Bicho` y en `preparar`.
+  - Pausar la vida con `and not gateando` en la línea de `b.vida`.
+  - Llamar a `gatear(b, dt, ahora, poco)` tras la Mandibula (en el Trepador, antes de las patas: mezclar las puntas
+    con `pisar`).
+  - Poner `b.agarra = os.clock()` en `rugir` si `b.gatea`.
+- Medidas para el Raspador:
+  - ALTURA 4,2; la cadera nunca por debajo de 0,45; cuello de 1,6.
+  - Cabeza: su centro está a (0; 0,5; -0,2) de su junta.
+  - Brazos: 2,65 + 4,15, por cinemática 3D con polo (lado·0,85; 0,5; 0,15).
+- Medidas para el Trepador:
+  - ALTURA 2,2.
+  - Patas con `r` de 6,2 a 6,5, para que las rodillas queden por debajo de 2,5.
+  - La cabeza asoma 3,6 por delante del centro del torso.
 - Párrafo para `docs/sistemas/bichos.md` (lo pone el principal).
 
 ## Probar en Studio
