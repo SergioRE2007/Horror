@@ -75,6 +75,26 @@ Etiquetas (CollectionService) y atributos dentro de `workspace.Mapa`:
   hasta el carril x = 3,5 y acelera hasta 40 studs/s hacia la niebla. Todo según la hora del servidor.
 - Quien va dentro: interfaz y CoreGui escondidas, dos planos (delante a un lado; detrás siguiéndolo) y fundido a negro
   propio antes de la hora. Se devuelve todo si el servidor para el coche, si te bajas, a los 12 s o si algo falla.
+- Bajarse (saltando o con BAJAR): `CochesUi` te pone de pie junto a la puerta de tu lado (si no cabe, por la otra,
+  por detrás o por delante), cuando el asiento ya te ha soltado. Sin eso caías en el suelo del coche, entre las
+  puertas que chocan, con la cabeza por el techo (visto en Studio). Lo hace el cliente: desde el servidor el personaje
+  volvía dentro y arrastraba el asiento aún soldado.
+
+## Interfaz (CochesUi y TiendaUi)
+
+Pedido por el usuario: "que siga el estilo oscuro de Ui y se vea bien en el móvil". Las dos son papel viejo oscuro con
+la esquina de sangre (`Ui`), con textos en mayúsculas que encogen en vez de cortarse (`Ui.queQuepa`). En el móvil todo
+mide un dedo (`Ui.alto`) y dejan 190 de diseño libres a cada lado para no pisar el botón de saltar. Con Rendimiento,
+sin animaciones.
+- `CochesUi`: sentado, un papel sube desde abajo con un pequeño rebote. El dueño ve sus ranuras como fichas de
+  cartulina (NOCHE N / VACÍA); la elegida lleva borde claro y un marcapáginas rojo, con ruido de papel; si va a
+  empezar de cero, se tacha. Debajo, NUEVA PARTIDA (dos toques), EMPEZAR / CONTINUAR en rojo y BAJAR. Los demás ven
+  "Esperando a {name}…" o la cuenta atrás. En primera persona suelta el ratón (`Modal`). Conserva por si acaso su
+  fundido propio (capa Fundido, DisplayOrder 100).
+- `TiendaUi`: la libreta de espiral del mostrador (ver `tienda.md`).
+- Los "¿SEGURO?" y "¿COMPRAR?" no se confirman con un doble toque sin querer: un toque a menos de 0,4 s del anterior
+  no cuenta y el botón da un respingo (también en los de Robux, ELEGIR y USAR). Tras confirmar, el botón sigue así
+  hasta que responde el servidor.
 
 ## Sonidos
 
@@ -94,6 +114,9 @@ Etiquetas (CollectionService) y atributos dentro de `workspace.Mapa`:
   tienda, sí justo fuera), charcos, goteo, relámpagos; luces que fallan y el cartel GAS; la puerta al acercarte.
 - Subirse a un coche: faros y limpias; EMPEZAR: la cinemática entera, el aviso de Studio y que vuelve la imagen con
   el panel y los controles. Probar el coche 1 y uno del medio. Con dos jugadores: el que mira desde fuera.
-- Bajarse del coche saltando (los asientos van dentro del cuerpo que choca).
 - Esperar fuera 1-3 minutos mirando al bosque: la sombra. Probar Rendimiento en Ajustes.
+- Probado en Studio (03-11-2026): tienda (separadores, comprar con dos toques, doble toque que no compra, sello EN
+  USO), coche (fichas, doble toque en NUEVA PARTIDA que no borra, CONTINUAR, cinemática y vuelta de la imagen),
+  bajarse saltando (sale junto a la puerta), máquina expendedora y banco en su sitio, sin piezas que se acumulen. Falta:
+  emulador de móvil, dos jugadores (el que mira desde fuera), la sombra y Rendimiento.
 - Que no salga ningún `warn` de `[Clima]`, `[Bucle]`, `[Gasolinera]` o `[GasolineraVista]`.
