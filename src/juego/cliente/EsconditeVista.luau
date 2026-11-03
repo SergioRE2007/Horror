@@ -103,6 +103,7 @@ type Sitio = {
 	lado: number, -- por dónde se sale (1 o -1, en la X del colchón)
 	pivote: CFrame, -- el borde de la colcha del otro lado, por donde gira
 	giro: number, -- radianes que gira con la colcha levantada del todo (1)
+	conexion: RBXScriptConnection?, -- la de su atributo Ocupado (se suelta si el escondite se va con el streaming)
 }
 
 local jugador = Players.LocalPlayer
@@ -561,8 +562,10 @@ local function nuevoSitio(modelo: Instance)
 		giro = 0,
 	}
 	sitios[modelo] = s
-	modelo:GetAttributeChangedSignal("Ocupado"):Connect(function()
-		alCambiar(s)
+	s.conexion = modelo:GetAttributeChangedSignal("Ocupado"):Connect(function()
+		if sitios[modelo] == s then -- (si el escondite se fue y volvió, manda el sitio nuevo: nada de puertas dobles)
+			alCambiar(s)
+		end
 	end)
 end
 
@@ -590,6 +593,10 @@ function EsconditeVista.start()
 		local s = sitios[modelo]
 		if s then
 			sitios[modelo] = nil
+			if s.conexion then
+				s.conexion:Disconnect()
+				s.conexion = nil
+			end
 			terminar(s)
 		end
 	end)
