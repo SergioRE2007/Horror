@@ -50,6 +50,17 @@ local NOMBRES = {
 local Remotes = {}
 
 if RunService:IsServer() then
+	-- En modo Edit (un require desde la barra de comandos o execute_luau, la trampa del CLAUDE.md) no se cuelga nada:
+	-- una carpeta de más guardada en el lugar la cogería el cliente al jugar y ningún remoto funcionaría. Al arrancar
+	-- el juego se borran las viejas que haya (puede haber varias).
+	local enMarcha = RunService:IsRunning()
+	if enMarcha then
+		for _, vieja in ReplicatedStorage:GetChildren() do
+			if vieja.Name == "Remotes" then
+				vieja:Destroy()
+			end
+		end
+	end
 	local carpeta = Instance.new("Folder")
 	carpeta.Name = "Remotes"
 	for _, nombre in NOMBRES do
@@ -58,7 +69,9 @@ if RunService:IsServer() then
 		remoto.Parent = carpeta
 		Remotes[nombre] = remoto
 	end
-	carpeta.Parent = ReplicatedStorage
+	if enMarcha then
+		carpeta.Parent = ReplicatedStorage
+	end
 else
 	local carpeta = ReplicatedStorage:WaitForChild("Remotes")
 	for _, nombre in NOMBRES do

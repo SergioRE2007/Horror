@@ -184,7 +184,8 @@ Config.Acechador = {
 
 -- Dificultad por número de jugadores (shared/Dificultad), pensada para 2 (pedido por el usuario). Se calcula al
 -- empezar cada noche. AlaVez = {mínimo, máximo} ataques a la vez; Ritmo multiplica el tiempo entre ataques,
--- Paciencia lo que aguanta golpeando o raspando, Tareas lo que hay que hacer de día (aún sin usar). Números a ojo.
+-- Paciencia lo que aguanta golpeando o raspando, Tareas lo que hay que hacer de día (de momento, lo deprisa que gasta
+-- gasolina el generador: Generador). Números a ojo.
 Config.Dificultad = {
 	{ AlaVez = { 1, 1 }, Ritmo = 1.3, Paciencia = 1.25, Tareas = 0.75 },
 	{ AlaVez = { 2, 2 }, Ritmo = 1, Paciencia = 1, Tareas = 1 },
