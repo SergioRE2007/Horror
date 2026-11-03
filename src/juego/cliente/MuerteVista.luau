@@ -135,6 +135,7 @@ local function mirarVivos(siguiente: boolean)
 	if humanoide and camara.CameraSubject ~= humanoide then
 		camara.CameraType = Enum.CameraType.Custom
 		camara.CameraSubject = humanoide
+		Remotes.Mirar:FireServer(otro) -- con el mapa por partes, que cargue alrededor de él (no del muerto)
 	end
 	mirando.Text = Lang.t(nil, "Watching {name}", { name = otro.DisplayName })
 	mirando.Visible = true

@@ -42,6 +42,7 @@ local NOMBRES = {
 	"Ajustes", -- cliente -> servidor: ("Rendimiento", activo) cambio un ajuste que se guarda (comun/servidor/Ajustes)
 	-- Tutorial (14.2).
 	"Tutorial", -- cliente -> servidor: ("Saltar") no quiero el tutorial (juego/servidor/Tutorial)
+	"Mirar", -- cliente -> servidor: (jugador vivo) de muerto, a quién sigue mi cámara (Muerte: el mapa por partes carga ahí)
 }
 
 local Remotes = {}
