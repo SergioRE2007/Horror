@@ -36,6 +36,10 @@ agachado (`PosturaReglas.alcanceVista/alcanceOido`); cubierto solo muy de cerca,
 al borde del mueble, ponen en su modelo `Gatea` (Vector3) y `GateaHora`, y a `Config.Postura.Gatear` s te pillan
 (Muerte.matar) o lo dejan si sales y te alejas. Cada Vista anima su gateo mientras haya `Gatea`.
 
+Estado al cerrar (todo en commits y subido; nada probado en Studio): cuerpo y servidor hechos; gateo hecho en
+Golpeador e Imitador; falta el gateo del Raspador y del Trepador (`bichos1.md`) y de la Bestia (`bichos2.md`); la
+prueba de `Caza.borde` para las regresiones está en `caza.md`.
+
 Estado de cada parte (cada agente lo apunta en su nota de esta carpeta):
 - Cuerpo (`PosturaVista`, `CuerpoVista`, `BrazosVista`, `servidor/Postura`, `MuerteVista`): `cuerpo.md`.
 - Bichos en el servidor (`Caza`, `Bestia`): `caza.md`.
