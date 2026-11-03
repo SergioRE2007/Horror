@@ -15,6 +15,8 @@ local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local BengalasVista = require(script.Parent.BengalasVista)
+local Manos = require(script.Parent.Manos)
+local ManosGestos = require(script.Parent.ManosGestos)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -78,9 +80,12 @@ local function actualizarLuces()
 			luces[otro] = luz
 		end
 		if otro == jugador then
-			-- Desde la cámara, un poco abajo a la derecha (en la mano).
+			-- Desde la linterna que llevas en la mano izquierda (Manos); con las manos ocupadas, desde la cámara, un
+			-- poco abajo a la derecha.
 			luz.punto.Parent = workspace.Terrain
-			luz.punto.WorldCFrame = camara.CFrame * CFrame.new(0.6, -0.5, -0.5)
+			local enMano = Manos.dondeCosa("Linterna")
+			luz.punto.WorldCFrame = if enMano then camara.CFrame * enMano * CFrame.new(0, 0, -0.66)
+				else camara.CFrame * CFrame.new(0.6, -0.5, -0.5)
 		elseif luz.punto.Parent ~= cabeza then
 			luz.punto.Parent = cabeza
 			luz.punto.CFrame = CFrame.new(0.4, -0.3, -0.6)
@@ -137,6 +142,7 @@ local function pedirFlash()
 		return
 	end
 	Remotes.Flash:FireServer(camara.CFrame.LookVector)
+	ManosGestos.foto() -- las dos manos suben la cámara a la cara
 end
 
 -- Destello de un flash: luz fuerte un instante en la cabeza de quien hace la foto.

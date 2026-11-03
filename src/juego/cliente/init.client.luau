@@ -19,11 +19,14 @@ require(Sistemas.ImitadorVista).start()
 require(Sistemas.AcechadorVista).start()
 require(Sistemas.ChimeneaVista).start()
 task.spawn(require(Sistemas.DetallesVista).start) -- espera al mapa: que no frene a los de después
+require(Sistemas.Manos).start() -- brazos en primera persona (las capas se apuntan antes o después, da igual)
+require(Sistemas.ManosGestos).start()
 require(Sistemas.EquipoVista).start()
 require(Sistemas.MochilaUi).start() -- después de EquipoVista: su botón va en la misma fila
 require(Sistemas.MovilUi).start() -- después de EquipoVista: su botón va en la misma fila
 require(Sistemas.CargarVista).start()
 require(Sistemas.TrabajoVista).start()
+require(Sistemas.BrazosVista).start() -- los brazos de los demás jugadores
 require(Sistemas.MuerteVista).start()
 require(Sistemas.VendedorUi).start()
 require(Sistemas.PistasUi).start()
