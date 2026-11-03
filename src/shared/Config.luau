@@ -35,6 +35,7 @@ Config.Recompensas = {
 		Noche10 = { Noche = 10, Monedas = 400 },
 		Huida = { Monedas = 250 },
 		Bestia = { Monedas = 500 },
+		Tutorial = { Monedas = 100 }, -- al acabar el tutorial (juego/servidor/Tutorial); también apunta que ya lo hizo
 	},
 }
 
@@ -434,6 +435,15 @@ Config.Test = {
 	Ranura = 1,
 	Nueva = false, -- true = empezar de cero aunque haya algo guardado
 	Partidas = { ["1"] = { noche = 4, hora = 0 } }, -- lo que el lobby enseña como ya guardado (las ranuras)
+	Tutorial = false, -- true = sale el tutorial en Studio (los datos de prueba nunca lo tienen hecho)
+}
+
+-- Tutorial de los primeros minutos (juego/servidor/Tutorial y cliente/TutorialVista, 14.2). Sale una vez por cuenta,
+-- hasta acabarlo o saltarlo; el premio es el logro Tutorial de Config.Recompensas. Pasos en shared/PasosTutorial.
+Config.Tutorial = {
+	Activo = true,
+	Cada = 0.5, -- segundos entre dos miradas del servidor
+	Flecha = 4, -- studs por encima de lo que señala la flecha
 }
 
 -- Sonidos (juego/cliente/Sonido): de ElevenLabs, elegidos por el usuario de oído (tools/sonidos, docs/sistemas/sonidos.md).

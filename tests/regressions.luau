@@ -959,6 +959,50 @@ do
 	guardable(buena, "partida con preparativos")
 end
 
+-- Tutorial (14.2): los pasos del día en orden, lo ya hecho se salta, el anochecer pasa a las cortinas, se acaba al
+-- amanecer y si mueren todos vuelve a lo del día.
+do
+	local PT = cargar("src/shared/PasosTutorial")
+	local function vista(cambios)
+		local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, mochila = false, hacha = false, cargando = nil,
+			generador = false, cortinas = 3 }
+		for clave, valor in cambios do
+			v[clave] = valor
+		end
+		return v
+	end
+	local e = PT.nuevo()
+	igual(PT.avanzar(e, vista({})), false, "tutorial: empieza sin acabar")
+	igual(e.paso, "Mochila", "tutorial: primero la mochila")
+	PT.avanzar(e, vista({ mochila = true }))
+	igual(e.paso, "Hacha", "tutorial: luego el hacha")
+	PT.avanzar(e, vista({ hacha = true, cargando = "Tablon" }))
+	igual(e.paso, "Generador", "tutorial: con un tablón en las manos se salta talar y serrar")
+	PT.avanzar(e, vista({ generador = true }))
+	igual(e.paso, "Espera", "tutorial: todo lo del día hecho, a esperar la noche")
+	PT.avanzar(e, vista({ quedan = 15 }))
+	igual(e.paso, "Cortinas", "tutorial: al ponerse el sol, las cortinas")
+	igual(e.noche, 1, "tutorial: apunta la noche que enseña")
+	PT.avanzar(e, vista({ fase = "Noche", cortinas = 0 }))
+	igual(e.paso, "Amanecer", "tutorial: cortinas cerradas, a aguantar")
+	PT.avanzar(e, vista({ fase = "Noche", cortinas = 2 }))
+	igual(e.paso, "Amanecer", "tutorial: si luego abren alguna, no vuelve atrás")
+	-- Mueren todos: vuelve el mismo día.
+	igual(PT.avanzar(e, vista({ fase = "Dia", noche = 1 })), false, "tutorial: volver al día no lo acaba")
+	igual(e.paso, "Espera", "tutorial: tras morir todos, lo del día ya estaba hecho")
+	igual(e.noche, nil, "tutorial: la noche se vuelve a apuntar")
+	PT.avanzar(e, vista({ fase = "Noche", cortinas = 1 }))
+	igual(e.paso, "Cortinas", "tutorial: esa noche otra vez las cortinas")
+	igual(PT.avanzar(e, vista({ fase = "Dia", noche = 2 })), true, "tutorial: al amanecer se acaba")
+	-- Quien entra de noche: directo a las cortinas y se acaba al amanecer.
+	local tarde = PT.nuevo()
+	PT.avanzar(tarde, vista({ fase = "Noche", noche = 4, cortinas = 0 }))
+	igual(tarde.paso, "Amanecer", "tutorial: entrar de noche con todo cerrado")
+	igual(PT.avanzar(tarde, vista({ fase = "Dia", noche = 5, quedan = 5 })), true, "tutorial: amanecer visto ya de tarde")
+	igual(PT.numero("Cortinas"), 7, "tutorial: número del paso")
+	igual(PT.numero("Nada"), 0, "tutorial: paso que no existe")
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")

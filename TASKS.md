@@ -100,7 +100,7 @@ En todas: telarañas que flotan o se meten en la pared.
 
 ### 13.1 Tutorial
 - **Descripción:** los primeros 5 minutos, muy visible (flecha grande, pasos cortos, premio al acabar).
-- **Estado:** pendiente — se diseña con Sergio
+- **Estado:** en curso: es la 14.2 (`docs/sistemas/tutorial.md`)
 
 ### 13.2 Nombre, iconos y lanzamiento en privado
 - **Descripción:** también crear en Roblox los productos y pases de `Config.Compras` (Id = 0 ahora) y probar compras de verdad.
@@ -122,7 +122,7 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 
 ### 14.2 Los primeros 5 minutos
 - Es la 13.1 (tutorial muy visible: flecha grande, pasos cortos, premio al acabar). Se diseña con Sergio.
-- **Estado:** pendiente
+- **Estado:** en curso: propuesta hecha por Claude sin Studio (`docs/sistemas/tutorial.md`); falta probarla en Studio y que Sergio la apruebe
 
 ### 14.3 Más miedo
 - Sustos y efectos (temblores, polvo que cae, cristales) como avisos para quien juega sin cascos (sale en `diseño.md`; mirar antes si ya está con otro nombre).

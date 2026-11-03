@@ -40,6 +40,8 @@ local NOMBRES = {
 	"Latas", -- servidor -> todos: ("Suena", línea, fuerza, donde 0..1 de la cuerda) algo ha pasado por una trampa de latas (Latas / LatasVista)
 	-- Controles y móvil (14.4).
 	"Ajustes", -- cliente -> servidor: ("Rendimiento", activo) cambio un ajuste que se guarda (comun/servidor/Ajustes)
+	-- Tutorial (14.2).
+	"Tutorial", -- cliente -> servidor: ("Saltar") no quiero el tutorial (juego/servidor/Tutorial)
 }
 
 local Remotes = {}
