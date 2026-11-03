@@ -5,11 +5,15 @@
 --   Al moverte de lado, se inclina un poco hacia ese lado.
 --   Al caer de una altura, la cabeza baja de golpe y vuelve.
 --   Con un bicho cerca, respira más rápido y más hondo (el miedo).
+--   De noche y fuera de la casa, se ve el vaho al respirar (sin él con Rendimiento).
 -- Con lo pesado en las manos el balanceo lo pone CargarVista: aquí no se suma.
 -- Se pinta encima de la cámara de Roblox (BindToRenderStep, Camera + 1): solo mueve la posición y la inclina de lado,
 -- que la cámara rehace cada fotograma (no se acumula).
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local CuerpoVista = {}
 
@@ -31,6 +35,40 @@ local velCaida = 0
 local respiracion = 0
 local miedo = 0
 local bichoCerca = 0 -- se mira cada poco
+local proximoVaho = 0
+local vaho: ParticleEmitter? = nil
+local boca: Attachment? = nil
+
+-- Dentro de la casa (como Ambiente: la caja de la casa y por debajo del tejado).
+local function enCasa(p: Vector3): boolean
+	local c = Config.Casa
+	return math.abs(p.X) < c.MedioX and math.abs(p.Z) < c.MedioZ and p.Y < 28
+end
+
+-- El vaho: una nubecilla que sale de la boca y se deshace (las partículas se quedan donde salen).
+local function echarVaho(cf: CFrame)
+	if not vaho then
+		local a = Instance.new("Attachment")
+		a.Name = "Vaho"
+		a.Parent = workspace.Terrain
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		e.LightInfluence = 1 -- de noche, apenas: solo se ve con la linterna
+		e.Color = ColorSequence.new(Color3.fromRGB(215, 220, 228))
+		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.82), NumberSequenceKeypoint.new(1, 1) })
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.12), NumberSequenceKeypoint.new(1, 0.7) })
+		e.Lifetime = NumberRange.new(1, 1.6)
+		e.Speed = NumberRange.new(0.8, 1.4)
+		e.SpreadAngle = Vector2.new(18, 18)
+		e.Acceleration = Vector3.new(0, 0.6, 0)
+		e.Drag = 1.5
+		e.Rate = 0
+		e.Parent = a
+		boca, vaho = a, e
+	end
+	(boca :: Attachment).WorldCFrame = cf * CFrame.new(0, -0.35, -0.6)
+	;(vaho :: ParticleEmitter):Emit(5)
+end
 
 local function enJuego(): boolean
 	if camara.CameraType ~= Enum.CameraType.Custom then
@@ -99,6 +137,16 @@ local function paso(dt: number)
 	local respira = math.sin(respiracion) * (0.012 + miedo * 0.03)
 
 	camara.CFrame = cf * CFrame.new(lado, sube + respira + caida, 0) * CFrame.Angles(0, 0, mece + inclinado)
+
+	-- Vaho de noche fuera de casa, al soltar el aire (más seguido con miedo).
+	local ahora = os.clock()
+	if ahora >= proximoVaho then
+		proximoVaho = ahora + 3.2 - miedo * 1.6
+		if workspace:GetAttribute("Fase") == "Noche" and not enCasa(cf.Position)
+			and jugador:GetAttribute("Rendimiento") ~= true then
+			echarVaho(camara.CFrame)
+		end
+	end
 end
 
 function CuerpoVista.start()

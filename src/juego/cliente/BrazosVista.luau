@@ -127,10 +127,21 @@ local function vigilarPuerta(el: Instance)
 	end)
 end
 
--- Lo pesado que lleva otro: el de su tipo más cerca de él.
+-- Lo pesado que lleva otro: el de su tipo más cerca de él. Se recuerda y solo se vuelve a buscar entre todas las
+-- piezas cada 0,3 s si ya no vale.
+local pesados: { [Player]: { pieza: BasePart?, buscado: number } } = setmetatable({}, { __mode = "k" }) :: any
 local function pesadoDe(otro: Player, raiz: BasePart): BasePart?
 	local tipo = otro:GetAttribute("Cargando")
 	if type(tipo) ~= "string" then
+		pesados[otro] = nil
+		return nil
+	end
+	local guardado = pesados[otro]
+	local antes = guardado and guardado.pieza
+	if antes and antes.Parent and antes:GetAttribute("Tipo") == tipo and (antes.Position - raiz.Position).Magnitude < 8 then
+		return antes
+	end
+	if guardado and os.clock() - guardado.buscado < 0.3 then
 		return nil
 	end
 	local mejor, distancia = nil, 8
@@ -142,6 +153,7 @@ local function pesadoDe(otro: Player, raiz: BasePart): BasePart?
 			end
 		end
 	end
+	pesados[otro] = { pieza = mejor, buscado = os.clock() }
 	return mejor
 end
 

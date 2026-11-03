@@ -183,6 +183,10 @@ local function rehacer(personaje: Model?)
 	humanoide.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	humanoide.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	humanoide.EvaluateStateMachine = false
+	-- Con un Humanoid R15 la camiseta se pinta en las copias de los brazos R15.
+	if personaje and personaje:FindFirstChild("RightUpperArm") then
+		humanoide.RigType = Enum.HumanoidRigType.R15
+	end
 	humanoide.Parent = modelo
 	if personaje then
 		for _, ropa in personaje:GetChildren() do
@@ -275,6 +279,15 @@ function Manos.dondeCosa(nombre: string): CFrame?
 		end
 	end
 	return nil
+end
+
+-- Dónde está ahora la palma de esa mano en el mundo (nil si no se ve). Para lo que va hacia la mano.
+function Manos.mano(lado: string): CFrame?
+	local b = brazos[lado]
+	if not b or not visible or (b.rel.Position - REPOSO[lado].Position).Magnitude < 0.35 then
+		return nil
+	end
+	return camara.CFrame * b.rel
 end
 
 -- Una capa de sostener: fn(dt) devuelve la pose mientras dure, o nil. Prioridades: 10 linterna, 20 móvil,
@@ -423,15 +436,19 @@ local function llevar(b: Brazo, nombre: string?, mano: CFrame?)
 end
 
 local balanceo = 0
+local avisadas: { [string]: boolean } = {}
+local camaraAntes: CFrame? = nil
+local inercia = Vector3.zero -- las manos se quedan un poco atrás al girar la cámara
 local function paso(dt: number)
 	-- La capa de más prioridad que pida cada mano.
 	local poses: { { prioridad: number, pose: Pose } } = {}
-	for _, c in capas do
+	for nombre, c in capas do
 		local ok, pose = pcall(c.fn, dt)
 		if ok and pose then
 			table.insert(poses, { prioridad = c.prioridad, pose = pose })
-		elseif not ok then
-			warn("[Manos] " .. tostring(pose))
+		elseif not ok and not avisadas[nombre] then
+			avisadas[nombre] = true -- una vez por capa: no llenar la consola cada fotograma
+			warn("[Manos] " .. nombre .. ": " .. tostring(pose))
 		end
 	end
 	table.sort(poses, function(a, b)
@@ -444,8 +461,18 @@ local function paso(dt: number)
 	if andando then
 		balanceo += dt * (4 + (hum :: Humanoid).WalkSpeed * 0.35)
 	end
-	local meneo = if andando then CFrame.new(math.sin(balanceo) * 0.025, -math.abs(math.cos(balanceo)) * 0.03, 0)
-		else CFrame.new(0, math.sin(os.clock() * 1.3) * 0.006, 0) -- respirar
+	-- Inercia: lo que ha girado la cámara desde el fotograma anterior (dónde queda ahora la mirada de antes).
+	local giro = Vector3.zero
+	if camaraAntes and dt > 0 then
+		local antes = cf:VectorToObjectSpace((camaraAntes :: CFrame).LookVector)
+		giro = Vector3.new(antes.X, antes.Y, 0) / dt
+	end
+	camaraAntes = cf
+	local quiere = Vector3.new(math.clamp(giro.X * 0.035, -0.18, 0.18), math.clamp(giro.Y * 0.035, -0.14, 0.14), 0)
+	inercia = inercia:Lerp(quiere, 1 - math.exp(-dt * 10))
+	local meneo = (if andando then CFrame.new(math.sin(balanceo) * 0.025, -math.abs(math.cos(balanceo)) * 0.03, 0)
+		else CFrame.new(0, math.sin(os.clock() * 1.3) * 0.006, 0)) -- respirar
+		* CFrame.new(inercia)
 
 	table.clear(piezas)
 	table.clear(sitios)
@@ -472,11 +499,12 @@ local function paso(dt: number)
 		else
 			b.rel = b.rel:Lerp(destino, 1 - math.exp(-dt * velocidad))
 		end
-		-- Abajo del todo no se ve: no se pinta.
+		-- Las dos manos se colocan siempre (la que no se usa, abajo, fuera de la vista: si no, se quedaba donde
+		-- estuvo, flotando en el mundo); el modelo solo se cuelga si alguna se ve.
+		local mano = cf * b.rel
+		colocar(lado, b, mano)
 		if objetivo or (b.rel.Position - REPOSO[lado].Position).Magnitude > 0.35 then
 			alguna = true
-			local mano = cf * b.rel
-			colocar(lado, b, mano)
 			llevar(b, cosa, mano)
 		else
 			llevar(b, nil, nil)
