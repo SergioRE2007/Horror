@@ -109,8 +109,10 @@ local function hueco(mio: number, n: number, dif: Dificultad.Noche, retraso: num
 		if que == "Trepador" then
 			sigue = Trepador.atacar(n, dif.paciencia)
 		elseif que == "Imitador" then
-			sigue = Imitador.atacar(el :: Model, n, dif.paciencia, n == I.Noche and not apagon)
-			apagon = apagon or n == I.Noche
+			-- El apagón se da por gastado cuando de verdad llama (si se va sin llamar, lo lleva el siguiente).
+			sigue = Imitador.atacar(el :: Model, n, dif.paciencia, n == I.Noche and not apagon, function()
+				apagon = true
+			end)
 		else
 			sigue = (if que == "Raspador" then Raspador else Golpeador).atacar(el :: Model, n, dif.paciencia)
 		end

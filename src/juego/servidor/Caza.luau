@@ -264,8 +264,12 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			self.humanoide.WalkSpeed = self.o.Correr
 			local escondido = Muerte.escondite(presa) ~= nil
 			local suCabeza = cabezaDe(presa)
+			-- Sin nada en medio: si no, pillaba a través de las paredes (de 1 stud) a quien oye al otro lado. El rayo sale
+			-- de la raíz y no de la cabeza, que va por delante y se mete en la pared cuando la tiene de frente (un rayo que
+			-- nace dentro de una pieza no la ve). Las hojas de las puertas abiertas no tapan (CanQuery, Casa.publicar).
 			local alcanza = if escondido or not suCabeza then self:cerca(destino, 5)
 				else (suCabeza.Position - self.raiz.Position).Magnitude < self.o.Pillar
+					and libre(self.raiz.Position, suCabeza.Position, { Caza.carpeta(), presa.Character :: Model })
 			if alcanza then
 				self.humanoide:MoveTo(self.raiz.Position)
 				self:mirarA(if suCabeza then suCabeza.Position else destino) -- de cara a su víctima: el susto le ve la cara
