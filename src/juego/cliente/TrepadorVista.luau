@@ -198,7 +198,8 @@ function TrepadorVista.start()
 				fuerte("Crujido", Vector3.new(tiro.X, 6, tiro.Z), 0.6, 2)
 			end)
 		elseif tipo == "Entra" then
-			hollin(hogar * CFrame.new(0, 1.5, 0), 60, Vector3.new(6, 2, 0))
+			-- Hacia el salón: el frente del Hogar (LookVector) mira a la pared de la chimenea.
+			hollin(hogar * CFrame.new(0, 1.5, 0), 60, -hogar.LookVector * 6 + Vector3.new(0, 2, 0))
 			Sonido.en("Chillido", hogar.Position, 1.25)
 			Sonido.en("Rugido", hogar.Position, 1.3)
 			if b then

@@ -551,15 +551,31 @@ local function tejadoQueCae(casa: Instance, padre: Instance, alAcabar: (() -> ()
 	local original = tejado :: BasePart
 	local copia = original:Clone()
 	for _, d in copia:GetDescendants() do
-		if not (d:IsA("BasePart") or d:IsA("Texture") or d:IsA("Decal") or d:IsA("SpecialMesh")) then
+		if d:IsA("Decal") then -- también las Texture (heredan de Decal): las tejas, chamuscadas como la pieza
+			d.Color3 = d.Color3:Lerp(Color3.new(), 0.6)
+		elseif not (d:IsA("BasePart") or d:IsA("SpecialMesh")) then
 			d:Destroy()
 		end
 	end
 	copia.Color = copia.Color:Lerp(Color3.new(), 0.6) -- chamuscado
 	copia.Parent = padre
+	-- El de verdad se esconde con sus tejas: el LocalTransparencyModifier de la pieza no esconde sus Texture ni Decal
+	-- (se quedarían pintadas en su sitio mientras la copia se hunde).
+	local tejas: { Decal } = {}
+	for _, d in original:GetDescendants() do
+		if d:IsA("Decal") then
+			table.insert(tejas, d)
+		end
+	end
 	original.LocalTransparencyModifier = 1
+	for _, d in tejas do
+		d.LocalTransparencyModifier = 1
+	end
 	alAcabar(function()
 		original.LocalTransparencyModifier = 0
+		for _, d in tejas do
+			d.LocalTransparencyModifier = 0
+		end
 	end)
 	-- La cumbrera y lo de encima (crestería, pinchos): se esconden al hundirse, como si ardieran.
 	local cumbre: { BasePart } = {}
@@ -702,6 +718,7 @@ local function escena(segundos: number, devolver: { () -> () })
 	local negro = Instance.new("ScreenGui")
 	negro.Name = "Final"
 	negro.IgnoreGuiInset = true
+	negro.ResetOnSpawn = false -- si reapareces en medio (al amanecer reviven los muertos), que se siga viendo el final
 	negro.DisplayOrder = 100
 	local fondo = Instance.new("Frame")
 	fondo.Size = UDim2.fromScale(1, 1)
