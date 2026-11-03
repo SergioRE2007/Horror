@@ -8,8 +8,8 @@
 --   "Brillo", apagados), Piloto ×2 (con su PointLight rojo, apagado), Limpia1 y Limpia2 (con los atributos Eje y
 --   Normal: el punto donde giran y el eje de giro, perpendicular al parabrisas), el Attachment "Escape" en el tubo y
 --   las cuatro ruedas "Rueda" (cilindros; la llanta es otra pieza, "Llanta").
--- Choca solo el cuerpo (de los bajos a la cintura de las ventanillas); cristales, techo, montantes y detalles no. Así,
--- quien salta del asiento sale por arriba y no se queda encerrado.
+-- Choca solo el cuerpo (de los bajos a la cintura de las ventanillas); cristales, techo, montantes y detalles no. Quien
+-- salta del asiento caería en el suelo del coche: CochesUi (cliente) le pone de pie junto a la puerta.
 -- Medidas en el espacio del coche: x a la derecha, y hacia arriba desde el suelo, z hacia atrás (delante = -z).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

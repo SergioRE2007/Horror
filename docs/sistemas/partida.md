@@ -6,7 +6,7 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 
 - `Gasolinera` y los suyos: la gasolinera vieja de noche junto a la carretera, con lluvia, la tienda dentro y 4 coches en `workspace.Coches` (etiqueta `Coche`, asientos `Asiento1..4`). Rehecha en 14.7: ver `lobby.md`.
 - `Coches` (servidor): prompt "Get in" (E) te sienta en el primer asiento libre. El primero que sube es el dueño; si se baja, lo es el siguiente que subió (y se vuelve a elegir de cero). El dueño elige ranura (1..`Ranuras`), si empieza de cero y arranca: cuenta atrás de `Salida` s y `Viaje.ir`. Atributos del coche: `Dueno`, `Ranura`, `Nueva`, `Salida`; del jugador: `Coche`. Remote `Coche`: ("Ranura", n), ("Nueva", bool), ("Arrancar"), solo del dueño; Ranura y Nueva, como mucho una petición cada 0,2 s. Tras un viaje que sale bien, el coche vuelve a quedar libre (`Salida` a nil) cuando se vacía (antes se quedaba inservible para siempre en ese servidor).
-- `CochesUi` (cliente): panel oscuro abajo con esquina de sangre. Dueño: las 3 ranuras ("1 NOCHE 4" / "VACÍA", la elegida con borde claro), NUEVA PARTIDA en una ranura guardada (dos toques; luego "SEGUIR CON LA GUARDADA") y EMPEZAR / CONTINUAR / EMPEZAR DE CERO. Los demás: "Esperando a {name}…". Cuenta atrás "SALÍS EN 3…", fundido a negro al salir; si el servidor para el coche (falla o Studio) vuelve la imagen. BAJAR (`Sit = false`: `Jump` desde un script no levanta del asiento).
+- `CochesUi` (cliente): ver `lobby.md` (Interfaz). BAJAR (`Sit = false`: `Jump` desde un script no levanta del asiento); al bajarte sales de pie junto a la puerta.
 - `Controles` pasó a `comun/cliente` (vale en los dos lugares). `Ui.mancha(panel)`: la esquina de sangre de los paneles.
 
 ## Viaje (`comun/servidor/Viaje`)
