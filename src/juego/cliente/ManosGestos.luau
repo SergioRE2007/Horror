@@ -267,6 +267,9 @@ local function copiaDe(objeto: BasePart): BasePart?
 		return nil
 	end
 	local c = copia :: BasePart
+	for _, etiqueta in CollectionService:GetTags(c) do
+		CollectionService:RemoveTag(c, etiqueta) -- que nadie la tome por un objeto de verdad
+	end
 	for _, hijo in c:GetDescendants() do
 		if hijo:IsA("ProximityPrompt") or hijo:IsA("Script") or hijo:IsA("LocalScript") or hijo:IsA("Light")
 			or hijo:IsA("Sound") or hijo:IsA("Constraint") or hijo:IsA("Highlight") then
@@ -795,9 +798,12 @@ function ManosGestos.sobresalto(fuerza: number)
 		local cf = camara.CFrame
 		local sube = if s < 0.1 then suave(s / 0.1) else 1 - suave((s - 0.1) / 0.8)
 		local y = lerp(-1.2, -0.55, sube * f)
+		-- Con la linterna encendida, la izquierda no la suelta.
+		local conLinterna = jugador:GetAttribute("Linterna") == true
 		return {
 			der = Manos.palma(cf * Vector3.new(0.42, y, -0.8), cf.UpVector + cf.RightVector * 0.2, -cf.LookVector),
-			izq = Manos.palma(cf * Vector3.new(-0.42, y, -0.8), cf.UpVector - cf.RightVector * 0.2, -cf.LookVector),
+			izq = if conLinterna then nil
+				else Manos.palma(cf * Vector3.new(-0.42, y, -0.8), cf.UpVector - cf.RightVector * 0.2, -cf.LookVector),
 			velocidad = 26,
 		}
 	end, 28)
