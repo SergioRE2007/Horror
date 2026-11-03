@@ -104,8 +104,38 @@ function Viaje.leer(): Info?
 	return nil
 end
 
+-- Juego: a quién se está devolviendo al lobby, con qué texto y si ya se le ha reintentado.
+type Vuelta = { texto: string, reintentado: boolean }
+local volviendo: { [Player]: Vuelta } = setmetatable({}, { __mode = "k" }) :: any
+local escuchando = false
+
+-- Una vuelta que ha salido aún puede fallar al llegar (TeleportInitFailed): se reintenta una vez y, si vuelve a fallar,
+-- se le echa con el texto, para que nadie se quede en una partida acabada. Se conecta con la primera vuelta (en el
+-- lobby nunca: allí lo mira Coches). Con IsTeleporting no se hace nada: aún va de camino con otra vuelta.
+local function vigilarVuelta()
+	if escuchando then
+		return
+	end
+	escuchando = true
+	TeleportService.TeleportInitFailed:Connect(function(jugador, resultado)
+		local vuelta = volviendo[jugador]
+		if not vuelta or jugador.Parent ~= Players or resultado == Enum.TeleportResult.IsTeleporting then
+			return
+		end
+		if not vuelta.reintentado then
+			vuelta.reintentado = true
+			task.wait(2)
+			if jugador.Parent ~= Players or teletransportar(Config.Lugares.Lobby, { jugador }) then
+				return
+			end
+		end
+		volviendo[jugador] = nil
+		jugador:Kick(Lang.t(jugador, vuelta.texto))
+	end)
+end
+
 -- Juego: devuelve al lobby a estos jugadores con un aviso de una línea (`texto` en inglés, para Lang). En Studio
--- solo avisa; si no se puede teletransportar, los echa con el texto.
+-- solo avisa; si no se puede teletransportar (ni al salir ni al llegar), los echa con el texto.
 function Viaje.volver(jugadores: { Player }, texto: string)
 	for _, jugador in jugadores do
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, texto))
@@ -123,6 +153,12 @@ function Viaje.volver(jugadores: { Player }, texto: string)
 	end
 	if #quedan == 0 then
 		return
+	end
+	if sePuede(lugar) then
+		vigilarVuelta()
+		for _, jugador in quedan do
+			volviendo[jugador] = { texto = texto, reintentado = false }
+		end
 	end
 	if not sePuede(lugar) or not teletransportar(lugar, quedan) then
 		for _, jugador in quedan do
