@@ -785,4 +785,31 @@ Config.Sustos = {
 	GoteoCada = { 0.5, 1.1 },
 }
 
+-- Lobby de noche (lobby/servidor/Gasolinera*, lobby/cliente/*Vista, docs/sistemas/lobby.md; pedido por el usuario:
+-- "es un poco feo"). Todo es adorno: segundos y studs a ojo.
+Config.Lobby = {
+	Cerca = 90, -- más lejos de la cámara no se anima nada (parpadeos pequeños, polillas, limpiaparabrisas)
+	Lluvia = {
+		Gotas = 700, -- gotas por segundo alrededor de la cámara (con Rendimiento, un tercio)
+		Salpicaduras = 14, -- por charco y segundo (con Rendimiento, ninguna)
+		Goteo = 2.5, -- gotas por segundo de cada punto del borde de la marquesina y del tejado
+	},
+	Relampago = { Cada = { 25, 70 }, Trueno = { 1.2, 5 } }, -- segundos entre relámpagos y del relámpago al trueno
+	Puerta = 7, -- studs: la puerta de la tienda se abre con alguien a menos de esto
+	Polillas = 4, -- alrededor de cada luz que las tenga (con Rendimiento, ninguna)
+	Sombra = { Cada = { 60, 150 }, Lejos = { 50, 120 } }, -- algo que se mueve entre los árboles: cada cuánto y a qué distancia
+}
+
+-- Sonidos del lobby que aún no existen (para hacer con ElevenLabs; con Id = 0 no suenan). Lo demás del lobby usa los de
+-- Config.Sonidos (Viento, Zumbido, Parpadeo, Nevera, NeveraClac, Gota, Buho, Lobo, Rama, Ramita). Al tenerlos, poner
+-- su Id y su volumen compensado (docs/sistemas/sonidos.md).
+Config.SonidosLobby = {
+	Lluvia = { Id = 0, Volumen = 0.6 }, -- lluvia de fondo en bucle (sobre la explanada y los árboles)
+	LluviaChapa = { Id = 0, Volumen = 0.5, Alcance = 40 }, -- la lluvia sobre la chapa de la marquesina, en bucle
+	Trueno = { Id = 0, Volumen = 1.2 }, -- trueno lejano (mejor una lista de dos o tres)
+	Radio = { Id = 0, Volumen = 0.5, Alcance = 18 }, -- radio vieja de la tienda con interferencias, en bucle
+	Campanilla = { Id = 0, Volumen = 0.6, Alcance = 25 }, -- la campanilla de la puerta de la tienda
+	Arranque = { Id = 0, Volumen = 1, Alcance = 60 }, -- el coche arrancando y saliendo (la cinemática)
+}
+
 return Config
