@@ -836,6 +836,15 @@ local function alMorir()
 	end, 90)
 end
 
+-- Para ManosPrueba (Studio): el gesto de ese cartel, como si lo hubieras pulsado, y el del susto al morir.
+function ManosGestos.probar(prompt: ProximityPrompt)
+	alPulsar(prompt, jugador)
+end
+
+function ManosGestos.probarSusto()
+	alMorir()
+end
+
 function ManosGestos.start()
 	ProximityPromptService.PromptTriggered:Connect(alPulsar)
 	ProximityPromptService.PromptButtonHoldBegan:Connect(alEmpezarAMantener)
