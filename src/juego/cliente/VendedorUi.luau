@@ -1,10 +1,12 @@
 -- Los tratos del vendedor (servidor: Vendedor). Al hablarle sale abajo un papel oscuro con lo que dice y sus tratos
 -- (Config.Vendedor.Trueques); los que no te puedes permitir, apagados. Se cierra con CERRAR, al alejarte o al morir.
 -- El cliente solo pide ("Cambiar", n): el servidor lo valida todo.
+-- Cuando te acercas, el vendedor gira la cabeza y te sigue con la mirada (solo en tu pantalla: el cuello, en local).
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
@@ -155,8 +157,39 @@ local function construir()
 	panel.Parent = Ui.hud()
 end
 
+-- El vendedor te mira: su cuello (R15) gira hacia tu cámara si estás a menos de MIRA studs, sin pasarse de lo que
+-- gira un cuello. Al irte, vuelve despacio a mirar al frente.
+local MIRA = 28
+local cuellos: { [Motor6D]: { original: CFrame, giro: CFrame } } = setmetatable({}, { __mode = "k" }) :: any
+local function mirarte(dt: number)
+	local camara = workspace.CurrentCamera
+	for _, modelo in CollectionService:GetTagged("Vendedor") do
+		local cabeza = modelo:FindFirstChild("Head")
+		local cuello = cabeza and cabeza:FindFirstChild("Neck")
+		if not (cuello and cuello:IsA("Motor6D") and cuello.Part0 and cabeza:IsA("BasePart")) then
+			continue
+		end
+		local c = cuellos[cuello]
+		if not c then
+			c = { original = cuello.C0, giro = CFrame.new() }
+			cuellos[cuello] = c
+		end
+		local destino = CFrame.new()
+		local hacia = camara.CFrame.Position - cabeza.Position
+		if hacia.Magnitude < MIRA then
+			local d = ((cuello.Part0 :: BasePart).CFrame * c.original):VectorToObjectSpace(hacia)
+			local giro = math.clamp(math.atan2(-d.X, -d.Z), math.rad(-70), math.rad(70))
+			local alto = math.clamp(math.atan2(d.Y, Vector2.new(d.X, d.Z).Magnitude), math.rad(-30), math.rad(30))
+			destino = CFrame.Angles(0, giro, 0) * CFrame.Angles(alto, 0, 0)
+		end
+		c.giro = c.giro:Lerp(destino, 1 - math.exp(-dt * 4))
+		cuello.C0 = c.original * c.giro
+	end
+end
+
 function VendedorUi.start()
 	construir()
+	RunService.Heartbeat:Connect(mirarte)
 	Remotes.Vendedor.OnClientEvent:Connect(function(que, frase)
 		if que == "Abrir" and type(frase) == "string" then
 			abrir(frase)
