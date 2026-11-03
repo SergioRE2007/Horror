@@ -59,6 +59,8 @@ Hecho en una sesión en la nube **sin Studio**: las poses salen de cuentas (comp
 
 ## Probar en Studio
 
+- Lanzar un gesto a mano (datamodel Client): `game.Players.LocalPlayer.PlayerScripts:FindFirstChild("ManosPrueba", true).Lanzar:Fire("Cortina")`. Vale `"Cortina"`, `"Puerta"`, `"Foto"`, `"Sobresalto"`, `"Susto"`, `"Pila"`, `"Carrete"`, `"Linterna"` y `"Movil"`. Para fijar la cámara y mirar las manos, ver los trucos del `CLAUDE.md`.
+
 - **Cortinas:** abrir y cerrar varias, cerca y desde lejos (a 8 studs las manos se quedan estiradas hacia ellas).
 - **Puertas:** una puerta y la del sótano cerrada con llave.
 - **Objetos:** coger un objeto y un tronco, y andar con él.
