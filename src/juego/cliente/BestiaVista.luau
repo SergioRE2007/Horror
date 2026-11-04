@@ -128,6 +128,10 @@ end
 -- espacio de la pieza. Al moverse, que nada de eso baje del suelo.
 local CAJA_BRAZO = { CFrame.new(0, -0.3, -0.38), Vector3.new(1.6, 7.6, 2.35) }
 local CAJA_PATA = { CFrame.new(0, 0.07, -0.3), Vector3.new(1.6, 4.65, 2.6) }
+-- La cabeza (con la frente) y la mandíbula (con la mancha de debajo), en el espacio de cada pieza: que no se metan en
+-- las patas del mueble.
+local CAJA_CABEZA = { CFrame.new(0, 0.1, 0), Vector3.new(2.4, 2, 2.8) }
+local CAJA_BOCA = { CFrame.new(0, -0.04, 0), Vector3.new(2, 0.65, 2.6) }
 
 type Gateo = {
 	punto: Vector3, -- Gatea: dónde está el jugador debajo (mundo)
@@ -529,6 +533,8 @@ type Momento = {
 	boca: number, -- lo que querría abrir la boca
 	blanco: Vector3, -- a dónde mira (en G)
 	ruido: CFrame, -- temblor de la cabeza
+	patas: { MuebleRayo.Caja }, -- las del gateo (Gateo.patas): ni la cabeza ni la mandíbula se meten en ellas...
+	mundo: CFrame, -- ...con G en el mundo
 }
 
 -- Mientras gatea todo esto corre cada fotograma: las tablas fijas viven aquí y las de cada fotograma se rellenan en vez
@@ -549,7 +555,8 @@ local esquinasG: { Vector3 } = table.create(8, Vector3.zero) -- delanteDe: las e
 local PIEZAS_DELANTE = { "Lomo", "Cabeza", "BrazoD", "BrazoI" }
 -- Las tablas de cada fotograma de poseGateo (no se guardan en ningún sitio: solo se leen en el mismo fotograma).
 local momento: Momento = {
-	D = 0, E = 0, techo = 0, tiron = 0, olfa = 0, boca = 0, blanco = Vector3.zero, ruido = CFrame.identity,
+	D = 0, E = 0, techo = 0, tiron = 0, olfa = 0, boca = 0, blanco = Vector3.zero, ruido = CFrame.identity, patas = {},
+	mundo = CFrame.identity,
 }
 local antesGateo: { [string]: CFrame } = {}
 local resGateo: { [string]: CFrame } = {}
@@ -606,6 +613,17 @@ local function barreLibre(b: Bicho, c: Momento, g: Gateo, enMundo: CFrame, frent
 	return libre
 end
 
+-- Si la cabeza `cabeza` (en G) con la boca abierta `boca` se mete en una pata del mueble (sus cajas, CAJA_CABEZA y
+-- CAJA_BOCA).
+local function cabezaChoca(b: Bicho, c: Momento, cabeza: CFrame, boca: number): boolean
+	local cf = c.mundo * cabeza
+	if MuebleRayo.choca(cf * (CAJA_CABEZA[1] :: CFrame), (CAJA_CABEZA[2] :: Vector3) / 2, c.patas) then
+		return true
+	end
+	local mandibula = cf * b.c0.Mandibula * CFrame.Angles(-boca, 0, 0) * b.c1i.Mandibula * (CAJA_BOCA[1] :: CFrame)
+	return MuebleRayo.choca(mandibula, (CAJA_BOCA[2] :: Vector3) / 2, c.patas) ~= nil
+end
+
 -- Aplastada con el frente del lomo a `frente` studs hacia ti y el brazo derecho abierto `barre` radianes hacia fuera:
 -- el CFrame de cada pieza (en G) en `en`. Devuelve lo que abre la boca (sin dar en el suelo ni en el tablero).
 local function aplastada(b: Bicho, c: Momento, en: { [string]: CFrame }, frente: number, barre: number): number
@@ -645,7 +663,41 @@ local function aplastada(b: Bicho, c: Momento, en: { [string]: CFrame }, frente:
 		lo, hi = alturas(b, giro, boca)
 	end
 	local y = math.max(GATEO.Suelo - lo, math.min(GATEO.Suelo - lo + 0.12 + 0.1 * c.olfa, c.techo - hi))
-	en.Cabeza = CFrame.new(centro.X, y, centro.Z) * giro
+	local cabeza = CFrame.new(centro.X, y, centro.Z) * giro
+	-- Sin meterse en las patas (comprobado con Lune: entrando en diagonal a la mesa de la cocina, la punta de la
+	-- mandíbula, que se abre de lado, se metía ~0,1 en la punta del caballete): cierra la boca lo justo y, si así
+	-- tampoco cabe, echa la cabeza atrás (hacia el lomo) lo justo. (Con la cabeza más baja o más alta no cambia nada.)
+	if #c.patas > 0 and cabezaChoca(b, c, cabeza, boca) then
+		if not cabezaChoca(b, c, cabeza, 0) then
+			local cerrada, abierta = 0, boca
+			for _ = 1, 8 do
+				local medio = (cerrada + abierta) / 2
+				if cabezaChoca(b, c, cabeza, medio) then
+					abierta = medio
+				else
+					cerrada = medio
+				end
+			end
+			boca = cerrada
+		else
+			boca = 0
+			local libre, choca = GATEO.Cabeza, 0
+			if cabezaChoca(b, c, cabeza + Vector3.new(0, 0, libre), 0) then
+				libre = 0 -- (ni así: como antes)
+			else
+				for _ = 1, 8 do
+					local medio = (libre + choca) / 2
+					if cabezaChoca(b, c, cabeza + Vector3.new(0, 0, medio), 0) then
+						choca = medio
+					else
+						libre = medio
+					end
+				end
+			end
+			cabeza += Vector3.new(0, 0, libre)
+		end
+	end
+	en.Cabeza = cabeza
 	return boca
 end
 
@@ -745,12 +797,14 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 		+ (if chillando then 0.4 + 0.06 * math.sin(ahora * 30) else 0))
 	c.blanco = if debajo then G:PointToObjectSpace(raiz:PointToObjectSpace(ojo)) else Vector3.new(0, 1, -D)
 	c.ruido = ruido
+	c.patas = g.patas
+	c.mundo = raiz * G
 	-- El tramo (y solo lo que hace falta para él: echada atrás, ni baja ni se mete).
 	local t1, t2 = GATEO.Tramos[1], GATEO.Tramos[2]
 	local tramo = if mezcla <= t1 then 1 elseif mezcla < t2 then 2 else 3
 	local boca = 0
 	local afuera = math.min(frente, E - GATEO.Fuera) -- el frente del lomo al bajar fuera del borde
-	local enMundo = raiz * G
+	local enMundo = c.mundo
 	if tramo >= 2 then
 		boca = aplastada(b, c, g.abajo, afuera, GATEO.Abierto)
 	end
@@ -805,8 +859,11 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 		-- Al girar de pie a aplastada, la mano y los pies bajarían del suelo: se levantan lo justo.
 		local caja = if nombre == "BrazoD" or nombre == "BrazoI" then CAJA_BRAZO
 			elseif nombre == "PiernaI" or nombre == "PiernaD" then CAJA_PATA else nil
+		-- En el primer tramo, poco a poco: de golpe, al empezar a gatear el brazo saltaba ~0,6 en un fotograma (y las
+		-- garras que ya rozaban una pata al llegar andando se metían más en ella; comprobado con Lune).
 		if caja then
-			cf += Vector3.new(0, math.max(0, GATEO.Suelo - ALTURA - masBajo(cf, caja)), 0)
+			local sube = math.max(0, GATEO.Suelo - ALTURA - masBajo(cf, caja))
+			cf += Vector3.new(0, if tramo == 1 then sube * s else sube, 0)
 		end
 		res[nombre] = cf
 	end
