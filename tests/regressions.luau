@@ -1186,7 +1186,7 @@ do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y
 		Vector3 = V3,
 		CFrame = CF,
 	} })()
-	local caja = { cf = CF.new(0, 3, 0) * CF.Angles(0, math.pi / 4, 0), medio = V3.new(2, 0.5, 2), pieza = {} }
+	local caja = { cf = CF.new(0, 3, 0) * CF.Angles(0, math.pi / 4, 0), medio = V3.new(2, 0.5, 2), pieza = {}, bajo = V3.zero, alto = V3.zero }
 	local t = MR.entra(caja, V3.new(0, 0, 0), V3.new(0, 5, 0))
 	igual(t ~= nil and math.abs(t - 0.5) < 1e-6, true, "mueble: rayo hacia arriba entra por abajo")
 	igual(MR.entra(caja, V3.new(0, 3, 0), V3.new(0, 5, 0)), nil, "mueble: si empieza dentro no lo ve (como Raycast)")

@@ -446,15 +446,21 @@ local function debajoDe(self: Bicho, jugador: Player, p: Vector3): Debajo?
 			table.insert(evitar, otro.gateaEn)
 		end
 	end
-	local borde, cara = Caza.borde(zona.CFrame, zona.Size, p, self.raiz.Position, self.o.Fuera or FUERA,
-		function(b: Vector3, f: Vector3): boolean
-			for _, e in evitar do
-				if (b - e).Magnitude < 2 then
-					return false
-				end
+	local function libre(b: Vector3, f: Vector3): boolean
+		for _, e in evitar do
+			if (b - e).Magnitude < 2 then
+				return false
 			end
-			return sitioLibre(zona, b, f)
-		end)
+		end
+		return sitioLibre(zona, b, f)
+	end
+	local fuera = self.o.Fuera or FUERA
+	local borde, cara = Caza.borde(zona.CFrame, zona.Size, p, self.raiz.Position, fuera, libre)
+	if not borde and fuera > FUERA then
+		-- Los que se paran más lejos (Fuera propio): si así no cabe por ningún lado (una pared cerca), a la de todos,
+		-- aunque de pie meta algo el brazo en el tablero. Si no, ni se acercaba.
+		borde, cara = Caza.borde(zona.CFrame, zona.Size, p, self.raiz.Position, FUERA, libre)
+	end
 	if c then
 		c.zona, c.punto, c.hora, c.borde, c.cara = zona, p, ahora, borde, cara
 	else
