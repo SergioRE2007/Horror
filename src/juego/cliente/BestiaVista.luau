@@ -35,7 +35,8 @@ local BestiaVista = {}
 local ALTURA = Config.Bestia.Altura -- de los pies al centro de la raíz
 
 -- Números visuales de estar viva (a ojo; se retocan en Studio).
-local LEJOS = 250 -- studs de la cámara: más lejos no se anima
+local LEJOS = 250 -- studs de la cámara: más lejos no se anima...
+local LEJOS_RENDIMIENTO = 120 -- ...o más lejos que esto con Rendimiento (a ojo)
 local CERCA = 120 -- más lejos, sin la vida (respirar fuerte, temblar, resoplar...)
 local VAHO_LEJOS = 60 -- studs: más lejos no se le ve el vaho
 local RESOPLA_LEJOS = 40 -- studs: más lejos no se le oye resoplar ni gruñir
@@ -906,6 +907,7 @@ local function animar(dt: number)
 	local servidor = workspace:GetServerTimeNow()
 	local ojo = workspace.CurrentCamera.CFrame.Position
 	local rendimiento = jugador:GetAttribute("Rendimiento") == true
+	local lejos = if rendimiento then LEJOS_RENDIMIENTO else LEJOS
 	for modelo, b in bichos do
 		if not modelo.Parent or not b.raiz.Parent or not b.cabeza.Parent then
 			olvidar(modelo)
@@ -929,7 +931,7 @@ local function animar(dt: number)
 			b.humo = nil
 		end
 		local distancia = (b.raiz.Position - ojo).Magnitude
-		if distancia > LEJOS then
+		if distancia > lejos then
 			continue
 		end
 		local v = b.raiz.AssemblyLinearVelocity

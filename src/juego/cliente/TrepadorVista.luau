@@ -33,7 +33,8 @@ local Sonido = require(script.Parent.Sonido)
 local TrepadorVista = {}
 
 -- Números visuales a ojo (se retocan en Studio).
-local LEJOS = 250 -- studs de la cámara: más lejos no se le mueve nada
+local LEJOS = 250 -- studs de la cámara: más lejos no se le mueve nada...
+local LEJOS_RENDIMIENTO = 120 -- ...o más lejos que esto con Rendimiento (a ojo)
 local VIDA_LEJOS = 120 -- la vida (agazaparse, jadear, tirones...) solo hasta aquí...
 local VIDA_RENDIMIENTO = 45 -- ...o hasta aquí con Rendimiento
 local VAHO_LEJOS = 60
@@ -719,6 +720,7 @@ local function animar(dt: number)
 	local ahora = os.clock()
 	local ojo = workspace.CurrentCamera.CFrame.Position
 	local poco = jugador:GetAttribute("Rendimiento") == true
+	local lejos = if poco then LEJOS_RENDIMIENTO else LEJOS
 	local vidaLejos = if poco then VIDA_RENDIMIENTO else VIDA_LEJOS
 	local noche = workspace:GetAttribute("Fase") == "Noche"
 	for modelo, b in bichos do
@@ -743,7 +745,7 @@ local function animar(dt: number)
 			end
 		end
 		local distancia = (pos - ojo).Magnitude
-		if distancia > LEJOS then
+		if distancia > lejos then
 			continue
 		end
 		local m = b.motores

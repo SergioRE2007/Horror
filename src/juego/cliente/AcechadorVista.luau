@@ -19,7 +19,8 @@ local Sonido = require(script.Parent.Sonido)
 local AcechadorVista = {}
 
 -- Números visuales (a ojo; se retocan en Studio).
-local LEJOS = 300 -- studs de la cámara: más lejos no se anima
+local LEJOS = 300 -- studs de la cámara: más lejos no se anima...
+local LEJOS_RENDIMIENTO = 120 -- ...o más lejos que esto con Rendimiento (a ojo)
 local CERCA = 160 -- más lejos, sin la vida de estar parado
 local VAHO_LEJOS = 60 -- studs: más lejos no se le ve el vaho
 local CRUJE_LEJOS = 55 -- studs: más lejos no se oye crujir su madera
@@ -184,13 +185,14 @@ local function animar(dt: number)
 	local ojo = camara.CFrame.Position
 	local mirada = camara.CFrame.LookVector
 	local rendimiento = jugador:GetAttribute("Rendimiento") == true
+	local lejos = if rendimiento then LEJOS_RENDIMIENTO else LEJOS
 	for modelo, b in bichos do
 		if not modelo.Parent or not b.raiz.Parent or not b.cabeza.Parent then
 			olvidar(modelo)
 			continue
 		end
 		local distancia = (b.raiz.Position - ojo).Magnitude
-		if distancia > LEJOS then
+		if distancia > lejos then
 			continue
 		end
 		local m = b.motores

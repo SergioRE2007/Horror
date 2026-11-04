@@ -31,7 +31,8 @@ local Sonido = require(script.Parent.Sonido)
 local ImitadorVista = {}
 
 -- Números visuales (a ojo; se retocan en Studio).
-local LEJOS = 250 -- studs de la cámara: más lejos no se anima
+local LEJOS = 250 -- studs de la cámara: más lejos no se anima...
+local LEJOS_RENDIMIENTO = 120 -- ...o más lejos que esto con Rendimiento (a ojo)
 local CERCA = 120 -- más lejos, sin detalles (crispaciones, tirones)
 local VAHO_LEJOS = 60 -- studs: más lejos no se le ve el vaho
 local MOTORES = { "Torso", "Cuello", "Cabeza", "Mandibula", "BrazoI", "BrazoD", "PiernaI", "PiernaD" }
@@ -889,6 +890,7 @@ local function animar(dt: number)
 	local camara = workspace.CurrentCamera
 	local ojo = camara.CFrame.Position
 	local rendimiento = jugador:GetAttribute("Rendimiento") == true
+	local lejos = if rendimiento then LEJOS_RENDIMIENTO else LEJOS
 	local mira = jugador:GetAttribute("Mirilla") == true
 	if not mira then
 		mirillaDesde = nil
@@ -904,7 +906,7 @@ local function animar(dt: number)
 			continue
 		end
 		local distancia = (b.raiz.Position - ojo).Magnitude
-		if distancia > LEJOS then
+		if distancia > lejos then
 			apagarMirilla(b)
 			continue
 		end
