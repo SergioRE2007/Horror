@@ -3,7 +3,11 @@
 --   sienta en el primero libre; te bajas saltando. El primero que sube es el dueño: elige una de sus ranuras de
 --   partida, si empieza de cero y arranca. Si el dueño se baja, pasa a ser dueño el siguiente que subió.
 --   Atributos del coche: Dueno (UserId), Ranura, Nueva, Salida (hora del servidor a la que sale; nil = parado; tras
---   un viaje que sale bien vuelve a nil cuando el coche se vacía, y queda libre otra vez).
+--   un viaje que sale bien vuelve a nil cuando el coche se vacía) y Llegada (hora del servidor a la que se para en su
+--   plaza otro coche que llega por la carretera, tras un viaje: hasta entonces nadie se sube; luego vuelve a nil y el
+--   coche queda libre). Lo que se ve, en el cliente: SalidaVista y LlegadaVista.
+--   Por el carril delante de las plazas no van dos a la vez: si está llegando otro, la Salida es algo más tarde (la
+--   cuenta atrás dura más) y una Llegada espera a que pase el que sale o el que llega antes.
 --   Atributo del jugador: Coche (el nombre del coche en el que va).
 --   Remote Coche: ("Ranura", n), ("Nueva", nueva) o ("Arrancar"), solo del dueño. A la hora, Viaje.ir los lleva.
 -- La interfaz, en el cliente (CochesUi).
@@ -21,6 +25,13 @@ local Viaje = require(ServerScriptService:WaitForChild("Comun").Viaje)
 
 local Coches = {}
 
+-- Tras un viaje, el coche que llega (números a ojo; lo de los clientes tiene que cuadrar con esto).
+local LLEGADA = 22 -- segundos que tarda en llegar desde la niebla (LlegadaVista.DURA: el mismo número)
+local CERCA = 16 -- sus últimos segundos, cuando ya va por delante de las plazas (LlegadaVista.CERCA)
+local SALE_CERCA = 6 -- segundos desde que arranca el que se va hasta que ha dejado atrás las plazas (SalidaVista)
+local PAUSA = 2 -- segundos con la plaza vacía antes de que el otro empiece a llegar (entre la niebla, aún no se ve)
+local MARGEN = 0.5 -- segundos entre dos coches por el carril
+
 type Coche = { modelo: Model, asientos: { Seat }, orden: { Player }, prompt: ProximityPrompt, saliendo: boolean }
 local coches: { Coche } = {}
 -- Último cambio de Ranura o Nueva de cada jugador: como mucho uno cada 0,2 s (cada uno se replica a todos). Arrancar no
@@ -36,6 +47,53 @@ end
 local function parar(c: Coche)
 	c.modelo:SetAttribute("Salida", nil)
 	c.saliendo = false
+end
+
+local function llegando(c: Coche): boolean
+	local hora = c.modelo:GetAttribute("Llegada")
+	return type(hora) == "number" and workspace:GetServerTimeNow() < hora
+end
+
+-- Cuándo va cada coche por el carril delante de las plazas: el que sale, de que arranca a SALE_CERCA s; el que llega,
+-- sus últimos CERCA s. Devuelve dónde acaba el primero que pise [desde, hasta] (nil si no pisa ninguno).
+local function pisa(desde: number, hasta: number, salvo: Coche): number?
+	for _, o in coches do
+		if o ~= salvo then
+			local salida = o.modelo:GetAttribute("Salida")
+			if type(salida) == "number" then
+				local arranca = salida - Config.Coches.Salida
+				if desde < arranca + SALE_CERCA and hasta > arranca then
+					return arranca + SALE_CERCA
+				end
+			end
+			local llegada = o.modelo:GetAttribute("Llegada")
+			if type(llegada) == "number" and desde < llegada and hasta > llegada - CERCA then
+				return llegada
+			end
+		end
+	end
+	return nil
+end
+
+-- La primera hora desde `desde` con el carril libre `dura` s.
+local function libre(desde: number, dura: number, salvo: Coche): number
+	local t = desde
+	for _ = 1, 2 * #coches + 1 do
+		local fin = pisa(t, t + dura, salvo)
+		if not fin then
+			break
+		end
+		t = fin + MARGEN
+	end
+	return t
+end
+
+-- El coche se ha ido de verdad (se han ido todos los que iban): otro llega por la carretera y hasta que se para en su
+-- plaza nadie se sube.
+local function volver(c: Coche)
+	local llegada = libre(workspace:GetServerTimeNow() + PAUSA + LLEGADA - CERCA, CERCA, c) + CERCA
+	c.modelo:SetAttribute("Llegada", llegada) -- antes de quitar Salida: el cliente se pasa el coche escondido sin verse
+	parar(c)
 end
 
 -- Rehace quién va en el coche (en el orden en que subieron) y quién es el dueño.
@@ -71,17 +129,19 @@ local function rehacer(c: Coche)
 		c.modelo:SetAttribute("Ranura", 1)
 		c.modelo:SetAttribute("Nueva", false)
 		-- Mientras Viaje.ir espera, no (el nuevo dueño podía arrancar un segundo viaje a la vez), salvo con el coche
-		-- vacío: el viaje ya se ha ido (o se han bajado todos) y el coche vuelve a estar libre.
-		if not c.saliendo or #c.orden == 0 then
+		-- vacío: el viaje ya se ha ido (o se han bajado todos) y llega otro coche.
+		if c.saliendo and #c.orden == 0 then
+			volver(c)
+		elseif not c.saliendo then
 			parar(c)
 		end
 	end
-	c.prompt.Enabled = #c.orden < #c.asientos and not c.saliendo
+	c.prompt.Enabled = #c.orden < #c.asientos and not c.saliendo and not llegando(c)
 end
 
 local function subir(c: Coche, jugador: Player)
 	local humanoide = jugador.Character and jugador.Character:FindFirstChildOfClass("Humanoid")
-	if not humanoide or humanoide.Health <= 0 or humanoide.SeatPart or c.saliendo then
+	if not humanoide or humanoide.Health <= 0 or humanoide.SeatPart or c.saliendo or llegando(c) then
 		return
 	end
 	for _, asiento in c.asientos do
@@ -95,9 +155,10 @@ end
 
 local function arrancar(c: Coche)
 	local dueno = c.orden[1]
-	local hora = workspace:GetServerTimeNow() + Config.Coches.Salida
+	local ahora = workspace:GetServerTimeNow()
+	local hora = libre(ahora, SALE_CERCA, c) + Config.Coches.Salida -- si está llegando otro, cuando se pare
 	c.modelo:SetAttribute("Salida", hora)
-	task.delay(Config.Coches.Salida, function()
+	task.delay(hora - ahora, function()
 		if c.modelo:GetAttribute("Salida") ~= hora or c.orden[1] ~= dueno then
 			return -- se ha parado (el dueño se bajó)
 		end
@@ -163,6 +224,18 @@ local function preparar(modelo: Model)
 			rehacer(c)
 		end)
 	end
+	-- La llegada (también si alguien pone Llegada a mano, para probar): a la hora queda libre.
+	modelo:GetAttributeChangedSignal("Llegada"):Connect(function()
+		local hora = modelo:GetAttribute("Llegada")
+		if type(hora) == "number" then
+			task.delay(math.max(0, hora - workspace:GetServerTimeNow()), function()
+				if modelo:GetAttribute("Llegada") == hora then
+					modelo:SetAttribute("Llegada", nil)
+				end
+			end)
+		end
+		rehacer(c)
+	end)
 	rehacer(c)
 end
 

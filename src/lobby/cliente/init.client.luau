@@ -12,4 +12,5 @@ require(Sistemas.Clima).start() -- lluvia, niebla, relámpagos y sonidos de fond
 require(Sistemas.GasolineraVista).start() -- la vida del lobby: luces que fallan, puerta, coches, polillas, la sombra
 require(Sistemas.CochesUi).start()
 require(Sistemas.SalidaVista).start() -- la cinemática del coche que se va
+require(Sistemas.LlegadaVista).start() -- el coche que llega a la plaza del que se fue
 require(Sistemas.TiendaUi).start()
