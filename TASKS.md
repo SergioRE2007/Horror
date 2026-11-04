@@ -160,7 +160,12 @@ Lo que puede romper una partida o atascar al jugador:
 3. Revisión entera del 03-11-2026 (14 commits "arreglos de la revisión", los pasos en cada uno): el Acechador no va a
    por quien está en la torre, las esquinas o el garaje; las cerillas no se pierden si amanece con el fuego; no se coge
    nada a través de las paredes del garaje; los bichos no pillan a través de paredes pero sí por una puerta abierta;
-   teclas V (revivir), K (saltar tutorial) y P (ajustes) en PC.
+   teclas V (revivir), K (saltar tutorial) y P (ajustes) en PC. Probado en Studio el 04-11-2026, todo bien y sin
+   errores: el Acechador no sale en la torre, la esquina, el garaje ni el lavadero (en el bosque sí, a los 9 s); cerillas
+   que siguen tras prender de verdad y amanecer a mitad; el bidón y la cadena del garaje no se cogen desde fuera (el
+   cartel sí sale a través de la pared, pero E no hace nada); a través de la pared no pilla en 8 s y por el hueco de la
+   puerta al momento (hoja abierta con `CanQuery` false, cerrada true); P abre y cierra los ajustes; K dos veces salta
+   el tutorial (la primera pregunta). Falta la V (revivir), que pide dos jugadores.
 4. Muerte con el bicho que pilla: la escena enfoca al que gatea; morir gateando deja `Gatea` a nil; tras revivir vuelve a
    tardar en olerte. `bichos.md`, "Probar en Studio", pasos 5 y 6.
 5. Correr con los bichos: perseguido por cada uno, el ruido, escondido cansado, morir corriendo, el remote a lo bruto.
