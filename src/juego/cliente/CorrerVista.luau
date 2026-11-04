@@ -398,9 +398,11 @@ local function cada(dt: number)
 		end
 	end
 
-	-- Resoplidos tras agotarte, cada vez más flojos y espaciados. Debajo de un mueble (Cubierto) respira MuerteVista.
+	-- Resoplidos tras agotarte, cada vez más flojos y espaciados. Debajo de un mueble (Cubierto) respira MuerteVista; en
+	-- la escena de un final (EscenaFinal, HuidaVista e IncendioVista) se callan, como el aliento de MuerteVista.
 	if resoplando then
-		if fuera or jugador:GetAttribute("Cubierto") == true or CorrerReglas.cansancio(estado) <= RESOPLA then
+		if fuera or jugador:GetAttribute("Cubierto") == true or jugador:GetAttribute("EscenaFinal") == true
+			or CorrerReglas.cansancio(estado) <= RESOPLA then
 			resoplando = false
 		elseif ahora >= proximoResoplido then
 			local t = estado.aguante / RESOPLA_HASTA
