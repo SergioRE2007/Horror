@@ -253,7 +253,7 @@ local function alSalir(jugador: Player)
 	local mio = esperaDueno
 	for _, otro in Players:GetPlayers() do
 		if otro ~= jugador then
-			Remotes.Aviso:FireClient(otro, Lang.t(otro, "The host left. If they don't come back soon, the game ends."))
+			Remotes.Aviso:FireClient(otro, Lang.t(otro, "The host left. The game ends if they don't return."))
 		end
 	end
 	task.delay(P.EsperaDueno, function()
@@ -364,8 +364,8 @@ function Partida.start(): number
 		return 1
 	end
 	if estado ~= "ok" then
-		acabar(if estado == "ocupado" then "This game is still open in another server. Try again in a minute."
-			else "The game could not be loaded. Try again in a minute.")
+		acabar(if estado == "ocupado" then "This game is open in another server. Try again later."
+			else "The game could not be loaded. Try again later.")
 		return 1
 	end
 	crudo = guardado
