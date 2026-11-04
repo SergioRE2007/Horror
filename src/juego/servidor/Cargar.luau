@@ -481,9 +481,13 @@ end
 
 -- Cada fotograma: cada agarre va delante de quien lo lleva; si se queda atascado lejos, se suelta.
 local function seguir()
+	if next(agarres) == nil then
+		return -- nadie lleva nada: ni la lista de vivos
+	end
+	local vivos = Muerte.vivos() -- una vez por fotograma, no una por agarre
 	for jugador, agarre in agarres do
 		local raiz = raizDe(jugador)
-		if not raiz or not agarre.pieza.Parent or not table.find(Muerte.vivos(), jugador) or jugador:GetAttribute("Escondido") then
+		if not raiz or not agarre.pieza.Parent or not table.find(vivos, jugador) or jugador:GetAttribute("Escondido") then
 			Cargar.soltar(jugador)
 			continue
 		end
