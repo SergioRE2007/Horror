@@ -204,13 +204,14 @@ end
 -- Lang: inglés por defecto, español con huecos y las mismas llaves en las dos tablas.
 do
 	local espanol = { GetAttribute = function() return "es" end }
+	local antes = Lang.es["Night {n}"]
 	Lang.es["Night {n}"] = "Noche {n}"
 	igual(Lang.t(nil, "Night {n}", { n = 3 }), "Night 3", "sin jugador: inglés")
 	igual(Lang.t(espanol, "Night {n}", { n = 3 }), "Noche 3", "jugador en español")
 	igual(Lang.t(espanol, "Not translated"), "Not translated", "sin traducción: inglés")
 	igual(Lang.deLocale("es-mx"), "es", "es-mx es español")
 	igual(Lang.deLocale("pt-br"), "en", "pt-br va en inglés")
-	Lang.es["Night {n}"] = nil
+	Lang.es["Night {n}"] = antes -- la de verdad, que la usa Ambiente
 	local function huecos(texto: string)
 		local lista = {}
 		for hueco in string.gmatch(texto, "{(%w+)}") do table.insert(lista, hueco) end
@@ -219,6 +220,66 @@ do
 	end
 	for ingles, traducido in Lang.es do
 		igual(huecos(traducido), huecos(ingles), `LangEs "{ingles}": mismos huecos`)
+	end
+end
+
+-- Lang: todo texto del jugador escrito en el código tiene su español. Lee cada .luau y saca los literales de
+-- Lang.t(x, "…") (también con if … then "…" else "…"), los ActionText de los prompts (los traduce comun/cliente/Controles),
+-- el último texto de cada nuevoPrompt(…, "…") y las tablas de textos que llegan a Lang.t por variable.
+do
+	local function conEspanol(texto: string, donde: string)
+		if texto ~= "" then
+			assert(Lang.es[texto], `sin español en {donde}: "{texto}"`)
+			comprobaciones += 1
+		end
+	end
+	local function recorrer(carpeta: string)
+		for _, nombre in fs.readDir(carpeta) do
+			local ruta = carpeta .. "/" .. nombre
+			if fs.isDir(ruta) then
+				recorrer(ruta)
+			elseif string.match(nombre, "%.luau$") then
+				local f = fs.readFile(ruta)
+				for t in string.gmatch(f, "Lang%.t%(%s*[%w_%.]+%s*,%s*\"([^\"\n]*)\"") do conEspanol(t, ruta) end
+				for a, b in string.gmatch(f, "Lang%.t%(%s*[%w_%.]+%s*,%s*if%s[^\n]-%sthen%s*\"([^\"\n]*)\"%s*else%s*\"([^\"\n]*)\"") do
+					conEspanol(a, ruta)
+					conEspanol(b, ruta)
+				end
+				for linea in string.gmatch(f, "[^\n]+") do
+					if string.find(linea, "ActionText%s*=[^=]") then
+						-- Sin las comparaciones (if forma == "Foto" then …): solo los textos que se ponen.
+						local sinComparar = string.gsub(linea, "[=~]=%s*\"[^\"]*\"", "")
+						for t in string.gmatch(sinComparar, "\"([^\"]*)\"") do conEspanol(t, ruta) end
+					end
+				end
+				for args in string.gmatch(f, "nuevoPrompt(%b())") do
+					local t = string.match(args, "\"([^\"]*)\"%s*%)$")
+					if t then conEspanol(t, ruta) end
+				end
+			end
+		end
+	end
+	for _, carpeta in { "src/juego", "src/lobby", "src/comun" } do
+		recorrer(carpeta)
+	end
+	-- Tablas de textos de prompts y carteles que no pasan por un literal de Lang.t.
+	local yaHay = string.match(fs.readFile("src/juego/servidor/Pistas.luau"), "local YA_HAY = (%b{})") :: string
+	for t in string.gmatch(yaHay, "\"([^\"]*)\"") do conEspanol(t, "Pistas YA_HAY") end
+	local usos = string.match(fs.readFile("src/juego/cliente/CargarVista.luau"), "local USOS[^\n]*\n(.-)\n}") :: string
+	for textos in string.gmatch(usos, "textos = (%b{})") do
+		for t in string.gmatch(textos, "\"([^\"]*)\"") do conEspanol(t, "CargarVista USOS") end
+	end
+	for t in string.gmatch(usos, "texto = \"([^\"]*)\"") do conEspanol(t, "CargarVista USOS") end
+	for _, clase in Config.Clases do
+		conEspanol(clase.Nombre, "Config.Clases")
+		conEspanol(clase.Texto, "Config.Clases")
+	end
+	for _, pase in Config.Compras.Pases do
+		conEspanol(pase.Nombre, "Config.Compras.Pases")
+		conEspanol(pase.Texto, "Config.Compras.Pases")
+	end
+	for _, cosa in Config.Cosmeticos do
+		conEspanol(cosa.Nombre, "Config.Cosmeticos")
 	end
 end
 
