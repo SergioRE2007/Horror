@@ -145,6 +145,7 @@ type Bicho = {
 	pisada: number,
 	llamada: number, -- os.clock de la última vez que empezó a llamar
 	chillido: number,
+	agarra: number, -- os.clock de rugir: el susto al morir le deja en el suelo (no otros chillidos)
 	estirado: number, -- 0..1, suave
 	quietud: number, -- 0..1, suave: 1 = parado
 	oreja: number, -- -1 o 1: hacia dónde ladea la cabeza
@@ -875,7 +876,7 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	if not g.fin then
 		g.k = math.clamp((servidor - g.hora) / GATEAR, 0, 1)
 	end
-	local pilla = b.chillido >= g.inicio and ahora - b.chillido < 2.2
+	local pilla = b.agarra >= g.inicio and ahora - b.agarra < 2.2
 	-- Al acabar (si no te ha pillado), primero saca la mano y la cabeza de debajo y luego se levanta: levantándose con
 	-- ellas dentro, a medio camino el brazo atravesaba el tablero (comprobado con Lune).
 	if g.fin and not pilla then
@@ -1098,7 +1099,7 @@ local function preparar(modelo: Instance)
 	local ahora = os.clock()
 	bichos[modelo] = { modelo = modelo, raiz = raiz, cabeza = cabeza, cuelloPieza = cuello, cuelloTam = cuello.Size, gateo = nil,
 		motores = motores, c0 = c0, c0i = c0i, c1 = c1,
-		c1i = c1i, pose = {}, fase = 0, pisada = 1, llamada = -math.huge, chillido = -math.huge, estirado = 0, quietud = 0,
+		c1i = c1i, pose = {}, fase = 0, pisada = 1, llamada = -math.huge, chillido = -math.huge, agarra = -math.huge, estirado = 0, quietud = 0,
 		oreja = if azar:NextNumber() < 0.5 then -1 else 1, ladeo = 0, extra = 0, tiron = 0, proximoTiron = ahora,
 		escucha = 0, oido = 0, golpecito = -math.huge, proximoGolpecito = ahora + rango(GOLPECITO.Cada), mano = 1, crispa = -math.huge,
 		proximaCrispa = ahora + rango(CRISPA), crispaLado = 1, armado = false, soplo = 0, vaho = nil, mirilla = nil }
@@ -1143,6 +1144,7 @@ function ImitadorVista.rugir(punto: Vector3, modelo: Model?): Model?
 	local b = if modelo then bichos[modelo] else cercano(punto, 12)
 	if b then
 		b.chillido = os.clock()
+		b.agarra = b.chillido
 		return b.modelo
 	end
 	return nil
