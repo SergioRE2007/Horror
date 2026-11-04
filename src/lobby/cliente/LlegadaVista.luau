@@ -47,7 +47,8 @@ local AMPLITUD, PERIODO = math.rad(80), 1.3 -- limpiaparabrisas: cuánto giran y
 local PILOTO_FRENO = Color3.fromRGB(236, 54, 42) -- los pilotos al frenar (más claros que encendidos)
 -- El ruido del motor: el bucle MotorCoche si lo hay en Config.SonidosLobby (cambia de tono con la velocidad); si no,
 -- el Arranque de la salida, una vez, cuando ya se acerca (hoy los dos con Id 0: no suenan).
-local MOTOR = if (Config.SonidosLobby :: any).MotorCoche then "MotorCoche" else nil
+-- Sonido.hay mira que tenga Id: con Id 0 no hay motor y suena el Arranque.
+local MOTOR = if Sonido.hay("MotorCoche") then "MotorCoche" else nil
 
 type Llegada = CocheCopia.Copia & {
 	modelo: Model,
@@ -243,10 +244,10 @@ local function paso(l: Llegada, dt: number, camara: Camera)
 		punto.WorldPosition = marco.Position
 	end
 	local ruido = l.ruido
-	if ruido and MOTOR then
+	if ruido then
 		ruido.PlaybackSpeed = 0.8 + 0.012 * math.abs(v)
 		ruido.Volume = if enMarcha then (Config.SonidosLobby :: any).MotorCoche.Volumen else 0
-	elseif not l.sonado and MOTOR == nil and t >= DURA - LlegadaVista.CERCA then
+	elseif not l.sonado and t >= DURA - LlegadaVista.CERCA then
 		l.sonado = true
 		local una = Sonido.en("Arranque", marco.Position)
 		local donde = una and una.Parent
