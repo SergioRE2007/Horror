@@ -725,6 +725,7 @@ function Bestia.quemar()
 		-- Si gateaba a por alguien, su hilo ya no los quita (task.cancel): se quitan aquí.
 		b.modelo:SetAttribute("Gatea", nil)
 		b.modelo:SetAttribute("GateaHora", nil)
+		b.gateaEn = nil
 		b.modelo:SetAttribute("Quema", true)
 		Remotes.Bestia:FireAllClients("Quema", b.modelo)
 		task.delay(QUEMA, function()

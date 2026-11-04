@@ -440,6 +440,7 @@ Config.Postura = {
 	Atasco = 4, -- segundos sin acercarse al borde (no hay camino) para dejarte y probar otro lado
 	MaxOlor = 0.5, -- segundos de olor como mucho de una vez (si lleva rato sin mirar, golpeando una puerta)
 	Ancho = 1.3, -- media anchura libre que necesita a los lados del borde para meterse (su raíz mide 3)
+	SinSalida = 20, -- segundos sin volver a probar un borde al que no llegó (luego lo vuelve a intentar)
 }
 
 Config.Movil = {
