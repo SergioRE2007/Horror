@@ -1,8 +1,11 @@
 -- Los pasos del tutorial (14.2 / 13.1): qué toca enseñar ahora a un jugador. Sin nada de Roblox, para probarlo con Lune.
 -- Lo usa juego/servidor/Tutorial, que mira el mundo cada poco y le pasa lo que ve (`Vista`); el cliente
 -- (TutorialVista) solo pinta el paso que le dice el atributo "Tutorial" del jugador.
---   De día, en orden: abrir la mochila, coger un hacha, talar y cargar un tronco, serrarlo y arrancar el generador. Si
---   ya estaba hecho (el generador encendido, el hacha en la mochila) se salta solo.
+--   De día, en orden: abrir la mochila, coger un hacha, correr al bosque, talar y cargar un tronco, serrarlo y arrancar
+--   el generador. Si ya estaba hecho (el generador encendido, el hacha en la mochila) se salta solo.
+--   Correr (14.8, "añade al tutorial un paso corto para correr si encaja"): se acaba en cuanto corre un momento (lo
+--   mira el servidor: atributo Corriendo). Si ya ha corrido antes, se salta; y si ya lleva un tronco o un tablón,
+--   también (cargando no se puede correr: se quedaría atascado).
 --   Al ponerse el sol (Config.Ciclo.Aviso s antes) se dejan los del día y se pasa a cerrar las cortinas de abajo; con
 --   todas cerradas, "aguanta hasta el amanecer". Al amanecer se acaba (y Tutorial da el premio), solo si las cerró:
 --   quedarse quieto hasta el amanecer no lo acaba.
@@ -10,8 +13,9 @@
 local PasosTutorial = {}
 
 -- En el orden en que salen. No hace falta guardarlo: si el jugador se va a medias, la próxima vez empieza de cero.
-PasosTutorial.DIA = { "Mochila", "Hacha", "Tronco", "Serrar", "Generador" }
-PasosTutorial.LISTA = { "Mochila", "Hacha", "Tronco", "Serrar", "Generador", "Espera", "Cortinas", "Amanecer" }
+PasosTutorial.DIA = { "Mochila", "Hacha", "Correr", "Tronco", "Serrar", "Generador" }
+PasosTutorial.LISTA =
+	{ "Mochila", "Hacha", "Correr", "Tronco", "Serrar", "Generador", "Espera", "Cortinas", "Amanecer" }
 
 export type Estado = {
 	paso: string,
@@ -29,6 +33,7 @@ export type Vista = {
 	cargando: string?, -- lo pesado que lleva en las manos (atributo Cargando)
 	generador: boolean, -- el generador está encendido
 	cortinas: number, -- cortinas de abajo aún abiertas (sin contar las rotas)
+	corrido: boolean?, -- ha corrido alguna vez desde que empezó el tutorial (atributo Corriendo)
 }
 
 function PasosTutorial.nuevo(): Estado
@@ -49,11 +54,14 @@ function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 	if v.hacha then
 		h.Hacha = true
 	end
+	if v.corrido then
+		h.Correr = true
+	end
 	if v.cargando == "Tronco" then
-		h.Tronco = true
+		h.Correr, h.Tronco = true, true -- ya tiene el tronco: correr hasta el bosque sobra (y cargando no se corre)
 	end
 	if v.cargando == "Tablon" or v.cargando == "TablonReforzado" then
-		h.Tronco, h.Serrar = true, true -- ya tiene tablones: lo de talar sobra
+		h.Correr, h.Tronco, h.Serrar = true, true, true -- ya tiene tablones: lo de talar sobra
 	end
 	if v.generador then
 		h.Generador = true
