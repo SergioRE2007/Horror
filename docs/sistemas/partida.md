@@ -39,5 +39,5 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 
 - Sin probar (solo funciona publicado): reservar servidor, MemoryStore, teletransporte de ida y vuelta, DataStore real de la partida, dueño que se va con otros dentro. `Config.Lugares` sigue a 0.
 - Sin probar en Studio: volver al amanecer al morir todos (usa el mismo `aplicar` que Cargar), dos jugadores en el coche (el que no es dueño).
-- Monedas al amanecer (paso 10). La cinemática de llegada a la casa (la de salida del lobby está hecha: `lobby.md`) y volver a una partida tras un corte (el dueño no puede volver a entrar a un servidor reservado: haría falta que el lobby lo mande de vuelta).
+- La cinemática de llegada a la casa (la de salida del lobby está hecha: `lobby.md`) y volver a una partida tras un corte (el dueño no puede volver a entrar a un servidor reservado: haría falta que el lobby lo mande de vuelta).
 - Para probar el lobby en el mismo Studio: `rojo serve lobby.project.json --port 34872` y Rojo → Connect (el lugar se genera entero por código).
