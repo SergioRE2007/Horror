@@ -25,8 +25,8 @@
 
 - `lune run tests/regressions.luau`: formato, candado con dos servidores sobre el mismo DataStore falso (ocupado, soltar, perdido, caducado, sin red), `Lang` y huecos de `LangEs`, remotes sin repetir.
 - Textos (14.9): regressions lee cada `.luau` y mira que todo texto escrito en el código tenga su español: literales de `Lang.t` (también con if/then/else), `ActionText`, el último de `nuevoPrompt`, los avisos por `acabar`, `Viaje.volver` y `avisar*`, `YA_HAY` (Pistas), `USOS` (CargarVista), `Config.Clases`, `Compras.Pases` y `Cosmeticos`. Un texto que llegue por otra tabla necesita su propio assert.
-- Bancos (`tests/bancos`, con un Roblox de mentira): regressions lanza a la vez todos los que no empiezan por `_` (~40 s).
+- Bancos (`tests/bancos`, con un Roblox de mentira): regressions lanza a la vez todos los que no empiezan por `_` (~36 s).
   En la 14.9: `escenas.luau` (nuevo: MovilUi y MochilaUi de verdad, con EscenaFinal, escondite y Vistazo) y
-  `muerte.luau` (también Final sin escena, escena con el susto y, en el servidor, que no se esconde con Final); el resto,
+  `muerte.luau` (también Final sin escena, escena con el susto y, en el servidor, que no se esconde en la escena de un final (`Muerte.escena`) y sí con Final sin escena); el resto,
   en el doc de su sistema (`correr.md`, `bichos.md`, `lobby.md`, `economia.md`).
 - El candado de verdad necesita el juego publicado o el acceso de Studio a los servicios de API: sin probar en Studio.
