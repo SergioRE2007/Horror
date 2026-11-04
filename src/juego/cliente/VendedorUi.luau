@@ -29,6 +29,7 @@ local panel: TextButton
 local dice: TextLabel
 local filas: { { texto: TextLabel, boton: TextButton } } = {}
 local abierto = 0 -- sube cada vez que se abre: el bucle viejo de cerrar se para
+local apagados: { ProximityPrompt } = {} -- los prompts del vendedor apagados mientras el papel está abierto
 
 local function cosas(tipo: string, n: number): string
 	return Lang.t(nil, "{n} × {thing}", { n = n, thing = Lang.t(nil, CAT[tipo].Nombre) })
@@ -55,10 +56,29 @@ local function pintar()
 	end
 end
 
+-- Con el papel abierto, el botón TRADE de su prompt (Hud.Acciones, en el móvil) se quedaba a la vista y el papel le
+-- tapaba un trozo: se apaga solo en este cliente, como la tienda del lobby, y se vuelve a encender al cerrar.
+local function apagarPrompts()
+	for _, modelo in CollectionService:GetTagged("Vendedor") do
+		local mando = modelo:FindFirstChild("Mando")
+		local prompt = mando and mando:FindFirstChildOfClass("ProximityPrompt")
+		if prompt and prompt.Enabled then
+			prompt.Enabled = false
+			table.insert(apagados, prompt)
+		end
+	end
+end
+
 local function cerrar()
 	abierto += 1
 	panel.Visible = false
 	panel.Modal = false
+	for _, prompt in apagados do
+		if prompt.Parent then
+			prompt.Enabled = true
+		end
+	end
+	table.clear(apagados)
 end
 
 local function cerca(): boolean
@@ -80,6 +100,7 @@ local function abrir(frase: string)
 	local mio = abierto
 	dice.Text = "“" .. frase .. "”"
 	pintar()
+	apagarPrompts()
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
 	task.spawn(function()
