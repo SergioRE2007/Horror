@@ -5,7 +5,8 @@
 -- que no tapen la vista de los bichos ni la linterna), así que workspace:Raycast no las ve nunca: los gateos medían
 -- "sin mesa" y se metían por el tablero. `cajas` junta, una vez por gateo, lo que choca cerca: el tablero entero de
 -- cada zona Debajo (con el atributo Tam de su mueble, hasta el borde que se ve) y las cajas Choque de su casa (patas,
--- travesaños, otros muebles). `rayo` es workspace:Raycast que además ve esas cajas. Librería sin start().
+-- travesaños, otros muebles). `rayo` es workspace:Raycast que además ve esas cajas, y `choca` si una caja se mete en
+-- ellas (el brazo de la Bestia, que barre por debajo). Librería sin start().
 
 local CollectionService = game:GetService("CollectionService")
 
@@ -150,6 +151,63 @@ function MuebleRayo.rayo(origen: Vector3, direccion: Vector3, filtro: RaycastPar
 		end
 	end
 	return mejor
+end
+
+-- Lo que abulta una caja (centro `cf`, mitad `medio`) a lo largo de `eje`, desde su centro.
+local function radio(cf: CFrame, medio: Vector3, eje: Vector3): number
+	return math.abs(cf.XVector:Dot(eje)) * medio.X + math.abs(cf.YVector:Dot(eje)) * medio.Y
+		+ math.abs(cf.ZVector:Dot(eje)) * medio.Z
+end
+
+-- Si `eje` separa las dos cajas (`d`: de un centro al otro) dejando que se metan `h` studs.
+local function separa(eje: Vector3, d: Vector3, cf: CFrame, medio: Vector3, c: Caja, h: number): boolean
+	return math.abs(d:Dot(eje)) >= radio(cf, medio, eje) + radio(c.cf, c.medio, eje) - h
+end
+
+-- El eje de una caja: 1 = X, 2 = Y, 3 = Z.
+local function eje(cf: CFrame, i: number): Vector3
+	return if i == 1 then cf.XVector elseif i == 2 then cf.YVector else cf.ZVector
+end
+
+-- La primera de las `cajas` en la que la caja `cf` (mitad `medio`) se mete más de `holgura` studs, o nil (por los 15
+-- ejes que separan dos cajas giradas). Para que un brazo que barre no atraviese las patas (BestiaVista). Sin tablas
+-- nuevas: se llama varias veces por fotograma.
+function MuebleRayo.choca(cf: CFrame, medio: Vector3, cajas: { Caja }, holgura: number?): Caja?
+	local h = holgura or 0
+	local ancho = Vector3.new(radio(cf, medio, Vector3.xAxis), radio(cf, medio, Vector3.yAxis), radio(cf, medio, Vector3.zAxis))
+	local bajo, alto = cf.Position - ancho, cf.Position + ancho
+	for _, c in cajas do
+		if c.alto.X < bajo.X + h or c.bajo.X > alto.X - h or c.alto.Y < bajo.Y + h or c.bajo.Y > alto.Y - h
+			or c.alto.Z < bajo.Z + h or c.bajo.Z > alto.Z - h then
+			continue
+		end
+		local d = c.cf.Position - cf.Position
+		local libre = false
+		for i = 1, 3 do
+			if separa(eje(cf, i), d, cf, medio, c, h) or separa(eje(c.cf, i), d, cf, medio, c, h) then
+				libre = true
+				break
+			end
+		end
+		if not libre then
+			for i = 1, 3 do
+				for j = 1, 3 do
+					local x = eje(cf, i):Cross(eje(c.cf, j))
+					if x.Magnitude > 1e-4 and separa(x.Unit, d, cf, medio, c, h) then
+						libre = true
+						break
+					end
+				end
+				if libre then
+					break
+				end
+			end
+		end
+		if not libre then
+			return c
+		end
+	end
+	return nil
 end
 
 return MuebleRayo
