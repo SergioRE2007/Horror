@@ -7,7 +7,7 @@ local NOMBRES = {
 	"Idioma", -- cliente -> servidor: ("es" o "en") el idioma que tengo elegido para esta experiencia
 	"Aviso", -- servidor -> cliente: (texto) aviso de una línea solo para él
 	"Golpeador", -- servidor -> todos: ("Golpe", elemento, resultado) o ("Entra", elemento) para animarlo
-	"Muerte", -- servidor -> todos: (jugador, cabeza del bicho) le han pillado
+	"Muerte", -- servidor -> todos: (jugador, cabeza del bicho, modelo del bicho que le pilla o nil) le han pillado
 	"Salir", -- cliente -> servidor: salgo del escondite
 	"Raspador", -- servidor -> todos: ("Chilla", modelo) le ha dado un flash, o ("Entra", ventana)
 	"Linterna", -- cliente -> servidor: enciende o apaga mi linterna (si no tiene pila, la cambia)

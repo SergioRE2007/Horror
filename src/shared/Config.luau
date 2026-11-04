@@ -881,6 +881,8 @@ Config.SonidosLobby = {
 	Radio = { Id = 0, Volumen = 0.5, Alcance = 18 }, -- radio vieja de la tienda con interferencias, en bucle
 	Campanilla = { Id = 0, Volumen = 0.6, Alcance = 25 }, -- la campanilla de la puerta de la tienda
 	Arranque = { Id = 0, Volumen = 1, Alcance = 60 }, -- el coche arrancando y saliendo (la cinemática)
+	MotorCoche = { Id = 0, Volumen = 0.8, Alcance = 60 }, -- motor de coche viejo al ralentí, en bucle: el que llega tras
+	-- un viaje (LlegadaVista, 14.9.3), que le cambia el tono con la velocidad. Mientras tenga Id 0, Arranque una vez.
 }
 
 return Config
