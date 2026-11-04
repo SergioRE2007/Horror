@@ -625,7 +625,8 @@ end
 -- pillarte debajo de sitios"). Parado en el borde y de cara a él, con los atributos Gatea (dónde está él) y GateaHora
 -- (hora del servidor al empezar) en el modelo, que el cliente anima. Cada poco mira si sigue ahí (sigueAhi); a los
 -- Config.Postura.Gatear s le pilla, con la cara del susto baja, en la boca del hueco. Lo deja antes si se escapa (y
--- vuelve a olerle desde cero), si le aturden, si amanece o si se quita. Los atributos vuelven a nil siempre.
+-- vuelve a olerle desde cero), si le aturden, si amanece, si se quita o si él muere de otra cosa (sin vida, o Muerto:
+-- se va sin rugir y sigue con lo suyo). Los atributos vuelven a nil siempre.
 -- Mientras, no hace nada más. true si le ha pillado.
 function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 	local modelo, suRaiz = self.modelo, raizDe(presa)
@@ -647,8 +648,8 @@ function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 		local fin = os.clock() + Config.Postura.Gatear
 		repeat
 			task.wait(0.1)
-			if not self.modelo or self.prisa or self:quieto() then
-				return false
+			if not self.modelo or self.prisa or self:quieto() or not Muerte.vivo(presa) then
+				return false -- muerto de otra cosa: su olor ya lo ha borrado Muerte.alMorir (no se vuelve a poner)
 			elseif not sigueAhi(presa, zona, borde, cara) then
 				if presa.Parent then
 					self.olor[presa] = 0 -- se le ha escapado: vuelve a olerle desde cero
@@ -666,10 +667,7 @@ function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 		local afuera = plano(borde - cara)
 		local susto = cara + Vector3.new(0, math.min(1.5, zona.Size.Y * 0.6), 0)
 			+ (if afuera.Magnitude > 0.01 then afuera.Unit * 0.4 else Vector3.zero)
-		Muerte.matar(presa, susto)
-		self.olor[presa] = nil
-		self.debajo[presa] = nil
-		return true
+		return Muerte.matar(presa, susto, modelo) -- false si acaba de morir de otra cosa: nada que esperar
 	end)
 	self.gateaEn = nil
 	if modelo.Parent then -- quitado (Destroy), se van con él
@@ -761,7 +759,7 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			if alcanza then
 				self.humanoide:MoveTo(self.raiz.Position)
 				self:mirarA(if suCabeza then suCabeza.Position else destino) -- de cara a su víctima: el susto le ve la cara
-				Muerte.matar(presa, self:cabeza())
+				Muerte.matar(presa, self:cabeza(), self.modelo)
 				task.wait(2.5)
 				ultimoVisto = nil
 			else
@@ -786,12 +784,18 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 	end
 end
 
-Players.PlayerRemoving:Connect(function(jugador)
+-- Lo que sabe cada bicho de un jugador: al irse y al morir. Al morir y no al revivir: muerto no está en elegirPresa
+-- (solo mira a los vivos) y nada se lo vuelve a poner, así que da igual para el olor; pero así vale para todas las
+-- formas de revivir (amanecer, Revivir pagando) sin engancharse a cada una, y al revivir debajo del mismo mueble no
+-- le huelen de golpe con lo de antes (ni cuenta que le vieron meterse: vistoEn).
+local function olvidar(jugador: Player)
 	for b in vivos do
 		b.vistoEn[jugador] = nil
 		b.olor[jugador] = nil
 		b.debajo[jugador] = nil
 	end
-end)
+end
+Players.PlayerRemoving:Connect(olvidar)
+Muerte.alMorir(olvidar)
 
 return Caza

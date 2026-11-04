@@ -326,7 +326,7 @@ local function perseguir(e: Estado, b: Caza.Bicho, presa: Player, destino: Vecto
 	if alcanza then
 		b.humanoide:MoveTo(b.raiz.Position)
 		b:mirarA(if suRaiz then suRaiz.Position else destino)
-		Muerte.matar(presa, b:cabeza())
+		Muerte.matar(presa, b:cabeza(), b.modelo)
 		task.wait(2.5)
 		return true
 	end
