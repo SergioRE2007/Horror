@@ -252,6 +252,20 @@ do
 						for t in string.gmatch(sinComparar, "\"([^\"]*)\"") do conEspanol(t, ruta) end
 					end
 				end
+				-- Los avisos que pasan por un ayudante que llama a Lang.t (acabar, Viaje.volver, avisar…). El avisar de
+				-- Candado es para la consola, no para el jugador.
+				local ayudantes = { "%f[%w_%.]acabar%(%s*", "Viaje%.volver%([^,\n]+,%s*" }
+				if not string.find(ruta, "Candado") then
+					table.insert(ayudantes, "%f[%w_%.]avisar%w*%(%s*")
+					table.insert(ayudantes, "%f[%w_%.]avisar%w*%(%s*[%w_%.]+%s*,%s*")
+				end
+				for _, ayudante in ayudantes do
+					for t in string.gmatch(f, ayudante .. "\"([^\"\n]*)\"") do conEspanol(t, ruta) end
+					for a, b in string.gmatch(f, ayudante .. "if%s[^\n]-%sthen%s*\"([^\"\n]*)\"%s*else%s*\"([^\"\n]*)\"") do
+						conEspanol(a, ruta)
+						conEspanol(b, ruta)
+					end
+				end
 				for args in string.gmatch(f, "nuevoPrompt(%b())") do
 					local t = string.match(args, "\"([^\"]*)\"%s*%)$")
 					if t then conEspanol(t, ruta) end
