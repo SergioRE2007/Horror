@@ -167,6 +167,24 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 - Gasolinera vieja de noche por código, al nivel de la casa y el pueblo: tienda por dentro, marquesina, surtidores, cartel GAS que falla, cabina, coches viejos, bosque y carretera en la niebla; lluvia, relámpagos, luces que fallan, puerta automática, faros y limpias, polillas, algo entre los árboles; cinemática de salida del coche (`docs/sistemas/lobby.md`).
 - **Estado:** hecho, revisado con `reviewer` y con CochesUi y TiendaUi al estilo oscuro; probado en Studio en parte el 03-11-2026 (tienda, coche, cinemática, bajarse). Falta: emulador de móvil, dos jugadores, la sombra y Rendimiento (`lobby.md`, "Probar en Studio"), y 6 sonidos de ElevenLabs (`Config.SonidosLobby`).
 
+### 14.8 Correr y aguante (pedido por el usuario, 04-11-2026: "añadir la mecánica de correr, que tengas una stamina abajo del todo, una barra fina así minimalista que aparezca al correr")
+- **Controles:** mantener Shift izquierdo en PC, L3 en el mando y botón CORRER en el móvil (en `Hud.EquipoBotones`, junto a AGACHARSE). Solo se corre moviéndose. Shift no activa el Shift Lock.
+- **Aguante:** más rápido que andar (16 → 24) durante ~6,5 s seguidos; vuelve tras ~1 s sin correr, más deprisa quieto o agachado. Agotado del todo: no se corre hasta recuperar un tercio, frenas un momento, jadeas y a veces tropiezas (la cámara cae y te recuperas).
+- **Cuándo no:** agachado (si cabes de pie, correr te levanta), cargando algo pesado, con la mochila abierta, trabajando, escondido, por la mirilla o las cortinas, asomado ni en cinemáticas.
+- **Servidor manda:** remote `Correr` (sí/no), reglas puras en `shared/CorrerReglas` (con pruebas de Lune), aguante en atributos del Player, velocidad solo en `Cargar.ajustarVelocidad`.
+- **Barra:** abajo del todo y centrada, muy fina, blanco desgastado; sale al correr o sin llenar y se va ~1,5 s después de llenarse; rojo oscuro con poco, late agotado. Bajo el `UIScale` del HUD, por encima de la zona segura, fuera en cinemáticas, mirilla y muerte. Banco de Lune.
+- **Que se note:** cámara (balanceo, campo de visión, sacudida al frenar), manos que bracean y linterna que tiembla, los demás se ven correr, pasos más seguidos y fuertes, los bichos te oyen desde más lejos, jadeo y vaho, contener la respiración dura menos si te escondes cansado. Sonido nuevo `Jadeo` (Id 0; mientras, uno provisional). Con Rendimiento, sin campo de visión ni balanceo extra.
+- **Equilibrio:** cuentas de persecución con Lune contra Golpeador (17), Bestia (19) y Acechador (21): sirve para escapar un trecho o llegar a la luz, no para dejar atrás a todos siempre. Paso corto en el tutorial si encaja.
+- **Estado:** pendiente
+
+### 14.9 Pulido general (propuesto por Claude, 04-11-2026)
+1. Revisión de pulido por áreas con agentes (leer y apuntar, verificar cada hallazgo y arreglar): textos sin `Lang` o sin español y avisos de más de una línea; cosas a medias y warns de la Salida; botones que se tapan en el móvil (también con la barra nueva); lo que no se devuelve tras una cinemática y conexiones sin desconectar; coste por fotograma de los bichos (gateo y vida de espera solo cerca de la cámara). — pendiente
+2. Deudas del gateo (`bichos.md`, "Pendiente"): `Muerte.matar` manda el modelo que pilla (fuera la heurística de `quienPilla`); `cajaTablero` de Golpeador, Imitador y PosturaVista juntas en `MuebleRayo.tablero` y el Imitador con `MuebleRayo` en sus rayos de reserva; borrar el olor del que muere al revivir y mirar `Humanoid.Health` al gatear; luz floja en la cara de la Bestia al gatear. Bancos de Lune: los gateos no atraviesan la mesa. — pendiente
+3. Lobby: que llegue un coche conduciendo cuando uno se va (ahora reaparece de golpe), con su banco de Lune. — pendiente
+4. Sonidos e imágenes que faltan: `docs/sistemas/sonidos-pendientes.md` con el texto para ElevenLabs de cada uno y el de ChatGPT para la mano de sangre. — pendiente
+5. Ritmo y economía (skill `roblox-economy-balancing`): repaso de días, noches, monedas y precios con una partida típica simulada en Lune; propuesta a ojo para la 14.5. — pendiente
+6. Ordenar "Pendientes para Studio" de lo más importante a lo menos. — pendiente
+
 ### 14.5 Partida entera de prueba
 - Una partida de principio a fin sin órdenes de prueba: ritmo de días y noches, monedas y precios (skill `roblox-economy-balancing`), fallos que salgan.
 - **Estado:** pendiente
