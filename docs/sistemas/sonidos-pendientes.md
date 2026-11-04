@@ -171,4 +171,9 @@ hay `Mano`. Luego quitar la línea de la mano de "Pendiente" en `miedo.md`.
 ## Fuera de esta lista
 
 Faltan también, sin texto aquí: `CristalPisa`, `CajaMusica` y `BombillaRevienta` (`miedo.md`) y el fuego grande y el
-derrumbe de la Bestia (`bestia.md`).
+derrumbe de la Bestia (`bestia.md`). También:
+
+- El disparo de la pistola de bengalas: `BengalasVista.luau` ya lo toca si existe la clave `Bengala` en
+  `Config.Sonidos` (hoy no hay y va mudo); al hacerlo, añadir esa clave.
+- El motor del coche, el cepo y la llave inglesa, que ahora usan sonidos provisionales (`taller.md`).
+- Coger, tirar y abrir la mochila, que de momento no suenan (`mochila.md`).
