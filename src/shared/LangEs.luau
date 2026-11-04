@@ -209,7 +209,7 @@ return {
 	["{nombre} brought you back."] = "{nombre} te ha traído de vuelta.",
 	["{nombre} is back."] = "{nombre} ha vuelto.",
 	["Revive {nombre}"] = "Revivir a {nombre}",
-	["Revive"] = "Revivir",
+	["Revive  {price}"] = "Revivir  {price}",
 	["Owned"] = "Tuyo",
 	["For classes and lights."] = "Para clases y luces.",
 	["Robux"] = "Robux",
