@@ -14,8 +14,9 @@
 --   de vez en cuando. Con Rendimiento, nada de eso (como antes: solo respira un poco).
 --   Gatea (atributos Gatea y GateaHora en su modelo, del servidor): a por quien se esconde debajo de un mueble. Se
 --   echa atrás, se aplasta fuera del borde y mete por debajo la cabeza, ladeada y mirándote, y el brazo derecho, que
---   barre el suelo de lado a tirones hasta pasarte las garras al lado (ver "gatear", abajo).
--- BestiaVista.candidatos(punto) y rugir(punto, modelo): para el susto al morir (como los demás bichos).
+--   barre el suelo de lado a tirones hasta pasarte las garras al lado (ver "gatear", abajo). Metida, una luz floja en
+--   la cara para que se la vea desde debajo de noche (sin ella con Rendimiento).
+-- BestiaVista.rugir(punto, modelo): para el susto al morir (como los demás bichos).
 -- Un solo bucle (Stepped) mientras haya alguna; el temblor de la cámara, atado solo mientras tiembla y nunca con la
 -- cámara en Scriptable (cinemáticas, escondite, mirilla).
 local Debris = game:GetService("Debris")
@@ -34,7 +35,8 @@ local BestiaVista = {}
 local ALTURA = Config.Bestia.Altura -- de los pies al centro de la raíz
 
 -- Números visuales de estar viva (a ojo; se retocan en Studio).
-local LEJOS = 250 -- studs de la cámara: más lejos no se anima
+local LEJOS = 250 -- studs de la cámara: más lejos no se anima...
+local LEJOS_RENDIMIENTO = 120 -- ...o más lejos que esto con Rendimiento (a ojo)
 local CERCA = 120 -- más lejos, sin la vida (respirar fuerte, temblar, resoplar...)
 local VAHO_LEJOS = 60 -- studs: más lejos no se le ve el vaho
 local RESOPLA_LEJOS = 40 -- studs: más lejos no se le oye resoplar ni gruñir
@@ -90,7 +92,12 @@ local GATEO = {
 	Abierto = 1.45, -- radianes: al bajar fuera del borde, el brazo derecho de lado (fuera del mueble)
 	AbreI = 1, -- radianes: el brazo izquierdo, desde atrás hacia fuera (empuja en cada tirón)
 	Patas = 0.5, -- radianes que abre las patas de atrás (hacia atrás, a ras de suelo)
+	Luz = 0.5, -- brillo de la luz floja en la cara (como la del Imitador), solo a menos de LuzCerca y sin Rendimiento...
+	LuzCerca = 14,
+	LuzAlcance = 4.5, -- ...y su alcance (la cabeza es grande)
 }
+-- Lo más deprisa que sube el salto de echarse atrás al ir (studs/s): Sube·π·1,5 (la pendiente de suave) / (tramo 1 · Cae).
+local SALTO_SUBE = GATEO.Sube * math.pi * 1.5 / (GATEO.Tramos[1] * GATEO.Cae)
 -- Medidas del cuerpo (servidor/Bestia.luau): del centro del lomo a su frente y a cada cadera (las patas, en x = ±).
 local LOMO_FRENTE = 3.1
 -- La punta de las garras del brazo, desde el hombro: a lo largo del brazo y hacia dentro (su -Z).
@@ -123,6 +130,10 @@ end
 -- espacio de la pieza. Al moverse, que nada de eso baje del suelo.
 local CAJA_BRAZO = { CFrame.new(0, -0.3, -0.38), Vector3.new(1.6, 7.6, 2.35) }
 local CAJA_PATA = { CFrame.new(0, 0.07, -0.3), Vector3.new(1.6, 4.65, 2.6) }
+-- La cabeza (con la frente) y la mandíbula (con la mancha de debajo), en el espacio de cada pieza: que no se metan en
+-- las patas del mueble.
+local CAJA_CABEZA = { CFrame.new(0, 0.1, 0), Vector3.new(2.4, 2, 2.8) }
+local CAJA_BOCA = { CFrame.new(0, -0.04, 0), Vector3.new(2, 0.65, 2.6) }
 
 type Gateo = {
 	punto: Vector3, -- Gatea: dónde está el jugador debajo (mundo)
@@ -131,6 +142,7 @@ type Gateo = {
 	borde: number, -- studs (en planta) de la raíz al borde del mueble, hacia el jugador
 	alto: number, -- studs del suelo a lo de abajo del tablero
 	pata: number, -- studs (en planta) de la raíz a lo primero que choca a la altura de la cabeza (una pata, la viga)
+	patas: { MuebleRayo.Caja }, -- las cajas Choque del mueble (MuebleRayo.cajas): el brazo que barre no se mete en ellas
 	mezcla: number, -- 0..1: por dónde va del camino de aplastarse (lineal; cada tramo se suaviza al usarla)
 	fin: number?, -- os.clock en que se quitó Gatea
 	k: number, -- 0..1: por dónde va (se queda donde estaba al acabar)
@@ -142,6 +154,9 @@ type Gateo = {
 	pose: { [string]: CFrame },
 	abajo: { [string]: CFrame }, -- la pose al bajar fuera del borde (en G)...
 	dentro: { [string]: CFrame }, -- ...y metida (en G)
+	luz: PointLight?, -- la luz floja en la cara (luzGateo)
+	vuelve: boolean, -- la mezcla va hacia atrás (se levanta)
+	salto: number, -- studs que sube ahora por el salto de echarse atrás (al volver, solo baja)
 }
 
 type Bicho = {
@@ -207,7 +222,7 @@ local function suave(k: number): number
 	return k * k * (3 - 2 * k)
 end
 
--- Deja de gatear del todo: los chorretones vuelven a verse.
+-- Deja de gatear del todo: los chorretones vuelven a verse y se apaga la luz de la cara.
 local function terminarGateo(b: Bicho)
 	local g = b.gateo
 	if not g then
@@ -215,6 +230,9 @@ local function terminarGateo(b: Bicho)
 	end
 	for _, pieza in g.colgantes do
 		pieza.LocalTransparencyModifier = 0
+	end
+	if g.luz and g.luz.Parent then
+		(g.luz.Parent :: Instance):Destroy()
 	end
 	b.gateo = nil
 end
@@ -406,13 +424,14 @@ end
 -- El borde del mueble entre la raíz y `punto` (en planta, desde la raíz) y lo alto de su hueco: rayos hacia arriba
 -- cada medio stud, por el medio y a cada lado (lo que mete: la cabeza y el brazo). Sin nada que choque, a ojo. Y lo
 -- primero que choca a lo ancho de la cabeza hacia ti (las patas de la mesa, la viga de la de la cocina): rayos de lado.
--- Los muebles no se ven con rayos (CanQuery false): MuebleRayo, con el tablero hasta el borde que se ve.
-local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
+-- Los muebles no se ven con rayos (CanQuery false): MuebleRayo, con el tablero hasta el borde que se ve. Y sus cajas
+-- Choque (patas, travesaños), para que el brazo que barre no las atraviese.
+local function medirMueble(b: Bicho, punto: Vector3): (number, number, number, { MuebleRayo.Caja })
 	local suelo = b.raiz.Position - Vector3.new(0, ALTURA, 0)
 	local hacia = plano(punto - suelo)
 	local largo = hacia.Magnitude
 	if largo < 0.5 then
-		return 0, GATEO.Alto, math.huge
+		return 0, GATEO.Alto, math.huge, {}
 	end
 	local ignorar: { Instance } = {}
 	if b.modelo.Parent then
@@ -425,6 +444,13 @@ local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 	end
 	techo.FilterDescendantsInstances = ignorar
 	local muebles = MuebleRayo.cajas(suelo, largo + 8)
+	local patas: { MuebleRayo.Caja } = {}
+	for _, c in muebles do
+		-- (no el tablero, que es el mueble, o la zona si no tiene: con el hueco bajo, el brazo lo rozaría y no barrería)
+		if c.pieza.Name == "Choque" then
+			table.insert(patas, c)
+		end
+	end
 	local u = hacia.Unit
 	local lado = u:Cross(Vector3.yAxis)
 	-- El borde más cercano (por si la mesa está torcida) y el hueco más bajo.
@@ -464,9 +490,9 @@ local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 		end
 	end
 	if borde == math.huge then
-		return math.max(0, largo - 2.5), GATEO.Alto, pata
+		return math.max(0, largo - 2.5), GATEO.Alto, pata, patas
 	end
-	return borde, math.max(1, alto), pata
+	return borde, math.max(1, alto), pata, patas
 end
 
 -- CFrame con su eje Y hacia `y` y su Z lo más hacia `z`.
@@ -512,26 +538,110 @@ type Momento = {
 	boca: number, -- lo que querría abrir la boca
 	blanco: Vector3, -- a dónde mira (en G)
 	ruido: CFrame, -- temblor de la cabeza
+	patas: { MuebleRayo.Caja }, -- las del gateo (Gateo.patas): ni la cabeza ni la mandíbula se meten en ellas...
+	mundo: CFrame, -- ...con G en el mundo
 }
+
+-- Mientras gatea todo esto corre cada fotograma: las tablas fijas viven aquí y las de cada fotograma se rellenan en vez
+-- de crearse (antes eran unas 85 tablas por fotograma, que el recolector limpiaba a tirones en pleno susto).
+local LADOS_PIERNA = { PiernaI = -1, PiernaD = 1 }
+-- Las 8 esquinas de una caja (signos), en el orden de antes: x, luego y, luego z (delanteDe busca la vecina en cada eje
+-- con los pasos 4, 2 y 1).
+local ESQUINAS: { Vector3 } = {}
+for _, x in { -1, 1 } do
+	for _, y in { -1, 1 } do
+		for _, z in { -1, 1 } do
+			table.insert(ESQUINAS, Vector3.new(x, y, z) / 2)
+		end
+	end
+end
+local PASOS = { 1, 2, 4 }
+local esquinasG: { Vector3 } = table.create(8, Vector3.zero) -- delanteDe: las esquinas en G (se reescriben cada vez)
+local PIEZAS_DELANTE = { "Lomo", "Cabeza", "BrazoD", "BrazoI" }
+-- Las tablas de cada fotograma de poseGateo (no se guardan en ningún sitio: solo se leen en el mismo fotograma).
+local momento: Momento = {
+	D = 0, E = 0, techo = 0, tiron = 0, olfa = 0, boca = 0, blanco = Vector3.zero, ruido = CFrame.identity, patas = {},
+	mundo = CFrame.identity,
+}
+local antesGateo: { [string]: CFrame } = {}
+local resGateo: { [string]: CFrame } = {}
+
+-- El lomo plano, a ras de suelo, con su frente a `frente` studs hacia ti (en G); empuja un poco hacia arriba en cada
+-- tirón.
+local function lomoAplastada(c: Momento, frente: number): CFrame
+	return CFrame.new(0, GATEO.Lomo + 0.06 * c.tiron, -(frente - LOMO_FRENTE))
+end
+
+-- El brazo derecho: del hombro hacia delante, bajando, abierto `barre` hacia fuera; su Z hacia fuera (las garras miran
+-- hacia dentro: barren de lado, no contra el suelo).
+local function brazoAplastada(b: Bicho, lomo: CFrame, barre: number): CFrame
+	local h = Vector3.new(math.sin(barre), 0, -math.cos(barre))
+	local d = h * math.cos(GATEO.Baja) - Vector3.yAxis * math.sin(GATEO.Baja)
+	return ejes(lomo * b.c0.BrazoD.Position + d * b.c1.BrazoD.Position.Y, -d, Vector3.new(-h.Z, 0, h.X))
+end
+
+-- Si el brazo derecho abierto `barre` (lo que abulta, CAJA_BRAZO) se mete en una pata del mueble. `enMundo`: G en el
+-- mundo.
+local function brazoChoca(b: Bicho, g: Gateo, enMundo: CFrame, lomo: CFrame, barre: number): boolean
+	local cf = enMundo * brazoAplastada(b, lomo, barre) * (CAJA_BRAZO[1] :: CFrame)
+	return MuebleRayo.choca(cf, (CAJA_BRAZO[2] :: Vector3) / 2, g.patas) ~= nil
+end
+
+-- Lo más abierto que puede ir el brazo derecho metido, hasta `barre`, sin atravesar las patas del mueble (comprobado
+-- con Lune: abierto del todo se metía ~0,9 en una pata del comedor y en el caballete de la cocina): si se mete, se
+-- cierra hacia `cierra` (hacia ti, donde no hay patas) lo justo; si así tampoco cabe (la viga de la cocina, justo
+-- detrás de ti), se abre hacia GATEO.Abierto (de lado, fuera del borde) lo justo.
+local function barreLibre(b: Bicho, c: Momento, g: Gateo, enMundo: CFrame, frente: number, barre: number, cierra: number): number
+	if #g.patas == 0 then
+		return barre
+	end
+	local lomo = lomoAplastada(c, frente)
+	if not brazoChoca(b, g, enMundo, lomo, barre) then
+		return barre
+	end
+	local libre, choca
+	if not brazoChoca(b, g, enMundo, lomo, cierra) then
+		libre, choca = cierra, barre
+	elseif not brazoChoca(b, g, enMundo, lomo, GATEO.Abierto) then
+		libre, choca = GATEO.Abierto, barre
+	else
+		return barre -- (no cabe de ninguna manera: como antes)
+	end
+	for _ = 1, 8 do
+		local medio = (libre + choca) / 2
+		if brazoChoca(b, g, enMundo, lomo, medio) then
+			choca = medio
+		else
+			libre = medio
+		end
+	end
+	return libre
+end
+
+-- Si la cabeza `cabeza` (en G) con la boca abierta `boca` se mete en una pata del mueble (sus cajas, CAJA_CABEZA y
+-- CAJA_BOCA).
+local function cabezaChoca(b: Bicho, c: Momento, cabeza: CFrame, boca: number): boolean
+	local cf = c.mundo * cabeza
+	if MuebleRayo.choca(cf * (CAJA_CABEZA[1] :: CFrame), (CAJA_CABEZA[2] :: Vector3) / 2, c.patas) then
+		return true
+	end
+	local mandibula = cf * b.c0.Mandibula * CFrame.Angles(-boca, 0, 0) * b.c1i.Mandibula * (CAJA_BOCA[1] :: CFrame)
+	return MuebleRayo.choca(mandibula, (CAJA_BOCA[2] :: Vector3) / 2, c.patas) ~= nil
+end
 
 -- Aplastada con el frente del lomo a `frente` studs hacia ti y el brazo derecho abierto `barre` radianes hacia fuera:
 -- el CFrame de cada pieza (en G) en `en`. Devuelve lo que abre la boca (sin dar en el suelo ni en el tablero).
 local function aplastada(b: Bicho, c: Momento, en: { [string]: CFrame }, frente: number, barre: number): number
-	-- El lomo plano, a ras de suelo; empuja un poco hacia arriba en cada tirón.
-	local lomo = CFrame.new(0, GATEO.Lomo + 0.06 * c.tiron, -(frente - LOMO_FRENTE))
+	local lomo = lomoAplastada(c, frente)
 	en.Lomo = lomo
-	-- El brazo derecho: del hombro hacia delante, bajando, abierto `barre` hacia fuera; su Z hacia fuera (las garras
-	-- miran hacia dentro: barren de lado, no contra el suelo).
-	local h = Vector3.new(math.sin(barre), 0, -math.cos(barre))
-	local d = h * math.cos(GATEO.Baja) - Vector3.yAxis * math.sin(GATEO.Baja)
-	en.BrazoD = ejes(lomo * b.c0.BrazoD.Position + d * b.c1.BrazoD.Position.Y, -d, Vector3.new(-h.Z, 0, h.X))
+	en.BrazoD = brazoAplastada(b, lomo, barre)
 	-- El izquierdo, abierto hacia atrás y fuera, con la mano en el suelo (empuja en cada tirón).
 	local a = GATEO.AbreI + 0.2 * c.tiron
 	local hI = Vector3.new(-math.sin(a), 0, math.cos(a))
 	local dI = hI * math.cos(GATEO.Baja) - Vector3.yAxis * math.sin(GATEO.Baja)
 	en.BrazoI = ejes(lomo * b.c0.BrazoI.Position + dI * b.c1.BrazoI.Position.Y, -dI, Vector3.new(hI.Z, 0, -hI.X))
 	-- Las patas de atrás, abiertas hacia atrás a ras de suelo (el pie de adorno, hacia arriba).
-	for nombre, lado in { PiernaI = -1, PiernaD = 1 } do
+	for nombre, lado in LADOS_PIERNA do
 		local cadera = lomo * Vector3.new(lado * CADERA.X, CADERA.Y, CADERA.Z)
 		local v = Vector3.new(lado * math.sin(GATEO.Patas), -0.05, math.cos(GATEO.Patas)).Unit
 		en[nombre] = ejes(cadera + v * b.c1[nombre].Position.Y, -v, Vector3.new(0, -1, 0))
@@ -558,20 +668,50 @@ local function aplastada(b: Bicho, c: Momento, en: { [string]: CFrame }, frente:
 		lo, hi = alturas(b, giro, boca)
 	end
 	local y = math.max(GATEO.Suelo - lo, math.min(GATEO.Suelo - lo + 0.12 + 0.1 * c.olfa, c.techo - hi))
-	en.Cabeza = CFrame.new(centro.X, y, centro.Z) * giro
+	local cabeza = CFrame.new(centro.X, y, centro.Z) * giro
+	-- Sin meterse en las patas (comprobado con Lune: entrando en diagonal a la mesa de la cocina, la punta de la
+	-- mandíbula, que se abre de lado, se metía ~0,1 en la punta del caballete): cierra la boca lo justo y, si así
+	-- tampoco cabe, echa la cabeza atrás (hacia el lomo) lo justo. (Con la cabeza más baja o más alta no cambia nada.)
+	if #c.patas > 0 and cabezaChoca(b, c, cabeza, boca) then
+		if not cabezaChoca(b, c, cabeza, 0) then
+			local cerrada, abierta = 0, boca
+			for _ = 1, 8 do
+				local medio = (cerrada + abierta) / 2
+				if cabezaChoca(b, c, cabeza, medio) then
+					abierta = medio
+				else
+					cerrada = medio
+				end
+			end
+			boca = cerrada
+		else
+			boca = 0
+			local libre, choca = GATEO.Cabeza, 0
+			if cabezaChoca(b, c, cabeza + Vector3.new(0, 0, libre), 0) then
+				libre = 0 -- (ni así: como antes)
+			else
+				for _ = 1, 8 do
+					local medio = (libre + choca) / 2
+					if cabezaChoca(b, c, cabeza + Vector3.new(0, 0, medio), 0) then
+						choca = medio
+					else
+						libre = medio
+					end
+				end
+			end
+			cabeza += Vector3.new(0, 0, libre)
+		end
+	end
+	en.Cabeza = cabeza
 	return boca
 end
 
 -- Lo más adelantado (hacia ti, en G) de la caja `cf` (espacio de la raíz) por encima de `h`: sus esquinas de arriba y
 -- donde sus aristas cruzan esa altura.
 local function delanteDe(G: CFrame, cf: CFrame, tam: Vector3, h: number): number
-	local q = table.create(8)
-	for _, x in { -1, 1 } do
-		for _, y in { -1, 1 } do
-			for _, z in { -1, 1 } do
-				table.insert(q, G:PointToObjectSpace(cf * Vector3.new(x * tam.X / 2, y * tam.Y / 2, z * tam.Z / 2)))
-			end
-		end
+	local q = esquinasG
+	for i, e in ESQUINAS do
+		q[i] = G:PointToObjectSpace(cf * (e * tam))
 	end
 	local mejor = -math.huge
 	for i = 1, 8 do
@@ -579,7 +719,7 @@ local function delanteDe(G: CFrame, cf: CFrame, tam: Vector3, h: number): number
 		if a.Y >= h then
 			mejor = math.max(mejor, -a.Z)
 		end
-		for _, paso in { 1, 2, 4 } do -- la esquina vecina en cada eje
+		for _, paso in PASOS do -- la esquina vecina en cada eje
 			if (i - 1) // paso % 2 == 0 then
 				local o = q[i + paso]
 				if (a.Y - h) * (o.Y - h) < 0 then
@@ -603,7 +743,8 @@ end
 -- La pose de gatear en `g.pose` (Transform de cada motor), mezclada con la de siempre (b.pose) por el camino de tres
 -- tramos (`mezcla` 0..1): atrás arriba (lo justo para que nada alto quede sobre el mueble), bajar fuera del borde y
 -- meterse a ras de suelo. Cada pieza va en línea recta en cada tramo (en el espacio de la raíz).
-local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adornos: boolean, chillando: boolean, mezcla: number)
+local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adornos: boolean, chillando: boolean, mezcla: number,
+	dt: number)
 	local raiz = b.raiz.CFrame
 	local suelo = raiz.Position - Vector3.new(0, ALTURA, 0)
 	local haciaW = plano(g.punto - suelo)
@@ -652,25 +793,29 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 		ruido = CFrame.Angles(olfa * math.abs(math.sin(ahora * 22)) * 0.06 + math.noise(ahora * 9, 1) * t,
 			math.noise(ahora * 9, 2) * t * 0.2, math.noise(ahora * 9, 3) * t * 0.2)
 	end
-	local c: Momento = {
-		D = D,
-		E = E,
-		techo = if bajo then math.huge else g.alto - GATEO.Techo,
-		tiron = tiron,
-		olfa = olfa,
-		boca = math.min(GATEO.Boca, 0.08 + 0.2 * p + 0.1 * tiron - 0.08 * olfa + 0.15 * lejosFin
-			+ (if chillando then 0.4 + 0.06 * math.sin(ahora * 30) else 0)),
-		blanco = if debajo then G:PointToObjectSpace(raiz:PointToObjectSpace(ojo)) else Vector3.new(0, 1, -D),
-		ruido = ruido,
-	}
+	local c = momento
+	c.D = D
+	c.E = E
+	c.techo = if bajo then math.huge else g.alto - GATEO.Techo
+	c.tiron = tiron
+	c.olfa = olfa
+	c.boca = math.min(GATEO.Boca, 0.08 + 0.2 * p + 0.1 * tiron - 0.08 * olfa + 0.15 * lejosFin
+		+ (if chillando then 0.4 + 0.06 * math.sin(ahora * 30) else 0))
+	c.blanco = if debajo then G:PointToObjectSpace(raiz:PointToObjectSpace(ojo)) else Vector3.new(0, 1, -D)
+	c.ruido = ruido
+	c.patas = g.patas
+	c.mundo = raiz * G
 	-- El tramo (y solo lo que hace falta para él: echada atrás, ni baja ni se mete).
 	local t1, t2 = GATEO.Tramos[1], GATEO.Tramos[2]
 	local tramo = if mezcla <= t1 then 1 elseif mezcla < t2 then 2 else 3
 	local boca = 0
+	local afuera = math.min(frente, E - GATEO.Fuera) -- el frente del lomo al bajar fuera del borde
+	local enMundo = c.mundo
 	if tramo >= 2 then
-		boca = aplastada(b, c, g.abajo, math.min(frente, E - GATEO.Fuera), GATEO.Abierto)
+		boca = aplastada(b, c, g.abajo, afuera, GATEO.Abierto)
 	end
 	if tramo == 3 then
+		barre = barreLibre(b, c, g, enMundo, frente, barre, cierra)
 		boca = aplastada(b, c, g.dentro, frente, barre)
 	end
 
@@ -678,17 +823,16 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	local base, c0, c0i, c1, c1i = b.pose, b.c0, b.c0i, b.c1, b.c1i
 	local lomoB = c0.Lomo * base.Lomo * c1i.Lomo
 	local cabezaB = lomoB * c0.Cabeza * base.Cabeza * c1i.Cabeza
-	local antes = {
-		Lomo = lomoB,
-		Cabeza = cabezaB,
-		BrazoD = lomoB * c0.BrazoD * base.BrazoD * c1i.BrazoD,
-		BrazoI = lomoB * c0.BrazoI * base.BrazoI * c1i.BrazoI,
-		PiernaI = c0.PiernaI * base.PiernaI * c1i.PiernaI,
-		PiernaD = c0.PiernaD * base.PiernaD * c1i.PiernaD,
-	}
+	local antes = antesGateo
+	antes.Lomo = lomoB
+	antes.Cabeza = cabezaB
+	antes.BrazoD = lomoB * c0.BrazoD * base.BrazoD * c1i.BrazoD
+	antes.BrazoI = lomoB * c0.BrazoI * base.BrazoI * c1i.BrazoI
+	antes.PiernaI = c0.PiernaI * base.PiernaI * c1i.PiernaI
+	antes.PiernaD = c0.PiernaD * base.PiernaD * c1i.PiernaD
 	local alto = (if bajo then g.alto else math.min(g.alto, GATEO.Alto)) - 0.5
 	local delante = -math.huge
-	for _, nombre in { "Lomo", "Cabeza", "BrazoD", "BrazoI" } do
+	for _, nombre in PIEZAS_DELANTE do
 		delante = math.max(delante, delanteDe(G, antes[nombre], (b.motores[nombre].Part1 :: BasePart).Size, alto))
 	end
 	delante = math.max(delante, delanteDe(G, cabezaB * c0.Mandibula * base.Mandibula * c1i.Mandibula,
@@ -699,24 +843,44 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	-- El camino: atrás arriba, bajar fuera del borde y meterse.
 	local s = if tramo == 1 then suave(mezcla / t1) elseif tramo == 2 then suave((mezcla - t1) / (t2 - t1))
 		else suave((mezcla - t2) / (1 - t2))
-	local res = {}
+	-- El salto de echarse atrás, solo al ir: al volver (echa a andar y se levanta) solo baja. Si no, al levantarse
+	-- andando junto al borde volvía a subir 0,4 y metía el brazo en el tablero (comprobado con Lune).
+	local salto = if tramo == 1 then GATEO.Sube * math.sin(math.pi * s) else 0
+	if g.vuelve then
+		salto = math.min(salto, g.salto)
+	else
+		-- Al ir, como mucho tan deprisa como sube yendo de cero: un gateo nuevo a mitad de levantarse (con el salto ya
+		-- bajado) no lo da de golpe en un fotograma.
+		salto = math.min(salto, g.salto + dt * SALTO_SUBE)
+	end
+	g.salto = salto
+	local res = resGateo
 	for _, nombre in PIEZAS do
 		local cf = antes[nombre]
 		if tramo == 1 then
-			cf = cf:Lerp(cf + atras, s) + Vector3.new(0, GATEO.Sube * math.sin(math.pi * s), 0)
+			cf = cf:Lerp(cf + atras, s) + Vector3.new(0, salto, 0)
 		elseif tramo == 2 then
 			cf = (cf + atras):Lerp(G * g.abajo[nombre], s)
 			if nombre == "PiernaI" or nombre == "PiernaD" then
 				cf += Vector3.new(0, 0.5 * math.sin(math.pi * s), 0) -- como dando el paso: si no, el pie rozaba bajo el suelo
 			end
+		elseif nombre == "BrazoD" and #g.patas > 0 then
+			-- El brazo que barre, de abierto fuera del borde a metido, con el lomo: en línea recta, al salir (abriéndose
+			-- mientras el lomo vuelve) pasaba por una pata (comprobado con Lune). Así, sin meterse en ninguna.
+			local va = afuera + (frente - afuera) * s
+			local abre = barreLibre(b, c, g, enMundo, va, GATEO.Abierto + (barre - GATEO.Abierto) * s, cierra)
+			cf = G * brazoAplastada(b, lomoAplastada(c, va), abre)
 		else
 			cf = (G * g.abajo[nombre]):Lerp(G * g.dentro[nombre], s)
 		end
 		-- Al girar de pie a aplastada, la mano y los pies bajarían del suelo: se levantan lo justo.
 		local caja = if nombre == "BrazoD" or nombre == "BrazoI" then CAJA_BRAZO
 			elseif nombre == "PiernaI" or nombre == "PiernaD" then CAJA_PATA else nil
+		-- En el primer tramo, poco a poco: de golpe, al empezar a gatear el brazo saltaba ~0,6 en un fotograma (y las
+		-- garras que ya rozaban una pata al llegar andando se metían más en ella; comprobado con Lune).
 		if caja then
-			cf += Vector3.new(0, math.max(0, GATEO.Suelo - ALTURA - masBajo(cf, caja)), 0)
+			local sube = math.max(0, GATEO.Suelo - ALTURA - masBajo(cf, caja))
+			cf += Vector3.new(0, if tramo == 1 then sube * s else sube, 0)
 		end
 		res[nombre] = cf
 	end
@@ -790,6 +954,24 @@ local function colgantesDe(modelo: Model): { BasePart }
 	return lista
 end
 
+-- Una luz floja en la cara, para que se la vea desde debajo de la mesa de noche (como la del Imitador; brillos flojos,
+-- pedido por el usuario). Sin sombras; con Rendimiento, nada (se apaga si ya estaba).
+local function luzGateo(b: Bicho, g: Gateo, brillo: number)
+	if not g.luz or not g.luz.Parent then
+		local a = Instance.new("Attachment")
+		a.Name = "LuzGatea"
+		a.Position = Vector3.new(0, -0.2, -2) -- delante de la cara (la cabeza llega a 1,5): dentro no la alumbraría
+		local foco = Instance.new("PointLight")
+		foco.Color = Color3.fromRGB(205, 200, 195)
+		foco.Range = GATEO.LuzAlcance
+		foco.Shadows = false
+		foco.Parent = a
+		a.Parent = b.cabeza
+		g.luz = foco
+	end
+	(g.luz :: PointLight).Brightness = brillo
+end
+
 -- Gatea, GateaHora y por dónde va. Devuelve la mezcla con la que se pinta (0 = nada). Se queda en la pose si te acaba de
 -- pillar (rugir lo llama MuerteVista) para que la escena de muerte le vea la cara ahí; si no, se levanta (y se queda
 -- echada atrás mientras no ande).
@@ -803,15 +985,16 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	if typeof(punto) == "Vector3" then
 		local t = if type(hora) == "number" then hora else servidor
 		if not g or g.fin or (g.punto - punto).Magnitude > 0.5 or math.abs(g.hora - t) > 0.05 then
-			local borde, alto, pata = medirMueble(b, punto)
+			local borde, alto, pata, patas = medirMueble(b, punto)
 			if g then
 				for _, pieza in g.colgantes do
 					pieza.LocalTransparencyModifier = 0
 				end
 			end
-			local nuevo: Gateo = { punto = punto, hora = t, inicio = ahora, borde = borde, alto = alto, pata = pata,
+			local nuevo: Gateo = { punto = punto, hora = t, inicio = ahora, borde = borde, alto = alto, pata = pata, patas = patas,
 				mezcla = if g then g.mezcla else 0, fin = nil, k = 0, tirones = 0, cayo = g ~= nil and g.mezcla >= 1, atras = 0,
-				olio = false, colgantes = colgantesDe(modelo), pose = if g then g.pose else {}, abajo = {}, dentro = {} }
+				olio = false, colgantes = colgantesDe(modelo), pose = if g then g.pose else {}, abajo = {}, dentro = {},
+				luz = if g then g.luz else nil, vuelve = false, salto = if g then g.salto else 0 }
 			g = nuevo
 			b.gateo = nuevo
 		end
@@ -833,6 +1016,9 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	if meta == 0 and g.atras > 0.05 and rapidez < 1.5 and not suelta then
 		meta = math.min(g.mezcla, GATEO.Tramos[1])
 	end
+	if meta ~= g.mezcla then -- parada a mitad (frena junto al borde), sigue hacia donde iba: si no, el salto volvía de golpe
+		g.vuelve = meta < g.mezcla
+	end
 	g.mezcla = if meta > g.mezcla then math.min(meta, g.mezcla + dt / GATEO.Cae) else math.max(meta, g.mezcla - dt / GATEO.Vuelve)
 	if g.fin and g.mezcla <= 0 then
 		terminarGateo(b)
@@ -842,9 +1028,15 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	for _, pieza in g.colgantes do
 		pieza.LocalTransparencyModifier = esconde
 	end
-	poseGateo(b, g, ahora, ojo, adornos, ahora - b.pilla < 2.5, g.mezcla)
+	poseGateo(b, g, ahora, ojo, adornos, ahora - b.pilla < 2.5, g.mezcla, dt)
 	if distancia < CERCA then -- los sonidos, también con Rendimiento: se oye venir
 		sonidosGateo(b, g, adornos, distancia)
+	end
+	-- La luz, solo bajando y metida: echada atrás esperando a andar, apagada. (`adornos` ya es "sin Rendimiento y cerca")
+	local luce = adornos and distancia < GATEO.LuzCerca
+	if luce or g.luz then
+		local baja = (g.mezcla - GATEO.Tramos[1]) / (1 - GATEO.Tramos[1])
+		luzGateo(b, g, if luce then GATEO.Luz * suave(baja) else 0)
 	end
 	return 1
 end
@@ -856,6 +1048,7 @@ local function animar(dt: number)
 	local servidor = workspace:GetServerTimeNow()
 	local ojo = workspace.CurrentCamera.CFrame.Position
 	local rendimiento = jugador:GetAttribute("Rendimiento") == true
+	local lejos = if rendimiento then LEJOS_RENDIMIENTO else LEJOS
 	for modelo, b in bichos do
 		if not modelo.Parent or not b.raiz.Parent or not b.cabeza.Parent then
 			olvidar(modelo)
@@ -879,7 +1072,7 @@ local function animar(dt: number)
 			b.humo = nil
 		end
 		local distancia = (b.raiz.Position - ojo).Magnitude
-		if distancia > LEJOS then
+		if distancia > lejos then
 			continue
 		end
 		local v = b.raiz.AssemblyLinearVelocity
@@ -1128,26 +1321,8 @@ local function cercano(punto: Vector3, maximo: number): Bicho?
 	return mejor
 end
 
--- Para MuerteVista (quién te ha pillado, PosturaReglas.quienPilla): las Bestias a menos de 14 de `punto` (la cara
--- del susto), sin tocarlos: su modelo, a cuánto tiene la cabeza de `punto` y dónde estaba el escondido a por el que
--- gatea (si gatea).
-function BestiaVista.candidatos(punto: Vector3): { { modelo: Model, distancia: number, gatea: Vector3? } }
-	local lista = {}
-	for _, b in bichos do
-		if (b.raiz.Position - punto).Magnitude < 14 then
-			local cara = if b.cabeza.Parent then b.cabeza.Position else b.raiz.Position
-			table.insert(lista, {
-				modelo = b.modelo,
-				distancia = (cara - punto).Magnitude,
-				gatea = b.gateo and b.gateo.punto,
-			})
-		end
-	end
-	return lista
-end
-
 -- Abre la boca del todo unos segundos (el susto al morir). Devuelve la Bestia con la cabeza cerca de `punto`, si hay.
--- `modelo`: el que ha elegido MuerteVista (si no es una Bestia, nada); sin él, el más cerca de `punto`.
+-- `modelo`: el que te pilla (lo trae el remote Muerte; si no es una Bestia, nada); sin él, el más cerca de `punto`.
 function BestiaVista.rugir(punto: Vector3, modelo: Model?): Model?
 	local b = if modelo then bichos[modelo] else cercano(punto, 14)
 	if b then

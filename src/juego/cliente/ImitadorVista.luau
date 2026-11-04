@@ -16,7 +16,7 @@
 --   de golpe se pega a ella, la cara llenando la mirilla (Sobresalto y un golpe sordo en la puerta), y al rato da un
 --   golpecito junto a ella. Una vez por llamada; si vuelves a mirar en la misma, se queda doblado delante de la
 --   mirilla, mirándote, sin moverse. La pose sale de cuentas (cinemática inversa del cuello).
--- ImitadorVista.candidatos(punto) y rugir(punto, modelo): para el susto al morir.
+-- ImitadorVista.rugir(punto, modelo): para el susto al morir.
 -- Un solo bucle (Stepped) mientras haya alguno; solo cerca de la cámara.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -25,15 +25,18 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
 
 local ImitadorVista = {}
 
 -- Números visuales (a ojo; se retocan en Studio).
-local LEJOS = 250 -- studs de la cámara: más lejos no se anima
+local LEJOS = 250 -- studs de la cámara: más lejos no se anima...
+local LEJOS_RENDIMIENTO = 120 -- ...o más lejos que esto con Rendimiento (a ojo)
 local CERCA = 120 -- más lejos, sin detalles (crispaciones, tirones)
 local VAHO_LEJOS = 60 -- studs: más lejos no se le ve el vaho
 local MOTORES = { "Torso", "Cuello", "Cabeza", "Mandibula", "BrazoI", "BrazoD", "PiernaI", "PiernaD" }
+local LADOS = { -1, 1 } -- izquierda y derecha (fijo: sin tablas nuevas en cada fotograma)
 local LARGO_BRAZO = 4.45 -- del hombro a la punta de los dedos (Imitador.luau: brazo de 3,8 y dedos de 0,8)
 local HOJA = 0.175 -- media hoja de la puerta (Mapa: 0,35 de grueso)
 local DELANTE = 2.5 -- studs delante de la puerta donde se planta (Imitador.luau)
@@ -535,32 +538,8 @@ local function enTiron(k: number): number
 	return -1
 end
 
--- El tablero de un mueble con zona Debajo (Mapa, HUECOS): su centro y su tamaño. Las piezas de los muebles y sus cajas
--- de choque no se ven con rayos (CanQuery false), así que se mira el atributo Tam del mueble (el tablero llega a sus
--- bordes, de lo alto de la zona hasta arriba); si su pivote no cuadra con la zona, se da por hecho que sobresale
--- SALIENTE de la zona por cada lado. (Lo mismo que GolpeadorVista.)
-local SALIENTE = 2 -- lo que más sobresale un tablero de su zona (la mesa del comedor, 1,96 por las puntas)
-local function cajaTablero(zona: BasePart): (CFrame, Vector3)
-	local medio = zona.Size / 2
-	local cf = zona.CFrame * CFrame.new(0, medio.Y + 0.4, 0)
-	local tam = Vector3.new(zona.Size.X + 2 * SALIENTE, 0.8, zona.Size.Z + 2 * SALIENTE)
-	local mueble = zona.Parent
-	local medida = if mueble and mueble:IsA("Model") then mueble:GetAttribute("Tam") else nil
-	if mueble and typeof(medida) == "Vector3" then
-		local pivote = (mueble :: Model):GetPivot()
-		local z = pivote:PointToObjectSpace(zona.Position)
-		if math.abs(pivote.XVector:Dot(zona.CFrame.XVector)) > 0.99 and math.abs(pivote.YVector:Dot(Vector3.yAxis)) > 0.99
-			and math.abs(z.X) + medio.X <= medida.X / 2 + 0.05 and math.abs(z.Z) + medio.Z <= medida.Z / 2 + 0.05
-			and math.abs(z.Y - medio.Y) < 0.1 and medida.Y > zona.Size.Y
-		then
-			cf = pivote * CFrame.new(0, (zona.Size.Y + medida.Y) / 2, 0)
-			tam = Vector3.new(medida.X, medida.Y - zona.Size.Y, medida.Z)
-		end
-	end
-	return cf, tam
-end
-
--- El tablero que tapa a quien está en `punto` (el de la zona Debajo en la que está) y lo alto de su hueco, o nil.
+-- El tablero que tapa a quien está en `punto` (el de la zona Debajo en la que está) y lo alto de su hueco, o nil. Los
+-- muebles no se ven con rayos (CanQuery false): lo calcula MuebleRayo.tablero con el Tam del mueble.
 local function tableroEn(punto: Vector3): (CFrame?, Vector3?, number?)
 	for _, zona in CollectionService:GetTagged("Debajo") do
 		if not zona:IsA("BasePart") then
@@ -571,16 +550,16 @@ local function tableroEn(punto: Vector3): (CFrame?, Vector3?, number?)
 		if math.abs(p.X) > medio.X + 0.5 or math.abs(p.Z) > medio.Z + 0.5 or p.Y < -medio.Y - 1 or p.Y > medio.Y + 3 then
 			continue
 		end
-		local cf, tam = cajaTablero(zona)
+		local cf, tam = MuebleRayo.tablero(zona)
 		return cf, tam, zona.Size.Y
 	end
 	return nil, nil, nil
 end
 
 -- El borde del mueble entre la raíz y `punto` (en planta, desde la raíz) y lo alto de su hueco: por la zona Debajo en
--- la que estás (en el juego los rayos no dan nunca en los muebles: CanQuery false) y, si no estás en ninguna, con rayos
--- hacia arriba cada medio stud. Por el medio y a los lados (la cabeza y los brazos): el borde más cercano, por si llega
--- torcido. Sin nada, a ojo: el borde a 1,6 de ti.
+-- la que estás y, si no estás en ninguna (entonces el servidor no le hace gatear: por si acaso), con rayos hacia arriba
+-- cada medio stud que ven los muebles (MuebleRayo: con workspace:Raycast no se ven, CanQuery false). Por el medio y a
+-- los lados (la cabeza y los brazos): el borde más cercano, por si llega torcido. Sin nada, a ojo: el borde a 1,6 de ti.
 local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 	local suelo = b.raiz.Position - Vector3.new(0, ALTURA, 0)
 	local hacia = plano(punto - suelo)
@@ -632,10 +611,11 @@ local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 		end
 	end
 	techo.FilterDescendantsInstances = ignorar
+	local muebles = MuebleRayo.cajas(suelo, largo + 8)
 	local borde, alto = math.huge, math.huge
 	for _, x in { 0, -1, 1 } do
-		local function arriba(d: number): RaycastResult?
-			return workspace:Raycast(suelo + u * d + lado * x + Vector3.new(0, 0.2, 0), Vector3.new(0, 4.3, 0), techo)
+		local function arriba(d: number): MuebleRayo.Golpe?
+			return MuebleRayo.rayo(suelo + u * d + lado * x + Vector3.new(0, 0.2, 0), Vector3.new(0, 4.3, 0), techo, muebles)
 		end
 		for d = 0, math.min(largo, borde), 0.5 do
 			local r = arriba(d)
@@ -731,17 +711,7 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	local yT = Vector3.new(0, math.cos(a), -math.sin(a))
 	local arriba = S - Vector3.new(1.25, 0, 0) + yT * 0.2 -- lo alto del torso (donde nace el cuello)
 	local torso = ejes(arriba - yT * 1.5, yT, Vector3.new(0, math.sin(a), math.cos(a)))
-	local cadera = arriba - yT * 3
-
-	-- Las piernas abiertas como una araña, hasta el suelo.
-	local piernas = {}
-	for _, lado in { -1, 1 } do
-		local junta = cadera + Vector3.new(lado * 0.5, 0, 0)
-		local bajo = math.max(0.1, junta.Y - 0.38)
-		local hl = math.sqrt(math.max(0, 4.4 ^ 2 - bajo ^ 2))
-		local v = Vector3.new(lado * hl * 0.68, -bajo, hl * 0.73).Unit
-		piernas[lado] = ejes(junta + v * 2, -v, Vector3.yAxis)
-	end
+	local cadera = arriba - yT * 3 -- (las piernas salen de aquí: abajo, con lo demás de la pose)
 
 	-- El brazo izquierdo apoyado en el suelo, abierto hacia fuera y algo atrás (lejos de la mesa aunque estés de lado;
 	-- empuja en cada tirón).
@@ -793,14 +763,22 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	pose.Cuello = c0i.Cuello * torsoM:Inverse() * cuelloM * c1.Cuello
 	local cabezaB = cuelloB * c0.Cabeza * base.Cabeza * c1i.Cabeza
 	pose.Cabeza = c0i.Cabeza * cuelloM:Inverse() * cabezaB:Lerp(G * cabeza, m) * c1.Cabeza
-	for nombre, cf in { BrazoD = brazoD, BrazoI = brazoI } do
-		local antes = torsoB * c0[nombre] * base[nombre] * c1i[nombre]
-		pose[nombre] = c0i[nombre] * torsoM:Inverse() * antes:Lerp(G * cf, m) * c1[nombre]
-	end
-	for nombre, cf in { PiernaI = piernas[-1], PiernaD = piernas[1] } do
-		-- (a medio camino se levantan un poco, como dando el paso: si no, la punta rozaba bajo el suelo)
+	local torsoMi = torsoM:Inverse()
+	local antesD = torsoB * c0.BrazoD * base.BrazoD * c1i.BrazoD
+	pose.BrazoD = c0i.BrazoD * torsoMi * antesD:Lerp(G * brazoD, m) * c1.BrazoD
+	local antesI = torsoB * c0.BrazoI * base.BrazoI * c1i.BrazoI
+	pose.BrazoI = c0i.BrazoI * torsoMi * antesI:Lerp(G * brazoI, m) * c1.BrazoI
+	-- Las piernas abiertas como una araña, hasta el suelo. A medio camino se levantan un poco, como dando el paso: si
+	-- no, la punta rozaba bajo el suelo.
+	local alza = Vector3.new(0, 0.3 * math.sin(math.pi * m), 0)
+	for _, lado in LADOS do
+		local nombre = if lado < 0 then "PiernaI" else "PiernaD"
+		local anca = cadera + Vector3.new(lado * 0.5, 0, 0)
+		local bajo = math.max(0.1, anca.Y - 0.38)
+		local hl = math.sqrt(math.max(0, 4.4 ^ 2 - bajo ^ 2))
+		local v = Vector3.new(lado * hl * 0.68, -bajo, hl * 0.73).Unit
 		local antes = c0[nombre] * base[nombre] * c1i[nombre]
-		pose[nombre] = c0i[nombre] * (antes:Lerp(G * cf, m) + Vector3.new(0, 0.3 * math.sin(math.pi * m), 0)) * c1[nombre]
+		pose[nombre] = c0i[nombre] * (antes:Lerp(G * ejes(anca + v * 2, -v, Vector3.yAxis), m) + alza) * c1[nombre]
 	end
 	pose.Mandibula = base.Mandibula:Lerp(CFrame.Angles(-boca, 0, 0), m)
 end
@@ -911,6 +889,7 @@ local function animar(dt: number)
 	local camara = workspace.CurrentCamera
 	local ojo = camara.CFrame.Position
 	local rendimiento = jugador:GetAttribute("Rendimiento") == true
+	local lejos = if rendimiento then LEJOS_RENDIMIENTO else LEJOS
 	local mira = jugador:GetAttribute("Mirilla") == true
 	if not mira then
 		mirillaDesde = nil
@@ -926,7 +905,7 @@ local function animar(dt: number)
 			continue
 		end
 		local distancia = (b.raiz.Position - ojo).Magnitude
-		if distancia > LEJOS then
+		if distancia > lejos then
 			apagarMirilla(b)
 			continue
 		end
@@ -1121,25 +1100,7 @@ local function cercano(punto: Vector3, maximo: number): Bicho?
 	return mejor
 end
 
--- Para MuerteVista (quién te ha pillado, PosturaReglas.quienPilla): los Imitadores a menos de 12 de `punto` (la
--- cara del susto), sin tocarlos: su modelo, a cuánto tiene la cabeza de `punto` y dónde estaba el escondido a por
--- el que gatea (si gatea).
-function ImitadorVista.candidatos(punto: Vector3): { { modelo: Model, distancia: number, gatea: Vector3? } }
-	local lista = {}
-	for _, b in bichos do
-		if (b.raiz.Position - punto).Magnitude < 12 then
-			local cara = if b.cabeza.Parent then b.cabeza.Position else b.raiz.Position
-			table.insert(lista, {
-				modelo = b.modelo,
-				distancia = (cara - punto).Magnitude,
-				gatea = b.gateo and b.gateo.punto,
-			})
-		end
-	end
-	return lista
-end
-
--- `modelo`: el que ha elegido MuerteVista (si no es un Imitador, nada); sin él, el más cerca de `punto`.
+-- `modelo`: el que te pilla (lo trae el remote Muerte; si no es un Imitador, nada); sin él, el más cerca de `punto`.
 function ImitadorVista.rugir(punto: Vector3, modelo: Model?): Model?
 	local b = if modelo then bichos[modelo] else cercano(punto, 12)
 	if b then

@@ -18,7 +18,7 @@ local frase = 0
 
 local function cerca(jugador: Player): boolean
 	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not raiz or not table.find(Muerte.vivos(), jugador) or jugador:GetAttribute("Escondido") then
+	if not raiz or not Muerte.vivo(jugador) or jugador:GetAttribute("Escondido") then
 		return false
 	end
 	for _, modelo in CollectionService:GetTagged("Vendedor") do

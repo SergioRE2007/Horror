@@ -4,6 +4,9 @@
 --   Flash: clic, R2 o el botón en el móvil (con la pistola de bengalas en la mano, el clic es suyo: BengalasVista).
 --   Destello en todos los clientes; al que hace la foto, la pantalla en blanco.
 --   Lo que queda de pila y fotos sale abajo un momento cuando cambia, y se va (casi nada en pantalla).
+--   Correr (14.8): tu luz sale de la linterna con su temblor y su vaivén (Manos.dondeCosa, ManosCorrer): el haz se mueve
+--   con cada paso y tiembla agotado. Si entre la cámara y la punta de la linterna hay algo que choca (una pared, una
+--   puerta), la luz sale justo antes: ni el temblor ni el vaivén la meten detrás de la pared.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -74,6 +77,34 @@ local function nuevaLuz(otro: Player): Luz
 	return { punto = punto, foco = foco }
 end
 
+-- La luz, como mucho hasta lo primero que choca entre la cámara y la punta de la linterna (un rayo por fotograma, solo
+-- con tu linterna encendida). Los muebles no los ven los rayos (CanQuery = false): ahí, como antes.
+local filtroHaz = RaycastParams.new()
+filtroHaz.FilterType = Enum.RaycastFilterType.Exclude
+filtroHaz.RespectCanCollide = true -- ni adornos ni mallas que solo se ven
+filtroHaz.IgnoreWater = true
+local filtroDe: Model? = nil -- el personaje con el que está hecho el filtro
+local ANTES_DE_PARED = 0.12 -- studs que se separa la luz de lo que toca
+
+local function sinAtravesar(donde: CFrame): CFrame
+	local personaje = jugador.Character
+	if personaje ~= filtroDe then
+		filtroDe = personaje
+		filtroHaz.FilterDescendantsInstances = if personaje then { camara, personaje } else { camara }
+	end
+	local desde = camara.CFrame.Position
+	local hacia = donde.Position - desde
+	if hacia.Magnitude < 1e-3 then
+		return donde
+	end
+	local r = workspace:Raycast(desde, hacia, filtroHaz)
+	if not r then
+		return donde
+	end
+	local llega = math.max(0, (r.Position - desde).Magnitude - ANTES_DE_PARED)
+	return donde.Rotation + (desde + hacia.Unit * llega)
+end
+
 -- Coloca y enciende (o apaga) la luz de cada jugador; parpadea con poca pila.
 local function actualizarLuces()
 	local ahora = os.clock()
@@ -100,8 +131,8 @@ local function actualizarLuces()
 			-- poco abajo a la derecha.
 			luz.punto.Parent = workspace.Terrain
 			local enMano = Manos.dondeCosa("Linterna")
-			luz.punto.WorldCFrame = if enMano then camara.CFrame * enMano * CFrame.new(0, 0, -0.66)
-				else camara.CFrame * CFrame.new(0.6, -0.5, -0.5)
+			luz.punto.WorldCFrame = sinAtravesar(if enMano then camara.CFrame * enMano * CFrame.new(0, 0, -0.66)
+				else camara.CFrame * CFrame.new(0.6, -0.5, -0.5))
 			-- En las cinemáticas (la cámara la lleva un script) se apaga, solo aquí: si no, saldría de la cámara de cine.
 			-- Vuelve sola al acabar. Escondido o muerto ya la apaga el servidor.
 			luz.foco.Enabled = camara.CameraType == Enum.CameraType.Custom
@@ -115,6 +146,11 @@ local function actualizarLuces()
 				luz.punto.CFrame = if mano then CFrame.new(0, -0.55, 0) * CFrame.Angles(math.rad(-90), 0, 0)
 					else CFrame.new(0.4, -0.3, -0.6)
 			end
+			-- En las cinemáticas (Huida, Incendio) los demás se esconden: su haz saldría de una mano que no se ve. Mirando
+			-- por la mirilla o las cortinas (Vistazo) o desde el escondite (Escondido) la cámara también es de script, y
+			-- ahí sí se ve a los demás con su luz.
+			luz.foco.Enabled = not (camara.CameraType == Enum.CameraType.Scriptable and jugador:GetAttribute("Vistazo") == nil
+				and typeof(jugador:GetAttribute("Escondido")) ~= "CFrame")
 		end
 		local pila = otro:GetAttribute("Pila") or 1
 		local brillo = L.Brillo
@@ -147,8 +183,10 @@ local function mostrarCartel()
 	barra.Size = UDim2.fromScale(math.clamp(pila, 0, 1), 1)
 	barra.BackgroundColor3 = if pila < L.Poca then Ui.Color.Sangre else Ui.Color.Hueso
 	repuesto.Text = "+" .. tostring(jugador:GetAttribute("Pilas") or 0)
-	fotos.Text = Ui.mayusculas(Lang.t(nil, "{n} photos", { n = jugador:GetAttribute("Fotos") or 0 }))
-		.. "  +" .. tostring(jugador:GetAttribute("Carretes") or 0)
+	-- Una frase entera con el repuesto de carretes dentro, y en singular con la última foto.
+	local quedan = jugador:GetAttribute("Fotos") or 0
+	fotos.Text = Ui.mayusculas(Lang.t(nil, if quedan == 1 then "1 photo  +{spare}" else "{n} photos  +{spare}",
+		{ n = quedan, spare = jugador:GetAttribute("Carretes") or 0 }))
 	TweenService:Create(cartel, TweenInfo.new(0.25), { GroupTransparency = 0 }):Play()
 	task.delay(3.05, function()
 		if os.clock() >= cartelHasta then
@@ -273,26 +311,34 @@ local function crearHud()
 	fotos = Ui.texto("", { AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 26), TextSize = 20 })
 	fotos.Parent = cartel
 
-	-- Móvil: los botones del equipo a la izquierda del de saltar de Roblox, en dos filas de tres como mucho para no
-	-- meterse en la zona del joystick (el 40 % izquierdo de la pantalla). Se rellena desde abajo a la derecha, junto al
-	-- pulgar, por LayoutOrder: FLASH 1, LINTERNA 2, BENGALA 3 (BengalasVista, solo con la pistola), MOCHILA 4
-	-- (MochilaUi) y MÓVIL 5 (MovilUi). Escondido o muerto no se ven (el botón SALIR y el de revivir van ahí).
+	-- Móvil: los botones del equipo a la izquierda del de saltar de Roblox, en dos filas de cuatro como mucho para no
+	-- meterse en la zona del joystick (el 40 % izquierdo de la pantalla: a 1164 de ancho de diseño, la rejilla empieza
+	-- en el 40,8 %). Se rellena desde abajo a la derecha, junto al pulgar, por LayoutOrder: abajo FLASH 1, LINTERNA 2,
+	-- MOCHILA 4 (MochilaUi) y MÓVIL 5 (MovilUi); arriba AGACHARSE 6 (PosturaVista), CORRER 7 (CorrerVista, 14.8) y BENGALA
+	-- 8 (BengalasVista, solo con la pistola: la última, a la izquierda de CORRER, así nada se mueve al aparecer o irse; la
+	-- casilla de arriba a la izquierda queda libre). Escondido o muerto no se ven (el botón SALIR y el de revivir van
+	-- ahí). Por encima de la zona segura de abajo (Ui.zonaSegura) y con hueco debajo para la barra del aguante (CorrerBarra).
 	if tactil then
 		local fila = Instance.new("Frame")
 		fila.Name = "EquipoBotones"
 		fila.AnchorPoint = Vector2.new(1, 1)
-		fila.Position = UDim2.fromScale(0.8, 0.97)
-		fila.Size = UDim2.fromOffset(3 * 140 + 2 * 10, 2 * 80 + 10)
+		-- Se recoloca si cambia la zona segura (al girar el teléfono), igual que la barra del aguante de debajo.
+		local function colocarFila()
+			fila.Position = UDim2.new(0.8, 0, 0.97, -Ui.zonaSegura())
+		end
+		colocarFila()
+		hud:GetPropertyChangedSignal("AbsoluteSize"):Connect(colocarFila)
+		fila.Size = UDim2.fromOffset(4 * 108 + 3 * 8, 2 * 80 + 8)
 		fila.BackgroundTransparency = 1
 		local orden = Instance.new("UIGridLayout")
-		orden.CellSize = UDim2.fromOffset(140, 80)
-		orden.CellPadding = UDim2.fromOffset(10, 10)
+		orden.CellSize = UDim2.fromOffset(108, 80)
+		orden.CellPadding = UDim2.fromOffset(8, 8)
 		orden.FillDirection = Enum.FillDirection.Horizontal
-		orden.FillDirectionMaxCells = 3
+		orden.FillDirectionMaxCells = 4
 		orden.StartCorner = Enum.StartCorner.BottomRight
 		orden.SortOrder = Enum.SortOrder.LayoutOrder
 		orden.Parent = fila
-		for i, datos in { { "FLASH", pedirFlash }, { Lang.t(nil, "Flashlight"), pedirLinterna } } do
+		for i, datos in { { Lang.t(nil, "Flash"), pedirFlash }, { Lang.t(nil, "Flashlight"), pedirLinterna } } do
 			local boton = Ui.boton(datos[1], { LayoutOrder = i })
 			Ui.queQuepa(boton, 24) -- FLASHLIGHT no cabe entero a 24
 			boton.Activated:Connect(datos[2])
@@ -333,8 +379,10 @@ function EquipoVista.start()
 		end)
 	end
 	Remotes.Flash.OnClientEvent:Connect(destello)
-	-- Después de lo que mueve la cámara (Camera + 1: CuerpoVista, temblores) y antes de las manos (Camera + 5).
-	RunService:BindToRenderStep("Linterna", Enum.RenderPriority.Camera.Value + 4, actualizarLuces)
+	-- Después de lo que mueve la cámara (Camera + 1: CuerpoVista, temblores) y de las manos (Camera + 5): así la luz
+	-- sale de la linterna tal como se pinta en este fotograma (antes iba un fotograma tarde y, corriendo, el haz se
+	-- torcía hasta 1,5° de la linterna, tanto como su temblor; lo vio el banco correr-manos).
+	RunService:BindToRenderStep("Linterna", Enum.RenderPriority.Camera.Value + 6, actualizarLuces)
 end
 
 return EquipoVista

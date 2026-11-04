@@ -27,6 +27,7 @@ require(Sistemas.EquipoVista).start()
 require(Sistemas.MochilaUi).start() -- después de EquipoVista: su botón va en la misma fila
 require(Sistemas.MovilUi).start() -- después de EquipoVista: su botón va en la misma fila
 require(Sistemas.PosturaVista).start() -- agacharse y asomarse (14.6); después de EquipoVista: su botón va en la misma fila
+require(Sistemas.CorrerVista).start() -- correr y aguante (14.8); después de PosturaVista: su botón va detrás de AGACHARSE
 require(Sistemas.CargarVista).start()
 require(Sistemas.TrabajoVista).start()
 require(Sistemas.BrazosVista).start() -- los brazos de los demás jugadores

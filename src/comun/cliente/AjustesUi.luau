@@ -19,7 +19,8 @@ local Ui = require(script.Parent.Ui)
 local AjustesUi = {}
 
 local ANCHO = 460 -- del papel, en píxeles
-local ALTO = 250
+-- En pantallas táctiles los dos botones son de un dedo (Ui.alto): el SÍ/NO baja hasta y 164 y CERRAR necesita sitio.
+local ALTO = if Ui.tactil() then 280 else 250
 local ROJO = Color3.fromRGB(150, 34, 28) -- como en PistasUi: sobre el papel oscuro tiene que leerse
 local HUECO = 6 -- píxeles entre los botones de Roblox y el engranaje
 local SIN_BARRA = 12 -- si no hay barra de Roblox (cinemáticas), el engranaje a esta distancia de la esquina
@@ -136,7 +137,7 @@ local function construirPanel(hud: ScreenGui)
 	interruptor = Ui.boton("", {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -32, 0, 84),
-		Size = UDim2.fromOffset(120, 46),
+		Size = UDim2.fromOffset(120, Ui.alto(46)),
 		TextSize = 22,
 		ZIndex = 31,
 	})
@@ -149,7 +150,7 @@ local function construirPanel(hud: ScreenGui)
 	cerrarBoton = Ui.boton("", {
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -18, 1, -16),
-		Size = UDim2.fromOffset(150, 40),
+		Size = UDim2.fromOffset(150, Ui.alto(40)),
 		TextSize = 20,
 		ZIndex = 31,
 	})

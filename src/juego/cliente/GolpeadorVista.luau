@@ -19,12 +19,14 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
 
 local GolpeadorVista = {}
 
 -- Números visuales a ojo (se retocan en Studio).
-local LEJOS = 250 -- studs de la cámara: más lejos no se le mueve nada
+local LEJOS = 250 -- studs de la cámara: más lejos no se le mueve nada...
+local LEJOS_RENDIMIENTO = 120 -- ...o más lejos que esto con Rendimiento (a ojo)
 local VIDA_LEJOS = 120 -- la vida (respirar, tirones, crisparse...) solo hasta aquí...
 local VIDA_RENDIMIENTO = 45 -- ...o hasta aquí con Rendimiento
 local VAHO_LEJOS = 60
@@ -88,6 +90,8 @@ local GATEO = {
 	Tirones = { { 0.5, 0.68, 0.4 }, { 1, 1.18, 0.72 }, { 1.5, 1.75, 1 } },
 	Susto = 2.2, -- segundos que se queda en el suelo si te pilla (MuerteVista mira su cara)
 }
+-- Cuándo suena cada ruido del gateo (en segundos de un gateo de 2 s): al echarse y al empezar cada tirón.
+local EVENTOS = { GATEO.Cae, GATEO.Tirones[1][1], GATEO.Tirones[2][1], GATEO.Tirones[3][1] }
 -- Medidas del cuerpo (Golpeador.crear) que usa el gateo.
 local CABEZA_CENTRO = Vector3.new(0, 0.6, -0.4) -- del cuello al centro de la cabeza (en la cabeza)
 local GARRAS = Vector3.new(0, -7.36, -0.32) -- del hombro a la punta de las garras (en el brazo)
@@ -115,6 +119,9 @@ local APARTA = { Cerca = 10, Cada = 0.5, Max = 1.6, Sube = 9, Baja = 2.5, Holgur
 -- (La cabeza va de lado: la mandíbula sobresale `Boca` hacia el lado del brazo que mete; al otro, `Ancho`.)
 local CABEZA_FONDO = { Bajo = 0.2, Alto = 2.5, Ancho = 0.8, Boca = 1.5, Delante = 1 }
 local BORDE_HOLGURA = 0.2 -- studs: se toma el borde del tablero un poco antes de donde está
+-- De pie, la punta de las garras al menos a esto del suelo (studs; su caja baja ~0,03 más), adelantando el brazo como
+-- mucho estos radianes (garrasSobreSuelo).
+local GARRAS_SUELO, GARRAS_ADELANTA = 0.06, 0.6
 
 local jugador = Players.LocalPlayer
 local azar = Random.new()
@@ -373,32 +380,8 @@ local function duraGateo(): number
 	return if reglas and reglas.Gatear then reglas.Gatear else 2
 end
 
--- El tablero de un mueble con zona Debajo (Mapa, HUECOS). Las piezas de los muebles y sus cajas de choque no se ven con
--- rayos (CanQuery false), así que se mira el atributo Tam del mueble (el tablero llega a sus bordes, desde lo alto de la
--- zona hasta arriba); si su pivote no cuadra con la zona, se da por hecho que el tablero sobresale SALIENTE de la zona
--- por cada lado. Devuelve su centro y su tamaño.
-local SALIENTE = 2 -- lo que más sobresale un tablero de su zona (la mesa del comedor, 1,96 por las puntas)
-local function cajaTablero(zona: BasePart): (CFrame, Vector3)
-	local medio = zona.Size / 2
-	local cf = zona.CFrame * CFrame.new(0, medio.Y + 0.4, 0)
-	local tam = Vector3.new(zona.Size.X + 2 * SALIENTE, 0.8, zona.Size.Z + 2 * SALIENTE)
-	local mueble = zona.Parent
-	local medida = if mueble and mueble:IsA("Model") then mueble:GetAttribute("Tam") else nil
-	if mueble and typeof(medida) == "Vector3" then
-		local pivote = (mueble :: Model):GetPivot()
-		local z = pivote:PointToObjectSpace(zona.Position)
-		if math.abs(pivote.XVector:Dot(zona.CFrame.XVector)) > 0.99 and math.abs(pivote.YVector:Dot(Vector3.yAxis)) > 0.99
-			and math.abs(z.X) + medio.X <= medida.X / 2 + 0.05 and math.abs(z.Z) + medio.Z <= medida.Z / 2 + 0.05
-			and math.abs(z.Y - medio.Y) < 0.1 and medida.Y > zona.Size.Y
-		then
-			cf = pivote * CFrame.new(0, (zona.Size.Y + medida.Y) / 2, 0)
-			tam = Vector3.new(medida.X, medida.Y - zona.Size.Y, medida.Z)
-		end
-	end
-	return cf, tam
-end
-
--- El tablero que tapa al escondido en `punto` (el de la zona Debajo en la que está), o nil.
+-- El tablero que tapa al escondido en `punto` (el de la zona Debajo en la que está), o nil. Las piezas de los muebles y
+-- sus cajas de choque no se ven con rayos (CanQuery false): lo calcula MuebleRayo.tablero con el Tam del mueble.
 local function tablero(punto: Vector3): (CFrame?, Vector3?, BasePart?)
 	for _, zona in CollectionService:GetTagged("Debajo") do
 		if not zona:IsA("BasePart") then
@@ -409,7 +392,7 @@ local function tablero(punto: Vector3): (CFrame?, Vector3?, BasePart?)
 		if math.abs(p.X) > medio.X + 0.5 or math.abs(p.Z) > medio.Z + 0.5 or p.Y < -medio.Y - 1 or p.Y > medio.Y + 3 then
 			continue
 		end
-		local cf, tam = cajaTablero(zona)
+		local cf, tam = MuebleRayo.tablero(zona)
 		return cf, tam, zona
 	end
 	return nil, nil, nil
@@ -617,7 +600,7 @@ local function mesaCerca(b: Bicho, ahora: number)
 	local mejor = APARTA.Cerca
 	for _, zona in CollectionService:GetTagged("Debajo") do
 		if zona:IsA("BasePart") and (zona.Position - raiz).Magnitude < APARTA.Cerca + 12 then
-			local cf, tam = cajaTablero(zona)
+			local cf, tam = MuebleRayo.tablero(zona)
 			local q = cf:PointToObjectSpace(raiz)
 			local fuera = Vector3.new(math.max(0, math.abs(q.X) - tam.X / 2), 0, math.max(0, math.abs(q.Z) - tam.Z / 2)).Magnitude
 			if fuera < mejor then
@@ -700,6 +683,36 @@ local function apartarBrazos(b: Bicho, dt: number, aparta: { number })
 	end
 end
 
+-- Con los brazos de pie ya puestos este fotograma: si las garras de alguno bajan del suelo, lo adelanta desde el hombro
+-- lo justo para que no. Esperando cerca, al soltar el aire con el peso de ese lado (el torso baja y se ladea, y los
+-- hombros caen) la punta de los brazos, que cuelgan casi hasta el suelo, se metía ~0,18 en él (comprobado con Lune).
+local function garrasSobreSuelo(b: Bicho)
+	local m = b.motores
+	local torso = m.Torso.C0 * m.Torso.Transform * m.Torso.C1:Inverse()
+	for _, lado in LADOS do
+		local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
+		local base = torso * motor.C0
+		local puntaEnBrazo = motor.C1.Position + GARRAS
+		-- Altura de la punta de las garras sobre el suelo con el brazo adelantado `extra` radianes más desde el hombro.
+		local function punta(extra: number): number
+			return (base * CFrame.Angles(extra, 0, 0) * motor.Transform * motor.C1:Inverse() * puntaEnBrazo).Y + ALTURA
+		end
+		if punta(0) >= GARRAS_SUELO or punta(GARRAS_ADELANTA) <= punta(0) then
+			continue
+		end
+		local lo, hi = 0, GARRAS_ADELANTA
+		for _ = 1, 8 do
+			local medio = (lo + hi) / 2
+			if punta(medio) < GARRAS_SUELO then
+				lo = medio
+			else
+				hi = medio
+			end
+		end
+		motor.Transform = CFrame.Angles(hi, 0, 0) * motor.Transform
+	end
+end
+
 -- El gateo: con Gatea y GateaHora en el modelo, se echa al suelo y mete la cabeza y un brazo por debajo del mueble,
 -- encima de la postura de siempre (que ya está en las juntas este fotograma); sin ellos, saca la cabeza y se levanta.
 -- La cara sigue un camino: baja por fuera del borde y solo entra por debajo cuando está abajo (si no, al doblarse, la
@@ -715,7 +728,7 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 			local t = math.clamp(workspace:GetServerTimeNow() - hora, 0, dura)
 			-- Si llega tarde, los ruidos que ya han pasado no suenan todos de golpe.
 			local sonados = 0
-			for _, en in { GATEO.Cae, GATEO.Tirones[1][1], GATEO.Tirones[2][1], GATEO.Tirones[3][1] } do
+			for _, en in EVENTOS do
 				if t * 2 / dura > en + 0.15 then
 					sonados += 1
 				end
@@ -907,10 +920,9 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 
 	-- Los ruidos, cada uno una vez (con Rendimiento, solo al echarse y el gruñido del final).
 	local u = g.t * 2 / dura
-	local eventos = { GATEO.Cae, GATEO.Tirones[1][1], GATEO.Tirones[2][1], GATEO.Tirones[3][1] }
-	if activo and g.sonados < #eventos and u >= eventos[g.sonados + 1] then
+	if activo and g.sonados < #EVENTOS and u >= EVENTOS[g.sonados + 1] then
 		g.sonados += 1
-		if not poco or g.sonados == 1 or g.sonados == #eventos then
+		if not poco or g.sonados == 1 or g.sonados == #EVENTOS then
 			ruidoGateo(b, g.sonados)
 		end
 	end
@@ -925,6 +937,7 @@ local function animar(dt: number)
 	local ojo = workspace.CurrentCamera.CFrame.Position
 	local poco = jugador:GetAttribute("Rendimiento") == true
 	local vidaLejos = if poco then VIDA_RENDIMIENTO else VIDA_LEJOS
+	local lejos = if poco then LEJOS_RENDIMIENTO else LEJOS
 	local noche = workspace:GetAttribute("Fase") == "Noche"
 	local mirilla = jugador:GetAttribute("Mirilla") == true
 	for modelo, b in bichos do
@@ -933,7 +946,7 @@ local function animar(dt: number)
 			continue
 		end
 		local distancia = (b.raiz.Position - ojo).Magnitude
-		if distancia > LEJOS then
+		if distancia > lejos then
 			continue
 		end
 		local m = b.motores
@@ -1057,10 +1070,15 @@ local function animar(dt: number)
 			+ vida * (0.12 * math.max(0, -aire) + (if teMira then 0.25 else 0))
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
 
+		garrasSobreSuelo(b)
+
 		-- Sin atravesar el tablero de la mesa de al lado: la postura de pie (de la que sale y a la que vuelve al gatear) y,
-		-- por si acaso, lo que quede después de gatear (al echarse y al levantarse, a medio camino entre las dos).
-		mesaCerca(b, ahora)
-		apartarBrazos(b, dt, b.aparta)
+		-- por si acaso, lo que quede después de gatear (al echarse y al levantarse, a medio camino entre las dos). Solo
+		-- cerca (o gateando): de más lejos no se nota, y buscar la mesa y probar los brazos contra ella cuesta.
+		if distancia < VIDA_LEJOS or gateando then
+			mesaCerca(b, ahora)
+			apartarBrazos(b, dt, b.aparta)
+		end
 
 		-- Debajo de un mueble: se echa al suelo y gatea a por ti, encima de todo lo anterior.
 		gatear(b, dt, ahora, poco, abre)
@@ -1129,27 +1147,9 @@ local function cercano(punto: Vector3, maximo: number?): Bicho?
 	return mejor
 end
 
--- Para MuerteVista (quién te ha pillado, PosturaReglas.quienPilla): los Golpeadores a menos de 12 de `punto` (la
--- cara del susto), sin tocarlos: su modelo, a cuánto tiene la cabeza de `punto` y dónde estaba el escondido a por
--- el que gatea (si gatea).
-function GolpeadorVista.candidatos(punto: Vector3): { { modelo: Model, distancia: number, gatea: Vector3? } }
-	local lista = {}
-	for _, b in bichos do
-		if (b.raiz.Position - punto).Magnitude < 12 then
-			local cara = if b.cabeza.Parent then b.cabeza.Position else b.raiz.Position
-			table.insert(lista, {
-				modelo = b.modelo,
-				distancia = (cara - punto).Magnitude,
-				gatea = b.gatea and b.gatea.punto,
-			})
-		end
-	end
-	return lista
-end
-
 -- Abre la boca del todo unos segundos (el susto al morir; si gateaba, en el suelo). Devuelve el Golpeador cerca de
 -- `punto`, si hay.
--- `modelo`: el que ha elegido MuerteVista (si no es un Golpeador, nada); sin él, el más cerca de `punto`.
+-- `modelo`: el que te pilla (lo trae el remote Muerte; si no es un Golpeador, nada); sin él, el más cerca de `punto`.
 function GolpeadorVista.rugir(punto: Vector3, modelo: Model?): Model?
 	local b = if modelo then bichos[modelo] else cercano(punto, 12)
 	if b then

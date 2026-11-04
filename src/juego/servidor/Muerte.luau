@@ -3,7 +3,8 @@
 -- (o antes, si alguien paga por revivirle: Revivir).
 -- Escondites (armarios y camas, etiqueta "Escondite"): el personaje se queda quieto dentro (anclado) y el cliente pone
 -- la cámara en el atributo "Vista". Atributos del jugador: Escondido (la Vista de su escondite), Muerto.
--- Si mueren todos avisa a quien se haya apuntado con Muerte.alMorirTodos (Director vuelve al principio del día).
+-- Si mueren todos avisa a quien se haya apuntado con Muerte.alMorirTodos (Director vuelve al principio del día); y a
+-- cada muerte, a los de Muerte.alMorir (Caza olvida su olor), muera como muera.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +17,7 @@ local Muerte = {}
 
 local escondidos: { [Player]: { sitio: Model, hora: number } } = {}
 local oyentes: { () -> () } = {}
+local alMorirOyentes: { (Player) -> () } = {}
 
 local function humanoideDe(jugador: Player): Humanoid?
 	local personaje = jugador.Character
@@ -26,6 +28,9 @@ local function vivo(jugador: Player): boolean
 	local humanoide = humanoideDe(jugador)
 	return humanoide ~= nil and humanoide.Health > 0 and not jugador:GetAttribute("Muerto")
 end
+
+-- ¿Está vivo (escondido incluido)? Lo mismo que mirar si está en Muerte.vivos(), sin hacer la lista.
+Muerte.vivo = vivo
 
 -- Jugadores vivos (escondidos incluidos).
 function Muerte.vivos(): { Player }
@@ -61,7 +66,19 @@ local function soltarSitio(jugador: Player)
 	jugador:SetAttribute("Escondido", nil)
 end
 
+-- La escena de un final en marcha (Coche.huir, Incendio.terminar): nadie se esconde hasta que acaba. Mientras corre el
+-- fuego del incendio (Final puesto, ~17 s antes de la escena) los bichos siguen cazando y sí se puede.
+local enEscena = false
+
+function Muerte.escena(activa: boolean)
+	enEscena = activa
+end
+
 local function esconder(jugador: Player, sitio: Model)
+	-- En la escena de un final no: te metía dentro en mitad de ella y al salir quedabas desanclado.
+	if enEscena then
+		return
+	end
 	local personaje = jugador.Character
 	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not raiz or not vivo(jugador) or escondidos[jugador] or sitio:GetAttribute("Ocupado") ~= 0 then
@@ -94,6 +111,8 @@ local function salir(jugador: Player)
 	end
 end
 
+Muerte.sacar = salir -- también para los finales (Coche, Incendio): fuera del escondite antes de la escena
+
 local function comprobarTodos()
 	if #Players:GetPlayers() > 0 and #Muerte.vivos() == 0 then
 		for _, fn in oyentes do
@@ -106,14 +125,29 @@ function Muerte.alMorirTodos(fn: () -> ())
 	table.insert(oyentes, fn)
 end
 
--- El bicho le pilla (también si estaba escondido y le ha sacado). `cabeza` = dónde está la cabeza del bicho.
-function Muerte.matar(jugador: Player, cabeza: Vector3)
+-- `fn(jugador)` cada vez que alguien muere (le pille un bicho o muera de otra cosa), una sola vez por muerte.
+function Muerte.alMorir(fn: (Player) -> ())
+	table.insert(alMorirOyentes, fn)
+end
+
+-- Ya está Muerto: avisa a los de alMorir y mira si quedan vivos.
+local function murio(jugador: Player)
+	for _, fn in alMorirOyentes do
+		task.spawn(fn, jugador)
+	end
+	comprobarTodos()
+end
+
+-- El bicho le pilla (también si estaba escondido y le ha sacado). `cabeza` = dónde está la cabeza del bicho; `modelo`,
+-- el bicho que le pilla (la escena de muerte lo enfoca a él sin adivinar; sin él, MuerteVista busca el más cerca de
+-- `cabeza`). false si ya estaba muerto (no pasa nada).
+function Muerte.matar(jugador: Player, cabeza: Vector3, modelo: Model?): boolean
 	if not vivo(jugador) then
-		return
+		return false
 	end
 	soltarSitio(jugador)
 	jugador:SetAttribute("Muerto", true)
-	Remotes.Muerte:FireAllClients(jugador, cabeza)
+	Remotes.Muerte:FireAllClients(jugador, cabeza, modelo)
 	local personaje = jugador.Character
 	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if raiz then
@@ -121,9 +155,10 @@ function Muerte.matar(jugador: Player, cabeza: Vector3)
 	end
 	local humanoide = humanoideDe(jugador)
 	if humanoide then
-		humanoide.Health = 0
+		humanoide.Health = 0 -- Died ve Muerto puesto: no avisa otra vez
 	end
-	comprobarTodos()
+	murio(jugador)
+	return true
 end
 
 -- Al amanecer (o al volver a empezar el día) vuelven los que no tienen personaje o están muertos.
@@ -165,7 +200,7 @@ local function alEntrar(jugador: Player)
 			soltarSitio(jugador)
 			if not jugador:GetAttribute("Muerto") then
 				jugador:SetAttribute("Muerto", true)
-				comprobarTodos()
+				murio(jugador)
 			end
 		end)
 	end)

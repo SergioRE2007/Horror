@@ -8,10 +8,6 @@
 --   Entre dos cambios, como poco Config.Postura.Cada segundos (lo que no cambia nada no cuenta).
 local Config = require(script.Parent.Config)
 
--- Quién te ha pillado (quienPilla): un bicho que gatea cuenta como el que te saca si el escondido estaba a menos de
--- esto de la cara del susto (la mesa del comedor mide 9,1 de largo: de una punta a la boca del otro lado, ~9,2).
-local GATEA_PILLA = 10
-
 local PosturaReglas = {}
 
 export type Estado = {
@@ -111,12 +107,15 @@ function PosturaReglas.alcanceVista(vista: number, agachado: boolean, cubierto: 
 	return vista
 end
 
--- Hasta dónde le oye, con `oido` lo de siempre (de pie).
-function PosturaReglas.alcanceOido(oido: number, agachado: boolean, cubierto: boolean): number
+-- Hasta dónde le oye, con `oido` lo de siempre (de pie). Corriendo (atributo Corriendo, 14.8, pedido por el usuario:
+-- correr hace ruido, riesgo y premio) se le oye desde Config.Correr.Oido; agachado o debajo de algo no se corre.
+function PosturaReglas.alcanceOido(oido: number, agachado: boolean, cubierto: boolean, corriendo: boolean?): number
 	if cubierto then
 		return math.min(oido, Config.Postura.VerCubierto)
 	elseif agachado then
 		return math.min(oido, Config.Postura.OirAgachado)
+	elseif corriendo then
+		return math.max(oido, Config.Correr.Oido)
 	end
 	return oido
 end
@@ -133,26 +132,6 @@ end
 -- Ya sabe dónde está (va a por él y gatea para sacarle).
 function PosturaReglas.huele(olor: number): boolean
 	return olor >= Config.Postura.Huele
-end
-
-export type Candidato = {
-	distancia: number, -- de su cabeza a la cara del susto
-	gatea: number?, -- de dónde estaba el escondido a por el que gatea a la cara del susto; nil si no gatea
-}
-
--- Quién te ha pillado, para la escena de muerte (MuerteVista): el remote Muerte solo dice dónde está la cara del bicho.
--- Primero el que gateaba a por quien estaba ahí (te ha sacado de debajo); si no, el de la cabeza más cerca. Entre dos
--- que gatean a por ti, también el más cerca. Devuelve su posición en la lista, o nil si está vacía.
-function PosturaReglas.quienPilla(candidatos: { Candidato }): number?
-	local mejor: number? = nil
-	local mejorGatea, mejorDistancia = false, math.huge
-	for i, c in candidatos do
-		local gatea = c.gatea ~= nil and c.gatea <= GATEA_PILLA
-		if (gatea and not mejorGatea) or (gatea == mejorGatea and c.distancia < mejorDistancia) then
-			mejor, mejorGatea, mejorDistancia = i, gatea, c.distancia
-		end
-	end
-	return mejor
 end
 
 return PosturaReglas
