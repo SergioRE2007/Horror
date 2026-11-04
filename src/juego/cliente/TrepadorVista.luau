@@ -357,8 +357,13 @@ local function duraGateo(): number
 end
 
 -- Studs (por el suelo, hacia delante) del marco al tablero que tapa al escondido, en cada carril: rayos hacia arriba
--- cada poco. Lo que quede más bajo que un escondite (el asiento de una silla) no cuenta. Si no da con nada en ningún
--- carril, el borde recto a GATEO.Borde de ti. Los muebles no se ven con rayos (CanQuery false): MuebleRayo.
+-- cada BORDE_PASO y, al dar con algo, BORDE_AFINA mitades entre ese rayo y el de antes. Lo que quede más bajo que un
+-- escondite (el asiento de una silla) no cuenta. Si no da con nada en ningún carril, el borde recto a GATEO.Borde de
+-- ti. Los muebles no se ven con rayos (CanQuery false): MuebleRayo. Antes, un rayo cada 0,25 hasta el final en los 21
+-- carriles: 500-900 rayos en el fotograma del susto (un tirón en el móvil); así, la mitad, y el borde igual de fino.
+local BORDE_PASO = 0.5
+local BORDE_AFINA = 2 -- 0,5 -> 0,125
+local ARRIBA_GATEO = Vector3.new(0, 4.5, 0)
 local function buscarBordes(marco: CFrame, largo: number): { number }
 	local fuera: { Instance } = {}
 	local carpeta = workspace:FindFirstChild("Bichos")
@@ -372,18 +377,33 @@ local function buscarBordes(marco: CFrame, largo: number): { number }
 	end
 	filtroGateo.FilterDescendantsInstances = fuera
 	local muebles = MuebleRayo.cajas(marco.Position, largo + 8)
+	-- ¿Hay tablero encima del carril `x`, a `d` del marco?
+	local function tapa(x: number, d: number): boolean
+		local choque = MuebleRayo.rayo(marco * Vector3.new(x, 0.4, -d), ARRIBA_GATEO, filtroGateo, muebles)
+		return choque ~= nil and choque.Instance.Name ~= "Debajo" and choque.Position.Y - marco.Y > 2.3
+	end
 	local bordes, alguno = {}, false
 	for i = -CARRILES, CARRILES do
+		local x = i * CARRIL
 		local borde = math.huge
 		local d = 0
 		while d < largo + 3 do
-			local base = marco * Vector3.new(i * CARRIL, 0.4, -d)
-			local choque = MuebleRayo.rayo(base, Vector3.new(0, 4.5, 0), filtroGateo, muebles)
-			if choque and choque.Instance.Name ~= "Debajo" and choque.Position.Y - marco.Y > 2.3 then
-				borde, alguno = math.max(0, d - 0.25), true
+			if tapa(x, d) then
+				local antes, hasta = d - BORDE_PASO, d
+				if d > 0 then
+					for _ = 1, BORDE_AFINA do
+						local medio = (antes + hasta) / 2
+						if tapa(x, medio) then
+							hasta = medio
+						else
+							antes = medio
+						end
+					end
+				end
+				borde, alguno = math.max(0, hasta - 0.25), true -- un poco antes, como cuando se medía cada 0,25
 				break
 			end
-			d += 0.25
+			d += BORDE_PASO
 		end
 		bordes[i + CARRILES + 1] = borde
 	end
