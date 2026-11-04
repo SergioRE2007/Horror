@@ -12,6 +12,11 @@
 --   con el tronco algo hacia delante. Debajo de algo (un rayo hacia arriba desde la cintura), se encorva lo que haga
 --   falta para que la cabeza quepa (esconderse debajo de una mesa, pedido por el usuario). Asomado (atributo
 --   Asomado): el tronco ladeado (cintura) hacia ese lado. R6, como está.
+--   Corriendo (14.8, atributo Corriendo; pedido por el usuario: "todo animado e inmersivo"): el tronco algo hacia
+--   delante (la cabeza sigue mirando al frente) y los brazos bracean más: lo que ya mueve su animación de correr, por
+--   1 + BRACEA (el brazo que lleva algo, nada; con algo en la otra mano, menos). Al tropezar (su atributo Tropiezo
+--   sube), el tronco cabecea hacia delante y de lado y vuelve (la curva de CuerpoVista). Agotado (Agotado), encorvado
+--   y con los hombros subiendo y bajando al jadear.
 -- Solo los que están a menos de CERCA studs de la cámara.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -20,6 +25,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local CuerpoVista = require(script.Parent.CuerpoVista)
 local PosturaVista = require(script.Parent.PosturaVista)
 local TrabajoVista = require(script.Parent.TrabajoVista)
 
@@ -36,6 +42,19 @@ local MEDIR = 0.1 -- s entre dos medidas de lo que ha bajado un agachado y de lo
 local CABEZA_LIBRE = 0.1 -- studs que deja la coronilla bajo lo de arriba al encorvarse
 local ENCORVA = math.rad(70) -- lo más que se encorva debajo de algo
 local LEVANTA = 0.7 -- radianes que, como mucho, levanta la cabeza para seguir mirando al frente encorvado
+-- Correr (14.8). Números a ojo (para mirarlos en Studio).
+local INCLINA_CORRE = math.rad(13) -- corriendo, el tronco hacia delante...
+local COMPENSA_CORRE = 0.8 -- ...y la cabeza sube esta parte para seguir mirando al frente
+local BRACEA = 0.6 -- corriendo, el braceo de su animación de más (0,6: un 60 % más)
+local BRACEA_OCUPADO = 0.35 -- con algo en la otra mano, esta parte
+local SUAVE_CORRE = 6 -- por segundo: lo deprisa que entra y sale lo de correr
+local SUAVE_CANSADO = 3 -- y lo de agotado
+local ENCORVA_CANSADO = math.rad(9) -- agotado, encorvado hacia delante
+local JADEO = 1.5 -- jadeos por segundo agotado
+local JADEO_SUBE = 0.09 -- studs que suben los hombros en cada jadeo
+local JADEO_TRONCO = math.rad(3) -- y lo que se mueve el tronco con él
+local TROPIEZO_TRONCO = math.rad(32) -- al tropezar, el tronco hacia delante...
+local TROPIEZO_LADO = math.rad(10) -- ...y de lado (a un lado al azar)
 
 type Hombro = { motor: Motor6D, original: CFrame, giro: CFrame }
 type Gesto = { hasta: number, der: Vector3?, izq: Vector3? }
@@ -52,6 +71,8 @@ type Postura = {
 	bajaMeta: number, -- lo medido
 	techo: number, -- radianes que se encorva para caber debajo de algo (suave)
 	techoMeta: number, -- lo medido
+	extra: number, -- radianes de más hacia delante del tronco: corriendo, agotado, tropezando (ya suave)
+	ladeoExtra: number, -- y de lado (tropezando)
 	medido: number, -- cuándo se midió (os.clock)
 	t: number, -- 0..1: cuánto está agachado (suave)
 	lado: number, -- -1..1: cuánto está asomado (suave)
@@ -67,6 +88,12 @@ type Otro = {
 	linterna: { BasePart }?,
 	postura: Postura?,
 	reintento: number, -- sin postura (le faltaba alguna junta al llegar): cuándo se vuelve a buscar
+	carrera: number, -- 0..1: cuánto corre (suave)
+	cansado: number, -- 0..1: cuánto está agotado (suave)
+	jadeo: number, -- la fase del jadeo (radianes)
+	tropiezos: number, -- el último atributo Tropiezo visto
+	tropiezoEn: number, -- cuándo tropezó (os.clock)
+	tropiezoLado: number, -- -1 o 1
 }
 local otros: { [Player]: Otro } = {}
 local ponerLinterna: (o: Otro, encendida: boolean) -> () -- más abajo
@@ -153,6 +180,8 @@ local function prepararPostura(personaje: Model): Postura?
 		bajaMeta = 0,
 		techo = 0,
 		techoMeta = 0,
+		extra = 0,
+		ladeoExtra = 0,
 		medido = -math.huge,
 		t = 0,
 		lado = 0,
@@ -179,6 +208,15 @@ local function preparar(otro: Player, personaje: Model)
 			gesto = nil,
 			postura = prepararPostura(personaje),
 			reintento = 0,
+			carrera = 0,
+			cansado = 0,
+			jadeo = 0,
+			tropiezos = (function()
+				local t = otro:GetAttribute("Tropiezo") -- el de antes de llegar no cuenta
+				return if type(t) == "number" then t else 0
+			end)(),
+			tropiezoEn = -math.huge,
+			tropiezoLado = 1,
 		}
 	end)
 end
@@ -369,7 +407,9 @@ local function cabecear(o: Otro, inclinacion: number, levanta: number, dt: numbe
 	h.motor.C0 = h.original * h.giro
 end
 
-local function girar(h: Hombro?, hacia: Vector3?, dt: number)
+-- `sube`: studs que suben los hombros (jadeando). `bracea`: lo que se suma al giro de su animación (corriendo; solo
+-- sin `hacia`): girar por una parte de lo mismo que ya gira es girar más por el mismo eje.
+local function girar(h: Hombro?, hacia: Vector3?, dt: number, sube: number?, bracea: number?)
 	if not h then
 		return
 	end
@@ -390,12 +430,20 @@ local function girar(h: Hombro?, hacia: Vector3?, dt: number)
 		end
 	end
 	h.giro = h.giro:Lerp(destino, 1 - math.exp(-dt * SUAVE))
+	local amplia = if not hacia and bracea and bracea > 0.01 then bracea else 0
+	local alto = sube or 0
 	local quieto = not hacia and h.giro.Position.Magnitude < 1e-4
-		and math.abs(select(2, h.giro:ToAxisAngle())) < 0.01
-	motor.C0 = if quieto then h.original else h.original * h.giro
+		and math.abs(select(2, h.giro:ToAxisAngle())) < 0.01 and amplia == 0 and math.abs(alto) < 1e-4
 	if quieto then
+		motor.C0 = h.original
 		h.giro = CFrame.new()
+		return
 	end
+	local c0 = h.original * h.giro
+	if amplia > 0 then
+		c0 *= CFrame.new():Lerp(motor.Transform.Rotation, amplia)
+	end
+	motor.C0 = if alto ~= 0 then CFrame.new(0, alto, 0) * c0 else c0
 end
 
 -- El sitio de una junta girada `giro` (en el espacio de su Part0) alrededor de su punto.
@@ -416,6 +464,7 @@ local function soltarPostura(p: Postura)
 		end
 	end
 	p.t, p.lado, p.baja, p.bajaMeta, p.techo, p.techoMeta = 0, 0, 0, 0, 0, 0
+	p.extra, p.ladeoExtra = 0, 0
 	p.quieta, p.fija = true, false
 end
 
@@ -461,15 +510,18 @@ end
 -- Agachado y asomado, suave hacia lo que publica el servidor (atributos Agachado y Asomado) y lo medido. Agachado,
 -- cada pierna se dobla lo que ha bajado su raíz para que el tobillo siga donde estaba (dos huesos, como las manos): el
 -- muslo va hacia delante, la pierna hacia atrás y el pie se queda plano. Todo encima de su animación de andar.
-local function posar(p: Postura, agachado: boolean, asomado: number, dt: number)
+-- `extra` y `ladeoExtra`: lo de correr del tronco (radianes, ya suave).
+local function posar(p: Postura, agachado: boolean, asomado: number, extra: number, ladeoExtra: number, dt: number)
 	local meta = if agachado then 1 else 0
 	-- Ya ha llegado: las juntas se escriben una última vez y luego no se tocan (su andar va aparte, en el Transform).
 	local llegada = math.abs(meta - p.t) < 1e-3 and math.abs(asomado - p.lado) < 1e-3
 		and math.abs(p.bajaMeta - p.baja) < 1e-3 and math.abs(p.techoMeta - p.techo) < 1e-3
+		and math.abs(extra - p.extra) < 1e-4 and math.abs(ladeoExtra - p.ladeoExtra) < 1e-4
 	if llegada and (p.fija or p.quieta) then
 		return
 	end
 	p.fija = llegada
+	p.extra, p.ladeoExtra = extra, ladeoExtra
 	if llegada then
 		p.t, p.lado, p.baja, p.techo = meta, asomado, p.bajaMeta, p.techoMeta
 	else
@@ -479,7 +531,9 @@ local function posar(p: Postura, agachado: boolean, asomado: number, dt: number)
 		p.baja += (p.bajaMeta - p.baja) * k
 		p.techo += (p.techoMeta - p.techo) * k
 	end
-	if meta == 0 and asomado == 0 and p.t < 0.01 and math.abs(p.lado) < 0.01 and p.baja < 0.01 and p.techo < 0.01 then
+	if meta == 0 and asomado == 0 and p.t < 0.01 and math.abs(p.lado) < 0.01 and p.baja < 0.01 and p.techo < 0.01
+		and math.abs(extra) < 1e-3 and math.abs(ladeoExtra) < 1e-3
+	then
 		if not p.quieta then
 			soltarPostura(p)
 		end
@@ -507,8 +561,39 @@ local function posar(p: Postura, agachado: boolean, asomado: number, dt: number)
 	if p.cintura then
 		-- A la derecha (lado 1), lo de arriba del tronco hacia su derecha.
 		p.cintura.motor.C0 = girada(p.cintura.original,
-			CFrame.Angles(-inclinacion(p), 0, -p.lado * math.rad(Config.Postura.Giro) * LADEO))
+			CFrame.Angles(-(inclinacion(p) + p.extra), 0, -p.lado * math.rad(Config.Postura.Giro) * LADEO + p.ladeoExtra))
 	end
+end
+
+-- Lo de correr de otro (atributos Corriendo, Agotado y Tropiezo), suave: lo que va su tronco hacia delante y de lado
+-- (radianes), lo que suben sus hombros (studs) y lo que sube la cabeza para seguir mirando al frente.
+local azar = Random.new()
+local function correr(otro: Player, o: Otro, dt: number): (number, number, number, number)
+	local corre = otro:GetAttribute("Corriendo") == true
+	local agotado = otro:GetAttribute("Agotado") == true
+	o.carrera += ((if corre then 1 else 0) - o.carrera) * (1 - math.exp(-dt * SUAVE_CORRE))
+	o.cansado += ((if agotado then 1 else 0) - o.cansado) * (1 - math.exp(-dt * SUAVE_CANSADO))
+	if o.carrera < 1e-3 and not corre then
+		o.carrera = 0
+	end
+	if o.cansado < 1e-3 and not agotado then
+		o.cansado = 0
+	end
+	local t = otro:GetAttribute("Tropiezo")
+	if type(t) == "number" then
+		if t > o.tropiezos then
+			o.tropiezoEn = os.clock()
+			o.tropiezoLado = if azar:NextNumber() < 0.5 then -1 else 1
+		end
+		o.tropiezos = t
+	end
+	local cae = CuerpoVista.curvaTropiezo(os.clock() - o.tropiezoEn)
+	-- Jadeando: de 0 (soltando el aire) a 1 (cogiéndolo).
+	o.jadeo = if o.cansado > 0 then (o.jadeo + dt * JADEO * 2 * math.pi) % (2 * math.pi) else 0
+	local respira = 0.5 - 0.5 * math.cos(o.jadeo)
+	local corriendo = INCLINA_CORRE * o.carrera
+	local tronco = corriendo + o.cansado * (ENCORVA_CANSADO + JADEO_TRONCO * respira) + TROPIEZO_TRONCO * cae
+	return tronco, TROPIEZO_LADO * cae * o.tropiezoLado, JADEO_SUBE * o.cansado * respira, corriendo * COMPENSA_CORRE
 end
 
 local function paso(dt: number)
@@ -529,6 +614,9 @@ local function paso(dt: number)
 			girar(o.der, nil, 1) -- lejos o fuera de juego: como estaban, sin gastar
 			girar(o.izq, nil, 1)
 			cabecear(o, 0, 0, 1)
+			o.carrera, o.cansado, o.jadeo = 0, 0, 0
+			local t = otro:GetAttribute("Tropiezo") -- (los de lejos no se ven luego al acercarse)
+			o.tropiezos = if type(t) == "number" then t else o.tropiezos
 			if p and not p.quieta then
 				soltarPostura(p)
 			end
@@ -537,7 +625,8 @@ local function paso(dt: number)
 		local asomado = otro:GetAttribute("Asomado")
 		local agachado = otro:GetAttribute("Agachado") == true
 		asomado = if asomado == -1 or asomado == 1 then asomado else 0
-		if not p and (agachado or asomado ~= 0) and os.clock() >= o.reintento then
+		local tronco, ladeoTronco, sube, compensa = correr(otro, o, dt)
+		if not p and (agachado or asomado ~= 0 or tronco > 0) and os.clock() >= o.reintento then
 			-- Le faltaba alguna junta al llegar (el mapa por partes): se vuelve a buscar, como mucho una vez por segundo.
 			o.reintento = os.clock() + 1
 			o.postura = prepararPostura(o.personaje)
@@ -552,12 +641,14 @@ local function paso(dt: number)
 			else
 				p.bajaMeta, p.techoMeta = 0, 0
 			end
-			posar(p, agachado, asomado, dt)
+			posar(p, agachado, asomado, tronco, ladeoTronco, dt)
 		end
-		cabecear(o, miradaDe(otro), if p then math.min(inclinacion(p), LEVANTA) else 0, dt)
+		cabecear(o, miradaDe(otro), if p then math.min(inclinacion(p) + compensa, LEVANTA) else 0, dt)
 		local der, izq = objetivos(otro, o, raiz)
-		girar(o.der, der, dt)
-		girar(o.izq, izq, dt)
+		-- Corriendo bracea más; si lleva algo en una mano, la otra menos (y la ocupada, nada: ver `girar`).
+		local bracea = BRACEA * o.carrera * (if der or izq then BRACEA_OCUPADO else 1)
+		girar(o.der, der, dt, sube, bracea)
+		girar(o.izq, izq, dt, sube, bracea)
 	end
 end
 
