@@ -1442,18 +1442,35 @@ do
 end
 
 -- Bancos (tests/bancos, 14.8): módulos del cliente con un Roblox de mentira (tests/bancos/_roblox.luau) y cuentas,
--- cada uno en su propio proceso de Lune (no se pisan lo que tocan). Los que empiezan por "_" son ayudas, no bancos.
+-- cada uno en su propio proceso de Lune (no se pisan lo que tocan), todos a la vez (process.exec cede): el del gateo
+-- (~30 s, sus cinco bichos a la vez) marca el paso. Los que empiezan por "_" son ayudas, no bancos.
 do
 	local process = require("@lune/process")
+	local task = require("@lune/task")
 	if fs.isDir("tests/bancos") then
-		local nombres = fs.readDir("tests/bancos")
-		table.sort(nombres)
-		for _, nombre in nombres do
+		local nombres = {}
+		for _, nombre in fs.readDir("tests/bancos") do
 			if string.match(nombre, "%.luau$") and not string.match(nombre, "^_") then
-				local r = process.exec("lune", { "run", "tests/bancos/" .. nombre })
-				assert(r.ok, `banco {nombre}:\n{r.stdout}{r.stderr}`)
-				comprobaciones += 1
+				table.insert(nombres, nombre)
 			end
+		end
+		table.sort(nombres)
+		local salidas = {}
+		local quedan = #nombres
+		for i, nombre in nombres do
+			task.spawn(function()
+				local ok, r = pcall(process.exec, "lune", { "run", "tests/bancos/" .. nombre })
+				salidas[i] = if ok then r else { ok = false, stdout = "", stderr = tostring(r) }
+				quedan -= 1
+			end)
+		end
+		while quedan > 0 do
+			task.wait(0.05)
+		end
+		for i, nombre in nombres do
+			local r = salidas[i]
+			assert(r.ok, `banco {nombre}:\n{r.stdout}{r.stderr}`)
+			comprobaciones += 1
 		end
 	end
 end
