@@ -27,6 +27,9 @@ local function vivo(jugador: Player): boolean
 	return humanoide ~= nil and humanoide.Health > 0 and not jugador:GetAttribute("Muerto")
 end
 
+-- ¿Está vivo (escondido incluido)? Lo mismo que mirar si está en Muerte.vivos(), sin hacer la lista.
+Muerte.vivo = vivo
+
 -- Jugadores vivos (escondidos incluidos).
 function Muerte.vivos(): { Player }
 	local lista = {}
@@ -93,6 +96,8 @@ local function salir(jugador: Player)
 		raiz.Anchored = false
 	end
 end
+
+Muerte.sacar = salir -- también para los finales (Coche, Incendio): fuera del escondite antes de la escena
 
 local function comprobarTodos()
 	if #Players:GetPlayers() > 0 and #Muerte.vivos() == 0 then

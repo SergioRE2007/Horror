@@ -136,7 +136,7 @@ function Cargar.soltar(jugador: Player)
 end
 
 local function puede(jugador: Player): boolean
-	return table.find(Muerte.vivos(), jugador) ~= nil and not jugador:GetAttribute("Escondido")
+	return Muerte.vivo(jugador) and not jugador:GetAttribute("Escondido")
 		and not jugador:GetAttribute("MochilaAbierta") and not agarres[jugador] and not jugador:GetAttribute("Trabajando")
 end
 
@@ -386,7 +386,7 @@ function Cargar.trabajar(jugador: Player, accion: string, pieza: Instance, segun
 	local bien = true
 	while os.clock() < fin do
 		task.wait(0.1)
-		if not pieza.Parent or not table.find(Muerte.vivos(), jugador) or jugador:GetAttribute("Escondido") then
+		if not pieza.Parent or not Muerte.vivo(jugador) or jugador:GetAttribute("Escondido") then
 			bien = false
 			break
 		end
@@ -482,12 +482,11 @@ end
 -- Cada fotograma: cada agarre va delante de quien lo lleva; si se queda atascado lejos, se suelta.
 local function seguir()
 	if next(agarres) == nil then
-		return -- nadie lleva nada: ni la lista de vivos
+		return -- nadie lleva nada
 	end
-	local vivos = Muerte.vivos() -- una vez por fotograma, no una por agarre
 	for jugador, agarre in agarres do
 		local raiz = raizDe(jugador)
-		if not raiz or not agarre.pieza.Parent or not table.find(vivos, jugador) or jugador:GetAttribute("Escondido") then
+		if not raiz or not agarre.pieza.Parent or not Muerte.vivo(jugador) or jugador:GetAttribute("Escondido") then
 			Cargar.soltar(jugador)
 			continue
 		end

@@ -38,7 +38,7 @@ local function cabezaDe(jugador: Player): BasePart?
 end
 
 local function puedeUsar(jugador: Player): boolean
-	return table.find(Muerte.vivos(), jugador) ~= nil and not jugador:GetAttribute("Escondido")
+	return Muerte.vivo(jugador) and not jugador:GetAttribute("Escondido")
 end
 
 -- ¿Llega la luz desde `ojo` hasta el bicho, dentro de `angulo` grados alrededor de `hacia`?
