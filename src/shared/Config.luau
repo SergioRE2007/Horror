@@ -415,7 +415,7 @@ Config.Bestia = {
 Config.Insignias = { Bestia = 0 } -- Id de la insignia (BadgeService) al publicar (13.2); 0 = no se da
 
 -- Postura en la partida (14.6, pedido por el usuario: "agacharse (botón también en el móvil) y asomarse por las
--- esquinas"). Solo cuerpo y cámara: los bichos no lo notan. Números a ojo.
+-- esquinas"). Agachado los bichos te ven y te oyen menos; debajo de un mueble te huelen y gatean a por ti. Números a ojo.
 Config.Postura = {
 	Velocidad = 0.5, -- agachado se anda a la mitad
 	Baja = 1.7, -- studs que baja la cámara al agacharse
@@ -434,7 +434,11 @@ Config.Postura = {
 	-- Los bichos (Caza y Bestia) con quien está debajo de un mueble. A ojo.
 	Oido = 8, -- studs a los que te oye un bicho de pie (agachado o debajo de algo, menos: OirAgachado, VerCubierto)
 	Fuera = 2.5, -- studs fuera del mueble donde se para a gatear: cabe su raíz (3 × 1,5) y el camino llega
-	FueraBestia = 3, -- lo mismo para la Bestia, que es enorme
+	-- Los que de pie sacan brazos o cabeza por delante se paran algo más lejos, para no meterlos en el tablero antes
+	-- de gatear (empiezan a gatear a CercaBorde del sitio, así que suelen quedar 1-3 más lejos todavía).
+	FueraRaspador = 3.4, -- el Raspador (brazos colgando)
+	FueraTrepador = 4, -- el Trepador (cabeza muy adelantada)
+	FueraBestia = 4, -- la Bestia, que es enorme
 	CercaBorde = 3, -- studs del borde a los que empieza a gatear
 	SeEscapa = 6, -- studs del borde: si sales del mueble y te alejas más, ya no te alcanza
 	Atasco = 4, -- segundos sin acercarse al borde (no hay camino) para dejarte y probar otro lado
