@@ -6,6 +6,7 @@
 --     prompt, sonidos y choque; atributo local SaliendoLocal = true, que GasolineraVista y Clima respetan) mientras haya
 --     alguien que lo pida; al soltarlo el último, todo vuelve como estaba. Así la salida y la llegada se pasan el coche
 --     escondido sin que se vea ni un fotograma en medio.
+--   C.apartar(modelo, plaza): tras destaparlo (vuelve a chocar), si estás de pie donde está, te pone a un lado.
 --   C.plaza(modelo) -> Plaza: cómo sale de su plaza sin darle a los de delante y detrás (marcha atrás, radio del giro)
 --     y el camino del eje de atrás hasta el carril. C.enPlaza(plaza, d) da el marco de la carrocería a `d` studs de ese
 --     camino (d < 0: hacia atrás, recto) y C.curva(plaza, d) la curva (para el volante). El que llega lo recorre al revés.
@@ -15,6 +16,7 @@
 --   C.encender(luz, si, color), C.hacerHumo(escape, atras), C.carpeta() (workspace.CochesSaliendo, donde van las copias).
 -- Plano del lobby: la carretera va a lo largo de Z en x = 0 y el bosque queda hacia -Z.
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 
 local C = {}
 
@@ -582,6 +584,31 @@ end
 
 function C.tapado(modelo: Model): boolean
 	return tapados[modelo] ~= nil
+end
+
+-- Si estás de pie donde vuelve a estar el coche de verdad (que choca otra vez), te pone a un lado, junto a él. Lo
+-- llaman la llegada y la salida que no sigue al devolverlo (mientras estaba tapado alguien pudo meterse en su sitio).
+-- Si aún lo tapa otro, nada: sigue sin chocar.
+function C.apartar(modelo: Model, plaza: Plaza?)
+	if not plaza or tapados[modelo] then
+		return
+	end
+	local personaje = Players.LocalPlayer and Players.LocalPlayer.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	local humanoide = personaje and personaje:FindFirstChildOfClass("Humanoid")
+	if not personaje or not raiz or not raiz:IsA("BasePart") or not humanoide or humanoide.SeatPart then
+		return
+	end
+	local mia = caja(modelo)
+	local en = plaza.f0:PointToObjectSpace(raiz.Position)
+	local ancho = (mia.x2 - mia.x1) / 2 + 0.5
+	local largo = (mia.z2 - mia.z1) / 2 + 0.5
+	if math.abs(en.X) > ancho or math.abs(en.Z) > largo or raiz.Position.Y > mia.y2 + 1 then
+		return
+	end
+	local lado = if en.X >= 0 then 1 else -1
+	local fuera = plaza.f0:PointToWorldSpace(Vector3.new(lado * (ancho + 1.5), 0, en.Z))
+	personaje:PivotTo(CFrame.new(fuera.X, raiz.Position.Y, fuera.Z) * raiz.CFrame.Rotation)
 end
 
 function C.apuntar(modelo: Model)

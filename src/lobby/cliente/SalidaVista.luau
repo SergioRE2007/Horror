@@ -15,7 +15,7 @@
 -- Todo según la hora del servidor (si llegas a media salida, la copia va por donde toca) y el movimiento en el Bucle
 -- (una tarea por coche que sale). Si el servidor la retrasa (Salida a más de Config.Coches.Salida s: estaba llegando
 -- otro coche por el carril), no empieza hasta entonces. Lo devuelve todo siempre: si Salida vuelve a nil o cambia, a los
--- ESPERA s de la hora sin habernos ido o si algo falla. Si te bajas a media cuenta atrás, se acaba tu cinemática y lo
+-- ESPERA s de la hora sin habernos ido o si algo falla (y si estás de pie en su plaza, te aparta). Si te bajas a media cuenta atrás, se acaba tu cinemática y lo
 -- ves irse como los demás. Si Salida vuelve a nil porque se ha ido de verdad y el coche ya tiene Llegada (Coches), la
 -- copia sigue hasta la niebla y el de verdad sigue escondido: lo devuelve LlegadaVista cuando llega el otro.
 local CollectionService = game:GetService("CollectionService")
@@ -491,6 +491,7 @@ local function preparar(s: Salida)
 	local copia = CocheCopia.copiar(modelo)
 	table.insert(s.devolver, function()
 		CocheCopia.destapar(modelo, s)
+		CocheCopia.apartar(modelo, plaza) -- si no se ha ido (y no lo tapa una llegada) y alguien se ha metido en su sitio
 	end)
 	CocheCopia.tapar(modelo, s)
 	for _, d in modelo:GetDescendants() do
