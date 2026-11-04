@@ -10,8 +10,11 @@
 -- Coches, en el servidor); el de verdad, escondido y sin chocar todo el rato; al acabar la copia está justo donde el
 -- de verdad, se borra y vuelve a verse el de verdad. Y: la salida que se pasa a la llegada sin que se vea el de verdad
 -- ni un fotograma (y la copia que sale sigue hasta la niebla); entrar a medias (la copia, donde la de quien lo vio
--- desde el principio); Rendimiento (sin ruedas que ruedan, limpias ni humo); un fallo a medias y que el servidor quite
--- Llegada (todo vuelve); y que los números de Coches cuadran con los de LlegadaVista.
+-- desde el principio); una Salida retrasada (quieta hasta su hora); Rendimiento (sin ruedas que ruedan, limpias ni
+-- humo); un fallo a medias y que el servidor quite Llegada (todo vuelve). En el servidor (lobby/servidor/Coches de
+-- verdad, con Viaje falso): Llegada al vaciarse tras el viaje, nadie se sube hasta entonces, por el carril no van dos a
+-- la vez (la Salida de otro y la Llegada de otro esperan) y a la hora queda libre. Y que los números de Coches cuadran
+-- con los de LlegadaVista.
 local fs = require("@lune/fs")
 local crearMundo = require("./_roblox")
 
@@ -480,8 +483,94 @@ do
 	comprobar(visible(modelo) and #copias(w) == 0, "pasada: se esconde")
 end
 
+-- Una Salida retrasada por el servidor (otro coche estaba llegando): quieto y a la vista hasta su hora.
+do
+	local w = montar()
+	local modelo = w.carpeta.Coche3
+	local salida = w.ahora() + 7 + 5
+	modelo:SetAttribute("Salida", salida)
+	w.m.correr(4.9, DT)
+	comprobar(visible(modelo) and #copias(w) == 0, "salida retrasada: empieza antes de hora")
+	w.m.correr(0.2, DT)
+	comprobar(escondido(modelo) and #copias(w) == 1, "salida retrasada: no empieza a su hora")
+end
+
 ------------------------------------------------------------------------------------------------------------------------
--- 6. Los números del servidor cuadran con los del cliente.
+-- 6. El servidor (lobby/servidor/Coches de verdad, con Viaje falso): al vaciarse tras el viaje pone Llegada, nadie se
+-- sube hasta entonces y la Salida de otro coche espera a que haya llegado; a la hora, libre.
+do
+	local m = crearMundo({ servidor = true, proyecto = "lobby.project.json" })
+	local g = m.global
+	-- Lo que falta en el mundo falso: TeleportService.TeleportInitFailed y Seat:Sit.
+	m.interno(m.servicio("TeleportService")).clase.eventos.TeleportInitFailed = true
+	local carpeta = g.Instance.new("Folder")
+	carpeta.Name = "Coches"
+	carpeta.Parent = g.workspace
+	m.cargar("src/lobby/servidor/GasolineraCoches").construir(carpeta)
+	m.interno(carpeta.Coche1.Asiento1).clase.metodos.Sit = function(asiento, humanoide)
+		asiento.Occupant = humanoide
+	end
+	local viajes = 0
+	local Coches = m.cargar("src/lobby/servidor/Coches", { Viaje = { ir = function()
+		viajes += 1
+		return true
+	end } })
+	Coches.start()
+	local Remotes = m.cargar("src/shared/Remotes")
+	local function ahora(): number
+		return g.workspace:GetServerTimeNow()
+	end
+	local function prompt(n: number): any
+		return carpeta[`Coche{n}`].Carroceria:FindFirstChildOfClass("ProximityPrompt")
+	end
+	local A, B = m.jugador("A"), m.jugador("B")
+	m.personaje(g.CFrame.new(0, 3, 0), A)
+	m.personaje(g.CFrame.new(0, 3, 10), B)
+	local c2, c3 = carpeta.Coche2, carpeta.Coche3
+	prompt(2).Triggered:Fire(A)
+	m.paso()
+	comprobar(c2:GetAttribute("Dueno") == A.UserId, "servidor: A no se sube")
+	Remotes.Coche.OnServerEvent:Fire(A, "Arrancar")
+	comprobar(math.abs(c2:GetAttribute("Salida") - ahora() - 7) < 1e-6, "servidor: la salida no es a los 7 s")
+	m.correr(7.1)
+	comprobar(viajes == 1, "servidor: no se va")
+	c2.Asiento1.Occupant = nil -- se lo ha llevado el teletransporte
+	m.paso()
+	local llegada = c2:GetAttribute("Llegada")
+	comprobar(type(llegada) == "number" and math.abs(llegada - ahora() - 2 - LLEGADA_DURA) < 0.05,
+		`servidor: Llegada {llegada and llegada - ahora()}`)
+	comprobar(c2:GetAttribute("Salida") == nil and not prompt(2).Enabled, "servidor: se puede subir al que llega")
+	prompt(2).Triggered:Fire(B)
+	m.paso()
+	comprobar(c2.Asiento1.Occupant == nil and B:GetAttribute("Coche") == nil, "servidor: B se sube al que llega")
+	-- B arranca el 3 mientras el 2 ya va por las plazas: su salida espera a que el 2 se pare.
+	m.correr(LLEGADA_DURA - LLEGADA_CERCA + 4)
+	prompt(3).Triggered:Fire(B)
+	m.paso()
+	Remotes.Coche.OnServerEvent:Fire(B, "Arrancar")
+	local salida3 = c3:GetAttribute("Salida")
+	comprobar(salida3 - 7 >= llegada, `servidor: el 3 sale a la vez que llega el 2 ({salida3 - 7 - llegada})`)
+	m.correr(llegada - ahora() + 0.05)
+	comprobar(c2:GetAttribute("Llegada") == nil and prompt(2).Enabled, "servidor: el 2 no queda libre al llegar")
+	-- El 3 se va; el 1 se queda vacío tras un viaje mientras llega el 3: su llegada espera a la del 3.
+	m.correr(salida3 - ahora() + 0.1)
+	comprobar(viajes == 2, "servidor: el 3 no se va")
+	c3.Asiento1.Occupant = nil
+	m.paso()
+	local llegada3 = c3:GetAttribute("Llegada")
+	prompt(1).Triggered:Fire(A)
+	m.paso()
+	Remotes.Coche.OnServerEvent:Fire(A, "Arrancar")
+	m.correr(carpeta.Coche1:GetAttribute("Salida") - ahora() + 0.1)
+	carpeta.Coche1.Asiento1.Occupant = nil
+	m.paso()
+	local llegada1 = carpeta.Coche1:GetAttribute("Llegada")
+	comprobar(llegada1 - LLEGADA_CERCA >= llegada3, `servidor: el 1 llega a la vez que el 3 ({llegada1 - LLEGADA_CERCA - llegada3})`)
+	comprobar(#m.errores == 0 and #m.avisos == 0, `servidor: {m.errores[1] or m.avisos[1]}`)
+end
+
+------------------------------------------------------------------------------------------------------------------------
+-- 7. Los números del servidor cuadran con los del cliente.
 comprobar(tonumber(string.match(fuente, "\nlocal LLEGADA = ([%d%.]+)")) == LLEGADA_DURA, "Coches.LLEGADA ~= LlegadaVista.DURA")
 comprobar(tonumber(string.match(fuente, "\nlocal CERCA = ([%d%.]+)")) == LLEGADA_CERCA, "Coches.CERCA ~= LlegadaVista.CERCA")
 
