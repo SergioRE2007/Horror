@@ -63,8 +63,12 @@ export type Bicho = typeof(setmetatable({} :: {
 	rumboMejor: number, -- lo más cerca que ha estado de él
 	rumboDesde: number, -- os.clock desde el que no se acerca más
 	rumboVisto: number, -- os.clock de la última vez que fue hacia él
-	sinSalida: Vector3?, -- el último borde al que no llegó (no lo vuelve a elegir)
+	sinSalida: { SinSalida }, -- los últimos bordes a los que no llegó (no los vuelve a elegir en un rato)
+	gateaEn: Vector3?, -- el borde en el que está gateando (los demás bichos no se le meten ahí)
 }, Caza))
+
+-- Un borde al que no llegó, hasta `hasta` (os.clock).
+type SinSalida = { punto: Vector3, hasta: number }
 
 -- Debajo de los muebles (Config.Postura, a ojo).
 local OIDO = Config.Postura.Oido
@@ -73,6 +77,8 @@ local CERCA_BORDE = Config.Postura.CercaBorde
 local SE_ESCAPA = Config.Postura.SeEscapa
 local ATASCO = Config.Postura.Atasco
 local MAX_DT = Config.Postura.MaxOlor
+local SIN_SALIDA = Config.Postura.SinSalida
+local MAX_SIN_SALIDA = 3 -- bordes a los que no llegó que recuerda a la vez
 
 local azar = Random.new()
 local vivos: { [Bicho]: boolean } = {}
@@ -246,6 +252,17 @@ function Caza.carpeta(): Folder
 	return carpeta :: Folder
 end
 
+-- Lo que no estorba en los rayos de por dónde cabe y de si alcanza a alguien: los bichos y todos los personajes.
+local function sinPersonajes(): { Instance }
+	local ignorar: { Instance } = { Caza.carpeta() }
+	for _, otro in Players:GetPlayers() do
+		if otro.Character then
+			table.insert(ignorar, otro.Character)
+		end
+	end
+	return ignorar
+end
+
 -- ¿Cabe el bicho en `borde` y está del lado de quien está debajo? Por debajo del tablero (lo que choca de los muebles
 -- de HUECOS en Mapa: tablero, patas, caballetes, vigas; y las cajas de las sillas):
 --   - Del medio del hueco hasta algo más allá del borde no hay nada (ni pared ni otro mueble): está del lado de él. Sale
@@ -295,7 +312,8 @@ function Caza.nuevo(modelo: Model, humanoide: Humanoid, o: Opciones): Bicho
 		rumboMejor = math.huge,
 		rumboDesde = 0,
 		rumboVisto = -math.huge,
-		sinSalida = nil,
+		sinSalida = {},
+		gateaEn = nil,
 	}, Caza)
 	vivos[b] = true
 	return b
@@ -400,8 +418,9 @@ function Caza.irA(self: Bicho, destino: Vector3, velocidad: number, limite: numb
 end
 
 -- Por dónde se mete a por `jugador`, que tiene la raíz en `p` debajo de un mueble (nil si no está en ninguna zona
--- Debajo). Se guarda por jugador y solo se rehace si él se mueve, cambia de mueble o pasan 2 s. Nunca el último borde
--- al que no llegó (sinSalida): así prueba por otro lado.
+-- Debajo). Se guarda por jugador y solo se rehace si él se mueve, cambia de mueble o pasan 2 s. Nunca un borde al que
+-- no llegó hace poco (sinSalida: así prueba por otro lado; pasado SIN_SALIDA lo vuelve a probar, que si no un mueble
+-- con un solo lado libre quedaba seguro para siempre) ni uno en el que ya gatea otro bicho.
 local function debajoDe(self: Bicho, jugador: Player, p: Vector3): Debajo?
 	local c = self.debajo[jugador]
 	local zona = if c and c.zona.Parent and enZona(c.zona, p, 0.5) then c.zona else zonaDe(p)
@@ -412,17 +431,29 @@ local function debajoDe(self: Bicho, jugador: Player, p: Vector3): Debajo?
 	if c and c.zona == zona and (c.punto - p).Magnitude < 1 and ahora - c.hora < 2 then
 		return c
 	end
-	local ignorar: { Instance } = { Caza.carpeta() }
-	for _, otro in Players:GetPlayers() do
-		if otro.Character then
-			table.insert(ignorar, otro.Character)
+	filtroChoque.FilterDescendantsInstances = sinPersonajes() -- para todos los sitioLibre de abajo
+	local evitar: { Vector3 } = {}
+	for i = #self.sinSalida, 1, -1 do
+		local s = self.sinSalida[i]
+		if ahora > s.hasta then
+			table.remove(self.sinSalida, i)
+		else
+			table.insert(evitar, s.punto)
 		end
 	end
-	filtroChoque.FilterDescendantsInstances = ignorar -- para todos los sitioLibre de abajo
-	local sinSalida = self.sinSalida
+	for otro in vivos do
+		if otro ~= self and otro.gateaEn then
+			table.insert(evitar, otro.gateaEn)
+		end
+	end
 	local borde, cara = Caza.borde(zona.CFrame, zona.Size, p, self.raiz.Position, self.o.Fuera or FUERA,
 		function(b: Vector3, f: Vector3): boolean
-			return not (sinSalida and (b - sinSalida).Magnitude < 2) and sitioLibre(zona, b, f)
+			for _, e in evitar do
+				if (b - e).Magnitude < 2 then
+					return false
+				end
+			end
+			return sitioLibre(zona, b, f)
 		end)
 	if c then
 		c.zona, c.punto, c.hora, c.borde, c.cara = zona, p, ahora, borde, cara
@@ -501,18 +532,21 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 end
 
 -- ¿Sigue a su alcance quien está debajo del mueble al que se mete? Dentro de esa zona, o fuera pero a menos de
--- SE_ESCAPA del borde y sin nada que choque en medio (nunca a través de una pared).
-local function sigueAhi(presa: Player, zona: BasePart, borde: Vector3): boolean
+-- SE_ESCAPA del borde; y siempre sin nada que choque en medio (nunca a través de una pared). Dentro, el rayo sale de la
+-- boca del hueco por dentro: no hay patas ni sillas (están fuera de la zona) y, si la zona cruzase una pared, la ve.
+local function sigueAhi(presa: Player, zona: BasePart, borde: Vector3, cara: Vector3): boolean
 	local suRaiz = raizDe(presa)
 	if not suRaiz or presa.Parent == nil or presa:GetAttribute("Muerto") or Muerte.escondite(presa) then
 		return false
 	end
 	local p = suRaiz.Position
 	if enZona(zona, p, 0.5) then
-		return true
+		local afuera = plano(borde - cara)
+		local dentro = cara + Vector3.new(0, math.min(1.2, zona.Size.Y / 2), 0)
+			- (if afuera.Magnitude > 0.01 then afuera.Unit * 0.1 else Vector3.zero)
+		return despejado(dentro, p, sinPersonajes())
 	end
-	return plano(p - borde).Magnitude <= SE_ESCAPA
-		and despejado(borde + Vector3.new(0, 1.5, 0), p, { Caza.carpeta(), presa.Character :: Model })
+	return plano(p - borde).Magnitude <= SE_ESCAPA and despejado(borde + Vector3.new(0, 1.5, 0), p, sinPersonajes())
 end
 
 -- Gatea a por quien está debajo de un mueble (pedido por el usuario: "que el monstruo pueda gatear si te huele… para
@@ -530,6 +564,7 @@ function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 	local humanoide = self.humanoide
 	local giraba = humanoide.AutoRotate
 	self.rumbo = nil
+	self.gateaEn = borde
 	local ok, pilla = pcall(function(): boolean
 		humanoide.AutoRotate = false
 		humanoide:MoveTo(self.raiz.Position)
@@ -542,7 +577,7 @@ function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 			task.wait(0.1)
 			if not self.modelo or self.prisa or self:quieto() then
 				return false
-			elseif not sigueAhi(presa, zona, borde) then
+			elseif not sigueAhi(presa, zona, borde, cara) then
 				if presa.Parent then
 					self.olor[presa] = 0 -- se le ha escapado: vuelve a olerle desde cero
 				end
@@ -554,8 +589,10 @@ function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 			+ (if afuera.Magnitude > 0.01 then afuera.Unit * 0.4 else Vector3.zero)
 		Muerte.matar(presa, susto)
 		self.olor[presa] = nil
+		self.debajo[presa] = nil
 		return true
 	end)
+	self.gateaEn = nil
 	if modelo.Parent then -- quitado (Destroy), se van con él
 		modelo:SetAttribute("Gatea", nil)
 		modelo:SetAttribute("GateaHora", nil)
@@ -578,18 +615,33 @@ function Caza.aPorDebajo(self: Bicho, presa: Player, bajo: Debajo, paso: ((Bicho
 	end
 	local suelo = self:suelo()
 	if self:cerca(borde, CERCA_BORDE) and math.abs(suelo.Y - borde.Y) < 2 then
+		for otro in vivos do
+			if otro ~= self and otro.gateaEn and (otro.gateaEn - borde).Magnitude < 2 then
+				bajo.hora = -math.huge -- otro bicho ya gatea ahí: busca otro lado (o espera a que acabe)
+				self.humanoide:MoveTo(self.raiz.Position)
+				return nil
+			end
+		end
 		return if self:gatear(presa, bajo) then "Pilla" else "Deja"
 	end
 	local ahora = os.clock()
 	local d = plano(borde - suelo).Magnitude
-	if self.rumbo ~= borde or ahora - self.rumboVisto > 1 or d < self.rumboMejor - 1 then
+	-- El mismo borde aunque se corra un poco (si él se mueve debajo): si no, moviéndose no se atascaba nunca.
+	local otroBorde = not self.rumbo or plano(borde - self.rumbo).Magnitude > 2
+	if otroBorde or ahora - self.rumboVisto > 1 or d < self.rumboMejor - 1 then
 		self.rumbo, self.rumboMejor, self.rumboDesde = borde, d, ahora
 	elseif ahora - self.rumboDesde > ATASCO then
 		self.rumbo = nil
-		self.sinSalida = borde -- la próxima vez, por otro sitio
+		-- La próxima vez, por otro sitio (los más viejos se olvidan: no crece sin límite).
+		table.insert(self.sinSalida, { punto = borde, hasta = ahora + SIN_SALIDA })
+		if #self.sinSalida > MAX_SIN_SALIDA then
+			table.remove(self.sinSalida, 1)
+		end
 		bajo.hora = -math.huge
 		self.olor[presa] = 0
 		return "Deja"
+	else
+		self.rumbo = borde
 	end
 	self.rumboVisto = ahora
 	if paso then

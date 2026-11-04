@@ -1124,6 +1124,7 @@ do
 		"esconderse: se para fuera del mueble y le alcanza al borde")
 	igual(CP.Atasco > 0 and CP.MaxOlor > 0 and CP.MaxOlor < CP.Huele and CP.Ancho > 0.5 and CP.Ancho < 2, true,
 		"esconderse: atasco, olor de una vez y anchura razonables")
+	igual(CP.SinSalida > CP.Atasco and CP.SinSalida < 120, true, "esconderse: un borde sin salida se vuelve a probar al rato")
 end
 
 do -- Caza.borde: por dónde se mete el bicho debajo de un mueble (sacada del texto: Caza necesita Roblox)
