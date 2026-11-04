@@ -441,12 +441,12 @@ end
 -- lados (si llega en diagonal, el borde le queda antes a un hombro): el de su zona Debajo y, si no está en ninguna, con
 -- rayos hacia arriba cada poco (lo que quede más bajo que un escondite, como el asiento de una silla, no cuenta). Sin
 -- tablero, GATEO.Borde antes de ti. (Antes solo con rayos: en el juego no daban nunca en la mesa y se metía por ella.)
-local function buscarBorde(b: Bicho, punto: Vector3, boca: number): (number, Patas?, number)
+local function buscarBorde(b: Bicho, punto: Vector3): (number, Patas?, { [number]: number })
 	local raiz = b.raiz.Position
 	local plano = Vector3.new(punto.X - raiz.X, 0, punto.Z - raiz.Z)
 	local largo = plano.Magnitude
 	if largo < 0.5 then
-		return 0, nil, math.huge
+		return 0, nil, { [-1] = math.huge, [1] = math.huge }
 	end
 	local hacia = plano.Unit
 	local lado = Vector3.new(-hacia.Z, 0, hacia.X)
@@ -476,35 +476,37 @@ local function buscarBorde(b: Bicho, punto: Vector3, boca: number): (number, Pat
 		end
 		local patas = patasDe(zona, cf, tam)
 		-- Lo que la cabeza puede meterse: hasta la primera pata o travesaño que tenga delante a su altura (la viga baja de
-		-- la mesa de la cocina), con la anchura de la cabeza a cada lado.
-		local fondo = math.huge
+		-- la mesa de la cocina), con la anchura de la cabeza a cada lado; según hacia qué lado la ladee (`boca`).
+		local fondos = { [-1] = math.huge, [1] = math.huge }
 		local suelo = raiz.Y - ALTURA
 		for _, pata in patas or {} do
 			local abajo, arriba = pata.cf.Position.Y - pata.medio.Y - suelo, pata.cf.Position.Y + pata.medio.Y - suelo
 			if arriba < CABEZA_FONDO.Bajo or abajo > CABEZA_FONDO.Alto then
 				continue
 			end
-			local corre = lado * boca * (CABEZA_FONDO.Boca - CABEZA_FONDO.Ancho) / 2
-			local o = pata.cf:PointToObjectSpace(Vector3.new(raiz.X, pata.cf.Position.Y, raiz.Z) + corre)
-			local dl = pata.cf:VectorToObjectSpace(hacia)
-			local entra, sale = -math.huge, math.huge
-			for _, eje in { "X", "Z" } do
-				local oe, de = (o :: any)[eje], (dl :: any)[eje]
-				local me = (pata.medio :: any)[eje] + (CABEZA_FONDO.Boca + CABEZA_FONDO.Ancho) / 2
-				if math.abs(de) < 1e-6 then
-					if math.abs(oe) > me then
-						entra = math.huge
+			for _, boca in LADOS do
+				local corre = lado * boca * (CABEZA_FONDO.Boca - CABEZA_FONDO.Ancho) / 2
+				local o = pata.cf:PointToObjectSpace(Vector3.new(raiz.X, pata.cf.Position.Y, raiz.Z) + corre)
+				local dl = pata.cf:VectorToObjectSpace(hacia)
+				local entra, sale = -math.huge, math.huge
+				for _, eje in { "X", "Z" } do
+					local oe, de = (o :: any)[eje], (dl :: any)[eje]
+					local me = (pata.medio :: any)[eje] + (CABEZA_FONDO.Boca + CABEZA_FONDO.Ancho) / 2
+					if math.abs(de) < 1e-6 then
+						if math.abs(oe) > me then
+							entra = math.huge
+						end
+					else
+						local t1, t2 = (-me - oe) / de, (me - oe) / de
+						entra, sale = math.max(entra, math.min(t1, t2)), math.min(sale, math.max(t1, t2))
 					end
-				else
-					local t1, t2 = (-me - oe) / de, (me - oe) / de
-					entra, sale = math.max(entra, math.min(t1, t2)), math.min(sale, math.max(t1, t2))
+				end
+				if entra <= sale and sale > 0 then
+					fondos[boca] = math.min(fondos[boca], math.max(0, entra))
 				end
 			end
-			if entra <= sale and sale > 0 then
-				fondo = math.min(fondo, math.max(0, entra))
-			end
 		end
-		return math.max(0, borde - BORDE_HOLGURA), patas, fondo
+		return math.max(0, borde - BORDE_HOLGURA), patas, fondos
 	end
 	local fuera: { Instance } = {}
 	local carpeta = workspace:FindFirstChild("Bichos")
@@ -524,12 +526,12 @@ local function buscarBorde(b: Bicho, punto: Vector3, boca: number): (number, Pat
 			local base = Vector3.new(raiz.X, suelo + 0.4, raiz.Z) + hacia * d + lado * x
 			local choque = workspace:Raycast(base, Vector3.new(0, 4.5, 0), filtroGateo)
 			if choque and choque.Instance.Name ~= "Debajo" and choque.Position.Y - suelo > 2.3 then
-				return math.max(0, d - 0.2), nil, math.huge
+				return math.max(0, d - 0.2), nil, { [-1] = math.huge, [1] = math.huge }
 			end
 		end
 		d += 0.3
 	end
-	return math.max(0, largo - GATEO.Borde), nil, math.huge
+	return math.max(0, largo - GATEO.Borde), nil, { [-1] = math.huge, [1] = math.huge }
 end
 
 -- Por dónde va el gateo a los `t` s: cuánto ha metido la cabeza (0..1), cuánto olfatea (0..1, entre tirones) y el
@@ -720,11 +722,11 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 			end
 			-- La cabeza se ladea hacia el lado del brazo que mete: hacia donde no haya una pata cerca, si la hay.
 			local brazo = if azar:NextNumber() < 0.5 then -1 else 1
-			local borde, patas, fondo = buscarBorde(b, punto, brazo)
-			local _, _, otro = buscarBorde(b, punto, -brazo)
-			if otro > fondo + 0.05 then
-				brazo, fondo = -brazo, otro
+			local borde, patas, fondos = buscarBorde(b, punto)
+			if fondos[-brazo] > fondos[brazo] + 0.05 then
+				brazo = -brazo
 			end
+			local fondo = fondos[brazo]
 			g = {
 				hora = hora, punto = punto, borde = borde, t = t, sonados = sonados,
 				brazo = brazo, cara0 = b.cabeza.Position, sale = 0, espera = 0,
