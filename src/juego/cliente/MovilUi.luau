@@ -209,10 +209,11 @@ local function mostrar(si: boolean)
 	end
 end
 
--- La cámara la lleva un script (una cinemática: la huida, el incendio…). Mirando por la mirilla o la ventana también
--- es Scriptable, pero ahí sí se saca (MirarVista deja de mirar al abrirlo).
+-- La escena de un final (la huida, el incendio) lleva la cámara: atributo EscenaFinal, lo ponen HuidaVista e
+-- IncendioVista. Escondido o mirando por la mirilla o la ventana la cámara también es Scriptable, pero ahí sí se saca
+-- (escondido se puede mirar, Movil; MirarVista deja de mirar al abrirlo).
 local function enEscena(): boolean
-	return camara.CameraType ~= Enum.CameraType.Custom and jugador:GetAttribute("Vistazo") == nil
+	return jugador:GetAttribute("EscenaFinal") == true
 end
 
 local function alternar()
@@ -338,8 +339,8 @@ function MovilUi.start()
 		mostrar(jugador:GetAttribute("MovilAbierto") == true)
 	end)
 	jugador:GetAttributeChangedSignal("Bateria"):Connect(pintarBateria)
-	-- Empieza una cinemática con el móvil en la mano: se guarda (como la mochila, MochilaUi).
-	camara:GetPropertyChangedSignal("CameraType"):Connect(function()
+	-- Empieza la escena de un final con el móvil en la mano: se guarda (como la mochila, MochilaUi).
+	jugador:GetAttributeChangedSignal("EscenaFinal"):Connect(function()
 		if jugador:GetAttribute("MovilAbierto") and enEscena() then
 			alternar()
 		end
