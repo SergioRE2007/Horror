@@ -663,16 +663,57 @@ local function sacar(asiento: Seat)
 	end
 end
 
+-- Sentado en un coche, su "Get in" fuera en este cliente (como la tienda): seguía a la vista mientras quedasen plazas
+-- y en el móvil el botón grande de Controles no servía de nada y se montaba con el papel. Enabled lo cambia el
+-- servidor (rehacer): si lo enciende mientras sigues sentado, se vuelve a apagar. Al bajarte se enciende: acabas de
+-- dejar una plaza libre, y si el servidor dice otra cosa su cambio llega después y manda. (MaxActivationDistance no:
+-- lo usa SalidaVista para esconder el coche que se va.)
+local apagado: { prompt: ProximityPrompt, conexion: RBXScriptConnection }? = nil
+
+local function encenderPrompt()
+	local a = apagado
+	if a then
+		apagado = nil
+		a.conexion:Disconnect()
+		a.prompt.Enabled = true
+	end
+end
+
+local function apagarPrompt(asiento: BasePart?)
+	encenderPrompt()
+	local modelo = asiento and asiento:IsA("Seat") and asiento.Parent
+	if not (modelo and modelo:HasTag("Coche")) then
+		return
+	end
+	local carroceria = modelo:FindFirstChild("Carroceria")
+	local prompt = carroceria and carroceria:FindFirstChildOfClass("ProximityPrompt")
+	if not prompt then
+		return
+	end
+	prompt.Enabled = false -- (solo en este cliente)
+	apagado = {
+		prompt = prompt,
+		conexion = prompt:GetPropertyChangedSignal("Enabled"):Connect(function()
+			if prompt.Enabled then
+				prompt.Enabled = false
+			end
+		end),
+	}
+end
+
 -- Vigila el asiento de tu personaje: al dejar el de un coche, te saca.
 local function vigilarAsiento(cuerpo: Model)
+	encenderPrompt() -- el personaje de antes pudo irse sentado (sin cambiar de SeatPart)
 	local humanoide = cuerpo:WaitForChild("Humanoid", 10) :: Humanoid?
 	if not humanoide then
 		return
 	end
 	local antes: BasePart? = humanoide.SeatPart
+	apagarPrompt(antes)
 	humanoide:GetPropertyChangedSignal("SeatPart"):Connect(function()
 		local asiento = antes
 		antes = humanoide.SeatPart
+		apagarPrompt(antes)
 		if asiento and not humanoide.SeatPart and asiento:IsA("Seat") and asiento.Parent
 			and asiento.Parent:HasTag("Coche") then
 			task.spawn(sacar, asiento)
