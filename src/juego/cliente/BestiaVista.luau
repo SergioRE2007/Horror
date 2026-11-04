@@ -824,7 +824,10 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	local pilla = b.pilla >= g.inicio and ahora - b.pilla < 2.5
 	local meta = if not g.fin or pilla then 1 else 0
 	-- Al dejarlo se queda echada atrás hasta que echa a andar: de vuelta en su sitio metería los brazos por el tablero.
-	if meta == 0 and g.atras > 0.05 and rapidez < 1.5 then
+	-- Salvo si la queman, la hieren o la aturden (se queda quieta): si no, se vería congelada en vez de arder o encogerse.
+	local suelta = ahora - b.quema < 30 or ahora - b.herida < 0.9 or ahora - b.flash < 0.7
+		or (b.modelo:GetAttribute("Cojea") or 0) > servidor
+	if meta == 0 and g.atras > 0.05 and rapidez < 1.5 and not suelta then
 		meta = math.min(g.mezcla, GATEO.Tramos[1])
 	end
 	g.mezcla = if meta > g.mezcla then math.min(meta, g.mezcla + dt / GATEO.Cae) else math.max(meta, g.mezcla - dt / GATEO.Vuelve)
