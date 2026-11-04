@@ -18,8 +18,11 @@
 --   debería servir para esconderte, por ejemplo debajo de mesas"): lo mismo con un bicho cerca (coges aire y lo
 --   aguantas solo, el latido, los bordes que se cierran), pero la cámara sigue siendo tuya: aquí no se mece ni tiembla.
 --   Y unos bordes oscuros flojos (VINETA_CUBIERTO) que te dicen que estás escondido sin tapar la vista ni decir nada.
---   Te pillan (remote Muerte): la cámara mira a la cara del bicho, temblor, destello rojo, grito y sangre en la
---   pantalla; luego negro y a mirar a los vivos (clic o toque para cambiar, en tercera persona) hasta el amanecer.
+--   Te pillan (remote Muerte, con el modelo del bicho que te pilla): la cámara mira a la cara de ese bicho (que ruge y,
+--   si gateaba, se queda en la pose de agarrarte), temblor, destello rojo, grito y sangre en la pantalla; luego negro y
+--   a mirar a los vivos (clic o toque para cambiar, en tercera persona) hasta el amanecer.
+--   En un final (atributo Final de workspace: la huida o el incendio llevan la cámara) aquí no se toca la cámara y el
+--   aliento y el latido se cortan en seco.
 --   A otro: un charco de sangre donde ha muerto.
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -302,11 +305,12 @@ local function debajoDeMueble(dt: number): boolean
 	if jugador:GetAttribute("Cubierto") == true then
 		cubiertoVisto = t
 	end
+	local final = workspace:GetAttribute("Final") ~= nil
 	if (not cubiertoDesde and t ~= cubiertoVisto) or t - cubiertoVisto >= SALIR_CUBIERTO or susto
-		or jugador:GetAttribute("Muerto") then
+		or jugador:GetAttribute("Muerto") or final then
 		if cubiertoDesde then
 			cubiertoDesde = nil
-			cortarAliento(false) -- si sales a medias, sin soltar el aire (como del escondite)
+			cortarAliento(final) -- si sales a medias, sin soltar el aire (como del escondite); en un final, en seco
 			if latido then
 				latido:Destroy()
 				latido = nil
@@ -330,13 +334,20 @@ end
 
 local function enEscondite(dt: number)
 	local vista = jugador:GetAttribute("Escondido")
-	if typeof(vista) ~= "CFrame" or susto then
+	-- En un final la escena lleva la cámara (y te saca del escondite: Muerte.sacar): ni se toca, y el aliento y el
+	-- latido se cortan en seco.
+	local final = workspace:GetAttribute("Final") ~= nil
+	if typeof(vista) ~= "CFrame" or susto or final then
 		metiendose = nil
 		if debajoDeMueble(dt) then
 			return
 		end
-		if conteniendo or ahogo > 0 or soltado > -math.huge or respiracion or sofocoPeso then
-			cortarAliento(susto)
+		if conteniendo or ahogo > 0 or soltado > -math.huge or respiracion or sofocoPeso or (final and voz) then
+			cortarAliento(susto or final)
+		end
+		if final and latido then
+			latido:Destroy()
+			latido = nil
 		end
 		return
 	end
@@ -408,7 +419,7 @@ local function cambiarEscondido()
 			latido = nil
 		end
 		cortarAliento(susto) -- si sales a medias, sin soltar el aire
-		if not susto then
+		if not susto and not workspace:GetAttribute("Final") then -- en un final, la cámara es de la escena
 			camara.CameraType = Enum.CameraType.Custom
 		end
 	end
