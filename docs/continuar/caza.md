@@ -9,7 +9,7 @@ Pedido por el usuario (03-11-2026): "agacharte también debería servir para esc
 - `Caza.aPorDebajo`: va al borde (`pasoHacia` o el `ir` de la Bestia). Al llegar (a 3) gatea; si en 4 s no se acerca, le deja (y vuelve a olerle desde cero) y apunta ese borde en `sinSalida`, para que la próxima vez pruebe por otro sitio.
 - `Caza.gatear`: parado, de cara a él, `AutoRotate` apagado. Atributos en el modelo: primero `GateaHora` (`GetServerTimeNow`) y luego `Gatea` (Vector3: dónde está él). Cada 0,1 s mira si sigue debajo de esa zona, o fuera a menos de 6 del borde sin nada en medio. A los `Config.Postura.Gatear` s: `Muerte.matar(presa, punto)`, con el punto en la boca del hueco, bajo. Lo deja si se escapa, si le aturden, si amanece o si se quita. Los atributos vuelven a nil siempre (pcall); si lo quitan con `task.cancel`, el modelo se destruye, salvo en `Bestia.quemar`, que los quita a mano.
 - `Caza.cazar` y la Bestia (`perseguir`, `cazar`, `encerrada`) usan lo mismo. La Bestia se para a 3 del mueble (los demás, a 2,5) y su olfato propio (`oler`, a 25) ya no cuenta a los que están debajo de algo.
-- Prueba sin Roblox de `Caza.borde` y `enZona` (72 comprobaciones, mesas del comedor y de la cocina incluidas): está en el scratchpad de la sesión y no en `tests/` (ver "Falta").
+- Prueba sin Roblox de `Caza.borde` y `enZona` (72 comprobaciones, mesas del comedor y de la cocina incluidas) en el scratchpad; lo principal ya está en `tests/regressions.luau`.
 
 ## Falta
 
