@@ -57,7 +57,7 @@ agacharte es la finalidad". El cuerpo del jugador (caber debajo, `Cubierto`), en
 `Config.Postura`.
 
 Servidor (`Caza`, `Bestia`):
-- Agachado se te ve y se te oye peor (`PosturaReglas.alcanceVista`/`alcanceOido`). Debajo de un mueble (atributo
+- Agachado se te ve y se te oye peor (`PosturaReglas.alcanceVista`/`alcanceOido`); corriendo, te oyen a `Config.Correr.Oido` (22 en vez de 8, 14.8: `correr.md`). Debajo de un mueble (atributo
   `Cubierto`) solo te notan muy de cerca (`VerCubierto`) y en tu misma parte del mapa, pero te huelen (`oler`/`huele`:
   a `Olfato` studs, `Huele` s hasta saber dónde estás).
 - Si te huelen o te vieron meterte, van al borde del mueble que da `Caza.borde`: frente a ti, corriéndose entre

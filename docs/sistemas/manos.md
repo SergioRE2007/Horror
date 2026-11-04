@@ -11,7 +11,7 @@ Hecho en una sesión en la nube **sin Studio**: las poses salen de cuentas (comp
 
 - Son copias de los brazos R15 de tu avatar (con tu camiseta y tu piel), adelgazadas a 0,42 de grueso (las de verdad miden 1 stud y taparían media pantalla) y con el mismo largo con cualquier avatar. Con R6, un brazo de bloques con manga oscura. Cuelgan de la cámara; los hombros quedan fuera de la vista.
 - Cada mano va hacia un objetivo (la palma: -Z los dedos, +Y el dorso) y el codo sale solo (cinemática inversa de dos huesos). Un muelle la lleva hasta allí; al andar se mecen y quietas respiran.
-- Capas por prioridad: pared 4, aire 5, linterna 10, móvil 20, pistola 25, cargar 30, trepar 35, herramienta 40, cambiar 45, gestos 50, foto 60 y susto 90. Sin capa, bajan fuera de la vista.
+- Capas por prioridad: correr 3 (14.8, `docs/sistemas/correr.md`), pared 4, aire 5, tropiezo 6, linterna 10, móvil 20, pistola 25, cargar 30, trepar 35, herramienta 40, cambiar 45, gestos 50, foto 60 y susto 90. Sin capa, bajan fuera de la vista.
 - Se esconden muerto, escondido, con la mochila abierta y en las cinemáticas (cámara Scriptable), menos el susto al morir.
 
 | Qué | Cómo |
@@ -209,3 +209,9 @@ Números de la vista al principio del módulo.
   devuelve la cámara a Custom si el script la cambia; lanzarlo con `task.delay` y volver enseguida.
 - Probado en Studio (03-11-2026): la mirilla (vista de fuera con el círculo), el Imitador que se pega a la mirilla,
   entre las cortinas, y salir con L (cámara, campo, HUD, carteles y atributos vuelven).
+
+## Orden de cada fotograma (14.8)
+
+Cámara (`CuerpoVista`, Camera + 1), mirilla (`MirarVista`, + 3), manos (+ 5) y luz de la linterna (`EquipoVista`,
++ 6): la luz va ahora después de las manos (antes, en + 4, salía un fotograma tarde y corriendo se torcía hasta 1,5
+grados de la linterna que se ve). Correr con las manos: `docs/sistemas/correr.md`.

@@ -158,10 +158,12 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
   agachado: el cuerpo") y los bichos que huelen y gatean, a mano y de verdad, con dos bichos y con Rendimiento
   (`bichos.md`, "Probar en Studio"). Retocar a ojo las poses de gateo de los cinco bichos.
 - Mirar la vida de espera de los seis bichos (`bichos.md`, "Probar en Studio", paso 1) y el Imitador en la mirilla.
+- Probar correr y aguante (14.8, 04-11-2026, sin Studio): `docs/sistemas/correr.md`, "Probar en Studio" (PC, mando,
+  móvil, dos jugadores, perseguido por cada bicho y escondido cansado).
 
 ### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
 - **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
-- **Segunda tanda (03 y 04-11-2026):** hecho: respiración contenida en el escondite, ver esconderse a los demás, la casa que reacciona más (mecedoras, vajilla, polvo, corriente), agacharse y asomarse (botón también en el móvil), manos en la pared, mirilla y cortinas (probados en Studio el 03-11-2026), y bichos con más vida mientras esperan y esconderse agachado debajo de las mesas con los bichos que huelen y gatean (`manos.md` y `bichos.md`; sin Studio). Idea no hecha: tropezar o frenar al correr cansado (no hay sistema de correr ni de cansancio: preguntar a Sergio).
+- **Segunda tanda (03 y 04-11-2026):** hecho: respiración contenida en el escondite, ver esconderse a los demás, la casa que reacciona más (mecedoras, vajilla, polvo, corriente), agacharse y asomarse (botón también en el móvil), manos en la pared, mirilla y cortinas (probados en Studio el 03-11-2026), y bichos con más vida mientras esperan y esconderse agachado debajo de las mesas con los bichos que huelen y gatean (`manos.md` y `bichos.md`; sin Studio). Tropezar y frenar al correr cansado: hecho en la 14.8.
 
 ### 14.7 Lobby nuevo (pedido por el usuario, 03-11-2026: "es un poco feo")
 - Gasolinera vieja de noche por código, al nivel de la casa y el pueblo: tienda por dentro, marquesina, surtidores, cartel GAS que falla, cabina, coches viejos, bosque y carretera en la niebla; lluvia, relámpagos, luces que fallan, puerta automática, faros y limpias, polillas, algo entre los árboles; cinemática de salida del coche (`docs/sistemas/lobby.md`).
@@ -175,7 +177,7 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 - **Barra:** abajo del todo y centrada, muy fina, blanco desgastado; sale al correr o sin llenar y se va ~1,5 s después de llenarse; rojo oscuro con poco, late agotado. Bajo el `UIScale` del HUD, por encima de la zona segura, fuera en cinemáticas, mirilla y muerte. Banco de Lune.
 - **Que se note:** cámara (balanceo, campo de visión, sacudida al frenar), manos que bracean y linterna que tiembla, los demás se ven correr, pasos más seguidos y fuertes, los bichos te oyen desde más lejos, jadeo y vaho, contener la respiración dura menos si te escondes cansado. Sonido nuevo `Jadeo` (Id 0; mientras, uno provisional). Con Rendimiento, sin campo de visión ni balanceo extra.
 - **Equilibrio:** cuentas de persecución con Lune contra Golpeador (17), Bestia (19) y Acechador (21): sirve para escapar un trecho o llegar a la luz, no para dejar atrás a todos siempre. Paso corto en el tutorial si encaja.
-- **Estado:** pendiente
+- **Estado:** hecho sin Studio (`docs/sistemas/correr.md`): reglas y cuentas con Lune, bancos de la barra, la cámara y las manos con un Roblox de mentira (`tests/bancos`), revisado con `reviewer`. Paso nuevo del tutorial (3/9). Falta verlo en Studio y el sonido `Jadeo` de ElevenLabs.
 
 ### 14.9 Pulido general (propuesto por Claude, 04-11-2026)
 1. Revisión de pulido por áreas con agentes (leer y apuntar, verificar cada hallazgo y arreglar): textos sin `Lang` o sin español y avisos de más de una línea; cosas a medias y warns de la Salida; botones que se tapan en el móvil (también con la barra nueva); lo que no se devuelve tras una cinemática y conexiones sin desconectar; coste por fotograma de los bichos (gateo y vida de espera solo cerca de la cámara). — pendiente
