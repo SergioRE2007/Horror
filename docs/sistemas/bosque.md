@@ -37,6 +37,5 @@ Con bloques grises y animaciones sencillas pero que se noten (pedido por el usua
 ## Pendiente
 
 - Sin probar: herramientas de los demás (2 jugadores), botones del móvil (MÓVIL, SERRAR/CLAVAR), el generador parándose sin gasolina, que un árbol vuelva a crecer.
-- De dónde sale más gasolina: de momento solo los 2 bidones del mapa (llega con el pueblo, paso 7). La madera también es para la chimenea (más adelante).
-- Tablones en las ventanas como defensa extra (diseño: aguantan al Golpeador pero no dejan abrir la persiana para el Raspador): no hecho.
+- El tablón reforzado da más vida (`taller.md`); falta que impida abrir la persiana al Raspador (idea del diseño).
 - Desde el paso 6 se guarda al amanecer (árboles, gasolina, móvil del enchufe, lo suelto): ver `partida.md`.
