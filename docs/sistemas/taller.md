@@ -52,5 +52,5 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 ## Pendiente
 
 - Sin probar: dos jugadores de verdad con el motor, volver al lobby tras huir (solo publicado), móvil.
-- Recompensa e insignia del final (paso 10). Cerrojos del banco del sótano (el diseño los nombra; de momento solo tablón reforzado y trampa).
+- Decidir si la huida tiene insignia (lanzamiento.md); las monedas del final ya se pagan (Recompensas.final, desde Coche). Cerrojos del banco del sótano (el diseño los nombra; de momento solo tablón reforzado y trampa).
 - Sonido propio de motor del coche, cepo y llave inglesa (ElevenLabs); ahora usa los provisionales.
