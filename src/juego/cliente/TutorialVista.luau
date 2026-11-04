@@ -4,7 +4,7 @@
 --   o la cruceta a la derecha: en el ordenador el ratón va bloqueado).
 --   Sobre lo que hay que tocar, una flecha roja grande que sube y baja (a través de las paredes) y un contorno; si no
 --   está en pantalla, otra flecha en el borde que señala hacia dónde girarse.
---   En el móvil, el paso de la mochila señala su botón.
+--   En el móvil, los pasos de la mochila y de correr señalan su botón.
 -- El cliente no decide nada: solo busca lo más cercano de lo que pide el paso para señalarlo.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -36,6 +36,13 @@ local function frase(paso: string): string
 		return Lang.t(nil, "Open your backpack (B).")
 	elseif paso == "Hacha" then
 		return Lang.t(nil, "Find an axe and pick it up.")
+	elseif paso == "Correr" then -- 14.8
+		if Ui.tactil() and not UserInputService.KeyboardEnabled then
+			return Lang.t(nil, "Run to the forest: tap RUN. Running is loud.")
+		elseif UserInputService.GamepadEnabled and not UserInputService.KeyboardEnabled then
+			return Lang.t(nil, "Run to the forest: press L3. Running is loud.")
+		end
+		return Lang.t(nil, "Run to the forest: hold Shift. Running is loud.")
 	elseif paso == "Tronco" then
 		return Lang.t(nil, "Chop down a tree and carry a log.")
 	elseif paso == "Serrar" then
@@ -98,6 +105,10 @@ end
 local function objetivo(paso: string, desde: Vector3): (Instance?, Vector3?)
 	if paso == "Hacha" then
 		return masCerca(desde, conTipo("Objeto", "Hacha"))
+	elseif paso == "Correr" then -- hacia el bosque: el árbol en pie más cercano
+		return masCerca(desde, etiquetados("Arbol", function(arbol)
+			return not arbol:GetAttribute("Talado")
+		end))
 	elseif paso == "Tronco" then
 		if yo:GetAttribute("Cargando") then
 			return nil -- lleva otra cosa: que la suelte él
@@ -311,14 +322,16 @@ local function pintarCartel()
 	end
 end
 
--- El botón MOCHILA del móvil (EquipoVista lo pone en Hud.EquipoBotones con LayoutOrder 4).
-local function botonMochila(): GuiObject?
-	local fila = Ui.hud():FindFirstChild("EquipoBotones", true)
+-- Los botones del móvil en Hud.EquipoBotones: MOCHILA (EquipoVista, LayoutOrder 4) y CORRER (CorrerVista, 7).
+local ORDEN_BOTON = { Mochila = 4, Correr = 7 }
+local function botonDelPaso(paso: string): GuiObject?
+	local orden = ORDEN_BOTON[paso]
+	local fila = orden and Ui.hud():FindFirstChild("EquipoBotones", true)
 	if not fila then
 		return nil
 	end
 	for _, b in fila:GetChildren() do
-		if b:IsA("GuiButton") and b.LayoutOrder == 4 and b.Visible then
+		if b:IsA("GuiButton") and b.LayoutOrder == orden and b.Visible then
 			return b
 		end
 	end
@@ -385,10 +398,10 @@ local function cadaFotograma()
 		end
 	end
 
-	-- En el móvil, la mochila: la flecha encima de su botón.
+	-- En el móvil, la mochila o correr: la flecha encima de su botón.
 	flechaBoton.Visible = false
-	if paso == "Mochila" and Ui.tactil() then
-		local boton = botonMochila()
+	if ORDEN_BOTON[paso] and Ui.tactil() then
+		local boton = botonDelPaso(paso)
 		if boton then
 			local escala = Ui.escala()
 			local arriba = boton.AbsolutePosition + Vector2.new(boton.AbsoluteSize.X / 2, -30 * escala + vaiven * 6 * escala)

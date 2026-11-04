@@ -1,8 +1,8 @@
 -- Tutorial de los primeros minutos (14.2 / 13.1; pedido por el usuario en el primer juego: "tiene que invadir más la
 -- pantalla y que te diga más vistoso dónde clicar"). Sale una vez por cuenta: hasta que lo acaba (premio, el logro
 -- Tutorial de Config.Recompensas) o lo salta. Los pasos y cuándo se pasa de uno a otro, en shared/PasosTutorial.
---   Cada Config.Tutorial.Cada s mira lo de cada jugador con tutorial (mochila, hacha, lo que carga, generador,
---   cortinas de abajo abiertas) y publica el paso en atributos del Player:
+--   Cada Config.Tutorial.Cada s mira lo de cada jugador con tutorial (mochila, hacha, si ha corrido, lo que carga,
+--   generador, cortinas de abajo abiertas) y publica el paso en atributos del Player:
 --     Tutorial = el paso ("Mochila", "Hacha"…; nil = sin tutorial), TutorialFalta = cortinas que quedan por cerrar.
 --   El cliente (TutorialVista) pinta el cartel y la flecha; solo puede pedir saltarlo (remote Tutorial, "Saltar").
 --   Todo lo que da premio lo mira el servidor: el cliente no puede acabarlo antes de tiempo.
@@ -28,7 +28,8 @@ local Tutorial = {}
 type Activo = {
 	estado: PasosTutorial.Estado,
 	mochila: boolean, -- ha abierto la mochila desde que empezó
-	conexion: RBXScriptConnection,
+	corrido: boolean, -- ha corrido desde que empezó (atributo Corriendo, de juego/servidor/Correr): un momento basta
+	conexiones: { RBXScriptConnection },
 }
 
 local activos: { [Player]: Activo } = {}
@@ -36,7 +37,9 @@ local activos: { [Player]: Activo } = {}
 local function quitar(jugador: Player)
 	local a = activos[jugador]
 	if a then
-		a.conexion:Disconnect()
+		for _, c in a.conexiones do
+			c:Disconnect()
+		end
 		activos[jugador] = nil
 	end
 	if jugador.Parent then
@@ -85,6 +88,7 @@ local function mirar()
 			cargando = if type(cargando) == "string" then cargando else nil,
 			generador = generador,
 			cortinas = cortinas,
+			corrido = a.corrido,
 		})
 		if acabado then
 			quitar(jugador)
@@ -108,11 +112,20 @@ local function empezar(jugador: Player)
 	a = {
 		estado = PasosTutorial.nuevo(),
 		mochila = false,
-		conexion = jugador:GetAttributeChangedSignal("MochilaAbierta"):Connect(function()
-			if jugador:GetAttribute("MochilaAbierta") then
-				a.mochila = true
-			end
-		end),
+		corrido = false,
+		conexiones = {
+			jugador:GetAttributeChangedSignal("MochilaAbierta"):Connect(function()
+				if jugador:GetAttribute("MochilaAbierta") then
+					a.mochila = true
+				end
+			end),
+			-- Con la señal (y no mirando cada Cada s) no se escapa una carrera corta.
+			jugador:GetAttributeChangedSignal("Corriendo"):Connect(function()
+				if jugador:GetAttribute("Corriendo") == true then
+					a.corrido = true
+				end
+			end),
+		},
 	}
 	activos[jugador] = a
 end
