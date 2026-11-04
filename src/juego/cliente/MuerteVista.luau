@@ -21,8 +21,10 @@
 --   Te pillan (remote Muerte, con el modelo del bicho que te pilla): la cámara mira a la cara de ese bicho (que ruge y,
 --   si gateaba, se queda en la pose de agarrarte), temblor, destello rojo, grito y sangre en la pantalla; luego negro y
 --   a mirar a los vivos (clic o toque para cambiar, en tercera persona) hasta el amanecer.
---   En un final (atributo Final de workspace: la huida o el incendio llevan la cámara) aquí no se toca la cámara y el
---   aliento y el latido se cortan en seco.
+--   En la escena de un final (atributo EscenaFinal del jugador, solo en este cliente: lo ponen HuidaVista e
+--   IncendioVista mientras llevan la cámara) aquí no se toca la cámara y el aliento y el latido se cortan en seco. No
+--   vale Final de workspace: en el incendio se pone ~17 s antes de la escena (mientras corre el fuego), y si el fuego se
+--   cancela se quita sin que haya escena; hasta que empieza, el escondite sigue siendo el de siempre.
 --   A otro: un charco de sangre donde ha muerto.
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -94,6 +96,11 @@ local mirando: TextLabel
 local latido: Sound?
 local susto = false -- durante el susto nadie más toca la cámara
 local mirado = 0 -- índice del vivo al que miras de muerto
+
+-- ¿Lleva la cámara la escena de un final (la huida, el incendio)?
+local function enEscena(): boolean
+	return jugador:GetAttribute("EscenaFinal") == true
+end
 
 -- La respiración escondido.
 local ahogoLados: ImageLabel -- bordes de más (a los lados y arriba y abajo) que se cierran conteniendo
@@ -305,7 +312,7 @@ local function debajoDeMueble(dt: number): boolean
 	if jugador:GetAttribute("Cubierto") == true then
 		cubiertoVisto = t
 	end
-	local final = workspace:GetAttribute("Final") ~= nil
+	local final = enEscena()
 	if (not cubiertoDesde and t ~= cubiertoVisto) or t - cubiertoVisto >= SALIR_CUBIERTO or susto
 		or jugador:GetAttribute("Muerto") or final then
 		if cubiertoDesde then
@@ -334,9 +341,9 @@ end
 
 local function enEscondite(dt: number)
 	local vista = jugador:GetAttribute("Escondido")
-	-- En un final la escena lleva la cámara (y te saca del escondite: Muerte.sacar): ni se toca, y el aliento y el
-	-- latido se cortan en seco.
-	local final = workspace:GetAttribute("Final") ~= nil
+	-- En la escena de un final la cámara es suya (y el servidor te saca del escondite: Muerte.sacar): ni se toca, y el
+	-- aliento y el latido se cortan en seco.
+	local final = enEscena()
 	if typeof(vista) ~= "CFrame" or susto or final then
 		metiendose = nil
 		if debajoDeMueble(dt) then
@@ -419,7 +426,7 @@ local function cambiarEscondido()
 			latido = nil
 		end
 		cortarAliento(susto) -- si sales a medias, sin soltar el aire
-		if not susto and not workspace:GetAttribute("Final") then -- en un final, la cámara es de la escena
+		if not susto and not enEscena() then -- en la escena de un final, la cámara es suya
 			camara.CameraType = Enum.CameraType.Custom
 		end
 	end
@@ -438,7 +445,7 @@ end
 
 -- De muerto: la cámara sigue a uno de los vivos.
 local function mirarVivos(siguiente: boolean)
-	if not jugador:GetAttribute("Muerto") or susto then
+	if not jugador:GetAttribute("Muerto") or susto or enEscena() then -- en la escena de un final, la cámara es suya
 		mirando.Visible = false
 		return
 	end
@@ -658,7 +665,9 @@ local function meHanPillado(cabeza: Vector3, modelo: Model?)
 		Ui.aviso(Lang.t(nil, "It got you. You'll wake up at dawn."), 5)
 	end)
 	susto = false
-	camara.CameraType = Enum.CameraType.Custom
+	if not enEscena() then -- si entretanto ha empezado la escena de un final, la cámara es suya
+		camara.CameraType = Enum.CameraType.Custom
+	end
 	pcall(mirarVivos, false)
 	TweenService:Create(negro, TweenInfo.new(1.5), { BackgroundTransparency = 1 }):Play()
 	if quitar.capaSangre then
@@ -807,8 +816,8 @@ function MuerteVista.start()
 	end)
 	jugador.CharacterAdded:Connect(function(personaje)
 		-- Reaparecer en medio de un final (al amanecer reviven los muertos) no le quita la cámara a la escena (HuidaVista,
-		-- IncendioVista): ella la devuelve al acabar. Fuera de un final, o si nadie la lleva, la de siempre.
-		if not (workspace:GetAttribute("Final") and camara.CameraType == Enum.CameraType.Scriptable) then
+		-- IncendioVista): ella la devuelve al acabar. Si no hay escena, la de siempre.
+		if not enEscena() then
 			camara.CameraType = Enum.CameraType.Custom
 		end
 		camara.CameraSubject = personaje:WaitForChild("Humanoid")
