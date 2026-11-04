@@ -1143,6 +1143,8 @@ do
 		"esconderse: tiempos y vista razonables")
 	igual(CP.FueraBestia >= CP.Fuera and CP.Fuera > 1.5 and CP.CercaBorde > 1 and CP.SeEscapa > CP.CercaBorde, true,
 		"esconderse: se para fuera del mueble y le alcanza al borde")
+	igual(CP.FueraRaspador >= CP.Fuera and CP.FueraTrepador >= CP.Fuera and CP.FueraBestia < 6, true,
+		"esconderse: los que sacan brazos o cabeza se paran algo más lejos, sin pasarse")
 	igual(CP.Atasco > 0 and CP.MaxOlor > 0 and CP.MaxOlor < CP.Huele and CP.Ancho > 0.5 and CP.Ancho < 2, true,
 		"esconderse: atasco, olor de una vez y anchura razonables")
 	igual(CP.SinSalida > CP.Atasco and CP.SinSalida < 120, true, "esconderse: un borde sin salida se vuelve a probar al rato")
@@ -1172,6 +1174,47 @@ do -- Caza.borde: por dónde se mete el bicho debajo de un mueble (sacada del te
 	local b3, c3 = borde(caja, estrecha, V3.new(0, 1, 2.9), lejos, 2.5, function(b) return b.Z > 3.5 end)
 	igual(b3, V3.new(0, 0, 5.5), "debajo: lado corto, en medio")
 	igual(c3, V3.new(0, 0, 3), "debajo: la cara, en la boca del hueco")
+end
+
+do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y workspace:Raycast no los ve)
+	local roblox = require("@lune/roblox")
+	local V3, CF = roblox.Vector3, roblox.CFrame
+	local zonas = {}
+	local MR = luau.load(fs.readFile("src/juego/cliente/MuebleRayo.luau"), { debugName = "MuebleRayo", environment = {
+		game = { GetService = function() return { GetTagged = function() return zonas end } end },
+		workspace = { Raycast = function() return nil end },
+		Vector3 = V3,
+		CFrame = CF,
+	} })()
+	local caja = { cf = CF.new(0, 3, 0) * CF.Angles(0, math.pi / 4, 0), medio = V3.new(2, 0.5, 2), pieza = {} }
+	local t = MR.entra(caja, V3.new(0, 0, 0), V3.new(0, 5, 0))
+	igual(t ~= nil and math.abs(t - 0.5) < 1e-6, true, "mueble: rayo hacia arriba entra por abajo")
+	igual(MR.entra(caja, V3.new(0, 3, 0), V3.new(0, 5, 0)), nil, "mueble: si empieza dentro no lo ve (como Raycast)")
+	igual(MR.entra(caja, V3.new(3, 0, 0), V3.new(0, 5, 0)), nil, "mueble: por fuera de la caja girada no da")
+	igual(MR.entra(caja, V3.new(0, 0, 0), V3.new(0, 2, 0)), nil, "mueble: rayo corto que no llega")
+	-- La mesa del comedor como en Mapa: zona Debajo, mueble con Tam y pivote, y la caja Choque de una pata en su casa.
+	local esPieza = function(_, c) return c == "BasePart" end
+	local pivote = CF.new(-25.5, 1, -15) * CF.Angles(0, math.pi / 2, 0)
+	local pataCF = pivote * CF.new(-4.88, 1.42, -1.6)
+	local pata = { Name = "Choque", CFrame = pataCF, Position = pataCF.Position, Size = V3.new(0.68, 2.84, 0.45), IsA = esPieza }
+	local casa = { GetChildren = function() return { pata } end }
+	local mueble = {
+		Name = "MesaComedorPH",
+		Parent = casa,
+		IsA = function(_, c) return c == "Model" end,
+		GetPivot = function() return pivote end,
+		GetAttribute = function(_, k) return if k == "Tam" then V3.new(13, 3.51, 5.56) else nil end,
+	}
+	local zonaCF = pivote * CF.new(0, 1.42, 0.035)
+	table.insert(zonas, { Name = "Debajo", Parent = mueble, CFrame = zonaCF, Position = zonaCF.Position, Size = V3.new(9.08, 2.84, 2.81), IsA = esPieza })
+	local cajas = MR.cajas(V3.new(-25.5, 1, -15), 10)
+	igual(#cajas, 2, "mueble: el tablero de la zona y la pata de su casa")
+	-- Bajo el voladizo del lado largo (la zona llega a 1,4 del centro y el tablero a 2,78): ve el tablero a 2,84.
+	local g = MR.rayo(V3.new(-25.5 - 2.6, 1.4, -15), V3.new(0, 4.5, 0), {} :: any, cajas)
+	igual(g ~= nil and math.abs(g.Position.Y - 3.84) < 1e-3 and g.Instance == mueble, true,
+		"mueble: el tablero entero, hasta el borde que se ve")
+	igual(MR.rayo(V3.new(-25.5 - 3, 1.4, -15), V3.new(0, 4.5, 0), {} :: any, cajas), nil, "mueble: fuera del tablero, nada")
+	igual(#MR.cajas(V3.new(30, 1, 30), 5), 0, "mueble: lejos, ninguna caja")
 end
 
 print(`Todo bien: {comprobaciones} comprobaciones.`)
