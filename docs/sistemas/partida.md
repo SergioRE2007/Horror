@@ -59,7 +59,13 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
   cámara de Roblox y no toca la Scriptable.
 - Bancos de Lune: `tests/bancos/muerte.luau` (Final sin escena, escena con el susto y, en el servidor, que no se
   esconde en la escena y sí con Final y sin ella) y `tests/bancos/escenas.luau` (MovilUi y MochilaUi de verdad, con EscenaFinal, escondite y Vistazo).
-- Probar en Studio (sin probar). Antes, en Edit: que Rojo ha sincronizado (`string.find(<script>.Source, "EscenaFinal")`
+- Probado en Studio con un jugador (04-11-2026, todo bien y sin errores): escondido durante el fuego (E sale a Custom),
+  fuego cancelado escondido, escena del incendio entera (Bestia atrapada con `Preparar`, `Esperar`, llevarla al sótano
+  y `Palanca`; sale del escondite, anclado, sin puntero, E no esconde), huida con la mochila abierta (se cierra, B y M
+  no abren, `Esconder` rechazado), no revive con `Final` y sí al fracasar de día, susto justo antes de la escena
+  (`Remotes.Muerte:FireClient` y luego `Incendio "Final"`: la cámara sigue en la escena). La mochila no se abre
+  escondido, a propósito (`MochilaUi.abrir`). Falta lo de dos jugadores (Test → Clients and Servers), la mirilla con
+  el tutorial y sustos seguidos sin mover el ratón. Antes, en Edit: que Rojo ha sincronizado (`string.find(<script>.Source, "EscenaFinal")`
   no da nil en `MuerteVista`, `HuidaVista`, `IncendioVista`, `MovilUi`, `MochilaUi` y `CorrerVista`). Al acabar cada
   escena: `LocalPlayer:GetAttribute("EscenaFinal")` vuelve a nil y `CameraType` es Custom; errores con
   `LogService:GetLogHistory()`.
