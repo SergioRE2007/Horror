@@ -23,7 +23,9 @@ return {
 	["No batteries left."] = "No te quedan pilas.",
 	["No film left."] = "No te quedan carretes.",
 	["Flashlight"] = "Linterna",
-	["{n} photos"] = "{n} fotos",
+	["{n} photos  +{spare}"] = "{n} fotos  +{spare}",
+	["1 photo  +{spare}"] = "1 foto  +{spare}",
+	["Flash"] = "Flash",
 	["Battery"] = "Pila",
 	["Film"] = "Carrete",
 	["Can"] = "Lata",
@@ -109,6 +111,7 @@ return {
 	["No flares left."] = "No te quedan bengalas.",
 	["You don't have a flare gun."] = "No llevas pistola de bengalas.",
 	["{n} flares"] = "{n} bengalas",
+	["1 flare"] = "1 bengala", -- la de BengalasVista con la última (14.9.1)
 	["Light"] = "Prender",
 	["The trail isn't ready yet."] = "El rastro aún no está listo.",
 	["It must be locked in the basement first."] = "Antes tiene que estar encerrada en el sótano.",

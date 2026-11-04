@@ -146,6 +146,11 @@ local function actualizarLuces()
 				luz.punto.CFrame = if mano then CFrame.new(0, -0.55, 0) * CFrame.Angles(math.rad(-90), 0, 0)
 					else CFrame.new(0.4, -0.3, -0.6)
 			end
+			-- En las cinemáticas (Huida, Incendio) los demás se esconden: su haz saldría de una mano que no se ve. Mirando
+			-- por la mirilla o las cortinas (Vistazo) o desde el escondite (Escondido) la cámara también es de script, y
+			-- ahí sí se ve a los demás con su luz.
+			luz.foco.Enabled = not (camara.CameraType == Enum.CameraType.Scriptable and jugador:GetAttribute("Vistazo") == nil
+				and typeof(jugador:GetAttribute("Escondido")) ~= "CFrame")
 		end
 		local pila = otro:GetAttribute("Pila") or 1
 		local brillo = L.Brillo
@@ -178,8 +183,10 @@ local function mostrarCartel()
 	barra.Size = UDim2.fromScale(math.clamp(pila, 0, 1), 1)
 	barra.BackgroundColor3 = if pila < L.Poca then Ui.Color.Sangre else Ui.Color.Hueso
 	repuesto.Text = "+" .. tostring(jugador:GetAttribute("Pilas") or 0)
-	fotos.Text = Ui.mayusculas(Lang.t(nil, "{n} photos", { n = jugador:GetAttribute("Fotos") or 0 }))
-		.. "  +" .. tostring(jugador:GetAttribute("Carretes") or 0)
+	-- Una frase entera con el repuesto de carretes dentro, y en singular con la última foto.
+	local quedan = jugador:GetAttribute("Fotos") or 0
+	fotos.Text = Ui.mayusculas(Lang.t(nil, if quedan == 1 then "1 photo  +{spare}" else "{n} photos  +{spare}",
+		{ n = quedan, spare = jugador:GetAttribute("Carretes") or 0 }))
 	TweenService:Create(cartel, TweenInfo.new(0.25), { GroupTransparency = 0 }):Play()
 	task.delay(3.05, function()
 		if os.clock() >= cartelHasta then
@@ -314,7 +321,12 @@ local function crearHud()
 		local fila = Instance.new("Frame")
 		fila.Name = "EquipoBotones"
 		fila.AnchorPoint = Vector2.new(1, 1)
-		fila.Position = UDim2.new(0.8, 0, 0.97, -Ui.zonaSegura())
+		-- Se recoloca si cambia la zona segura (al girar el teléfono), igual que la barra del aguante de debajo.
+		local function colocarFila()
+			fila.Position = UDim2.new(0.8, 0, 0.97, -Ui.zonaSegura())
+		end
+		colocarFila()
+		hud:GetPropertyChangedSignal("AbsoluteSize"):Connect(colocarFila)
 		fila.Size = UDim2.fromOffset(4 * 108 + 3 * 8, 2 * 80 + 8)
 		fila.BackgroundTransparency = 1
 		local orden = Instance.new("UIGridLayout")
@@ -325,7 +337,7 @@ local function crearHud()
 		orden.StartCorner = Enum.StartCorner.BottomRight
 		orden.SortOrder = Enum.SortOrder.LayoutOrder
 		orden.Parent = fila
-		for i, datos in { { "FLASH", pedirFlash }, { Lang.t(nil, "Flashlight"), pedirLinterna } } do
+		for i, datos in { { Lang.t(nil, "Flash"), pedirFlash }, { Lang.t(nil, "Flashlight"), pedirLinterna } } do
 			local boton = Ui.boton(datos[1], { LayoutOrder = i })
 			Ui.queQuepa(boton, 24) -- FLASHLIGHT no cabe entero a 24
 			boton.Activated:Connect(datos[2])
