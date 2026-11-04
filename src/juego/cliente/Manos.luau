@@ -317,7 +317,7 @@ local function conTemblor(lado: string, b: Brazo, t: number): CFrame
 end
 
 -- Dónde está ahora esa cosa respecto a la cámara (nil si no está en la mano). Para la luz de la linterna: con el
--- temblor de ahora (la luz se pone antes que las manos en cada fotograma y así van juntas).
+-- temblor de ahora (EquipoVista pone la luz justo después de las manos en cada fotograma y así van juntas).
 function Manos.dondeCosa(nombre: string): CFrame?
 	for _, lado in LADOS do
 		local b = brazos[lado]

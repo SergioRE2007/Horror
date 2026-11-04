@@ -366,8 +366,10 @@ function EquipoVista.start()
 		end)
 	end
 	Remotes.Flash.OnClientEvent:Connect(destello)
-	-- Después de lo que mueve la cámara (Camera + 1: CuerpoVista, temblores) y antes de las manos (Camera + 5).
-	RunService:BindToRenderStep("Linterna", Enum.RenderPriority.Camera.Value + 4, actualizarLuces)
+	-- Después de lo que mueve la cámara (Camera + 1: CuerpoVista, temblores) y de las manos (Camera + 5): así la luz
+	-- sale de la linterna tal como se pinta en este fotograma (antes iba un fotograma tarde y, corriendo, el haz se
+	-- torcía hasta 1,5° de la linterna, tanto como su temblor; lo vio el banco correr-manos).
+	RunService:BindToRenderStep("Linterna", Enum.RenderPriority.Camera.Value + 6, actualizarLuces)
 end
 
 return EquipoVista
