@@ -80,6 +80,9 @@ local function terminar()
 	Recompensas.finalBestia(B.Cinematica)
 	for _, j in Players:GetPlayers() do
 		Cargar.soltar(j)
+		-- La mochila, cerrada: abierta, su desenfoque y la mochila 3D salían delante de la cámara de la escena.
+		j:SetAttribute("MochilaAbierta", nil)
+		Cargar.ajustarVelocidad(j)
 		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz then
 			raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena
