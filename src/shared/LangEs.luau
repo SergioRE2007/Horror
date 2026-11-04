@@ -111,7 +111,7 @@ return {
 	["No flares left."] = "No te quedan bengalas.",
 	["You don't have a flare gun."] = "No llevas pistola de bengalas.",
 	["{n} flares"] = "{n} bengalas",
-	["1 flare"] = "1 bengala", -- la de BengalasVista con la última (14.9.1)
+	["1 flare"] = "1 bengala", -- la de BengalasVista con la última
 	["Light"] = "Prender",
 	["The trail isn't ready yet."] = "El rastro aún no está listo.",
 	["It must be locked in the basement first."] = "Antes tiene que estar encerrada en el sótano.",
@@ -123,8 +123,7 @@ return {
 	["There's already fuel here."] = "Aquí ya hay gasolina.",
 	["The fuel trail now runs to the porch."] = "El rastro de gasolina ya llega al porche.",
 	["The gate is already in place."] = "La reja ya está puesta.",
-	["The gate is ready. The lever is outside, by the hatch."] = "La reja está lista. La palanca está fuera, junto a la trampilla.",
-	["The gate is ready. Pull the lever by the hatch."] = "La reja está lista. Tira de la palanca de la trampilla.", -- la de Preparativos, más corta (14.9.1)
+	["The gate is ready. Pull the lever by the hatch."] = "La reja está lista. Tira de la palanca de la trampilla.",
 	["The gate fell with nothing behind it."] = "La reja ha caído y no había nada detrás.",
 	["There's no gate to drop."] = "No hay ninguna reja que soltar.",
 	["Not yet. Wait for her."] = "Todavía no. Espérala.",
