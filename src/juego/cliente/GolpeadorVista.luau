@@ -119,6 +119,9 @@ local APARTA = { Cerca = 10, Cada = 0.5, Max = 1.6, Sube = 9, Baja = 2.5, Holgur
 -- (La cabeza va de lado: la mandíbula sobresale `Boca` hacia el lado del brazo que mete; al otro, `Ancho`.)
 local CABEZA_FONDO = { Bajo = 0.2, Alto = 2.5, Ancho = 0.8, Boca = 1.5, Delante = 1 }
 local BORDE_HOLGURA = 0.2 -- studs: se toma el borde del tablero un poco antes de donde está
+-- De pie, la punta de las garras al menos a esto del suelo (studs; su caja baja ~0,03 más), adelantando el brazo como
+-- mucho estos radianes (garrasSobreSuelo).
+local GARRAS_SUELO, GARRAS_ADELANTA = 0.06, 0.6
 
 local jugador = Players.LocalPlayer
 local azar = Random.new()
@@ -680,6 +683,36 @@ local function apartarBrazos(b: Bicho, dt: number, aparta: { number })
 	end
 end
 
+-- Con los brazos de pie ya puestos este fotograma: si las garras de alguno bajan del suelo, lo adelanta desde el hombro
+-- lo justo para que no. Esperando cerca, al soltar el aire con el peso de ese lado (el torso baja y se ladea, y los
+-- hombros caen) la punta de los brazos, que cuelgan casi hasta el suelo, se metía ~0,18 en él (comprobado con Lune).
+local function garrasSobreSuelo(b: Bicho)
+	local m = b.motores
+	local torso = m.Torso.C0 * m.Torso.Transform * m.Torso.C1:Inverse()
+	for _, lado in LADOS do
+		local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
+		local base = torso * motor.C0
+		local puntaEnBrazo = motor.C1.Position + GARRAS
+		-- Altura de la punta de las garras sobre el suelo con el brazo adelantado `extra` radianes más desde el hombro.
+		local function punta(extra: number): number
+			return (base * CFrame.Angles(extra, 0, 0) * motor.Transform * motor.C1:Inverse() * puntaEnBrazo).Y + ALTURA
+		end
+		if punta(0) >= GARRAS_SUELO or punta(GARRAS_ADELANTA) <= punta(0) then
+			continue
+		end
+		local lo, hi = 0, GARRAS_ADELANTA
+		for _ = 1, 8 do
+			local medio = (lo + hi) / 2
+			if punta(medio) < GARRAS_SUELO then
+				lo = medio
+			else
+				hi = medio
+			end
+		end
+		motor.Transform = CFrame.Angles(hi, 0, 0) * motor.Transform
+	end
+end
+
 -- El gateo: con Gatea y GateaHora en el modelo, se echa al suelo y mete la cabeza y un brazo por debajo del mueble,
 -- encima de la postura de siempre (que ya está en las juntas este fotograma); sin ellos, saca la cabeza y se levanta.
 -- La cara sigue un camino: baja por fuera del borde y solo entra por debajo cuando está abajo (si no, al doblarse, la
@@ -1036,6 +1069,8 @@ local function animar(dt: number)
 			+ (if rugiendo then 0.6 + 0.1 * math.sin(ahora * 30) else 0)
 			+ vida * (0.12 * math.max(0, -aire) + (if teMira then 0.25 else 0))
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
+
+		garrasSobreSuelo(b)
 
 		-- Sin atravesar el tablero de la mesa de al lado: la postura de pie (de la que sale y a la que vuelve al gatear) y,
 		-- por si acaso, lo que quede después de gatear (al echarse y al levantarse, a medio camino entre las dos). Solo
