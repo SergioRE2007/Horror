@@ -323,9 +323,10 @@ end
 
 local function abrir()
 	-- Lo mismo que mira el servidor (Mochila.abrir): si la rechaza, el atributo no cambia y aquí no se enteraría. Y no
-	-- en una cinemática (la cámara la lleva un script): el desenfoque y la mochila 3D saldrían en la escena final.
+	-- en la escena de un final (EscenaFinal: la huida o el incendio llevan la cámara): el desenfoque y la mochila 3D
+	-- saldrían en ella. Por la mirilla o las cortinas sí se abre (MirarVista deja de mirar con MochilaAbierta).
 	if abierta or jugador:GetAttribute("Muerto") or jugador:GetAttribute("Escondido") or jugador:GetAttribute("Cargando")
-		or jugador:GetAttribute("Trabajando") or camara.CameraType ~= Enum.CameraType.Custom then
+		or jugador:GetAttribute("Trabajando") or jugador:GetAttribute("EscenaFinal") then
 		return
 	end
 	abierta = true
@@ -518,10 +519,10 @@ function MochilaUi.start()
 			Remotes.Mochila:FireServer("Abrir", false)
 		end
 	end)
-	-- Empieza una cinemática (la huida, el incendio…) con la mochila abierta: se cierra, como la pistola de bengalas
-	-- (BengalasVista.libre). Si no, el desenfoque, el campo de visión cerrado y la mochila 3D seguían en la escena.
-	camara:GetPropertyChangedSignal("CameraType"):Connect(function()
-		if abierta and camara.CameraType ~= Enum.CameraType.Custom then
+	-- Empieza la escena de un final (la huida, el incendio) con la mochila abierta: se cierra, como la pistola de
+	-- bengalas (BengalasVista.libre). Si no, el desenfoque, el campo de visión cerrado y la mochila 3D seguían en ella.
+	jugador:GetAttributeChangedSignal("EscenaFinal"):Connect(function()
+		if abierta and jugador:GetAttribute("EscenaFinal") then
 			cerrar(true)
 		end
 	end)
