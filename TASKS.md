@@ -167,7 +167,11 @@ Lo que puede romper una partida o atascar al jugador:
    puerta al momento (hoja abierta con `CanQuery` false, cerrada true); P abre y cierra los ajustes; K dos veces salta
    el tutorial (la primera pregunta). Falta la V (revivir), que pide dos jugadores.
 4. Muerte con el bicho que pilla: la escena enfoca al que gatea; morir gateando deja `Gatea` a nil; tras revivir vuelve a
-   tardar en olerte. `bichos.md`, "Probar en Studio", pasos 5 y 6.
+   tardar en olerte. `bichos.md`, "Probar en Studio", pasos 5 y 6. Probado con un jugador el 04-11-2026 (bien, sin
+   errores): el Golpeador gatea y pilla a los 2 s, la escena le enfoca (12°, 2,7 studs) y se queda en el suelo en el
+   susto; con `Health = 0` mientras gatea, `Gatea`/`GateaHora` a nil en 0,09 s. Falta con dos jugadores: que siga su
+   ronda tras matar a uno, volver a tardar en olerte tras revivir (con uno solo se revive al amanecer, sin bichos) y
+   dos bichos que no gatean por el mismo borde (el Raspador no llegó a la mesa).
 5. Correr con los bichos: perseguido por cada uno, el ruido, escondido cansado, morir corriendo, el remote a lo bruto.
    `correr.md`, "Probar en Studio", pasos 2, 8, 9 y 12.
 6. Caminos de los bichos (`Caza`): sin tirones, recalcula en ≤1 s si algo tapa, sin errores al amanecer; y las puertas
