@@ -25,6 +25,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
@@ -745,6 +746,12 @@ local function escena(segundos: number, devolver: { () -> () })
 		negro:Destroy()
 	end)
 
+	-- Sin la primera persona de Roblox el puntero del ratón queda suelto: fuera mientras dura (como HuidaVista).
+	local raton = UserInputService.MouseIconEnabled
+	alAcabar(function()
+		UserInputService.MouseIconEnabled = raton
+	end)
+	UserInputService.MouseIconEnabled = false
 	camara.CameraType = Enum.CameraType.Scriptable
 	alAcabar(function()
 		camara.CameraType = Enum.CameraType.Custom
