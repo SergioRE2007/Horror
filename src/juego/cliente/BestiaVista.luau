@@ -444,7 +444,8 @@ local function medirMueble(b: Bicho, punto: Vector3): (number, number, number, {
 	local muebles = MuebleRayo.cajas(suelo, largo + 8)
 	local patas: { MuebleRayo.Caja } = {}
 	for _, c in muebles do
-		if c.pieza:IsA("BasePart") then -- (el tablero es el mueble: con el hueco bajo, el brazo lo rozaría y no barrería)
+		-- (no el tablero, que es el mueble, o la zona si no tiene: con el hueco bajo, el brazo lo rozaría y no barrería)
+		if c.pieza.Name == "Choque" then
 			table.insert(patas, c)
 		end
 	end
