@@ -422,6 +422,7 @@ function Casa.start()
 				for el, e in estados do
 					if e.bloqueada then
 						e.bloqueada = false
+						puertasSinLlave = nil
 						publicar(el)
 					end
 				end
