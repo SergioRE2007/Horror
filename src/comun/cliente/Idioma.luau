@@ -50,6 +50,8 @@ function Idioma.start()
 			local codigo = Lang.deLocale(traductor.LocaleId)
 			Lang.set(codigo)
 			Remotes.Idioma:FireServer(codigo)
+			-- Si ha tardado más de ESPERA, las capas ya tienen el AutoLocalize del idioma de la cuenta: se rehace.
+			autoLocalize()
 			traductor:GetPropertyChangedSignal("LocaleId"):Connect(function()
 				cambiar(Lang.deLocale(traductor.LocaleId))
 			end)

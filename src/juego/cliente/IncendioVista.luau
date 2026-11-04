@@ -1,4 +1,5 @@
 -- El incendio de la casa y la escena final de la Bestia (servidor: Incendio, remote Incendio). Todo local.
+--   ("Apagar"): el fuego se ha cancelado antes del final (han muerto todos o ha amanecido): se quita todo.
 --   ("Prender", camino, porSala, inicio): el fuego corre del porche por el rastro y por los puntos de gasolina, uno cada
 --     porSala s, y desde ellos se come la casa entera (pedido por el usuario: "el fuego se ve pequeño"):
 --       - cada punto, una hoguera que llena la sala;
@@ -25,6 +26,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Sonido = require(script.Parent.Sonido)
@@ -549,15 +551,31 @@ local function tejadoQueCae(casa: Instance, padre: Instance, alAcabar: (() -> ()
 	local original = tejado :: BasePart
 	local copia = original:Clone()
 	for _, d in copia:GetDescendants() do
-		if not (d:IsA("BasePart") or d:IsA("Texture") or d:IsA("Decal") or d:IsA("SpecialMesh")) then
+		if d:IsA("Decal") then -- también las Texture (heredan de Decal): las tejas, chamuscadas como la pieza
+			d.Color3 = d.Color3:Lerp(Color3.new(), 0.6)
+		elseif not (d:IsA("BasePart") or d:IsA("SpecialMesh")) then
 			d:Destroy()
 		end
 	end
 	copia.Color = copia.Color:Lerp(Color3.new(), 0.6) -- chamuscado
 	copia.Parent = padre
+	-- El de verdad se esconde con sus tejas: el LocalTransparencyModifier de la pieza no esconde sus Texture ni Decal
+	-- (se quedarían pintadas en su sitio mientras la copia se hunde).
+	local tejas: { Decal } = {}
+	for _, d in original:GetDescendants() do
+		if d:IsA("Decal") then
+			table.insert(tejas, d)
+		end
+	end
 	original.LocalTransparencyModifier = 1
+	for _, d in tejas do
+		d.LocalTransparencyModifier = 1
+	end
 	alAcabar(function()
 		original.LocalTransparencyModifier = 0
+		for _, d in tejas do
+			d.LocalTransparencyModifier = 0
+		end
 	end)
 	-- La cumbrera y lo de encima (crestería, pinchos): se esconden al hundirse, como si ardieran.
 	local cumbre: { BasePart } = {}
@@ -700,6 +718,7 @@ local function escena(segundos: number, devolver: { () -> () })
 	local negro = Instance.new("ScreenGui")
 	negro.Name = "Final"
 	negro.IgnoreGuiInset = true
+	negro.ResetOnSpawn = false -- si reapareces en medio (al amanecer reviven los muertos), que se siga viendo el final
 	negro.DisplayOrder = 100
 	local fondo = Instance.new("Frame")
 	fondo.Size = UDim2.fromScale(1, 1)
@@ -842,9 +861,40 @@ local function escena(segundos: number, devolver: { () -> () })
 	end
 end
 
+-- El fuego se ha cancelado (han muerto todos mientras corría o ha amanecido): todo como antes de prender.
+local function apagar()
+	if enMarcha then
+		return
+	end
+	if bucle then
+		bucle:Disconnect()
+		bucle = nil
+	end
+	if carpeta then
+		carpeta:Destroy() -- llamas, humo, luces y sonidos cuelgan de aquí
+		carpeta = nil
+	end
+	table.clear(focos)
+	table.clear(fuera)
+	for modelo in rotas do
+		local cristal = modelo:FindFirstChild("Cristal")
+		if cristal and cristal:IsA("BasePart") then
+			-- Como lo pinta CasaVista: roto por un bicho, sigue sin verse.
+			local roto = (modelo:GetAttribute("Cristal") or 0) >= Config.Casa.GolpesCristal
+			cristal.LocalTransparencyModifier = if roto then 1 else 0
+		end
+	end
+	table.clear(rotas)
+	envuelta = false
+	horaFuera = math.huge
+	fuerzaLuz = 1
+end
+
 function IncendioVista.start()
 	Remotes.Incendio.OnClientEvent:Connect(function(que, a, b, c)
-		if que == "Prender" and type(a) == "table" and #a >= 2 and type(b) == "number" and type(c) == "number" then
+		if que == "Apagar" then
+			apagar()
+		elseif que == "Prender" and type(a) == "table" and #a >= 2 and type(b) == "number" and type(c) == "number" then
 			prender(a, b, c)
 		elseif que == "Final" and type(a) == "number" and not enMarcha then
 			enMarcha = true

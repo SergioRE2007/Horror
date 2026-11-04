@@ -101,10 +101,17 @@ local function raizDe(jugador: Player): BasePart?
 	return personaje and personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
 end
 
--- A salvo: cerca de la luz de la casa o bajo tierra (el sótano y su escalera están debajo de la casa, no en el bosque:
--- ahí no pinta "Run. Get back to the light.").
+-- El garaje pegado a la cocina (Mapa, construirGaraje), paredes incluidas: x1, x2, z1, z2. No está en
+-- Config.Casa.Anexos (lo usan otros sistemas, Fachada entre ellos), pero es una sala cerrada de la casa.
+local GARAJE = { -59.5, -39, 2.5, 33.5 }
+
+-- A salvo: dentro de la casa (la torre, los anexos y las esquinas se salen del radio de la luz), en el garaje, cerca de
+-- la luz de la casa o bajo tierra (el sótano y su escalera están debajo de la casa, no en el bosque: ahí no pinta
+-- "Run. Get back to the light.").
 local function aSalvo(posicion: Vector3): boolean
-	return plano(posicion).Magnitude < A.Refugio or posicion.Y < -2
+	local g = GARAJE
+	local enGaraje = posicion.X > g[1] and posicion.X < g[2] and posicion.Z > g[3] and posicion.Z < g[4]
+	return Caza.dentroDeCasa(posicion) or enGaraje or plano(posicion).Magnitude < A.Refugio or posicion.Y < -2
 end
 
 -- ¿Ya es hora? De noche, o en los últimos segundos del día (cuando suena el aviso de que se pone el sol).
@@ -251,7 +258,11 @@ function Acechador.atacar(jugador: Player)
 	local a: Ataque = { bicho = nil, hilo = nil, prisa = false, presa = jugador }
 	ataques[a] = true
 	a.hilo = task.spawn(function()
-		ataque(a)
+		-- Con pcall: si el ataque falla, el bicho se quita igual (si no, se quedaba en el mapa y en `ataques` para siempre).
+		local ok, fallo = pcall(ataque, a)
+		if not ok then
+			warn("[Acechador] " .. tostring(fallo))
+		end
 		terminar(a)
 	end)
 end

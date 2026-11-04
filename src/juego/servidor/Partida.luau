@@ -56,6 +56,8 @@ local semilla = 0
 local idos: { [string]: boolean } = {} -- UserIds que se han ido en esta sesión (lo suyo cayó al suelo)
 local guardando = false
 local acabada = false
+local cerrando = false -- el servidor se está cerrando (BindToClose)
+local cargandoPartida = false -- cogiendo el candado de la partida
 local esperaDueno = 0 -- sube cada vez que el dueño se va: una espera vieja no acaba la partida
 local almacenPrueba = nil
 
@@ -297,6 +299,12 @@ function Partida.start(): number
 		end
 	end)
 	game:BindToClose(function()
+		cerrando = true
+		-- Si aún está cogiendo el candado, se espera: al acabar lo suelta él (abajo) sin escribir nada nuevo.
+		local inicio = os.clock()
+		while cargandoPartida and os.clock() - inicio < Config.Guardado.Cierre do
+			task.wait(0.1)
+		end
 		guardar(true)
 	end)
 
@@ -342,7 +350,19 @@ function Partida.start(): number
 		aviso = warn,
 	}
 	-- `op` solo cuando ya es nuestra: un cierre a media carga no debe escribir nada (borraría la partida).
-	local estado, guardado = Candado.cargar(opciones)
+	cargandoPartida = true
+	local cargado, estado, guardado = pcall(Candado.cargar, opciones)
+	cargandoPartida = false
+	if not cargado then
+		warn("[Partida] " .. tostring(estado))
+		estado, guardado = "fallo", nil
+	end
+	if estado == "ok" and cerrando then
+		-- El servidor se cierra mientras la cogía: soltarla tal cual estaba (si no, la ranura quedaba cogida hasta
+		-- que el candado caducara, Config.Guardado.Caduca).
+		Candado.guardar(opciones, guardado, true, Config.Guardado.Intentos)
+		return 1
+	end
 	if estado ~= "ok" then
 		acabar(if estado == "ocupado" then "This game is still open in another server. Try again in a minute."
 			else "The game could not be loaded. Try again in a minute.")

@@ -123,9 +123,11 @@ function AmbienteMiedo.start()
 			kFondo = acercar(kFondo, if noche and dentro then 1 else 0, CFG.FondoSubir, CFG.FondoBajar, dt)
 			ajustar(fondo, fondoBase, kFondo)
 
-			-- Cinemática o muerte: cámara Scriptable sin estar escondido (escondido también lo es, pero ahí sí suena).
+			-- Cinemática o muerte: cámara Scriptable sin estar escondido (escondido también lo es, pero ahí sí suena; y
+			-- mirando por la mirilla o entre las cortinas, atributo local Vistazo de MirarVista, también).
 			local escondido = typeof(jugador:GetAttribute("Escondido")) == "CFrame"
 			local cine = camara.CameraType == Enum.CameraType.Scriptable and not escondido
+				and not jugador:GetAttribute("Vistazo")
 			local meta = 0
 			if not cine and not jugador:GetAttribute("Muerto") then
 				meta = tensionBichos(p, dentro) * (if escondido then CFG.TensionEscondido else 1)

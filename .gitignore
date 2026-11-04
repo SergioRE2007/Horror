@@ -11,3 +11,4 @@ sourcemap.json
 node_modules/
 graphify-out/
 __pycache__/
+roblox.yml

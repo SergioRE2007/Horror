@@ -32,10 +32,11 @@
   `LevelOfDetail = StreamingMesh`. Ajustes propuestos para el lugar: `StreamingIntegrityMode = MinimumRadiusPause`,
   `StreamingMinRadius = 128`, `StreamingTargetRadius = 384`, `ModelStreamingBehavior` y `StreamOutBehavior` por defecto.
   Sin encender todavía. Riesgos que hay que arreglar antes (no son de los generadores del mapa):
-  - Los bichos de `workspace.Bichos` (Caza) no son `Atomic`: las vistas del cliente los preparan al llegar (`ChildAdded`) y
-    con el mapa por partes llegarían sin piezas. Ponerlos `Atomic` y que cada vista limpie lo suyo cuando el modelo se va.
-  - Al morir y mirar a otro jugador (MuerteVista) la cámara se va lejos, pero el mapa se carga alrededor del muerto: el
-    servidor debe poner `jugador.ReplicationFocus` en el jugador al que mira (y quitarlo al revivir).
+  - Los bichos ya son `Atomic` (`Cuerpo.nuevo`, revisado el 03-11-2026): llegan enteros. Las vistas de los bichos ya
+    aguantan un `nil` en sus remotes (sin cargar, el modelo o la ventana llegan como nil). Falta mirar que cada vista
+    limpie lo suyo cuando el modelo se va lejos (StreamOut) y vuelva a prepararlo al volver.
+  - Hecho (03-11-2026): al morir y mirar a otro (MuerteVista) el cliente avisa con el remote `Mirar` y el servidor
+    (Muerte) pone `jugador.ReplicationFocus` en el que mira; se quita al revivir. Sin probar con el mapa por partes.
   - Lo que el cliente mira una sola vez al empezar y está fuera de la casa: las latas (`Mapa.Latas`, se leen sus atributos:
     bien) y las pistas (sin la pieza no se cierra la nota: bien).
   - Los saltos del servidor (`PivotTo` en Muerte): con `MinimumRadiusPause` el jugador espera a que cargue el suelo.

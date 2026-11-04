@@ -417,6 +417,16 @@ function LatasVista.start()
 			for n, l in lineas do
 				local d = distancia(l, pos)
 				if d > CFG.Cerca then
+					-- Lejos no se simula: si algo la ha agitado, se calma ya donde no se ve (si no, al acercarte
+					-- seguiría como recién golpeada, en silencio: una pista falsa).
+					if l.agitada then
+						for _, c in l.colgantes do
+							c.ax, c.vx, c.az, c.vz, c.vgiro = 0, 0, 0, 0, 0
+						end
+						l.onda = 0
+						l.agitada = false
+						colocar(l, ahora, 0)
+					end
 					continue
 				end
 				if l.agitada then

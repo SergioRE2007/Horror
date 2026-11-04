@@ -176,9 +176,77 @@ local function mueble(nombre: string, cf: CFrame, tapa: { BasePart }?, padre: In
 	return partes
 end
 
+-- Muebles con hueco debajo donde esconderse agachado (pedido por el usuario, 03-11-2026: "agacharte también debería
+-- servir para esconderte, por ejemplo debajo de mesas… que sea útil agacharte es la finalidad"). En vez de la caja
+-- maciza de `tienda` chocan el tablero (una losa de su cara de abajo hasta arriba, con la planta de la caja de siempre)
+-- y las patas, así que se entra agachado (Config.Postura.Alto) por los lados libres; y en el hueco, entre las patas, una
+-- pieza "Debajo" (etiqueta y atributo Mueble) marca dónde se está cubierto. Medidas de cada malla, sacadas en Blender,
+-- en ejes del molde (pivote abajo en el centro, frente a -Z):
+--   abajo = cara de abajo del tablero; cajas = { x1, x2, y1, y2, z1, z2 } que chocan (patas, caballetes, vigas);
+--   hueco = { x1, x2, z1, z2 } de la zona Debajo, del suelo a `abajo`.
+-- Solo los que dejan Config.Postura.Alto + 0,2 de alto y unos 2,2 × 2,2 libres. No valen el escritorio del rico (bajo
+-- el cajón quedan 2,1), la mesa del revelado (faldones a 2,6 y balda abajo) ni la del té (tablero a 1,6).
+type Hueco = { abajo: number, cajas: { { number } }, hueco: { number } }
+local HUECOS: { [string]: Hueco } = {
+	-- 2,84 bajo el marco del tablero; cuatro patas metidas 1 hacia dentro de las esquinas. El mantel cuelga y no choca.
+	MesaComedorPH = {
+		abajo = 2.84,
+		cajas = {
+			{ -5.22, -4.54, 0, 2.84, -1.82, -1.37 },
+			{ -5.22, -4.54, 0, 2.84, 1.44, 1.92 },
+			{ 4.54, 5.22, 0, 2.84, -1.82, -1.37 },
+			{ 4.54, 5.22, 0, 2.84, 1.44, 1.92 },
+		},
+		hueco = { -4.54, 4.54, -1.37, 1.44 },
+	},
+	-- Mesa de caballetes: 3,29 bajo los travesaños. La viga baja del medio también choca, así que solo se entra en la
+	-- mitad de delante (-Z; la de atrás da a la pared de la cocina).
+	MesaCocinaPH = {
+		abajo = 3.29,
+		cajas = {
+			{ -2.33, -2.11, 0, 3.29, -1.63, 1.61 },
+			{ 2.11, 2.33, 0, 3.29, -1.63, 1.61 },
+			{ -2.11, 2.11, 0.88, 1.49, -0.08, 0.09 },
+		},
+		hueco = { -2.11, 2.11, -1.63, -0.08 },
+	},
+}
+
+-- Caja invisible que choca, en ejes del mueble (`cf`, su pivote): de (x1, y1, z1) a (x2, y2, z2). Como la de `tienda`,
+-- no tapa la vista de los bichos.
+local function choqueEn(cf: CFrame, x1: number, x2: number, y1: number, y2: number, z1: number, z2: number)
+	local p = bloque("Choque", Vector3.new(x2 - x1, y2 - y1, z2 - z1), cf * CFrame.new((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2))
+	p.Transparency = 1
+	p.CanQuery = false
+	p.CanTouch = false
+end
+
+-- Lo que choca de un mueble de HUECOS y su zona Debajo, colgada del modelo para que vaya con la casa (Persistent en
+-- `porPartes`: el cliente la tiene siempre).
+local function conHueco(nombre: string, modelo: Model, cf: CFrame, tam: Vector3, h: Hueco)
+	if h.abajo < Config.Postura.Alto + 0.2 then
+		warn(`[Mapa] {nombre}: debajo no se cabe agachado (Config.Postura.Alto)`)
+	end
+	choqueEn(cf, -tam.X * 0.45, tam.X * 0.45, h.abajo, tam.Y, -tam.Z * 0.45, tam.Z * 0.45)
+	for _, c in h.cajas do
+		choqueEn(cf, c[1], c[2], c[3], c[4], c[5], c[6])
+	end
+	local x1, x2, z1, z2 = h.hueco[1], h.hueco[2], h.hueco[3], h.hueco[4]
+	local zona = bloque("Debajo", Vector3.new(x2 - x1, h.abajo, z2 - z1), cf * CFrame.new((x1 + x2) / 2, h.abajo / 2, (z1 + z2) / 2),
+		nil, nil, modelo)
+	zona.Transparency = 1
+	zona.CanCollide = false
+	zona.CanQuery = false
+	zona.CanTouch = false
+	zona.CastShadow = false
+	zona:SetAttribute("Mueble", nombre)
+	CollectionService:AddTag(zona, "Debajo")
+end
+
 -- Pone un mueble del Creator Store (ServerStorage.Muebles: limpios de scripts, escalados, con el frente hacia -Z y el
 -- pivote abajo en el centro; su tamaño en el atributo Tam) en `cf`. Solo se ve: choca una caja invisible un poco más
--- pequeña, que no tapa la vista de los bichos. Sin la carpeta (lugar sin Rojo) no pone nada.
+-- pequeña, que no tapa la vista de los bichos (o, si tiene hueco debajo, su tablero y sus patas: HUECOS). Sin la
+-- carpeta (lugar sin Rojo) no pone nada.
 local function tienda(nombre: string, cf: CFrame, sinChoque: boolean?): Model?
 	local molde = MUEBLES[nombre]
 	if not molde then
@@ -221,9 +289,14 @@ local function tienda(nombre: string, cf: CFrame, sinChoque: boolean?): Model?
 	modelo.Parent = casa
 	if not sinChoque then
 		local tam = modelo:GetAttribute("Tam") :: Vector3
-		local choque = bloque("Choque", tam * Vector3.new(0.9, 1, 0.9), cf * CFrame.new(0, tam.Y / 2, 0))
-		choque.Transparency = 1
-		choque.CanQuery = false
+		local hueco = HUECOS[nombre]
+		if hueco then
+			conHueco(nombre, modelo, cf, tam, hueco)
+		else
+			local choque = bloque("Choque", tam * Vector3.new(0.9, 1, 0.9), cf * CFrame.new(0, tam.Y / 2, 0))
+			choque.Transparency = 1
+			choque.CanQuery = false
+		end
 	end
 	return modelo
 end
@@ -298,9 +371,9 @@ local function ventana(centro: Vector3, fuera: Vector3, h, suelo: number)
 	modelo:SetAttribute("Alto", h.alto)
 	modelo:SetAttribute("Atacable", h.atacable == true)
 	-- Dónde se pone el bicho para golpear (en la hierba o en el porche, `fueraY`) y dónde cae al entrar (en el suelo de
-	-- la sala).
+	-- la sala, a 4 de la ventana; `dentro` si ahí hay un mueble).
 	modelo:SetAttribute("Fuera", Vector3.new(centro.X, h.fueraY or 0, centro.Z) + fuera * 4)
-	modelo:SetAttribute("Dentro", Vector3.new(centro.X, suelo, centro.Z) - fuera * 4)
+	modelo:SetAttribute("Dentro", h.dentro or (Vector3.new(centro.X, suelo, centro.Z) - fuera * 4))
 	CollectionService:AddTag(modelo, "Ventana")
 end
 
@@ -889,23 +962,42 @@ local function construirFinal()
 	for _, r in { { tx1 + 0.06, cz, 0.1, d }, { tx2 - 0.06, cz, 0.1, d }, { mx, tz1 + 0.06, w, 0.1 }, { mx, tz2 - 0.06, w, 0.1 } } do
 		adorno(Vector3.new(r[3], 2.4, r[4]), CFrame.new(r[1], -1.2, r[2]), Enum.Material.WoodPlanks)
 	end
-	-- Escalera de mano contra la pared del oeste: se ve de madera y trepa por un TrussPart invisible.
+	-- Escalera de mano contra la pared del oeste: se ve de madera y trepa por un TrussPart invisible. Con la tapa
+	-- cerrada acaba debajo de ella (asomaba por encima: un escalón invisible sobre la tapa y los largueros saliendo por
+	-- las tablas); al abrirse sube y asoma por el hueco, para poder salir trepando. La escala se mueve en vez de
+	-- encogerse: un TrussPart solo mide de 2 en 2.
 	local escala = Instance.new("TrussPart")
 	escala.Name = "Escala"
 	escala.Anchored = true
 	escala.Size = Vector3.new(2, 12, 2)
-	escala.CFrame = CFrame.new(tx1 + 1, F + 6, cz)
+	escala.CFrame = CFrame.new(tx1 + 1, F + 5, cz) -- de F - 1 (metida en el suelo del sótano) a la tapa
 	escala.Transparency = 1
 	escala.Parent = casa
 	local madera = Color3.fromRGB(70, 52, 38)
+	local largueros = {}
 	for _, dz in { -0.75, 0.75 } do
-		local larguero = adorno(Vector3.new(0.22, 12.4, 0.22), CFrame.new(tx1 + 0.6, F + 6.2, cz + dz), Enum.Material.Wood)
+		local larguero = adorno(Vector3.new(0.22, 11, 0.22), CFrame.new(tx1 + 0.6, F + 5.5, cz + dz), Enum.Material.Wood)
 		larguero.Color = madera
+		table.insert(largueros, larguero)
 	end
 	for i = 1, 11 do
 		local peldano = adorno(Vector3.new(0.18, 0.18, 1.5), CFrame.new(tx1 + 0.6, F + i, cz), Enum.Material.Wood)
 		peldano.Color = madera
 	end
+	local asoma = false
+	trampilla:GetAttributeChangedSignal("Abierto"):Connect(function()
+		local abierta = trampilla:GetAttribute("Abierto") == true
+		if abierta == asoma then
+			return
+		end
+		asoma = abierta
+		local k = if abierta then 1 else -1
+		escala.CFrame += Vector3.new(0, k, 0)
+		for _, larguero in largueros do -- crecen por arriba (sumando: Separar ya los puede haber engordado)
+			larguero.Size += Vector3.new(0, 1.4 * k, 0)
+			larguero.CFrame += Vector3.new(0, 0.7 * k, 0)
+		end
+	end)
 
 	for _, o in {
 		{ "Cadena", Vector3.new(-49.9, ABAJO + 3.7, 30.3) }, -- en el banco del garaje, entre las dos chatarras
@@ -1161,9 +1253,12 @@ local function vestirSuelos()
 					Color3.fromRGB(72, 58, 44), Enum.Material.Wood)
 			end
 			for k = 1, 4 do
+				-- Los números del azar, siempre y en el mismo orden (si no, cambiarían los cascotes de las salas de después).
 				local suelo = Vector3.new(agujero.X + azar:NextNumber(-1.5, 1.5), pisa + 0.1, agujero.Z + azar:NextNumber(-1.5, 1.5))
-				lamina(Vector3.new(azar:NextNumber(0.5, 1.4), 0.14, azar:NextNumber(0.4, 1)), CFrame.new(suelo) * CFrame.Angles(0, k, 0),
-					Color3.fromRGB(96, 90, 80), Enum.Material.Plaster)
+				local tam = Vector3.new(azar:NextNumber(0.5, 1.4), 0.14, azar:NextNumber(0.4, 1))
+				if s.suelo then -- el hueco del vestíbulo no tiene suelo: flotaban en el aire a y = 14
+					lamina(tam, CFrame.new(suelo) * CFrame.Angles(0, k, 0), Color3.fromRGB(96, 90, 80), Enum.Material.Plaster)
+				end
 			end
 		end
 	end
@@ -2640,7 +2735,10 @@ local function construirCasa(mapa: Folder)
 	muro(-43, -3, -39, -3, ABAJO, {}, DETRAS)
 	-- Lavadero (x -26..-12, z 33..45), saliendo por detrás de la cocina.
 	muro(-12, 33, -12, 45, ABAJO, {}, ESTE)
-	muro(-26, 33, -26, 45, ABAJO, { v(4, 4, 3, 9, true, true) }, OESTE)
+	-- El bicho que entra por su ventana cae junto a la pila: a 4 de ella caía dentro del armario de lamas.
+	local lavadero = v(4, 4, 3, 9, true, true)
+	lavadero.dentro = Vector3.new(-21, ABAJO, 38.5)
+	muro(-26, 33, -26, 45, ABAJO, { lavadero }, OESTE)
 	muro(-26, 45, -12, 45, ABAJO, {}, DETRAS)
 	-- Torre: el mirador del salón, con la ventana grande mirando a la esquina y dos estrechas a los lados.
 	construirTorre(ABAJO, { [7] = v(5, 2, 7, 0, true, true), [6] = v(3, 3, 5, 0, false), [0] = v(3, 3, 5, 0, false) })
@@ -3071,7 +3169,7 @@ local function construirCasa(mapa: Folder)
 		Vector3.new(17, ABAJO, 12), Vector3.new(17, ABAJO, 26), -- en el comedor, la araña (abajo); en el dormitorio, la lámpara de la mesilla
 		Vector3.new(-25.5, ABAJO, 18), Vector3.new(-19, ABAJO, 39), Vector3.new(42, ABAJO, -36),
 		Vector3.new(0, ARRIBA, 18), Vector3.new(25, ARRIBA, -14), -- la del rico, en su escritorio; la de los niños, en su mesilla
-		Vector3.new(27, ARRIBA, 21), Vector3.new(42, ARRIBA, -36),
+		Vector3.new(42, ARRIBA, -36), -- en la escalera del desván, la bombilla (vestirDesvan)
 	} do
 		lampara(luz + Vector3.new(0, ALTO - 0.3, 0))
 	end
@@ -3345,6 +3443,25 @@ local function porPartes(mapa: Folder)
 	end
 end
 
+-- Las zonas Debajo deben quedarse dentro de su sala: si una cruzase una pared, un bicho podría oler y gatear a por
+-- quien está al otro lado (Caza lo mira con rayos, pero mejor que no pase). Avisa en la Salida si dentro de alguna
+-- (algo encogida, para no contar el suelo, las patas ni el tablero, que la tocan) hay algo que choca que no sea una
+-- caja Choque de mueble o silla.
+local function revisarDebajo()
+	local filtro = OverlapParams.new()
+	filtro.RespectCanCollide = true
+	for _, zona in CollectionService:GetTagged("Debajo") do
+		if zona:IsA("BasePart") then
+			filtro.FilterDescendantsInstances = { zona }
+			for _, pieza in workspace:GetPartBoundsInBox(zona.CFrame, zona.Size - Vector3.new(0.8, 0.8, 0.8), filtro) do
+				if pieza.Name ~= "Choque" then
+					warn(`[Mapa] la zona Debajo de {zona:GetAttribute("Mueble")} cruza {pieza:GetFullName()}`)
+				end
+			end
+		end
+	end
+end
+
 function Mapa.start()
 	local mapa = workspace:WaitForChild("Mapa")
 	construirBosque(mapa)
@@ -3375,6 +3492,7 @@ function Mapa.start()
 	abandonar()
 	aligerar(mapa)
 	porPartes(mapa)
+	revisarDebajo()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
 	local aparicion = Instance.new("SpawnLocation")

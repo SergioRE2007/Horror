@@ -28,6 +28,9 @@ local ultimoFlash: { [Player]: number } = {}
 local cristales: { Instance } = {}
 local filtro = RaycastParams.new()
 filtro.FilterType = Enum.RaycastFilterType.Exclude
+-- Solo tapa lo que choca: una puerta abierta no (el servidor no gira su hoja, solo le quita la colisión, y el flash no
+-- aturdía al bicho que estaba al otro lado del marco). Las cerradas y las paredes sí. Como en Bengalas.
+filtro.RespectCanCollide = true
 
 local function cabezaDe(jugador: Player): BasePart?
 	local personaje = jugador.Character
@@ -89,7 +92,15 @@ local function cambiar(jugador: Player, que: string): boolean
 	return true
 end
 
+-- Como mucho un cambio cada 0,25 s (a ojo): un cliente con trampas la hacía parpadear para todos cientos de veces por
+-- segundo (una luz estroboscópica). Así no pasa de dos destellos por segundo.
+local ultimaLinterna: { [Player]: number } = {}
 local function alternarLinterna(jugador: Player)
+	local ahora = os.clock()
+	if ahora - (ultimaLinterna[jugador] or -math.huge) < 0.25 then
+		return
+	end
+	ultimaLinterna[jugador] = ahora
 	if not puedeUsar(jugador) or jugador:GetAttribute("Cambiando") then
 		return
 	end
@@ -106,7 +117,8 @@ local function alternarLinterna(jugador: Player)
 end
 
 local function flash(jugador: Player, hacia: unknown)
-	if typeof(hacia) ~= "Vector3" or hacia.Magnitude ~= hacia.Magnitude or hacia.Magnitude < 0.1 then
+	-- NaN e infinito fuera: con un infinito, .Unit da NaN y no descartaba a ningún bicho (los aturdía a todos).
+	if typeof(hacia) ~= "Vector3" or hacia.Magnitude ~= hacia.Magnitude or hacia.Magnitude < 0.1 or hacia.Magnitude > 1e6 then
 		return
 	end
 	local cabeza = cabezaDe(jugador)
@@ -189,6 +201,24 @@ local function gastar(dt: number)
 	end
 end
 
+-- Hacia dónde mira cada uno, arriba o abajo (CuerpoVista lo manda; BrazosVista inclina su cabeza y su linterna en
+-- los demás clientes). Solo se ve: no cambia nada del juego. Como mucho unas 6 veces por segundo y redondeado.
+local ultimaMirada: { [Player]: number } = {}
+local function mirada(jugador: Player, inclinacion: unknown)
+	if type(inclinacion) ~= "number" or inclinacion ~= inclinacion then
+		return
+	end
+	local ahora = os.clock()
+	if ahora - (ultimaMirada[jugador] or -math.huge) < 0.15 then
+		return
+	end
+	ultimaMirada[jugador] = ahora
+	local v = math.floor(math.clamp(inclinacion, -1.4, 1.4) * 20 + 0.5) / 20
+	if jugador:GetAttribute("Mirada") ~= v then
+		jugador:SetAttribute("Mirada", v)
+	end
+end
+
 function Equipo.start()
 	for _, el in CollectionService:GetTagged("Ventana") do
 		local cristal = el:FindFirstChild("Cristal")
@@ -198,7 +228,10 @@ function Equipo.start()
 	end
 	Players.PlayerRemoving:Connect(function(jugador)
 		ultimoFlash[jugador] = nil
+		ultimaMirada[jugador] = nil
+		ultimaLinterna[jugador] = nil
 	end)
+	Remotes.Mirada.OnServerEvent:Connect(mirada)
 	Remotes.Linterna.OnServerEvent:Connect(alternarLinterna)
 	Remotes.Flash.OnServerEvent:Connect(flash)
 	RunService.Heartbeat:Connect(gastar)

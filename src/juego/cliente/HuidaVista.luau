@@ -261,10 +261,10 @@ local function escena(segundos: number, devolver: { () -> () })
 		luz.Parent = piloto
 	end
 
-	-- El portón (si estaba cerrado) sube en este cliente.
+	-- El portón, si estaba cerrado, sube en este cliente (abierto, el servidor lo deja sin chocar: ya no se toca).
 	local porton = CollectionService:GetTagged("Porton")[1]
 	local hoja = porton and porton:FindFirstChild("Hoja") :: BasePart?
-	if hoja then
+	if hoja and hoja.CanCollide then
 		local antes = hoja.CFrame
 		TweenService:Create(hoja, TweenInfo.new(1.8, Enum.EasingStyle.Quad), { CFrame = antes * CFrame.new(0, 8.6, 0) }):Play()
 		alAcabar(function()
@@ -281,6 +281,7 @@ local function escena(segundos: number, devolver: { () -> () })
 	local negro = Instance.new("ScreenGui")
 	negro.Name = "Final"
 	negro.IgnoreGuiInset = true
+	negro.ResetOnSpawn = false -- si reapareces en medio (al amanecer reviven los muertos), que se siga viendo el final
 	negro.DisplayOrder = 100
 	local fondo = Instance.new("Frame")
 	fondo.Size = UDim2.fromScale(1, 1)

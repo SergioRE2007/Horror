@@ -149,6 +149,7 @@ function Mochila.dejar(tipo: string, carga: number?, cf: CFrame, velocidad: Vect
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 	prompt.MaxActivationDistance = Config.Casa.Alcance
+	-- Sin la línea de vista de Roblox: lo de al lado tapa el cartel (pasó en Pistas). La pared la mira coger.
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = pieza
 	prompt.Triggered:Connect(function(jugador)
@@ -174,6 +175,9 @@ function Mochila.coger(jugador: Player, pieza: BasePart)
 	end
 	if (pieza.Position - raiz.Position).Magnitude > Config.Casa.Alcance + 2 then
 		return
+	end
+	if not Cargar.aLaVista(jugador, pieza) then
+		return -- con una pared en medio: se sacaban cosas de las salas cerradas sin abrirlas
 	end
 	if jugador:GetAttribute("Cargando") then
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Your hands are full."))
@@ -212,10 +216,32 @@ local function abrir(jugador: Player, abierta: boolean)
 	Cargar.ajustarVelocidad(jugador)
 end
 
+-- Mover y Tirar, como mucho uno cada CADA_PEDIDO s: un cliente con trampas mandaba cientos por segundo y cada uno pasa
+-- la mochila entera a todos. A mano no se llega (son dos clics por movimiento). Lo que llega antes no se hace, pero al
+-- rato se le vuelve a pasar la suya (una vez) para que deshaga lo que adelantó: dos de verdad pueden llegar pegados
+-- tras un tirón de la red.
+local CADA_PEDIDO = 0.05
+local ultimoPedido: { [Player]: number } = {}
+local resincronizar: { [Player]: boolean } = {}
+
 local function pedir(jugador: Player, que: unknown, id: unknown, x: unknown, y: unknown, girada: unknown)
 	local r = rejillas[jugador]
 	if not r then
 		return
+	end
+	if que ~= "Abrir" then
+		local ahora = os.clock()
+		if ahora - (ultimoPedido[jugador] or -math.huge) < CADA_PEDIDO then
+			if not resincronizar[jugador] then
+				resincronizar[jugador] = true
+				task.delay(CADA_PEDIDO, function()
+					resincronizar[jugador] = nil
+					Mochila.publicar(jugador) -- si ya se ha ido, no hace nada
+				end)
+			end
+			return
+		end
+		ultimoPedido[jugador] = ahora
 	end
 	if que == "Abrir" then
 		abrir(jugador, id == true)
@@ -276,6 +302,32 @@ end
 
 -- Lo que no le cupo al cargar su mochila guardada: si luego llega el pase MochilaGrande, vuelve a la mochila.
 local caidos: { [Player]: { BasePart } } = setmetatable({}, { __mode = "k" }) :: any
+-- Lo mismo cuando aún no tenía personaje para tirarlo a sus pies (al entrar, el pase llega tarde y el personaje
+-- también): espera aquí. Antes se perdía para siempre.
+local pendientes: { [Player]: { Rejilla.Cosa } } = setmetatable({}, { __mode = "k" }) :: any
+-- Dónde estaba su personaje al quitárselo (al revivir o al irse): si se va sin personaje, su mochila cae ahí.
+local ultimaPos: { [Player]: Vector3 } = {}
+local aparicion: SpawnLocation? = nil -- y si nunca lo tuvo, donde se aparece (Mapa)
+
+local function raizDe(jugador: Player): BasePart?
+	return jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+end
+
+-- Tira a sus pies lo que esperaba (cuando ya tiene personaje).
+local function soltarPendientes(jugador: Player)
+	local lista, raiz = pendientes[jugador], raizDe(jugador)
+	if not lista or not raiz then
+		return
+	end
+	pendientes[jugador] = nil
+	local piezas = desparramar(lista, raiz.Position)
+	local ya = caidos[jugador]
+	if ya then
+		table.move(piezas, 1, #piezas, #ya + 1, ya)
+	else
+		caidos[jugador] = piezas
+	end
+end
 
 -- Lo que se guarda de su mochila (Partida): { cosas = las de la rejilla }.
 function Mochila.exportar(jugador: Player)
@@ -299,9 +351,11 @@ function Mochila.importar(jugador: Player, datos)
 		local ancho, alto = Stats.mochila(jugador)
 		local r, sobran = Rejilla.desde(datos, CAT, ancho, alto)
 		rejillas[jugador] = r
-		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local raiz = raizDe(jugador)
 		if raiz then
 			caidos[jugador] = desparramar(sobran, raiz.Position)
+		elseif #sobran > 0 then
+			pendientes[jugador] = sobran -- al aparecer su personaje (alEntrar)
 		end
 	else
 		rejillas[jugador] = deInicio(jugador)
@@ -347,10 +401,26 @@ local function ajustarTamano(jugador: Player)
 		end
 	end
 	caidos[jugador] = nil
-	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	-- Y lo que esperaba sin personaje: a la mochila si cabe; si no, sigue esperando.
+	local esperan = pendientes[jugador]
+	if esperan then
+		local quedan = {}
+		for _, cosa in esperan do
+			if not Rejilla.meter(nueva, CAT, cosa.tipo, cosa.carga) then
+				table.insert(quedan, cosa)
+			end
+		end
+		pendientes[jugador] = if #quedan > 0 then quedan else nil
+	end
+	local raiz = raizDe(jugador)
 	if raiz then
 		desparramar(sobran, raiz.Position)
+	elseif #sobran > 0 then
+		local lista = pendientes[jugador] or {}
+		table.move(sobran, 1, #sobran, #lista + 1, lista)
+		pendientes[jugador] = lista
 	end
+	soltarPendientes(jugador)
 	Mochila.publicar(jugador)
 end
 
@@ -360,6 +430,16 @@ local function alEntrar(jugador: Player)
 		ajustarTamano(jugador)
 	end)
 	jugador.CharacterAdded:Connect(espalda)
+	jugador.CharacterAdded:Connect(function(personaje)
+		personaje:WaitForChild("HumanoidRootPart", 10)
+		soltarPendientes(jugador)
+	end)
+	jugador.CharacterRemoving:Connect(function(personaje)
+		local raiz = personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if raiz then
+			ultimaPos[jugador] = raiz.Position
+		end
+	end)
 	if jugador.Character then
 		task.spawn(espalda, jugador.Character)
 	end
@@ -386,13 +466,28 @@ function Mochila.start()
 	for _, jugador in Players:GetPlayers() do
 		alEntrar(jugador)
 	end
-	-- Lo que lleva el que se va cae donde estaba, para los demás (Partida ya no se lo guarda a él).
+	-- Lo que lleva el que se va (y lo que esperaba a su personaje) cae donde estaba, para los demás (Partida ya no se lo
+	-- guarda a él). Si se va sin personaje (recién entrado o mientras vuelve a aparecer), donde lo tuvo por última vez
+	-- o, si no, donde se aparece: antes se perdía para siempre.
 	Players.PlayerRemoving:Connect(function(jugador)
 		local r = rejillas[jugador]
 		rejillas[jugador] = nil
-		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if r and raiz then
-			desparramar(r.cosas, raiz.Position)
+		local cosas: { Rejilla.Cosa } = if r then table.clone(r.cosas) else {}
+		for _, cosa in pendientes[jugador] or {} do
+			table.insert(cosas, cosa)
+		end
+		pendientes[jugador], caidos[jugador], ultimoPedido[jugador] = nil, nil, nil
+		local raiz = raizDe(jugador)
+		local punto = if raiz then raiz.Position else ultimaPos[jugador]
+		ultimaPos[jugador] = nil
+		if not punto then
+			if not aparicion or not aparicion.Parent then
+				aparicion = workspace:FindFirstChildWhichIsA("SpawnLocation", true) :: SpawnLocation?
+			end
+			punto = aparicion and aparicion.Position
+		end
+		if punto and #cosas > 0 then
+			desparramar(cosas, punto)
 		end
 	end)
 	Remotes.Mochila.OnServerEvent:Connect(pedir)

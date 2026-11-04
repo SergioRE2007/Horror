@@ -94,6 +94,7 @@ local function crear(cf: CFrame): Caza.Bicho
 		Pillar = T.Pillar,
 		Vista = T.Vista,
 		VioEsconderse = T.VioEsconderse,
+		Fuera = Config.Postura.FueraTrepador,
 	})
 end
 
@@ -233,15 +234,20 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 		if b.raiz.Position.Y < tiro.Y - 1 and math.abs(b.raiz.Position.X - tiro.X) < 2 then
 			b.raiz.CFrame = CFrame.lookAt(tiro + Vector3.new(0, 1.5, 0), tiro + Vector3.new(0, 6, 0), -Vector3.xAxis)
 		end
+		-- Se tira por donde trepó (`x`, escogida para no caer en la torre, el lavadero ni la escalera del sótano): con
+		-- la x de ahora, quemado en la chimenea caía dentro de la torre del salón.
 		if b.raiz.Position.Y > 6 then
 			task.wait(0.8)
-			local p, arriba = sobreTejado(b.raiz.Position.X, lado * (PARED + 0.5))
+			local p, arriba = sobreTejado(x, lado * (PARED + 0.5))
 			b.raiz.CFrame = CFrame.lookAt(p, p + fuera, arriba)
 			task.wait(0.25)
 		end
-		local suelo = Vector3.new(b.raiz.Position.X, ALTURA, lado * (PARED + 4))
+		local suelo = Vector3.new(x, ALTURA, lado * (PARED + 4))
 		b.raiz.CFrame = CFrame.lookAt(suelo, suelo + fuera)
 		b.raiz.Anchored = false
+		if b.modelo then
+			b.raiz:SetNetworkOwner(nil) -- al anclarla perdió el dueño: que la siga moviendo el servidor
+		end
 		b:irA(lejos, if quemado then T.Huir else T.Andar, 25)
 		return
 	end
@@ -250,6 +256,9 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 	local salida = Chimenea.salida()
 	b.raiz.CFrame = salida + alto
 	b.raiz.Anchored = false
+	if b.modelo then
+		b.raiz:SetNetworkOwner(nil) -- al anclarla perdió el dueño: que la siga moviendo el servidor
+	end
 	Remotes.Trepador:FireAllClients("Entra", modelo)
 	task.wait(T.Grito)
 	b:cazar(T.Caza, false)
@@ -274,7 +283,11 @@ function Trepador.atacar(noche: number, paciencia: number?): () -> boolean
 	local a: Ataque = { bicho = nil, hilo = nil, prisa = false }
 	ataques[a] = true
 	a.hilo = task.spawn(function()
-		ataque(a, noche, paciencia or 1)
+		-- Con pcall: si el ataque falla, el bicho se quita igual (si no, se quedaba en el mapa y en `ataques` para siempre).
+		local ok, fallo = pcall(ataque, a, noche, paciencia or 1)
+		if not ok then
+			warn("[Trepador] " .. tostring(fallo))
+		end
 		terminar(a)
 	end)
 	return function()

@@ -4,6 +4,8 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
+0. **Probar en Studio lo de "Pendientes para Studio"** (abajo): todo lo de las sesiones del 03 y 04-11-2026 está hecho
+   sin Studio o probado solo en parte.
 1. 14 Pulido, fase a fase (14.1 → 14.5; la 14.2 es el tutorial 13.1).
 2. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
@@ -100,7 +102,7 @@ En todas: telarañas que flotan o se meten en la pared.
 
 ### 13.1 Tutorial
 - **Descripción:** los primeros 5 minutos, muy visible (flecha grande, pasos cortos, premio al acabar).
-- **Estado:** pendiente — se diseña con Sergio
+- **Estado:** en curso: es la 14.2 (`docs/sistemas/tutorial.md`)
 
 ### 13.2 Nombre, iconos y lanzamiento en privado
 - **Descripción:** también crear en Roblox los productos y pases de `Config.Compras` (Id = 0 ahora) y probar compras de verdad.
@@ -122,7 +124,7 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 
 ### 14.2 Los primeros 5 minutos
 - Es la 13.1 (tutorial muy visible: flecha grande, pasos cortos, premio al acabar). Se diseña con Sergio.
-- **Estado:** pendiente
+- **Estado:** en curso: propuesta hecha por Claude sin Studio (`docs/sistemas/tutorial.md`); falta probarla en Studio y que Sergio la apruebe
 
 ### 14.3 Más miedo
 - Sustos y efectos (temblores, polvo que cae, cristales) como avisos para quien juega sin cascos (sale en `diseño.md`; mirar antes si ya está con otro nombre).
@@ -136,6 +138,34 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 - HUD en pantallas pequeñas, cuántas piezas tiene el mapa (el pueblo, ~5.100 más 240 pinos) y probar en móvil.
 - Aviso suelto del asset 203785492 en la consola.
 - **Estado:** hecho (`docs/sistemas/movil.md`, `ajustes.md`, `rendimiento.md`; probado en Studio en PC el 02-11-2026; el HUD táctil, sin probar aún con el emulador de teléfono). Mapa por partes (StreamingEnabled) preparado pero apagado: antes hay que poner Atomic los bichos (ver `rendimiento.md`)
+
+### Pendientes para Studio (sesión en la nube del 03-11-2026, sin Studio)
+- Probar el tutorial (`Config.Test.Tutorial = true`, `docs/sistemas/tutorial.md`) y que Sergio lo apruebe.
+- Probar los arreglos de la revisión del código (commits de la rama `claude/admiring-bell-jvgvch`): morir todos justo
+  antes de anochecer, botón de reiniciar quitado, dos bichos a la vez, bengala a la cabeza de la Bestia, fuego
+  cancelado, mochila grande al volver a una partida, dos jugadores clavando la misma ventana, "Wait for her" con el
+  Carpintero.
+- Probar la revisión entera del 03-11-2026 (14 commits "arreglos de la revisión"; los pasos de cada uno, en su
+  commit). Lo más importante: el Acechador no debe ir a por quien está en la torre, las esquinas
+  o el garaje; las cerillas no se pierden si amanece con el fuego en marcha; tras un viaje el coche del lobby vuelve a
+  quedar libre (solo publicado); no se cogen cosas a través de las paredes del garaje; los bichos no pillan a través de
+  las paredes pero sí por una puerta abierta; teclas nuevas V (revivir), K (saltar tutorial) y P (ajustes) en PC.
+- Probar el lobby nuevo (`docs/sistemas/lobby.md`, "Probar en Studio"): niebla, lluvia, luces que fallan, la puerta,
+  los coches y la cinemática de salida, la sombra entre los árboles y el rendimiento en móvil.
+- Probar la respiración contenida y los escondites vistos desde fuera, y las reacciones nuevas de la casa
+  (`docs/sistemas/manos.md`, al final).
+- Probar esconderse agachado (04-11-2026, sin Studio): el cuerpo debajo de las mesas (`manos.md`, "Esconderse
+  agachado: el cuerpo") y los bichos que huelen y gatean, a mano y de verdad, con dos bichos y con Rendimiento
+  (`bichos.md`, "Probar en Studio"). Retocar a ojo las poses de gateo de los cinco bichos.
+- Mirar la vida de espera de los seis bichos (`bichos.md`, "Probar en Studio", paso 1) y el Imitador en la mirilla.
+
+### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
+- **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
+- **Segunda tanda (03 y 04-11-2026):** hecho: respiración contenida en el escondite, ver esconderse a los demás, la casa que reacciona más (mecedoras, vajilla, polvo, corriente), agacharse y asomarse (botón también en el móvil), manos en la pared, mirilla y cortinas (probados en Studio el 03-11-2026), y bichos con más vida mientras esperan y esconderse agachado debajo de las mesas con los bichos que huelen y gatean (`manos.md` y `bichos.md`; sin Studio). Idea no hecha: tropezar o frenar al correr cansado (no hay sistema de correr ni de cansancio: preguntar a Sergio).
+
+### 14.7 Lobby nuevo (pedido por el usuario, 03-11-2026: "es un poco feo")
+- Gasolinera vieja de noche por código, al nivel de la casa y el pueblo: tienda por dentro, marquesina, surtidores, cartel GAS que falla, cabina, coches viejos, bosque y carretera en la niebla; lluvia, relámpagos, luces que fallan, puerta automática, faros y limpias, polillas, algo entre los árboles; cinemática de salida del coche (`docs/sistemas/lobby.md`).
+- **Estado:** hecho, revisado con `reviewer` y con CochesUi y TiendaUi al estilo oscuro; probado en Studio en parte el 03-11-2026 (tienda, coche, cinemática, bajarse). Falta: emulador de móvil, dos jugadores, la sombra y Rendimiento (`lobby.md`, "Probar en Studio"), y 6 sonidos de ElevenLabs (`Config.SonidosLobby`).
 
 ### 14.5 Partida entera de prueba
 - Una partida de principio a fin sin órdenes de prueba: ritmo de días y noches, monedas y precios (skill `roblox-economy-balancing`), fallos que salgan.

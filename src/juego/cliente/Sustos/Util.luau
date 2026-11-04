@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Ambiente = require(script.Parent.Parent.Ambiente)
+local ManosGestos = require(script.Parent.Parent.ManosGestos)
 
 local Util = {}
 
@@ -410,6 +411,7 @@ end
 
 -- Un tirón de la cámara, como un respingo (más flojo cuanto más lejos esté `desde`, si se da).
 function Util.tiron(fuerza: number)
+	ManosGestos.sobresalto(fuerza) -- y las manos suben de golpe, por reflejo
 	local nombre = "SustosTiron"
 	local fin = os.clock() + 0.35
 	pcall(RunService.UnbindFromRenderStep, RunService, nombre)
@@ -447,14 +449,22 @@ function Util.parpadeo(luces: { PointLight }, pasos: { { number } }, alPaso: ((n
 	end)
 	local nombre = "SustosLinterna"
 	pcall(RunService.UnbindFromRenderStep, RunService, nombre)
-	-- Después de EquipoVista (Camera + 1), que le pone el brillo cada fotograma.
-	RunService:BindToRenderStep(nombre, Enum.RenderPriority.Camera.Value + 3, function()
+	-- Después de EquipoVista (Camera + 4), que le pone el brillo cada fotograma, y de las manos (Camera + 5): si fuera
+	-- antes, EquipoVista lo pisaría y la linterna no parpadearía.
+	RunService:BindToRenderStep(nombre, Enum.RenderPriority.Camera.Value + 6, function()
 		local foco = Util.miLinterna()
 		if foco then
 			foco.Brightness *= f
 		end
 	end)
+	-- Se llama al acabar el parpadeo y otra vez al acabar el susto (alAcabar): solo la primera cuenta, para no volver
+	-- a poner el color de antes a una bombilla que se ha apagado después (la reventada).
+	local devuelto = false
 	local function devolver()
+		if devuelto then
+			return
+		end
+		devuelto = true
 		conexion:Disconnect()
 		pcall(RunService.UnbindFromRenderStep, RunService, nombre)
 		for _, luz in luces do

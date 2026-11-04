@@ -4,10 +4,13 @@
 -- manchada de sangre y la opción RENDIMIENTO (SÍ/NO) y CERRAR.
 -- El cliente solo pide (remote Ajustes) y enseña el atributo "Rendimiento" del Player, que pone el servidor
 -- (comun/servidor/Ajustes) y se guarda entre partidas. Los módulos de efectos lo leen cada vez que lo usan.
+-- En la partida el ratón va bloqueado en primera persona y el engranaje no se puede pulsar: también se abre y se
+-- cierra con la P (en el ordenador, con "[P]" a su lado).
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -63,6 +66,13 @@ local function abrir()
 	panel.Modal = true -- suelta el ratón en primera persona
 	escalaPanel.Scale = 0.92
 	TweenService:Create(escalaPanel, TweenInfo.new(0.18, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+end
+
+-- El engranaje (o la P): gira un cuarto de vuelta y abre o cierra el papel.
+local function pulsarEngranaje()
+	rueda.Rotation = 0
+	TweenService:Create(rueda, TweenInfo.new(0.35, Enum.EasingStyle.Quad), { Rotation = 90 }):Play()
+	abrir()
 end
 
 local function construirPanel(hud: ScreenGui)
@@ -188,11 +198,21 @@ local function construirEngranaje(hud: ScreenGui)
 	end
 	trozo(UDim2.fromScale(0.72, 0.72), 0, Ui.Color.Hueso, true, 27)
 	trozo(UDim2.fromScale(0.3, 0.3), 0, Ui.Color.Papel, true, 28)
-	engranaje.Activated:Connect(function()
-		rueda.Rotation = 0
-		TweenService:Create(rueda, TweenInfo.new(0.35, Enum.EasingStyle.Quad), { Rotation = 90 }):Play()
-		abrir()
-	end)
+	engranaje.Activated:Connect(pulsarEngranaje)
+	-- En el ordenador (teclado sin pantalla táctil), su tecla al lado, pequeña.
+	if UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled then
+		Ui.texto("[P]", {
+			Name = "Tecla",
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(1, 6, 0.5, 0),
+			Size = UDim2.fromOffset(30, 20),
+			TextSize = 14,
+			TextTransparency = 0.35,
+			TextStrokeTransparency = 0.6,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 26,
+		}).Parent = engranaje
+	end
 	engranaje.Parent = hud
 end
 
@@ -225,6 +245,12 @@ function AjustesUi.start()
 		escala:GetPropertyChangedSignal("Scale"):Connect(recolocar)
 	end
 	recolocar()
+	-- La P hace lo mismo que el engranaje (no con el HUD escondido en las cinemáticas: no se vería).
+	UserInputService.InputBegan:Connect(function(entrada, procesado)
+		if not procesado and hud.Enabled and entrada.KeyCode == Enum.KeyCode.P then
+			pulsarEngranaje()
+		end
+	end)
 	jugador:GetAttributeChangedSignal("Rendimiento"):Connect(function()
 		if panel.Visible then
 			pintar()

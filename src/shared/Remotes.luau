@@ -40,11 +40,27 @@ local NOMBRES = {
 	"Latas", -- servidor -> todos: ("Suena", línea, fuerza, donde 0..1 de la cuerda) algo ha pasado por una trampa de latas (Latas / LatasVista)
 	-- Controles y móvil (14.4).
 	"Ajustes", -- cliente -> servidor: ("Rendimiento", activo) cambio un ajuste que se guarda (comun/servidor/Ajustes)
+	-- Tutorial (14.2).
+	"Tutorial", -- cliente -> servidor: ("Saltar") no quiero el tutorial (juego/servidor/Tutorial)
+	"Mirar", -- cliente -> servidor: (jugador vivo) de muerto, a quién sigue mi cámara (Muerte: el mapa por partes carga ahí)
+	"Mirada", -- cliente -> servidor: (radianes) cuánto miro hacia arriba o abajo; Equipo lo publica en el atributo Mirada
+	"Postura", -- cliente -> servidor: ("Agachado", sí/no) o ("Asomar", -1 izquierda / 0 / 1 derecha); Postura lo publica en los atributos Agachado y Asomado
 }
 
 local Remotes = {}
 
 if RunService:IsServer() then
+	-- En modo Edit (un require desde la barra de comandos o execute_luau, la trampa del CLAUDE.md) no se cuelga nada:
+	-- una carpeta de más guardada en el lugar la cogería el cliente al jugar y ningún remoto funcionaría. Al arrancar
+	-- el juego se borran las viejas que haya (puede haber varias).
+	local enMarcha = RunService:IsRunning()
+	if enMarcha then
+		for _, vieja in ReplicatedStorage:GetChildren() do
+			if vieja.Name == "Remotes" then
+				vieja:Destroy()
+			end
+		end
+	end
 	local carpeta = Instance.new("Folder")
 	carpeta.Name = "Remotes"
 	for _, nombre in NOMBRES do
@@ -53,7 +69,9 @@ if RunService:IsServer() then
 		remoto.Parent = carpeta
 		Remotes[nombre] = remoto
 	end
-	carpeta.Parent = ReplicatedStorage
+	if enMarcha then
+		carpeta.Parent = ReplicatedStorage
+	end
 else
 	local carpeta = ReplicatedStorage:WaitForChild("Remotes")
 	for _, nombre in NOMBRES do

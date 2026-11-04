@@ -256,4 +256,24 @@ return {
 	["Fewer particles and effects."] = "Menos partículas y efectos.",
 	["On"] = "Sí",
 	["Off"] = "No",
+	-- Tutorial (14.2).
+	["Tutorial"] = "Tutorial",
+	["Skip"] = "Saltar",
+	["Sure?"] = "¿Seguro?",
+	["Tutorial complete. +{monedas} coins"] = "Tutorial completado. +{monedas} monedas",
+	["Open your backpack (B)."] = "Abre la mochila (B).",
+	["Open your backpack: tap BACKPACK."] = "Abre la mochila: toca MOCHILA.",
+	["Open your backpack (D-pad up)."] = "Abre la mochila (cruceta arriba).",
+	["Find an axe and pick it up."] = "Busca un hacha y cógela.",
+	["Chop down a tree and carry a log."] = "Tala un árbol y carga un tronco.",
+	["Saw the log on the sawhorse."] = "Sierra el tronco en el caballete.",
+	["Start the generator in the shed."] = "Arranca el generador del cobertizo.",
+	["Stay close to the house. Night is coming."] = "No te alejes de la casa. Se acerca la noche.",
+	["Close the curtains downstairs: {n} left."] = "Cierra las cortinas de abajo: quedan {n}.",
+	["Survive until dawn. If something gets in, hide."] = "Aguanta hasta el amanecer. Si entra algo, escóndete.",
+	-- Cuerpo (14.6).
+	["Crouch"] = "Agacharse",
+	-- Mirar sin abrir (14.6).
+	["Look through"] = "Mirar por la mirilla",
+	["Peek"] = "Mirar entre las cortinas",
 }

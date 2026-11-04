@@ -80,7 +80,9 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 - `require` de un módulo del servidor desde `execute_luau` da una copia sin estado: el estado se lee de los atributos del `Player`. `require(Remotes)` en modo Edit puede crear una carpeta `Remotes` de más que rompe los remotos al jugar.
 - Simular al jugador desde el datamodel `Client`: `PivotTo` del personaje (esperar un momento: el servidor ve los saltos grandes con retraso) y disparar los remotes.
 - Errores: `LogService:GetLogHistory()` filtrando lo que no sea `MessageOutput`; `get_console_output` trae mucho ruido.
-- `screen_capture` no pinta los `BillboardGui` con `AlwaysOnTop` (ponerlo a `false` para capturar). Mundo negro con el HUD bien = la ventana de Studio está tapada. Capturas de una en una. Para fijar la cámara en modo juego: `RunService:BindToRenderStep` con prioridad `Camera + 10`.
+- `execute_luau` devuelve la cámara a `Custom` al acabar si el script le cambió el `CameraType` ("The execute_luau changed camera type. Resetting"): lo que ponga la cámara en Scriptable (mirilla, cinemáticas), lanzarlo con `task.delay` y volver enseguida.
+- `screen_capture` no pinta los `BillboardGui` con `AlwaysOnTop` (ponerlo a `false` para capturar).
+- `user_mouse_input` va en coordenadas de la GUI (sin la barra de arriba, ~56 px más arriba que en la captura): mejor el centro de `AbsolutePosition` + `AbsoluteSize / 2` del botón. Mundo negro con el HUD bien = la ventana de Studio está tapada. Capturas de una en una. Para fijar la cámara en modo juego: `RunService:BindToRenderStep` con prioridad `Camera + 10`.
 - Revisores: Haiku para lo visual (pasarle el `.jpg` de la captura), agente `reviewer` (Sonnet) para el código.
 - `WorldPivot` de un Model no llega bien al cliente: animar pieza a pieza. `EditableMesh`: unas 8 vivas a la vez y necesita permiso en la experiencia.
 - Lo que solo funciona publicado (compras, pases, DataStores entre servidores, idioma real): decirlo como no probado.

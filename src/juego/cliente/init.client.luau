@@ -9,6 +9,7 @@ local Sistemas = script
 require(Sistemas.Sonido).start() -- antes que los que tocan sonidos
 require(Sistemas.Pasos).start()
 require(Sistemas.Ambiente).start()
+require(Sistemas.CuerpoVista).start() -- la cámara como un cuerpo: pasos, respirar, caer
 require(Comun:WaitForChild("Controles")).start()
 require(Comun:WaitForChild("AjustesUi")).start() -- engranaje de Ajustes: Rendimiento (14.4)
 require(Sistemas.CasaVista).start()
@@ -19,12 +20,19 @@ require(Sistemas.ImitadorVista).start()
 require(Sistemas.AcechadorVista).start()
 require(Sistemas.ChimeneaVista).start()
 task.spawn(require(Sistemas.DetallesVista).start) -- espera al mapa: que no frene a los de después
+require(Sistemas.Manos).start() -- brazos en primera persona (las capas se apuntan antes o después, da igual)
+require(Sistemas.ManosGestos).start()
+require(Sistemas.ManosPrueba).start() -- solo en Studio: lanzar gestos a mano
 require(Sistemas.EquipoVista).start()
 require(Sistemas.MochilaUi).start() -- después de EquipoVista: su botón va en la misma fila
 require(Sistemas.MovilUi).start() -- después de EquipoVista: su botón va en la misma fila
+require(Sistemas.PosturaVista).start() -- agacharse y asomarse (14.6); después de EquipoVista: su botón va en la misma fila
 require(Sistemas.CargarVista).start()
 require(Sistemas.TrabajoVista).start()
+require(Sistemas.BrazosVista).start() -- los brazos de los demás jugadores
 require(Sistemas.MuerteVista).start()
+require(Sistemas.EsconditeVista).start() -- los escondites vistos desde fuera: puertas del armario y colcha (manos.md)
+require(Sistemas.MirarVista).start() -- mirar por la mirilla y entre las cortinas (manos.md)
 require(Sistemas.VendedorUi).start()
 require(Sistemas.PistasUi).start()
 require(Sistemas.TallerUi).start()
@@ -39,3 +47,4 @@ require(Sistemas.Sustos).start()
 require(Sistemas.AmbienteMiedo).start()
 require(Sistemas.ClaseVista).start()
 require(Sistemas.RevivirUi).start()
+require(Sistemas.TutorialVista).start() -- los primeros minutos (14.2)

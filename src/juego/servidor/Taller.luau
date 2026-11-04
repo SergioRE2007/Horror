@@ -41,7 +41,8 @@ local function bancoDe(jugador: Player): Model?
 	end
 	for _, banco in CollectionService:GetTagged("Banco") do
 		local mando = banco:FindFirstChild("Mando") :: BasePart?
-		if mando and (mando.Position - raiz.Position).Magnitude <= Config.Casa.Alcance + 2 then
+		-- Sin una pared en medio: el banco del garaje cerrado se usaba desde el paso de fuera.
+		if mando and (mando.Position - raiz.Position).Magnitude <= Config.Casa.Alcance + 2 and Cargar.aLaVista(jugador, mando) then
 			return banco
 		end
 	end
