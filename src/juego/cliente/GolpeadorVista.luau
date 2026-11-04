@@ -12,6 +12,7 @@
 --   De noche y fuera de la casa echa vaho por la boca al soltar el aire (sin él con Rendimiento).
 -- Un solo bucle (Stepped) que solo corre mientras hay alguno; la vida, solo cerca de la cámara. Si el modelo se va
 -- (StreamOut o lo quita el servidor) se olvida, y si vuelve se prepara otra vez.
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -87,11 +88,31 @@ local GATEO = {
 local CABEZA_CENTRO = Vector3.new(0, 0.6, -0.4) -- del cuello al centro de la cabeza (en la cabeza)
 local GARRAS = Vector3.new(0, -7.36, -0.32) -- del hombro a la punta de las garras (en el brazo)
 local PIERNA = 4.1 -- de la cadera al pie
+-- Los brazos al gatear (giros en radianes desde hacia ti, por su lado de fuera): el de apoyo, abierto hacia fuera y algo
+-- atrás; si se meten en una pata del mueble, se apartan hacia `Atras` (`Holgura`: lo gordo del brazo). El que mete
+-- gira hacia ti como mucho a `Barre` (de 0 a 1) por segundo, y ninguno gira más deprisa que `Giro` por segundo.
+local BRAZO = {
+	Apoyo = 2.2, -- radianes desde hacia ti, por fuera
+	Atras = 2.8,
+	Holgura = 0.3,
+	Barre = 3,
+	Giro = 5,
+}
+-- Lo más bajo de la mandíbula (en ella): sus esquinas y la sangre que le chorrea de la barbilla.
+local BARBILLA = {
+	Vector3.new(-0.55, -0.8, -0.61), Vector3.new(0.55, -0.8, -0.61), Vector3.new(-0.55, -0.18, 0.6), Vector3.new(0.55, -0.18, 0.6),
+	Vector3.new(-0.55, -0.18, -0.6), Vector3.new(0.55, -0.18, -0.6),
+}
+local BORDE_HOLGURA = 0.15 -- studs: se toma el borde del tablero un poco antes de donde está
 
 local jugador = Players.LocalPlayer
 local azar = Random.new()
 local filtroGateo = RaycastParams.new()
 filtroGateo.FilterType = Enum.RaycastFilterType.Exclude
+
+-- Las patas del mueble debajo del que está el escondido (sus cajas de choque: centro y mitad de su tamaño), para que
+-- los brazos no las atraviesen.
+type Patas = { { cf: CFrame, medio: Vector3 } }
 
 -- Un gateo: el de ahora o el último (mientras vuelve a su pose).
 type Gateo = {
@@ -103,6 +124,9 @@ type Gateo = {
 	brazo: number, -- el brazo que mete por debajo: -1 izquierdo, 1 derecho
 	cara0: Vector3, -- dónde tenía la cabeza al empezar (en el mundo)
 	sale: number, -- 0..1: al acabar, cuánto ha sacado ya la cabeza de debajo
+	patas: Patas?,
+	barre: number, -- 0..1, suave: cuánto ha girado el brazo que mete hacia ti
+	rumbo: { [number]: number }, -- por brazo (-1, 1): hacia dónde va de verdad (radianes por el suelo, 0 hacia ti)
 }
 
 type Bicho = {
@@ -332,15 +356,101 @@ local function duraGateo(): number
 	return if reglas and reglas.Gatear then reglas.Gatear else 2
 end
 
--- Studs (por el suelo, de la raíz hacia `punto`) hasta el borde del tablero que tapa al escondido: rayos hacia arriba
--- cada poco, en el centro y a los lados (si llega en diagonal, el borde le queda antes a un hombro). Lo que quede más
--- bajo que un escondite (el asiento de una silla) no cuenta. Sin tablero, GATEO.Borde.
-local function buscarBorde(b: Bicho, punto: Vector3): number
+-- El tablero que tapa al escondido en `punto`: la zona Debajo en la que está (Mapa, HUECOS) y su mueble. Las piezas de
+-- los muebles y sus cajas de choque no se ven con rayos (CanQuery false), así que se mira el atributo Tam del mueble (el
+-- tablero llega a sus bordes, desde lo alto de la zona hasta arriba); si su pivote no cuadra con la zona, se da por
+-- hecho que el tablero sobresale SALIENTE de la zona por cada lado. Devuelve su centro y su tamaño, o nil.
+local SALIENTE = 2 -- lo que más sobresale un tablero de su zona (la mesa del comedor, 1,96 por las puntas)
+local function tablero(punto: Vector3): (CFrame?, Vector3?, BasePart?)
+	for _, zona in CollectionService:GetTagged("Debajo") do
+		if not zona:IsA("BasePart") then
+			continue
+		end
+		local medio = zona.Size / 2
+		local p = zona.CFrame:PointToObjectSpace(punto)
+		if math.abs(p.X) > medio.X + 0.5 or math.abs(p.Z) > medio.Z + 0.5 or p.Y < -medio.Y - 1 or p.Y > medio.Y + 3 then
+			continue
+		end
+		local cf = zona.CFrame * CFrame.new(0, medio.Y + 0.4, 0)
+		local tam = Vector3.new(zona.Size.X + 2 * SALIENTE, 0.8, zona.Size.Z + 2 * SALIENTE)
+		local mueble = zona.Parent
+		local medida = if mueble and mueble:IsA("Model") then mueble:GetAttribute("Tam") else nil
+		if mueble and typeof(medida) == "Vector3" then
+			local pivote = (mueble :: Model):GetPivot()
+			local z = pivote:PointToObjectSpace(zona.Position)
+			if math.abs(pivote.XVector:Dot(zona.CFrame.XVector)) > 0.99 and math.abs(pivote.YVector:Dot(Vector3.yAxis)) > 0.99
+				and math.abs(z.X) + medio.X <= medida.X / 2 + 0.05 and math.abs(z.Z) + medio.Z <= medida.Z / 2 + 0.05
+				and math.abs(z.Y - medio.Y) < 0.1 and medida.Y > zona.Size.Y
+			then
+				cf = pivote * CFrame.new(0, (zona.Size.Y + medida.Y) / 2, 0)
+				tam = Vector3.new(medida.X, medida.Y - zona.Size.Y, medida.Z)
+			end
+		end
+		return cf, tam, zona
+	end
+	return nil, nil, nil
+end
+
+-- Las patas (y travesaños) del mueble de la zona: las cajas de choque de Mapa (HUECOS) que caen bajo su tablero, por
+-- debajo de él. No se ven con rayos (CanQuery false): se buscan entre las piezas de la casa, una vez por gateo.
+local function patasDe(zona: BasePart, encima: CFrame, tam: Vector3): Patas?
+	local mueble = zona.Parent
+	local casa = mueble and mueble.Parent
+	if not casa then
+		return nil
+	end
+	local abajo = zona.CFrame:PointToWorldSpace(Vector3.new(0, zona.Size.Y / 2, 0)).Y
+	local patas: Patas = {}
+	for _, pieza in casa:GetChildren() do
+		if pieza.Name == "Choque" and pieza:IsA("BasePart") then
+			local p = encima:PointToObjectSpace(pieza.Position)
+			local arriba = pieza.Position.Y + pieza.Size.Y / 2 -- (de pie: sin girar)
+			if math.abs(p.X) < tam.X / 2 and math.abs(p.Z) < tam.Z / 2 and arriba <= abajo + 0.1 then
+				table.insert(patas, { cf = pieza.CFrame, medio = pieza.Size / 2 })
+			end
+		end
+	end
+	return patas
+end
+
+-- Studs (por el suelo, de la raíz hacia `punto`) hasta el borde del tablero que tapa al escondido, en el centro y a los
+-- lados (si llega en diagonal, el borde le queda antes a un hombro): el de su zona Debajo y, si no está en ninguna, con
+-- rayos hacia arriba cada poco (lo que quede más bajo que un escondite, como el asiento de una silla, no cuenta). Sin
+-- tablero, GATEO.Borde antes de ti. (Antes solo con rayos: en el juego no daban nunca en la mesa y se metía por ella.)
+local function buscarBorde(b: Bicho, punto: Vector3): (number, Patas?)
 	local raiz = b.raiz.Position
 	local plano = Vector3.new(punto.X - raiz.X, 0, punto.Z - raiz.Z)
 	local largo = plano.Magnitude
 	if largo < 0.5 then
-		return 0
+		return 0, nil
+	end
+	local hacia = plano.Unit
+	local lado = Vector3.new(-hacia.Z, 0, hacia.X)
+	local cf, tam, zona = tablero(punto)
+	if cf and tam and zona then
+		-- Por donde entra cada raya (paralelas, por el suelo) en la caja del tablero.
+		local medio = tam / 2
+		local d = cf:VectorToObjectSpace(hacia)
+		local borde = largo
+		for _, x in { 0, -1.2, 1.2 } do
+			local o = cf:PointToObjectSpace(raiz + lado * x)
+			local entra, sale = -math.huge, math.huge
+			for _, eje in { "X", "Z" } do
+				local oe, de, me = (o :: any)[eje], (d :: any)[eje], (medio :: any)[eje]
+				if math.abs(de) < 1e-6 then
+					if math.abs(oe) > me then
+						entra = math.huge
+					end
+				else
+					local t1, t2 = (-me - oe) / de, (me - oe) / de
+					entra, sale = math.max(entra, math.min(t1, t2)), math.min(sale, math.max(t1, t2))
+				end
+			end
+			if entra <= sale and sale > 0 then
+				borde = math.min(borde, math.max(0, entra))
+			end
+		end
+		return math.max(0, borde - BORDE_HOLGURA), patasDe(zona, cf, tam)
 	end
 	local fuera: { Instance } = {}
 	local carpeta = workspace:FindFirstChild("Bichos")
@@ -354,20 +464,18 @@ local function buscarBorde(b: Bicho, punto: Vector3): number
 	end
 	filtroGateo.FilterDescendantsInstances = fuera
 	local suelo = raiz.Y - ALTURA
-	local hacia = plano.Unit
-	local lado = Vector3.new(-hacia.Z, 0, hacia.X)
 	local d = 0.3
 	while d < largo do
 		for _, x in { 0, -1.2, 1.2 } do
 			local base = Vector3.new(raiz.X, suelo + 0.4, raiz.Z) + hacia * d + lado * x
 			local choque = workspace:Raycast(base, Vector3.new(0, 4.5, 0), filtroGateo)
 			if choque and choque.Instance.Name ~= "Debajo" and choque.Position.Y - suelo > 2.3 then
-				return math.max(0, d - 0.2)
+				return math.max(0, d - 0.2), nil
 			end
 		end
 		d += 0.3
 	end
-	return math.max(0, largo - GATEO.Borde)
+	return math.max(0, largo - GATEO.Borde), nil
 end
 
 -- Por dónde va el gateo a los `t` s: cuánto ha metido la cabeza (0..1), cuánto olfatea (0..1, entre tirones) y el
@@ -383,7 +491,8 @@ local function avanceGateo(t: number, simple: boolean): (number, number, number)
 			a = tiron[3]
 		elseif u > tiron[1] then
 			local k = (u - tiron[1]) / (tiron[2] - tiron[1])
-			return a + (tiron[3] - a) * (1 - (1 - k) ^ 3), 0, math.sin(math.pi * k)
+			-- (suave al empezar: con un arranque seco, la punta de las garras saltaba ~3 studs en un fotograma)
+			return a + (tiron[3] - a) * suave(k), 0, math.sin(math.pi * k)
 		else
 			break
 		end
@@ -412,11 +521,40 @@ local function ruidoGateo(b: Bicho, n: number)
 	end
 end
 
+-- Lo alto de los hombros (en el marco del gateo: su Y es la altura sobre el suelo).
+local function hombroAlto(m: { [string]: Motor6D }, torso: CFrame): number
+	return (torso * m.BrazoD.C0.Position).Y
+end
+
+-- Si un punto (en el mundo) no está dentro de una pata del mueble (con algo de holgura: lo gordo del brazo).
+local function puntoLibre(patas: Patas, p: Vector3): boolean
+	for _, pata in patas do
+		local q = pata.cf:PointToObjectSpace(p)
+		local m = pata.medio
+		if math.abs(q.X) < m.X + BRAZO.Holgura and math.abs(q.Y) < m.Y + BRAZO.Holgura and math.abs(q.Z) < m.Z + BRAZO.Holgura then
+			return false
+		end
+	end
+	return true
+end
+
+-- Si el brazo entero (del hombro a la punta de las garras, en `dir`; en el marco `enMundo`) está libre de las patas.
+local function brazoLibre(patas: Patas, enMundo: CFrame, hombro: Vector3, dir: Vector3): boolean
+	local d = 0.6
+	while d <= -GARRAS.Y do
+		if not puntoLibre(patas, enMundo * (hombro + dir * d)) then
+			return false
+		end
+		d += 0.6
+	end
+	return true
+end
+
 -- El gateo: con Gatea y GateaHora en el modelo, se echa al suelo y mete la cabeza y un brazo por debajo del mueble,
 -- encima de la postura de siempre (que ya está en las juntas este fotograma); sin ellos, saca la cabeza y se levanta.
 -- La cara sigue un camino: baja por fuera del borde y solo entra por debajo cuando está abajo (si no, al doblarse, la
 -- cabeza y los brazos barrían el tablero). El torso sale de ella, doblándose poco a poco desde la cadera.
-local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean)
+local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBase: number)
 	local punto = b.modelo:GetAttribute("Gatea")
 	local hora = b.modelo:GetAttribute("GateaHora")
 	local activo = typeof(punto) == "Vector3" and typeof(hora) == "number"
@@ -432,9 +570,11 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean)
 					sonados += 1
 				end
 			end
+			local borde, patas = buscarBorde(b, punto)
 			g = {
-				hora = hora, punto = punto, borde = buscarBorde(b, punto), t = t, sonados = sonados,
+				hora = hora, punto = punto, borde = borde, t = t, sonados = sonados,
 				brazo = if azar:NextNumber() < 0.5 then -1 else 1, cara0 = b.cabeza.Position, sale = 0,
+				patas = patas, barre = 0, rumbo = {},
 			}
 			b.gatea = g
 		end
@@ -499,21 +639,66 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean)
 	-- suelo. Un brazo apoyado a su lado, por fuera del mueble; el otro igual hasta que los hombros están abajo, y entonces
 	-- barre por debajo hacia ti, a tirones, arañando el suelo (es tan largo que pasa a tu lado).
 	local torso = marco:Inverse() * m.Torso.C0 * m.Torso.Transform * m.Torso.C1:Inverse()
+	local enMundo = b.raiz.CFrame * marco
+	-- Sin ir más deprisa que esto: al llegar tarde (ya metido) el brazo giraba 100° en dos fotogramas.
+	local barre = math.clamp(1.15 * a * (1 - suave(math.clamp((hombroAlto(m, torso) - 1.6) / 0.8, 0, 1))), 0, 1)
+	g.barre = if barre > g.barre then math.min(barre, g.barre + dt * BRAZO.Barre) else math.max(barre, g.barre - dt * BRAZO.Barre)
 	for _, lado in LADOS do
 		local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
 		local hombro = torso * motor.C0.Position
-		local hacia = Vector3.new(lado * 0.95, 0, 0.3).Unit
+		local cae = math.clamp((hombro.Y - 0.12 + GARRAS.Z) / -GARRAS.Y, -0.95, 0.95) -- la punta de las garras a ras de suelo
+		-- Los giros, como rumbos por el suelo (0 hacia ti, + hacia su derecha) que pasan siempre por su lado de fuera: con
+		-- Lerp de vectores casi opuestos, a medio camino el brazo daba la vuelta de golpe.
+		local apoyo = lado * BRAZO.Apoyo
+		local rumbo = apoyo
 		if lado == g.brazo then
 			local junto = Vector3.new(lado * 0.9 - hombro.X, 0, -lejos - hombro.Z)
-			junto = if junto.Magnitude > 0.1 then junto.Unit else -Vector3.zAxis
-			local barre = math.clamp(1.15 * a * math.clamp((2.4 - hombro.Y) / 0.8, 0, 1), 0, 1)
-			local mezcla = hacia:Lerp(junto, barre)
-			hacia = if mezcla.Magnitude > 0.1 then mezcla.Unit else junto
+			local haciaTi = if junto.Magnitude > 0.1 then math.atan2(junto.X, -junto.Z) else 0
+			rumbo = apoyo + (haciaTi - apoyo) * g.barre
 			if not poco then
-				hacia = CFrame.Angles(0, empuje * 0.08 * math.sin(ahora * 31), 0) * hacia
+				rumbo -= empuje * 0.08 * math.sin(ahora * 31)
 			end
 		end
-		local cae = math.clamp((hombro.Y - 0.12 + GARRAS.Z) / -GARRAS.Y, -0.95, 0.95) -- la punta de las garras a ras de suelo
+		-- Sin atravesar las patas del mueble: va hacia donde querría sin pasar por dentro de ninguna (si una se pone en
+		-- medio, se queda en su canto), y si el cuerpo al moverse se la mete dentro, se aparta hacia atrás (hasta
+		-- BRAZO.Atras) lo justo. Siempre girando poco a poco: sin saltos.
+		local patas = g.patas
+		if patas and #patas > 0 then
+			local function libre(r: number): boolean
+				local dir = Vector3.new(math.sin(r), 0, -math.cos(r))
+				return brazoLibre(patas, enMundo, hombro, dir * math.sqrt(1 - cae * cae) - Vector3.yAxis * cae)
+			end
+			local actual = g.rumbo[lado] or rumbo
+			local paso = dt * BRAZO.Giro
+			local siguiente = actual + math.clamp(rumbo - actual, -paso, paso)
+			if libre(siguiente) then
+				actual = siguiente
+			elseif not libre(actual) then
+				local atras = lado * BRAZO.Atras
+				local hallado = atras
+				for i = 1, 12 do
+					local probar = actual + (atras - actual) * i / 12
+					if libre(probar) then
+						-- Afinado entre el último que no cabía y este: justo en el canto.
+						local lo, hi = actual + (atras - actual) * (i - 1) / 12, probar
+						for _ = 1, 4 do
+							local medio = (lo + hi) / 2
+							if libre(medio) then
+								hi = medio
+							else
+								lo = medio
+							end
+						end
+						hallado = hi
+						break
+					end
+				end
+				actual = hallado
+			end
+			g.rumbo[lado] = actual
+			rumbo = actual
+		end
+		local hacia = Vector3.new(math.sin(rumbo), 0, -math.cos(rumbo))
 		local parte = CFrame.new(hombro) * orientar(hacia * math.sqrt(1 - cae * cae) - Vector3.yAxis * cae, -Vector3.yAxis)
 			* CFrame.new(-motor.C1.Position)
 		motor.Transform = motor.Transform:Lerp(motor.C0:Inverse() * torso:Inverse() * parte * motor.C1, math.min(1, w * 2.5))
@@ -528,9 +713,32 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean)
 		local parte = CFrame.new(junta) * orientar(hacia, -Vector3.zAxis) * CFrame.new(-motor.C1.Position)
 		motor.Transform = motor.Transform:Lerp(motor.C0:Inverse() * (marco * parte) * motor.C1, math.min(1, w * 2))
 	end
-	-- La boca, abriéndose según se acerca (de lado); olfateando, a golpecitos.
-	local abre = (0.2 + 0.35 * a + husmea * 0.08 * math.abs(math.sin(ahora * 13))) * w
-	m.Mandibula.Transform = m.Mandibula.Transform * CFrame.Angles(-abre, 0, 0)
+	-- La boca, abriéndose según se acerca (de lado); olfateando, a golpecitos. Nunca contra el suelo: con la cabeza tan
+	-- baja, abierta del todo (al rugir) la barbilla y la sangre se metían ~0,4 en él (comprobado con Lune).
+	local abre = bocaBase + (0.2 + 0.35 * a + husmea * 0.08 * math.abs(math.sin(ahora * 13))) * w
+	local cabezaM = marco:Inverse() * m.Torso.C0 * m.Torso.Transform * m.Torso.C1:Inverse() * m.Cabeza.C0 * m.Cabeza.Transform
+		* m.Cabeza.C1:Inverse() * m.Mandibula.C0
+	local function barbilla(angulo: number): number
+		local mand = cabezaM * CFrame.Angles(-angulo, 0, 0) * m.Mandibula.C1:Inverse()
+		local bajo = math.huge
+		for _, esquina in BARBILLA do
+			bajo = math.min(bajo, (mand * esquina).Y)
+		end
+		return bajo
+	end
+	if barbilla(abre) < 0.05 then
+		local lo, hi = 0, abre
+		for _ = 1, 8 do
+			local medio = (lo + hi) / 2
+			if barbilla(medio) < 0.05 then
+				hi = medio
+			else
+				lo = medio
+			end
+		end
+		abre = lo
+	end
+	m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
 
 	-- Los ruidos, cada uno una vez (con Rendimiento, solo al echarse y el gruñido del final).
 	local u = g.t * 2 / dura
@@ -685,7 +893,7 @@ local function animar(dt: number)
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
 
 		-- Debajo de un mueble: se echa al suelo y gatea a por ti, encima de todo lo anterior.
-		gatear(b, dt, ahora, poco)
+		gatear(b, dt, ahora, poco, abre)
 
 		-- Una pisada cada vez que el seno cambia de signo.
 		local pie = if s >= 0 then 1 else -1
