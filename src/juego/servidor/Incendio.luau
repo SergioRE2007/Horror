@@ -83,24 +83,25 @@ local function terminar()
 	for _, j in Players:GetPlayers() do
 		-- Los escondidos, fuera del escondite antes de anclarlos (como Coche.huir): si no, su latido sonaba encima de la
 		-- escena y al salir se desanclaban en mitad de ella. Con pcall: que nada deje el final a medias.
-		if Muerte.escondite(j) then
-			local ok, fallo = pcall(Muerte.sacar, j)
-			if not ok then
-				warn("[Incendio] sacar: " .. tostring(fallo))
+		local ok, fallo = pcall(function()
+			if Muerte.escondite(j) then
+				Muerte.sacar(j)
 			end
-		end
-		Cargar.soltar(j)
-		-- La mochila, cerrada: abierta, su desenfoque y la mochila 3D salían delante de la cámara de la escena.
-		j:SetAttribute("MochilaAbierta", nil)
-		Cargar.ajustarVelocidad(j)
-		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if raiz then
-			raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena
+			Cargar.soltar(j)
+			-- La mochila, cerrada: abierta, su desenfoque y la mochila 3D salían delante de la cámara de la escena.
+			j:SetAttribute("MochilaAbierta", nil)
+			Cargar.ajustarVelocidad(j)
+			local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if raiz then
+				raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena
+			end
+		end)
+		if not ok then
+			warn("[Incendio] preparar la escena: " .. tostring(fallo))
 		end
 	end
 	Remotes.Incendio:FireAllClients("Final", B.Cinematica)
 	task.wait(B.Cinematica + 2)
-	Muerte.escena(false)
 	Viaje.volver(Players:GetPlayers(), "The house burned with her inside.")
 	for _, j in Players:GetPlayers() do -- en Studio no hay viaje: se puede seguir mirando
 		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -108,6 +109,7 @@ local function terminar()
 			raiz.Anchored = false
 		end
 	end
+	Muerte.escena(false) -- después de desanclar: mientras se espera el viaje, quietos y sin esconderse
 end
 
 -- La cerilla al rastro. `forzado` (modo de pruebas): sin jugador ni comprobaciones.
