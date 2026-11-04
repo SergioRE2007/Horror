@@ -89,18 +89,31 @@ local carpeta: Folder?
 -- Un Path por bicho: ComputeAsync espera, y con uno compartido un bicho leía con GetWaypoints el camino que acababa
 -- de calcular otro (con dos ataques a la vez iban a tirones o se atascaban).
 local caminos: { [any]: Path } = setmetatable({}, { __mode = "k" }) :: any
+
+-- El último camino calculado de cada Path: se sigue por sus puntos y solo se rehace si el destino se aleja, pasa
+-- RUTA_VIDA, se acaba o se tapa (Blocked). Antes se calculaba en cada paso (cada 0,25 s, cada 0,15 s el Acechador): con
+-- tres bichos salían 12-20 ComputeAsync por segundo aunque el destino no se moviera.
+type Ruta = { destino: Vector3, hora: number, puntos: { Vector3 }, i: number }
+local rutas: { [Path]: Ruta } = setmetatable({}, { __mode = "k" }) :: any
+local RUTA_VIDA = 1 -- s que vale un camino calculado
+local RUTA_MOVIDO = 3 -- studs que se puede mover el destino sin rehacerlo (o la quinta parte de lo que falta, si es más)
+
 local function caminoDe(bicho: any, alto: number): Path
 	local c = caminos[bicho]
 	if not c then
-		c = PathfindingService:CreatePath({
+		local nuevo = PathfindingService:CreatePath({
 			AgentRadius = 1.6,
 			AgentHeight = alto,
 			AgentCanJump = false,
 			WaypointSpacing = 4,
 		})
-		caminos[bicho] = c
+		nuevo.Blocked:Connect(function()
+			rutas[nuevo] = nil
+		end)
+		caminos[bicho] = nuevo
+		c = nuevo
 	end
-	return c
+	return c :: Path
 end
 
 local filtroVista = RaycastParams.new()
@@ -255,14 +268,28 @@ function Caza.carpeta(): Folder
 end
 
 -- Lo que no estorba en los rayos de por dónde cabe y de si alcanza a alguien: los bichos y todos los personajes.
+-- Devuelve siempre la misma tabla (FilterDescendantsInstances la copia al ponerla): úsala enseguida, no la guardes.
+local ignorarTodos: { Instance } = {}
 local function sinPersonajes(): { Instance }
-	local ignorar: { Instance } = { Caza.carpeta() }
+	table.clear(ignorarTodos)
+	table.insert(ignorarTodos, Caza.carpeta())
 	for _, otro in Players:GetPlayers() do
 		if otro.Character then
-			table.insert(ignorar, otro.Character)
+			table.insert(ignorarTodos, otro.Character)
 		end
 	end
-	return ignorar
+	return ignorarTodos
+end
+
+-- Los bichos y, si se da, un personaje: también la misma tabla siempre, como sinPersonajes.
+local ignorarUno: { Instance } = {}
+local function sinBichos(personaje: Instance?): { Instance }
+	table.clear(ignorarUno)
+	table.insert(ignorarUno, Caza.carpeta())
+	if personaje then
+		table.insert(ignorarUno, personaje)
+	end
+	return ignorarUno
 end
 
 -- ¿Cabe el bicho en `borde` y está del lado de quien está debajo? Por debajo del tablero (lo que choca de los muebles
@@ -331,6 +358,11 @@ end
 
 function Caza.quitar(self: Bicho)
 	vivos[self] = nil
+	local camino = caminos[self]
+	if camino then
+		caminos[self] = nil
+		camino:Destroy() -- y con él su conexión de Blocked
+	end
 	if self.modelo then
 		self.modelo:Destroy()
 		self.modelo = nil
@@ -382,21 +414,40 @@ function Caza.pasoHacia(self: Bicho, destino: Vector3)
 	abrirPuertasCerca(self)
 	local suelo = self:suelo()
 	local altura = Vector3.new(0, self.o.Altura, 0)
-	if math.abs(destino.Y - suelo.Y) < 3 and libre(self.raiz.Position, destino + altura, { Caza.carpeta() }) then
+	local camino = caminoDe(self, self.o.AltoCamino or 8)
+	if math.abs(destino.Y - suelo.Y) < 3 and libre(self.raiz.Position, destino + altura, sinBichos()) then
+		rutas[camino] = nil -- al volver a ir por camino, uno nuevo desde donde esté
 		self.humanoide:MoveTo(destino)
 		return
 	end
-	local camino = caminoDe(self, self.o.AltoCamino or 8)
-	local ok = pcall(function()
-		camino:ComputeAsync(suelo, destino)
-	end)
-	if ok and camino.Status == Enum.PathStatus.Success then
-		for i, punto in camino:GetWaypoints() do
-			if i > 1 and (punto.Position - suelo).Magnitude > 3 then
-				self.humanoide:MoveTo(punto.Position)
-				return
+	local ahora = os.clock()
+	local ruta = rutas[camino]
+	local movido = math.max(RUTA_MOVIDO, plano(destino - suelo).Magnitude / 5)
+	if not ruta or ahora - ruta.hora > RUTA_VIDA or (ruta.destino - destino).Magnitude > movido then
+		ruta = nil
+		rutas[camino] = nil
+		local ok = pcall(function()
+			camino:ComputeAsync(suelo, destino)
+		end)
+		if ok and camino.Status == Enum.PathStatus.Success then
+			local puntos = {}
+			for _, punto in camino:GetWaypoints() do
+				table.insert(puntos, punto.Position)
 			end
+			ruta = { destino = destino, hora = ahora, puntos = puntos, i = 2 }
+			rutas[camino] = ruta
 		end
+	end
+	if ruta then
+		-- Al siguiente punto que no haya alcanzado ya (a más de 3 studs).
+		while ruta.i <= #ruta.puntos and (ruta.puntos[ruta.i] - suelo).Magnitude <= 3 do
+			ruta.i += 1
+		end
+		if ruta.i <= #ruta.puntos then
+			self.humanoide:MoveTo(ruta.puntos[ruta.i])
+			return
+		end
+		rutas[camino] = nil -- acabado: el próximo paso calcula otro
 	end
 	self.humanoide:MoveTo(destino)
 end
@@ -503,7 +554,7 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 			local alAlcance = not cubierto or (suRaiz ~= nil and mismoSitio(suelo, suRaiz.Position))
 			local d = (suCabeza.Position - ojos).Magnitude
 			local loVe = alAlcance and d < PosturaReglas.alcanceVista(self.o.Vista, agachado, cubierto)
-				and libre(ojos, suCabeza.Position, { Caza.carpeta(), jugador.Character :: Model })
+				and libre(ojos, suCabeza.Position, sinBichos(jugador.Character))
 			local corriendo = jugador:GetAttribute("Corriendo") == true -- corriendo hace ruido (14.8)
 			local nota = loVe or (alAlcance and d < PosturaReglas.alcanceOido(OIDO, agachado, cubierto, corriendo))
 			local visto = self.vistoEn[jugador]
@@ -703,7 +754,7 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			-- nace dentro de una pieza no la ve). Las hojas de las puertas abiertas no tapan (CanQuery, Casa.publicar).
 			local alcanza = if escondido or not suCabeza then self:cerca(destino, 5)
 				else (suCabeza.Position - self.raiz.Position).Magnitude < self.o.Pillar
-					and libre(self.raiz.Position, suCabeza.Position, { Caza.carpeta(), presa.Character :: Model })
+					and libre(self.raiz.Position, suCabeza.Position, sinBichos(presa.Character))
 			if alcanza then
 				self.humanoide:MoveTo(self.raiz.Position)
 				self:mirarA(if suCabeza then suCabeza.Position else destino) -- de cara a su víctima: el susto le ve la cara
