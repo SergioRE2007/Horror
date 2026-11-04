@@ -79,7 +79,7 @@ local LADOS = { -1, 1 }
 -- luego se levanta. Comprobado con Lune contra la mesa del comedor (tablero a 2,84 del suelo) y la de la cocina (3,29),
 -- con la raíz a 1,1 (donde le deja el servidor), 1,4, 1,8, 2,2 y 3 studs del borde, por las puntas y en diagonal, a 20
 -- fps, con Rendimiento, llegando tarde y si te pilla: en ningún fotograma (tampoco al echarse ni al levantarse) se
--- atraviesan el suelo ni el tablero; las patas sí se pueden rozar con un codo (ver chocaBrazo).
+-- atraviesan el suelo ni el tablero, y los brazos tampoco las patas (ver chocaBrazo; banco tests/bancos/gateo.luau).
 local ALTURA = 4.2 -- de los pies al centro de la raíz (Raspador.luau)
 local GATEO = {
 	Cae = 0.6, -- segundos (de un gateo de 2 s) en echarse boca abajo
@@ -143,6 +143,7 @@ type Gateo = {
 	medio: Vector3,
 	atras: number, -- studs libres detrás de la raíz (para las piernas)
 	hueco: Hueco?, -- entre qué patas está el escondido
+	patas: { MuebleRayo.Caja }, -- lo que choca cerca (patas, viga, travesaños: MuebleRayo.cajas): los brazos no se meten
 	t: number, -- segundos desde que empezó (se queda en el último al acabar)
 	sonados: number, -- cuántos ruidos del gateo han sonado
 	brazo: number, -- la mano que va a por ti: -1 izquierda, 1 derecha
@@ -363,6 +364,29 @@ local function dentroCaja(a: Vector3, c: Vector3, medio: Vector3, bajo: number):
 	return math.max(a.Y + d.Y * t0, a.Y + d.Y * t1) + medio.Y + bajo
 end
 
+-- Lo que se mete en las `patas` (cajas de MuebleRayo.cajas) el tramo de `a` a `c` de un brazo (en el mundo): una fila de
+-- bolas de GRUESO de radio (lo que abulta el brazo, con algo de holgura) cada PASO_BOLAS studs. Lo más hondo.
+local GRUESO, PASO_BOLAS = 0.2, 0.35
+local function enPatas(a: Vector3, c: Vector3, patas: { MuebleRayo.Caja }): number
+	local peor = 0
+	local bx, by, bz = math.min(a.X, c.X) - GRUESO, math.min(a.Y, c.Y) - GRUESO, math.min(a.Z, c.Z) - GRUESO
+	local ax, ay, az = math.max(a.X, c.X) + GRUESO, math.max(a.Y, c.Y) + GRUESO, math.max(a.Z, c.Z) + GRUESO
+	local n = math.max(2, math.ceil((c - a).Magnitude / PASO_BOLAS))
+	for _, caja in patas do
+		if caja.alto.X < bx or caja.bajo.X > ax or caja.alto.Y < by or caja.bajo.Y > ay or caja.alto.Z < bz or caja.bajo.Z > az then
+			continue
+		end
+		local medio = caja.medio
+		for i = 0, n do
+			local q = caja.cf:PointToObjectSpace(a:Lerp(c, i / n))
+			local fx, fy, fz = math.abs(q.X) - medio.X, math.abs(q.Y) - medio.Y, math.abs(q.Z) - medio.Z
+			local fuera = Vector3.new(math.max(fx, 0), math.max(fy, 0), math.max(fz, 0)).Magnitude
+			peor = math.max(peor, GRUESO - (if fuera > 0 then fuera else math.max(fx, fy, fz)))
+		end
+	end
+	return peor
+end
+
 -- Un giro con -Y hacia `abajo` y -Z lo más cerca posible de `delante` (brazos, cuello y piernas).
 local function orientar(abajo: Vector3, delante: Vector3): CFrame
 	local y = -abajo.Unit
@@ -409,7 +433,8 @@ end
 -- Studs (por el suelo, de la raíz hacia `punto`) hasta el borde del tablero que tapa al escondido, por el centro y a
 -- los lados (los codos van muy abiertos: hasta 2,4), la altura del hueco, lo que queda libre detrás de la raíz (hasta
 -- una pared, para las piernas) y entre qué patas cabe. Sin tablero, GATEO.Borde (o SinZona) y GATEO.Techo.
-type Borde = { borde: number, techo: number, arriba: number, atras: number, hueco: Hueco?, caja: CFrame?, medio: Vector3 }
+type Borde = { borde: number, techo: number, arriba: number, atras: number, hueco: Hueco?, caja: CFrame?, medio: Vector3,
+	patas: { MuebleRayo.Caja } }
 local function buscarBorde(b: Bicho, punto: Vector3): Borde
 	local raiz = b.raiz.Position
 	local suelo = raiz.Y - ALTURA
@@ -429,10 +454,18 @@ local function buscarBorde(b: Bicho, punto: Vector3): Borde
 	filtroGateo.FilterDescendantsInstances = fuera
 	local detras = workspace:Raycast(Vector3.new(raiz.X, suelo + 0.7, raiz.Z), -hacia * 9, filtroGateo)
 	local atras = if detras then detras.Distance else 9
+	-- Las cajas Choque cerca, para los brazos (no el mueble: el tablero ya lo miran dentroCaja y enTablero, con su margen
+	-- GATEO.Codo; su caja Choque, más pequeña, no estorba).
+	local patas: { MuebleRayo.Caja } = {}
+	for _, c in MuebleRayo.cajas(Vector3.new(raiz.X, suelo, raiz.Z), largo + 8) do
+		if c.pieza:IsA("BasePart") then
+			table.insert(patas, c)
+		end
+	end
 	local cf, tam, abajo, zona = tablero(punto)
 	if not cf or not tam or not abajo or not zona then
 		return { borde = math.clamp(largo - GATEO.Borde, 0, GATEO.SinZona), techo = GATEO.Techo, arriba = GATEO.Techo + 1, atras = atras,
-			hueco = nil, caja = nil, medio = Vector3.zero }
+			hueco = nil, caja = nil, medio = Vector3.zero, patas = patas }
 	end
 	-- De lado: el eje de la zona más atravesado a su camino.
 	local deLado = math.abs(zona.CFrame.XVector:Dot(hacia)) < math.abs(zona.CFrame.ZVector:Dot(hacia))
@@ -464,7 +497,8 @@ local function buscarBorde(b: Bicho, punto: Vector3): Borde
 			borde = math.min(borde, math.max(0, entra))
 		end
 	end
-	return { borde = borde, techo = abajo, arriba = abajo + tam.Y, atras = atras, hueco = hueco, caja = cf, medio = medio }
+	return { borde = borde, techo = abajo, arriba = abajo + tam.Y, atras = atras, hueco = hueco, caja = cf, medio = medio,
+		patas = patas }
 end
 
 -- Por dónde va el gateo a los `t` s: cuánto se ha metido (0..1), cuánto husmea (0..1, entre tirones), el empujón de
@@ -581,7 +615,7 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean)
 			local m = buscarBorde(b, punto)
 			g = {
 				hora = hora, punto = punto, borde = m.borde, techo = m.techo, arriba = m.arriba, atras = m.atras,
-				hueco = m.hueco, caja = m.caja, medio = m.medio, t = t, sonados = sonados,
+				hueco = m.hueco, patas = m.patas, caja = m.caja, medio = m.medio, t = t, sonados = sonados,
 				brazo = if azar:NextNumber() < 0.5 then -1 else 1, ladeo = b.ladeo, cara0 = b.cabeza.Position, sale = 0,
 				piernas = 0,
 			}
@@ -705,6 +739,13 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean)
 		-- El brazo es gordo: solo los dedos (lo que pasa de 2/3 del antebrazo) llegan al suelo.
 		local mal = math.max(0, 0.32 - codo.Y) + math.max(0, 0.25 - codo:Lerp(mano, 0.6).Y)
 			+ tramo(hombro, codo) + tramo(codo, mano)
+		-- Y las cajas Choque (patas, viga): ni el brazo ni el antebrazo con los dedos las atraviesan. En diagonal, con el
+		-- hombro por fuera de una pata y la mano debajo, el codo sube en vez de abrirse: abierto, el antebrazo cruzaba la
+		-- esquina de la pata (0,13 en la mesa de la cocina, comprobado con Lune).
+		if #g.patas > 0 then
+			local h, c = enMarco * hombro, enMarco * codo
+			mal += enPatas(h, c, g.patas) + enPatas(c, enMarco * mano, g.patas)
+		end
 		if hueco and codo.Z < 0.3 - g.borde then
 			mal += 0.05 * math.max(0, math.abs((enMarco * codo - hueco.centro):Dot(hueco.eje)) - hueco.ancho - 0.1)
 		end
