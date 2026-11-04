@@ -690,17 +690,16 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean)
 	local hueco = g.hueco
 	local aCaja = if g.caja then g.caja:Inverse() * enMarco else nil
 	local medio = g.medio
+	-- (sin caja: los dos extremos y el punto medio, uno a uno, sin tablas en cada prueba)
+	local delante, arribaMesa, techo = 0.25 - g.borde, g.arriba + 0.3, g.techo - GATEO.Codo
+	local function enTablero(p: Vector3): number
+		return if p.Z < delante and p.Y < arribaMesa then math.max(0, p.Y - techo) else 0
+	end
 	local function tramo(p1: Vector3, p2: Vector3): number
 		if aCaja then
 			return dentroCaja(aCaja * p1, aCaja * p2, medio, GATEO.Codo)
 		end
-		local mal = 0
-		for _, p in { p1, p2, p1:Lerp(p2, 0.5) } do
-			if p.Z < 0.25 - g.borde and p.Y < g.arriba + 0.3 then
-				mal += math.max(0, p.Y - (g.techo - GATEO.Codo))
-			end
-		end
-		return mal
+		return enTablero(p1) + enTablero(p2) + enTablero(p1:Lerp(p2, 0.5))
 	end
 	local function chocaBrazo(hombro: Vector3, codo: Vector3, mano: Vector3): number
 		-- El brazo es gordo: solo los dedos (lo que pasa de 2/3 del antebrazo) llegan al suelo.

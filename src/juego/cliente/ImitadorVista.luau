@@ -36,6 +36,7 @@ local LEJOS_RENDIMIENTO = 120 -- ...o más lejos que esto con Rendimiento (a ojo
 local CERCA = 120 -- más lejos, sin detalles (crispaciones, tirones)
 local VAHO_LEJOS = 60 -- studs: más lejos no se le ve el vaho
 local MOTORES = { "Torso", "Cuello", "Cabeza", "Mandibula", "BrazoI", "BrazoD", "PiernaI", "PiernaD" }
+local LADOS = { -1, 1 } -- izquierda y derecha (fijo: sin tablas nuevas en cada fotograma)
 local LARGO_BRAZO = 4.45 -- del hombro a la punta de los dedos (Imitador.luau: brazo de 3,8 y dedos de 0,8)
 local HOJA = 0.175 -- media hoja de la puerta (Mapa: 0,35 de grueso)
 local DELANTE = 2.5 -- studs delante de la puerta donde se planta (Imitador.luau)
@@ -710,17 +711,7 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	local yT = Vector3.new(0, math.cos(a), -math.sin(a))
 	local arriba = S - Vector3.new(1.25, 0, 0) + yT * 0.2 -- lo alto del torso (donde nace el cuello)
 	local torso = ejes(arriba - yT * 1.5, yT, Vector3.new(0, math.sin(a), math.cos(a)))
-	local cadera = arriba - yT * 3
-
-	-- Las piernas abiertas como una araña, hasta el suelo.
-	local piernas = {}
-	for _, lado in { -1, 1 } do
-		local junta = cadera + Vector3.new(lado * 0.5, 0, 0)
-		local bajo = math.max(0.1, junta.Y - 0.38)
-		local hl = math.sqrt(math.max(0, 4.4 ^ 2 - bajo ^ 2))
-		local v = Vector3.new(lado * hl * 0.68, -bajo, hl * 0.73).Unit
-		piernas[lado] = ejes(junta + v * 2, -v, Vector3.yAxis)
-	end
+	local cadera = arriba - yT * 3 -- (las piernas salen de aquí: abajo, con lo demás de la pose)
 
 	-- El brazo izquierdo apoyado en el suelo, abierto hacia fuera y algo atrás (lejos de la mesa aunque estés de lado;
 	-- empuja en cada tirón).
@@ -772,14 +763,22 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	pose.Cuello = c0i.Cuello * torsoM:Inverse() * cuelloM * c1.Cuello
 	local cabezaB = cuelloB * c0.Cabeza * base.Cabeza * c1i.Cabeza
 	pose.Cabeza = c0i.Cabeza * cuelloM:Inverse() * cabezaB:Lerp(G * cabeza, m) * c1.Cabeza
-	for nombre, cf in { BrazoD = brazoD, BrazoI = brazoI } do
-		local antes = torsoB * c0[nombre] * base[nombre] * c1i[nombre]
-		pose[nombre] = c0i[nombre] * torsoM:Inverse() * antes:Lerp(G * cf, m) * c1[nombre]
-	end
-	for nombre, cf in { PiernaI = piernas[-1], PiernaD = piernas[1] } do
-		-- (a medio camino se levantan un poco, como dando el paso: si no, la punta rozaba bajo el suelo)
+	local torsoMi = torsoM:Inverse()
+	local antesD = torsoB * c0.BrazoD * base.BrazoD * c1i.BrazoD
+	pose.BrazoD = c0i.BrazoD * torsoMi * antesD:Lerp(G * brazoD, m) * c1.BrazoD
+	local antesI = torsoB * c0.BrazoI * base.BrazoI * c1i.BrazoI
+	pose.BrazoI = c0i.BrazoI * torsoMi * antesI:Lerp(G * brazoI, m) * c1.BrazoI
+	-- Las piernas abiertas como una araña, hasta el suelo. A medio camino se levantan un poco, como dando el paso: si
+	-- no, la punta rozaba bajo el suelo.
+	local alza = Vector3.new(0, 0.3 * math.sin(math.pi * m), 0)
+	for _, lado in LADOS do
+		local nombre = if lado < 0 then "PiernaI" else "PiernaD"
+		local anca = cadera + Vector3.new(lado * 0.5, 0, 0)
+		local bajo = math.max(0.1, anca.Y - 0.38)
+		local hl = math.sqrt(math.max(0, 4.4 ^ 2 - bajo ^ 2))
+		local v = Vector3.new(lado * hl * 0.68, -bajo, hl * 0.73).Unit
 		local antes = c0[nombre] * base[nombre] * c1i[nombre]
-		pose[nombre] = c0i[nombre] * (antes:Lerp(G * cf, m) + Vector3.new(0, 0.3 * math.sin(math.pi * m), 0)) * c1[nombre]
+		pose[nombre] = c0i[nombre] * (antes:Lerp(G * ejes(anca + v * 2, -v, Vector3.yAxis), m) + alza) * c1[nombre]
 	end
 	pose.Mandibula = base.Mandibula:Lerp(CFrame.Angles(-boca, 0, 0), m)
 end
