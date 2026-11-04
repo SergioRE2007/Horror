@@ -209,11 +209,17 @@ local function mostrar(si: boolean)
 	end
 end
 
+-- La cámara la lleva un script (una cinemática: la huida, el incendio…). Mirando por la mirilla o la ventana también
+-- es Scriptable, pero ahí sí se saca (MirarVista deja de mirar al abrirlo).
+local function enEscena(): boolean
+	return camara.CameraType ~= Enum.CameraType.Custom and jugador:GetAttribute("Vistazo") == nil
+end
+
 local function alternar()
 	if jugador:GetAttribute("MovilAbierto") then
 		Remotes.Movil:FireServer(false)
 		mostrar(false)
-	else
+	elseif not enEscena() then -- como la mochila: el móvil no sale en la escena final
 		Remotes.Movil:FireServer(true)
 	end
 end
@@ -325,9 +331,19 @@ end
 function MovilUi.start()
 	crear()
 	jugador:GetAttributeChangedSignal("MovilAbierto"):Connect(function()
+		if jugador:GetAttribute("MovilAbierto") and enEscena() then
+			alternar() -- el servidor dijo que sí cuando ya había empezado la escena
+			return
+		end
 		mostrar(jugador:GetAttribute("MovilAbierto") == true)
 	end)
 	jugador:GetAttributeChangedSignal("Bateria"):Connect(pintarBateria)
+	-- Empieza una cinemática con el móvil en la mano: se guarda (como la mochila, MochilaUi).
+	camara:GetPropertyChangedSignal("CameraType"):Connect(function()
+		if jugador:GetAttribute("MovilAbierto") and enEscena() then
+			alternar()
+		end
+	end)
 	UserInputService.InputBegan:Connect(function(entrada, procesado)
 		if not procesado and (entrada.KeyCode == Enum.KeyCode.M or entrada.KeyCode == Enum.KeyCode.DPadDown) then
 			alternar()
