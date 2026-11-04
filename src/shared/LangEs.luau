@@ -273,6 +273,7 @@ return {
 	["Survive until dawn. If something gets in, hide."] = "Aguanta hasta el amanecer. Si entra algo, escóndete.",
 	-- Cuerpo (14.6).
 	["Crouch"] = "Agacharse",
+	["Run"] = "Correr",
 	-- Mirar sin abrir (14.6).
 	["Look through"] = "Mirar por la mirilla",
 	["Peek"] = "Mirar entre las cortinas",

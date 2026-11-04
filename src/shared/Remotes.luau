@@ -45,6 +45,8 @@ local NOMBRES = {
 	"Mirar", -- cliente -> servidor: (jugador vivo) de muerto, a quién sigue mi cámara (Muerte: el mapa por partes carga ahí)
 	"Mirada", -- cliente -> servidor: (radianes) cuánto miro hacia arriba o abajo; Equipo lo publica en el atributo Mirada
 	"Postura", -- cliente -> servidor: ("Agachado", sí/no) o ("Asomar", -1 izquierda / 0 / 1 derecha); Postura lo publica en los atributos Agachado y Asomado
+	-- Correr y aguante (14.8).
+	"Correr", -- cliente -> servidor: (sí/no) quiero correr; Correr lo publica en los atributos Corriendo, Aguante, Agotado, Frena y Tropiezo
 }
 
 local Remotes = {}

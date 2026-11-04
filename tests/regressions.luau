@@ -1217,4 +1217,140 @@ do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y
 	igual(#MR.cajas(V3.new(30, 1, 30), 5), 0, "mueble: lejos, ninguna caja")
 end
 
+-- Correr y aguante (14.8): solo sí/no; lo pedido se guarda aunque ahora no se pueda; corriendo gasta, sin correr
+-- vuelve tras Espera (más deprisa quieto o agachado); agotado no corre hasta Volver y frena.
+do
+	local CR = cargar("src/shared/CorrerReglas")
+	local C = Config.Correr
+	local function quien(cambios)
+		local j = { vivo = true, escondido = false, cargando = false, mochila = false, agachado = false, asomado = false }
+		for clave, valor in cambios or {} do
+			j[clave] = valor
+		end
+		return j
+	end
+	local function cerca(a, b, etiqueta)
+		assert(math.abs(a - b) < 1e-6, `{etiqueta}: esperado {b}, recibido {a}`)
+		comprobaciones += 1
+	end
+	-- Corre `segundos` a pasos de 1/60 (devuelve el estado y cuántas veces se agotó).
+	local function correr(e, segundos, velocidad, delante, j, ahora)
+		local agota, t = 0, ahora or 100
+		for _ = 1, math.floor(segundos * 60 + 0.5) do
+			local ev
+			t += 1 / 60
+			e, ev = CR.paso(e, 1 / 60, t, velocidad, delante, j or quien())
+			if ev == "Agota" then
+				agota += 1
+			end
+		end
+		return e, agota, t
+	end
+	-- Lo que llega del cliente puede ser cualquier cosa.
+	for _, raro in { 1, 0, "true", {}, 0 / 0 } do
+		igual((CR.pedir(CR.nuevo(), raro, 10)), false, `correr: {tostring(raro)} no es una petición`)
+	end
+	igual((CR.pedir(CR.nuevo(), nil, 10)), false, "correr: nada no es una petición")
+	igual((CR.pedir(CR.nuevo(), false, 10)), false, "correr: pedir lo que ya está no cambia")
+	local cambia, e = CR.pedir(CR.nuevo(), true, 10)
+	igual(cambia and e.quiere, true, "correr: pedirlo")
+	igual(CR.nuevo().quiere, false, "correr: el estado de antes no se toca")
+	-- Muy seguido no se pierde: espera y cuenta al pasar Cada.
+	local _, rapido = CR.pedir(e, false, 10 + C.Cada / 2)
+	igual(rapido.quiere, true, "correr: muy seguido aún no cuenta")
+	igual(rapido.pendiente, false, "correr: pero se guarda")
+	local tarde = CR.paso(rapido, 1 / 60, 10 + C.Cada + 0.01, 16, 1, quien())
+	igual(tarde.quiere == false and tarde.pendiente == nil, true, "correr: lo guardado cuenta al pasar Cada")
+	local _, vuelta = CR.pedir(rapido, true, 10 + C.Cada / 2)
+	igual(vuelta.quiere == true and vuelta.pendiente == nil, true, "correr: volver a lo de antes quita lo guardado")
+	-- Corre solo si se mueve hacia delante y puede.
+	igual(CR.seMueve(16, 1), true, "correr: andando recto, sí")
+	igual(CR.seMueve(C.Moverse / 2, 1), false, "correr: quieto, no")
+	igual(CR.seMueve(16, 0), false, "correr: de lado, no")
+	igual(CR.seMueve(16, -1), false, "correr: hacia atrás, no")
+	local corre = CR.paso(e, 1 / 60, 20, 16, 1, quien())
+	igual(corre.corriendo, true, "correr: lo pide, puede y se mueve")
+	igual(corre.aguante < 1, true, "correr: gasta aguante")
+	igual(CR.paso(e, 1 / 60, 20, 0, 1, quien()).corriendo, false, "correr: quieto no corre")
+	for _, cambio in { { vivo = false }, { escondido = true }, { cargando = true }, { mochila = true },
+		{ agachado = true }, { asomado = true }, { vistazo = true }, { cine = true } } do
+		local clave = next(cambio)
+		local parado = CR.paso(e, 1 / 60, 20, 16, 1, quien(cambio))
+		igual(parado.corriendo, false, `correr: con {clave}, no`)
+		igual(parado.quiere, true, `correr: con {clave} se guarda lo pedido`)
+	end
+	igual(CR.paso(e, 0 / 0, 20, 16, 1, quien()).corriendo, false, "correr: dt NaN no corre")
+	igual(CR.paso(e, -1, 20, 16, 1, quien()).aguante, 1, "correr: dt negativo no gasta")
+	igual(CR.paso(e, 1 / 60, 20, 0 / 0, 0 / 0, quien()).corriendo, false, "correr: velocidad NaN, quieto")
+	-- Lleno dura Dura s y se agota una vez.
+	local casi, agota = correr(e, C.Dura - 0.1, 16, 1)
+	igual(agota, 0, "correr: antes de Dura no se agota")
+	igual(casi.corriendo and casi.aguante > 0, true, "correr: sigue corriendo")
+	local _, agota2 = correr(casi, 0.2, 16, 1)
+	igual(agota2, 1, "correr: a los Dura s se agota (una vez)")
+	-- Justo al agotarse (el paso que avisa).
+	local agotado, t = casi, 100
+	for _ = 1, 60 do
+		local ev
+		t += 1 / 60
+		agotado, ev = CR.paso(agotado, 1 / 60, t, 16, 1, quien())
+		if ev then
+			break
+		end
+	end
+	igual(agotado.agotado and not agotado.corriendo and agotado.aguante == 0, true, "correr: agotado, a cero y sin correr")
+	cerca(agotado.frena, C.Frena, "correr: frena al agotarse")
+	-- Agotado: no corre aunque lo pida hasta tener Volver; la espera primero.
+	local espera = correr(agotado, C.Espera - 0.05, 16, 1, nil, t)
+	cerca(espera.aguante, 0, "correr: durante la espera no vuelve")
+	igual(correr(agotado, C.Frena + 0.05, 16, 1, nil, t).frena, 0, "correr: el frenazo pasa")
+	local andando = correr(agotado, C.Espera + 1, 16, 1, nil, t)
+	igual(andando.aguante > 0 and andando.agotado and not andando.corriendo, true, "correr: agotado vuelve sin correr")
+	cerca(andando.aguante, C.Andando, "correr: andando vuelve a su ritmo")
+	local quieto = correr(agotado, C.Espera + 1, 0, 1, nil, t)
+	cerca(quieto.aguante, C.Quieto, "correr: quieto vuelve más deprisa")
+	local agachado = correr(agotado, C.Espera + 1, 8, 1, quien({ agachado = true }), t)
+	cerca(agachado.aguante, C.Quieto, "correr: agachado también")
+	igual(C.Quieto > C.Andando, true, "correr: quieto más deprisa que andando")
+	local listo = correr(agotado, C.Espera + C.Volver / C.Quieto + 0.05, 0, 1, nil, t)
+	igual(listo.agotado, false, "correr: con Volver deja de estar agotado")
+	igual(CR.paso(listo, 1 / 60, t + 10, 16, 1, quien()).corriendo, true, "correr: y vuelve a correr")
+	local _, sinPedir = CR.pedir(agotado, false, t + 1)
+	local lleno = correr(sinPedir, 60, 16, 1, nil, t + 1)
+	igual(lleno.aguante, 1, "correr: no pasa de lleno")
+	-- Dejar de correr a medias: no se agota y vuelve desde ahí.
+	local medio = correr(e, C.Dura / 2, 16, 1)
+	local _, suelta = CR.pedir(medio, false, 200)
+	local descansa = correr(suelta, C.Espera + 1, 16, 1)
+	igual(descansa.agotado, false, "correr: soltar a medias no agota")
+	cerca(descansa.aguante, medio.aguante + C.Andando, "correr: y vuelve desde lo que quedaba")
+	-- Velocidad y cansancio.
+	igual(CR.velocidad(16, true), 16 * C.Factor, "correr: velocidad corriendo")
+	igual(CR.velocidad(16, false), 16, "correr: andando, la de andar")
+	igual(CR.velocidad(16 * 1.2, true), 16 * 1.2 * C.Factor, "correr: la clase Corredor también corre más")
+	igual(CR.cansancio(agotado), 1, "correr: agotado, cansado del todo")
+	igual(CR.cansancio(CR.nuevo()), 0, "correr: descansado")
+	local re = CR.reaparecer(agotado)
+	igual(re.aguante == 1 and not re.agotado and not re.quiere and re.ultimo == agotado.ultimo, true, "correr: al reaparecer")
+	-- Los bichos te oyen desde más lejos corriendo que de pie.
+	igual(C.Oido > Config.Postura.Oido, true, "correr: hace ruido")
+end
+
+-- Bancos (tests/bancos, 14.8): módulos del cliente con un Roblox de mentira (tests/bancos/_roblox.luau) y cuentas,
+-- cada uno en su propio proceso de Lune (no se pisan lo que tocan). Los que empiezan por "_" son ayudas, no bancos.
+do
+	local process = require("@lune/process")
+	if fs.isDir("tests/bancos") then
+		local nombres = fs.readDir("tests/bancos")
+		table.sort(nombres)
+		for _, nombre in nombres do
+			if string.match(nombre, "%.luau$") and not string.match(nombre, "^_") then
+				local r = process.exec("lune", { "run", "tests/bancos/" .. nombre })
+				assert(r.ok, `banco {nombre}:\n{r.stdout}{r.stderr}`)
+				comprobaciones += 1
+			end
+		end
+	end
+end
+
 print(`Todo bien: {comprobaciones} comprobaciones.`)

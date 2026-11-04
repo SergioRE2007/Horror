@@ -447,6 +447,31 @@ Config.Postura = {
 	SinSalida = 20, -- segundos sin volver a probar un borde al que no llegó (luego lo vuelve a intentar)
 }
 
+-- Correr y aguante (14.8, pedido por el usuario: "añadir la mecánica de correr, que tengas una stamina abajo del todo,
+-- una barra fina así minimalista que aparezca al correr"). Reglas en shared/CorrerReglas; el servidor (juego/servidor/
+-- Correr) lleva el aguante y la velocidad sale de Cargar.ajustarVelocidad. Números a ojo (cuentas de persecución en
+-- tests/bancos/correr-cuentas.luau).
+Config.Correr = {
+	Factor = 1.5, -- corriendo, la velocidad de andar por esto (16 → 24; con la clase Corredor, 19,2 → 28,8)
+	Dura = 6.5, -- segundos de aguante seguido corriendo, con el aguante lleno
+	Espera = 1, -- segundos sin correr hasta que el aguante empieza a volver
+	Andando = 1 / 10, -- aguante que vuelve por segundo andando (de vacío a lleno, 10 s)
+	Quieto = 1 / 5, -- y quieto o agachado (5 s)
+	Volver = 1 / 3, -- agotado del todo, no se vuelve a correr hasta tener esto
+	Frena = 1.2, -- segundos que frenas al agotarte...
+	FactorFrena = 0.6, -- ...andando a esta parte de lo normal
+	Tropiezo = 0.35, -- de cada vez que te agotas corriendo, cuántas tropiezas (la cámara cae y te recuperas)
+	Moverse = 2, -- studs/s: más despacio no cuenta como correr (aunque lo pidas)
+	Delante = 0.25, -- y tiene que ir hacia delante: coseno entre hacia donde va y hacia donde mira (de lado o atrás, no)
+	Oido = 22, -- studs a los que te oye un bicho mientras corres (de pie, Config.Postura.Oido)
+	Cada = 0.1, -- segundos como mínimo entre dos peticiones que cuentan (servidor; las de más se juntan)
+	Publicar = 0.1, -- segundos como mínimo entre dos publicaciones del atributo Aguante
+	Gracia = 0.4, -- s que el cliente corre sin que el servidor lo confirme (al empezar: que vaya al momento)
+	Poco = 0.25, -- con menos aguante, la barra pasa a rojo oscuro
+	Jadeo = "VientoTiro", -- sonido provisional del jadeo mientras Config.Sonidos.Jadeo tenga Id 0
+	JadeoTono = 1.6, -- y su tono (solo el provisional)
+}
+
 Config.Movil = {
 	Duracion = 150, -- segundos mirándolo con la batería llena
 	Carga = 60, -- segundos en el enchufe hasta llenarse
@@ -563,6 +588,8 @@ Config.Sonidos = {
 	Vajilla = { Id = 0, Volumen = 0.5, Alcance = 30 }, -- platos y vasos que tintinean al temblar (mientras, CristalVibra)
 	Mecedora = { Id = 0, Volumen = 0.6, Alcance = 30 }, -- crujido de la mecedora al mecerse sola (mientras, Cruje)
 	Resoplido = { Id = 0, Volumen = 0.8, Alcance = 40 }, -- la Bestia al soltar el aire (mientras, el Rugido muy grave y cortado)
+	-- Correr (14.8): FALTA, para hacer con ElevenLabs. Mientras, el provisional de Config.Correr.Jadeo.
+	Jadeo = { Id = 0, Volumen = 0.7, Alcance = 30 }, -- jadeo al agotarte corriendo (lo oyen los de cerca)
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.

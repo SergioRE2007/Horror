@@ -55,6 +55,30 @@ function Ui.lienzo(): Vector2
 	return gui.AbsoluteSize / Ui.escala()
 end
 
+-- Lo que tapa abajo el teléfono (la barra de inicio de algunos, la muesca de lado no cuenta), en píxeles de diseño;
+-- 0 si nada. Se mide con un ScreenGui vacío con ScreenInsets = DeviceSafeInsets frente al Hud (que lo ignora todo): la
+-- diferencia entre sus bordes de abajo. Lo usan la rejilla de botones del móvil (EquipoVista) y la barra del aguante.
+local seguro: ScreenGui? = nil
+function Ui.zonaSegura(): number
+	local gui = Ui.hud()
+	if not seguro then
+		pcall(function()
+			local s = Instance.new("ScreenGui")
+			s.Name = "ZonaSegura"
+			s.ResetOnSpawn = false
+			s.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
+			s.Parent = jugador:WaitForChild("PlayerGui")
+			seguro = s
+		end)
+	end
+	local s = seguro
+	if not s then
+		return 0
+	end
+	local abajo = (gui.AbsolutePosition.Y + gui.AbsoluteSize.Y) - (s.AbsolutePosition.Y + s.AbsoluteSize.Y)
+	return if abajo == abajo and abajo > 0 then math.min(abajo / Ui.escala(), 80) else 0
+end
+
 -- Texto que encoge para caber en su caja (palabras largas en otros idiomas), hasta `maximo`.
 function Ui.queQuepa(objeto: TextLabel | TextButton, maximo: number)
 	objeto.TextScaled = true
