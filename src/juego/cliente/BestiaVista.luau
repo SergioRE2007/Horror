@@ -14,7 +14,8 @@
 --   de vez en cuando. Con Rendimiento, nada de eso (como antes: solo respira un poco).
 --   Gatea (atributos Gatea y GateaHora en su modelo, del servidor): a por quien se esconde debajo de un mueble. Se
 --   echa atrás, se aplasta fuera del borde y mete por debajo la cabeza, ladeada y mirándote, y el brazo derecho, que
---   barre el suelo de lado a tirones hasta pasarte las garras al lado (ver "gatear", abajo).
+--   barre el suelo de lado a tirones hasta pasarte las garras al lado (ver "gatear", abajo). Metida, una luz floja en
+--   la cara para que se la vea desde debajo de noche (sin ella con Rendimiento).
 -- BestiaVista.rugir(punto, modelo): para el susto al morir (como los demás bichos).
 -- Un solo bucle (Stepped) mientras haya alguna; el temblor de la cámara, atado solo mientras tiembla y nunca con la
 -- cámara en Scriptable (cinemáticas, escondite, mirilla).
@@ -90,6 +91,9 @@ local GATEO = {
 	Abierto = 1.45, -- radianes: al bajar fuera del borde, el brazo derecho de lado (fuera del mueble)
 	AbreI = 1, -- radianes: el brazo izquierdo, desde atrás hacia fuera (empuja en cada tirón)
 	Patas = 0.5, -- radianes que abre las patas de atrás (hacia atrás, a ras de suelo)
+	Luz = 0.5, -- brillo de la luz floja en la cara (como la del Imitador), solo a menos de LuzCerca y sin Rendimiento...
+	LuzCerca = 14,
+	LuzAlcance = 4.5, -- ...y su alcance (la cabeza es grande)
 }
 -- Medidas del cuerpo (servidor/Bestia.luau): del centro del lomo a su frente y a cada cadera (las patas, en x = ±).
 local LOMO_FRENTE = 3.1
@@ -142,6 +146,7 @@ type Gateo = {
 	pose: { [string]: CFrame },
 	abajo: { [string]: CFrame }, -- la pose al bajar fuera del borde (en G)...
 	dentro: { [string]: CFrame }, -- ...y metida (en G)
+	luz: PointLight?, -- la luz floja en la cara (luzGateo)
 }
 
 type Bicho = {
@@ -207,7 +212,7 @@ local function suave(k: number): number
 	return k * k * (3 - 2 * k)
 end
 
--- Deja de gatear del todo: los chorretones vuelven a verse.
+-- Deja de gatear del todo: los chorretones vuelven a verse y se apaga la luz de la cara.
 local function terminarGateo(b: Bicho)
 	local g = b.gateo
 	if not g then
@@ -215,6 +220,9 @@ local function terminarGateo(b: Bicho)
 	end
 	for _, pieza in g.colgantes do
 		pieza.LocalTransparencyModifier = 0
+	end
+	if g.luz and g.luz.Parent then
+		(g.luz.Parent :: Instance):Destroy()
 	end
 	b.gateo = nil
 end
@@ -807,6 +815,24 @@ local function colgantesDe(modelo: Model): { BasePart }
 	return lista
 end
 
+-- Una luz floja en la cara, para que se la vea desde debajo de la mesa de noche (como la del Imitador; brillos flojos,
+-- pedido por el usuario). Sin sombras; con Rendimiento, nada (se apaga si ya estaba).
+local function luzGateo(b: Bicho, g: Gateo, brillo: number)
+	if not g.luz or not g.luz.Parent then
+		local a = Instance.new("Attachment")
+		a.Name = "LuzGatea"
+		a.Position = Vector3.new(0, -0.2, -2) -- delante de la cara (la cabeza llega a 1,5): dentro no la alumbraría
+		local foco = Instance.new("PointLight")
+		foco.Color = Color3.fromRGB(205, 200, 195)
+		foco.Range = GATEO.LuzAlcance
+		foco.Shadows = false
+		foco.Parent = a
+		a.Parent = b.cabeza
+		g.luz = foco
+	end
+	(g.luz :: PointLight).Brightness = brillo
+end
+
 -- Gatea, GateaHora y por dónde va. Devuelve la mezcla con la que se pinta (0 = nada). Se queda en la pose si te acaba de
 -- pillar (rugir lo llama MuerteVista) para que la escena de muerte le vea la cara ahí; si no, se levanta (y se queda
 -- echada atrás mientras no ande).
@@ -828,7 +854,8 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 			end
 			local nuevo: Gateo = { punto = punto, hora = t, inicio = ahora, borde = borde, alto = alto, pata = pata,
 				mezcla = if g then g.mezcla else 0, fin = nil, k = 0, tirones = 0, cayo = g ~= nil and g.mezcla >= 1, atras = 0,
-				olio = false, colgantes = colgantesDe(modelo), pose = if g then g.pose else {}, abajo = {}, dentro = {} }
+				olio = false, colgantes = colgantesDe(modelo), pose = if g then g.pose else {}, abajo = {}, dentro = {},
+				luz = if g then g.luz else nil }
 			g = nuevo
 			b.gateo = nuevo
 		end
@@ -862,6 +889,12 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	poseGateo(b, g, ahora, ojo, adornos, ahora - b.pilla < 2.5, g.mezcla)
 	if distancia < CERCA then -- los sonidos, también con Rendimiento: se oye venir
 		sonidosGateo(b, g, adornos, distancia)
+	end
+	-- La luz, solo bajando y metida: echada atrás esperando a andar, apagada. (`adornos` ya es "sin Rendimiento y cerca")
+	local luce = adornos and distancia < GATEO.LuzCerca
+	if luce or g.luz then
+		local baja = (g.mezcla - GATEO.Tramos[1]) / (1 - GATEO.Tramos[1])
+		luzGateo(b, g, if luce then GATEO.Luz * suave(baja) else 0)
 	end
 	return 1
 end
