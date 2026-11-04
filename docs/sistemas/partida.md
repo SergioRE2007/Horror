@@ -5,7 +5,7 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 ## Lobby (`src/lobby`)
 
 - `Gasolinera` y los suyos: la gasolinera vieja de noche junto a la carretera, con lluvia, la tienda dentro y 4 coches en `workspace.Coches` (etiqueta `Coche`, asientos `Asiento1..4`). Rehecha en 14.7: ver `lobby.md`.
-- `Coches` (servidor): prompt "Get in" (E) te sienta en el primer asiento libre. El primero que sube es el dueño; si se baja, lo es el siguiente que subió (y se vuelve a elegir de cero). El dueño elige ranura (1..`Ranuras`), si empieza de cero y arranca: cuenta atrás de `Salida` s y `Viaje.ir`. Atributos del coche: `Dueno`, `Ranura`, `Nueva`, `Salida`; del jugador: `Coche`. Remote `Coche`: ("Ranura", n), ("Nueva", bool), ("Arrancar"), solo del dueño; Ranura y Nueva, como mucho una petición cada 0,2 s. Tras un viaje que sale bien, el coche vuelve a quedar libre (`Salida` a nil) cuando se vacía (antes se quedaba inservible para siempre en ese servidor).
+- `Coches` (servidor): prompt "Get in" (E) te sienta en el primer asiento libre. El primero que sube es el dueño; si se baja, lo es el siguiente que subió (y se vuelve a elegir de cero). El dueño elige ranura (1..`Ranuras`), si empieza de cero y arranca: cuenta atrás de `Salida` s y `Viaje.ir`. Atributos del coche: `Dueno`, `Ranura`, `Nueva`, `Salida`, `Llegada`; del jugador: `Coche`. Remote `Coche`: ("Ranura", n), ("Nueva", bool), ("Arrancar"), solo del dueño; Ranura y Nueva, como mucho una petición cada 0,2 s. Tras un viaje que sale bien, cuando el coche se vacía llega otro por la carretera (`Llegada`, 22 s, sin poder subir; 14.9.3) y luego queda libre (antes se quedaba inservible para siempre en ese servidor). Por el carril, de uno en uno: ver `lobby.md`.
 - `CochesUi` (cliente): ver `lobby.md` (Interfaz). BAJAR (`Sit = false`: `Jump` desde un script no levanta del asiento); al bajarte sales de pie junto a la puerta.
 - `Controles` pasó a `comun/cliente` (vale en los dos lugares). `Ui.mancha(panel)`: la esquina de sangre de los paneles.
 
@@ -28,6 +28,34 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 - Cada guardado apunta en los datos del dueño `partidas["<ranura>"] = { noche, hora }` (atributo `Partidas` del jugador, en JSON): es lo que enseña el lobby.
 - Cuidados (de la revisión del código): `op` solo se pone cuando el candado ya es nuestro (un cierre a media carga borraría la partida); si el dueño no llega nunca (le falló el teletransporte), a los `EsperaDueno` s se acaba; tras volver al amanecer, los que se fueron recuperan su mochila de entonces; guardar y volver al lobby no frenan el ciclo ni el arranque.
 - Modo de pruebas: almacén de mentira en memoria (pasa por JSON). `ServerStorage.Prueba:Fire("Guardar")` hace la foto y la guarda ya; `("Cargar")` la relee y la pone. `Config.Test.Partidas` = las ranuras que enseña el lobby en Studio.
+
+## Muerte y finales (14.9)
+
+- Mientras `workspace.Final` está puesto (la huida en el coche o el incendio de la Bestia) no se revive a nadie: el
+  `Director` se salta el revivir del amanecer, `Revivir.puede` da false y se apaga `Revivible` (sin botones). Si el
+  incendio fracasa y quita `Final` ya de día, `Incendio` revive a todos.
+- Antes de anclar a todos en los dos finales (`Coche`, `Incendio`), a cada uno: `Muerte.sacar` si está escondido (con
+  pcall), suelta lo que carga, mochila cerrada (`MochilaAbierta` a nil) y `Cargar.ajustarVelocidad`.
+- `MuerteVista`: el susto va en pcall y la vuelta (negro, cámara Custom, mirar a los vivos) se hace siempre. En un final
+  no toca la cámara (tampoco al reaparecer) y corta en seco el aliento y el latido.
+- Remote `Muerte` (quien, cabeza, modelo): trae el bicho que pilla y la escena lo enfoca a él (ver `bichos.md`).
+- API nueva de `Muerte`: `vivo(jugador)` (como mirar en `vivos()`, sin hacer la lista), `sacar(jugador)` (fuera del
+  escondite, lo mismo que salir) y `alMorir(fn)` (`fn(jugador)` una vez por muerte, muera como muera; Caza olvida su olor).
+- Cinemáticas (la huida, el incendio): mochila y móvil se cierran al empezar y no se abren en ella; puntero del ratón
+  escondido; la linterna de los demás se apaga con la cámara Scriptable (salvo mirilla o escondido); la flecha y el
+  contorno del tutorial se apagan con el Hud apagado o en cinemáticas; el tirón de los sustos (`Util.tiron`) se deshace
+  antes de la cámara de Roblox y no toca la Scriptable.
+- Probar en Studio (sin probar):
+  - `Prueba:Fire("Quemar")` con un escondido (`Prueba:Fire("Esconder", <punto junto a un armario>)`) y la mochila
+    abierta: en la escena no hay puntero, el escondido ha salido (sin latido; E no hace nada), todos `Anchored` y la
+    mochila cerrada; al acabar vuelven el puntero y la cámara. Igual con la huida (Escape).
+  - Con un muerto, `Prueba:Fire("Dia")` mientras corre el fuego: no revive (`Muerto` sigue, `Final` puesto); al
+    fracasar el fuego de día, revive. Con `workspace:SetAttribute("Final", true)` no sale el botón de revivir.
+  - Dos jugadores: que muera uno, huida con el otro y `Prueba:Fire("Dia")`: el revivido no aparece en mitad de la escena.
+  - Con la mochila o el móvil abiertos, lanzar la huida (`Remotes.Huida:FireAllClients(20)` en Server): se cierran
+    solos, no se abren con B o M durante ella y al acabar sí. Por la mirilla, la flecha del tutorial se apaga y vuelve;
+    con dos jugadores, la linterna del otro no se ve suelta en la escena final. Sustos seguidos sin mover el ratón: la
+    mirada vuelve exactamente a donde estaba.
 
 ## Probado en Studio (21-10-2026)
 
