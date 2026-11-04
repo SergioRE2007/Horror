@@ -35,6 +35,7 @@ Config.Recompensas = {
 		Noche10 = { Noche = 10, Monedas = 400 },
 		Huida = { Monedas = 250 },
 		Bestia = { Monedas = 500 },
+		Tutorial = { Monedas = 100 }, -- al acabar el tutorial (juego/servidor/Tutorial); también apunta que ya lo hizo
 	},
 }
 
@@ -53,7 +54,7 @@ Config.Partida = {
 Config.Coches = {
 	Cuantos = 4,
 	Plazas = 4,
-	Salida = 5, -- segundos de cuenta atrás al arrancar
+	Salida = 7, -- segundos de cuenta atrás al arrancar (lo que dura la cinemática de salida, lobby/cliente/SalidaVista)
 }
 
 -- Día y noche (juego/servidor/Ciclo). Segundos.
@@ -183,7 +184,8 @@ Config.Acechador = {
 
 -- Dificultad por número de jugadores (shared/Dificultad), pensada para 2 (pedido por el usuario). Se calcula al
 -- empezar cada noche. AlaVez = {mínimo, máximo} ataques a la vez; Ritmo multiplica el tiempo entre ataques,
--- Paciencia lo que aguanta golpeando o raspando, Tareas lo que hay que hacer de día (aún sin usar). Números a ojo.
+-- Paciencia lo que aguanta golpeando o raspando, Tareas lo que hay que hacer de día (de momento, lo deprisa que gasta
+-- gasolina el generador: Generador). Números a ojo.
 Config.Dificultad = {
 	{ AlaVez = { 1, 1 }, Ritmo = 1.3, Paciencia = 1.25, Tareas = 0.75 },
 	{ AlaVez = { 2, 2 }, Ritmo = 1, Paciencia = 1, Tareas = 1 },
@@ -412,6 +414,39 @@ Config.Bestia = {
 }
 Config.Insignias = { Bestia = 0 } -- Id de la insignia (BadgeService) al publicar (13.2); 0 = no se da
 
+-- Postura en la partida (14.6, pedido por el usuario: "agacharse (botón también en el móvil) y asomarse por las
+-- esquinas"). Agachado los bichos te ven y te oyen menos; debajo de un mueble te huelen y gatean a por ti. Números a ojo.
+Config.Postura = {
+	Velocidad = 0.5, -- agachado se anda a la mitad
+	Baja = 1.7, -- studs que baja la cámara al agacharse
+	Asomar = 1.3, -- studs que se mueve la cabeza de lado al asomarte
+	Giro = 14, -- grados que se ladea al asomarte
+	Cada = 0.15, -- segundos como mínimo entre dos cambios (servidor)
+	-- Esconderse agachado (pedido por el usuario, 03-11-2026: "agacharte también debería servir para esconderte, por
+	-- ejemplo debajo de mesas, y que el monstruo pueda gatear si te huele… que sea útil agacharte es la finalidad").
+	Alto = 2.6, -- studs de alto de lo que choca de tu cuerpo agachado: cabes bajo un tablero algo más alto
+	VistaAgachado = 0.6, -- agachado y sin cubrirte, los bichos te ven a esta parte de su Vista
+	OirAgachado = 4, -- y te oyen a estos studs (de pie, a 8)
+	VerCubierto = 3, -- debajo de algo (atributo Cubierto) solo te ven o te oyen así de cerca
+	Olfato = 14, -- studs a los que un bicho te huele debajo de algo
+	Huele = 5, -- segundos oliéndote hasta saber dónde estás (lejos, se le olvida a la mitad de deprisa)
+	Gatear = 2, -- segundos que tarda en meterse a por ti debajo del mueble (si sales y te alejas antes, lo deja)
+	-- Los bichos (Caza y Bestia) con quien está debajo de un mueble. A ojo.
+	Oido = 8, -- studs a los que te oye un bicho de pie (agachado o debajo de algo, menos: OirAgachado, VerCubierto)
+	Fuera = 2.5, -- studs fuera del mueble donde se para a gatear: cabe su raíz (3 × 1,5) y el camino llega
+	-- Los que de pie sacan brazos o cabeza por delante se paran algo más lejos, para no meterlos en el tablero antes
+	-- de gatear (empiezan a gatear a CercaBorde del sitio, así que suelen quedar 1-3 más lejos todavía).
+	FueraRaspador = 3.4, -- el Raspador (brazos colgando)
+	FueraTrepador = 4, -- el Trepador (cabeza muy adelantada)
+	FueraBestia = 4, -- la Bestia, que es enorme
+	CercaBorde = 3, -- studs del borde a los que empieza a gatear
+	SeEscapa = 6, -- studs del borde: si sales del mueble y te alejas más, ya no te alcanza
+	Atasco = 4, -- segundos sin acercarse al borde (no hay camino) para dejarte y probar otro lado
+	MaxOlor = 0.5, -- segundos de olor como mucho de una vez (si lleva rato sin mirar, golpeando una puerta)
+	Ancho = 1.3, -- media anchura libre que necesita a los lados del borde para meterse (su raíz mide 3)
+	SinSalida = 20, -- segundos sin volver a probar un borde al que no llegó (luego lo vuelve a intentar)
+}
+
 Config.Movil = {
 	Duracion = 150, -- segundos mirándolo con la batería llena
 	Carga = 60, -- segundos en el enchufe hasta llenarse
@@ -434,6 +469,15 @@ Config.Test = {
 	Ranura = 1,
 	Nueva = false, -- true = empezar de cero aunque haya algo guardado
 	Partidas = { ["1"] = { noche = 4, hora = 0 } }, -- lo que el lobby enseña como ya guardado (las ranuras)
+	Tutorial = false, -- true = sale el tutorial en Studio (los datos de prueba nunca lo tienen hecho)
+}
+
+-- Tutorial de los primeros minutos (juego/servidor/Tutorial y cliente/TutorialVista, 14.2). Sale una vez por cuenta,
+-- hasta acabarlo o saltarlo; el premio es el logro Tutorial de Config.Recompensas. Pasos en shared/PasosTutorial.
+Config.Tutorial = {
+	Activo = true,
+	Cada = 0.5, -- segundos entre dos miradas del servidor
+	Flecha = 4, -- studs por encima de lo que señala la flecha
 }
 
 -- Sonidos (juego/cliente/Sonido): de ElevenLabs, elegidos por el usuario de oído (tools/sonidos, docs/sistemas/sonidos.md).
@@ -511,6 +555,14 @@ Config.Sonidos = {
 	CasaFondo = { Id = 78347978132756, Volumen = 0.38 }, -- fondo de dentro de la casa de noche, en bucle (Ambiente)
 	Rafaga = { Id = 108230513932897, Volumen = 0.8, Alcance = 60 }, -- ráfaga de viento contra una ventana (Ambiente)
 	Papel = { Id = { 102356296355745, 123486080921232, 140510968287147 }, Volumen = 0.75 }, -- papel al coger o leer una pista
+	-- Inmersión (14.6, docs/sistemas/manos.md): FALTAN, para hacer con ElevenLabs. Con Id = 0 no suenan (Sonido.hay).
+	Respiracion = { Id = 0, Volumen = 0.5 }, -- respiración nerviosa en bucle, escondido
+	Contener = { Id = 0, Volumen = 0.6 }, -- coger aire de golpe y aguantarlo (escondido, con un bicho cerca)
+	Exhalar = { Id = 0, Volumen = 0.6 }, -- soltar el aire temblando cuando se va
+	Mirilla = { Id = 0, Volumen = 0.5, Alcance = 12 }, -- la tapita de metal de la mirilla al apartarla
+	Vajilla = { Id = 0, Volumen = 0.5, Alcance = 30 }, -- platos y vasos que tintinean al temblar (mientras, CristalVibra)
+	Mecedora = { Id = 0, Volumen = 0.6, Alcance = 30 }, -- crujido de la mecedora al mecerse sola (mientras, Cruje)
+	Resoplido = { Id = 0, Volumen = 0.8, Alcance = 40 }, -- la Bestia al soltar el aire (mientras, el Rugido muy grave y cortado)
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.
@@ -773,6 +825,33 @@ Config.Sustos = {
 	-- Goteo
 	GoteoTiempo = 9,
 	GoteoCada = { 0.5, 1.1 },
+}
+
+-- Lobby de noche (lobby/servidor/Gasolinera*, lobby/cliente/*Vista, docs/sistemas/lobby.md; pedido por el usuario:
+-- "es un poco feo"). Todo es adorno: segundos y studs a ojo.
+Config.Lobby = {
+	Cerca = 90, -- más lejos de la cámara no se anima nada (parpadeos pequeños, polillas, limpiaparabrisas)
+	Lluvia = {
+		Gotas = 700, -- gotas por segundo alrededor de la cámara (con Rendimiento, un tercio)
+		Salpicaduras = 14, -- por charco y segundo (con Rendimiento, ninguna)
+		Goteo = 2.5, -- gotas por segundo de cada punto del borde de la marquesina y del tejado
+	},
+	Relampago = { Cada = { 25, 70 }, Trueno = { 1.2, 5 } }, -- segundos entre relámpagos y del relámpago al trueno
+	Puerta = 7, -- studs: la puerta de la tienda se abre con alguien a menos de esto
+	Polillas = 4, -- alrededor de cada luz que las tenga (con Rendimiento, ninguna)
+	Sombra = { Cada = { 60, 150 }, Lejos = { 50, 120 } }, -- algo que se mueve entre los árboles: cada cuánto y a qué distancia
+}
+
+-- Sonidos del lobby que aún no existen (para hacer con ElevenLabs; con Id = 0 no suenan). Lo demás del lobby usa los de
+-- Config.Sonidos (Viento, Zumbido, Parpadeo, Nevera, NeveraClac, Gota, Buho, Lobo, Rama, Ramita). Al tenerlos, poner
+-- su Id y su volumen compensado (docs/sistemas/sonidos.md).
+Config.SonidosLobby = {
+	Lluvia = { Id = 0, Volumen = 0.6 }, -- lluvia de fondo en bucle (sobre la explanada y los árboles)
+	LluviaChapa = { Id = 0, Volumen = 0.5, Alcance = 40 }, -- la lluvia sobre la chapa de la marquesina, en bucle
+	Trueno = { Id = 0, Volumen = 1.2 }, -- trueno lejano (mejor una lista de dos o tres)
+	Radio = { Id = 0, Volumen = 0.5, Alcance = 18 }, -- radio vieja de la tienda con interferencias, en bucle
+	Campanilla = { Id = 0, Volumen = 0.6, Alcance = 25 }, -- la campanilla de la puerta de la tienda
+	Arranque = { Id = 0, Volumen = 1, Alcance = 60 }, -- el coche arrancando y saliendo (la cinemática)
 }
 
 return Config

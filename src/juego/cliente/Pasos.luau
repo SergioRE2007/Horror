@@ -58,7 +58,10 @@ local function paso(dt: number)
 		if andado[jugador] >= ZANCADA then
 			andado[jugador] = 0
 			local nombre = SUELO[humanoide.FloorMaterial] or "PasoTierra"
-			Sonido.en(nombre, raiz.Position - Vector3.new(0, 2.8, 0), azar:NextNumber(0.9, 1.1))
+			local s = Sonido.en(nombre, raiz.Position - Vector3.new(0, 2.8, 0), azar:NextNumber(0.9, 1.1))
+			if s and jugador:GetAttribute("Agachado") then
+				s.Volume *= 0.5 -- agachado se pisa con cuidado (14.6)
+			end
 		end
 	end
 end

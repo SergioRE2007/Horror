@@ -4,6 +4,8 @@
 --   Sonido.tocar(nombre): sin posición (interfaz, sustos).
 --   Sonido.bucle(nombre): uno que se repite; devuelve el Sound para subirle o bajarle el volumen.
 -- Un sonido con varias grabaciones (Id = lista) suena con una distinta cada vez, nunca la misma dos veces seguidas.
+-- Los que aún faltan (Id = 0) no se cargan: suenan mudos (un Sound vacío, para que nada falle) y Sonido.hay(nombre)
+-- dice false.
 local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
@@ -18,6 +20,9 @@ local azar = Random.new()
 
 local function copia(nombre: string): Sound
 	local lista = plantillas[nombre]
+	if not lista or #lista == 0 then
+		return Instance.new("Sound") -- falta (Id 0) o no existe: mudo
+	end
 	local n = 1
 	if #lista > 1 then
 		n = azar:NextInteger(1, #lista - 1)
@@ -58,6 +63,9 @@ function Sonido.tocar(nombre: string): Sound
 	s.Ended:Once(function()
 		s:Destroy()
 	end)
+	if s.SoundId == "" then
+		task.delay(1, s.Destroy, s) -- uno mudo (falta) no acaba nunca: que no se quede colgado
+	end
 	return s
 end
 
@@ -69,6 +77,12 @@ function Sonido.bucle(nombre: string, padre: Instance?): Sound
 	return s
 end
 
+-- Si ese sonido tiene grabación (los que faltan llevan Id 0).
+function Sonido.hay(nombre: string): boolean
+	local lista = plantillas[nombre]
+	return lista ~= nil and #lista > 0
+end
+
 function Sonido.start()
 	local carpeta = Instance.new("Folder")
 	carpeta.Name = "Plantillas"
@@ -76,6 +90,9 @@ function Sonido.start()
 	for nombre, datos in Config.Sonidos do
 		plantillas[nombre] = {}
 		for _, id in if type(datos.Id) == "table" then datos.Id else { datos.Id } do
+			if type(id) ~= "number" or id <= 0 then
+				continue -- falta: se hará con ElevenLabs
+			end
 			local s = Instance.new("Sound")
 			s.Name = nombre
 			s.SoundId = "rbxassetid://" .. id

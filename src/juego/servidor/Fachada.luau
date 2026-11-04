@@ -121,8 +121,13 @@ function Fachada.pared(p: BasePart, fuera: Vector3)
 	if abajo < 1.5 and not bajoPorche then
 		local y0, y1 = -0.5, 2.6
 		local cf = CFrame.fromMatrix(Vector3.new(centro.X, (y0 + y1) / 2, centro.Z) + normal * 0.3, largo, Vector3.yAxis)
-		pieza("Zocalo", Vector3.new(ancho + 0.6, y1 - y0, 0.6), cf, COLOR.Piedra, Enum.Material.Cobblestone)
-		pieza("Remate", Vector3.new(ancho + 0.8, 0.3, 0.8), cf * CFrame.new(0, (y1 - y0) / 2 + 0.1, 0), COLOR.Piedra, Enum.Material.Slate)
+		-- Cada uno se mete en el de al lado con las caras en el mismo plano. En las paredes rectas lo arregla Separar; en
+		-- la girada de la torre no llega (solo mira piezas rectas): el de debajo de la ventana (los de los lados llegan al
+		-- techo), algo más grande, como lo haría Separar (parpadeaban al pie de la torre).
+		local girada = math.abs(normal.X) > 0.01 and math.abs(normal.Z) > 0.01
+		local mas = if girada and p.Size.Y < 6 then Vector3.one * 0.06 else Vector3.zero
+		pieza("Zocalo", Vector3.new(ancho + 0.6, y1 - y0, 0.6) + mas, cf, COLOR.Piedra, Enum.Material.Cobblestone)
+		pieza("Remate", Vector3.new(ancho + 0.8, 0.3, 0.8) + mas, cf * CFrame.new(0, (y1 - y0) / 2 + 0.1, 0), COLOR.Piedra, Enum.Material.Slate)
 	end
 end
 

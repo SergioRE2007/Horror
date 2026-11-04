@@ -29,11 +29,11 @@ esquina de arriba a la derecha.
 - Derecha: los botones de acción de los prompts (`Hud.Acciones`, al 95,5 % del ancho, apartados del borde por la
   cámara de algunos teléfonos) encima del botón de saltar de Roblox.
 - Abajo, a la izquierda del salto (`Hud.EquipoBotones`, rejilla de 3 × 2 desde abajo a la derecha): FLASH, LINTERNA,
-  BENGALA (con la pistola), MOCHILA y MÓVIL, por `LayoutOrder` 1 a 5. Escondido o muerto se esconde: ahí van SALIR y
-  REVIVIR.
+  BENGALA (con la pistola), MOCHILA, MÓVIL y AGACHARSE (`PosturaVista`, rojo con borde claro mientras vas agachado),
+  por `LayoutOrder` 1 a 6: la rejilla queda llena. Escondido o muerto se esconde: ahí van SALIR y REVIVIR.
 - El móvil (mapa) se abre encima de esa rejilla, al 75 %; los avisos de una línea suben al 64 % del alto.
 - Acciones de teclado con botón en el móvil: B (MOCHILA), R/G (GIRAR/TIRAR en la mochila), F (LINTERNA), clic (FLASH),
-  Q/clic (BENGALA dispara directamente), M (MÓVIL), E/R con peso (SOLTAR / el botón de usar), E en el escondite
-  (SALIR) y la E de cada prompt (botón grande de acción).
+  Q/clic (BENGALA dispara directamente), M (MÓVIL), C/Ctrl (AGACHARSE), E/R con peso (SOLTAR / el botón de usar), E en
+  el escondite (SALIR) y la E de cada prompt (botón grande de acción). Asomarse (Z/X) es solo de teclado.
 - Hueco para el engranaje de Ajustes: arriba, a la izquierda de la esquina de la derecha (p. ej. `AnchorPoint` (1, 0)
   en `UDim2.new(0.8, 0, 0, 12)`, 80 × 80 en el móvil): no pisa los botones de Roblox ni los de acción.

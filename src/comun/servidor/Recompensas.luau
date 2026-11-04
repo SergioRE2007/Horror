@@ -92,6 +92,13 @@ function Recompensas.finalBestia(espera: number)
 	end
 end
 
+-- El tutorial acabado (juego/servidor/Tutorial): su logro, una vez por cuenta.
+function Recompensas.tutorial(jugador: Player)
+	cobrar(jugador, function(datos)
+		return Premio.logro(datos, R, "Tutorial")
+	end, "Tutorial complete. +{monedas} coins")
+end
+
 local function alEntrar(jugador: Player)
 	while jugador.Parent and not jugador:GetAttribute("DatosListos") do
 		task.wait(0.5)

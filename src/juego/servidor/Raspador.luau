@@ -81,6 +81,7 @@ local function crear(cf: CFrame): Caza.Bicho
 		Pillar = R.Pillar,
 		Vista = R.Vista,
 		VioEsconderse = R.VioEsconderse,
+		Fuera = Config.Postura.FueraRaspador,
 	})
 end
 
@@ -181,7 +182,11 @@ function Raspador.atacar(el: Model, noche: number, paciencia: number?): () -> bo
 	local a: Ataque = { bicho = nil, hilo = nil, prisa = false }
 	ataques[a] = true
 	a.hilo = task.spawn(function()
-		ataque(a, el, noche, paciencia or 1)
+		-- Con pcall: si el ataque falla, el bicho se quita igual (si no, se quedaba en el mapa y en `ataques` para siempre).
+		local ok, fallo = pcall(ataque, a, el, noche, paciencia or 1)
+		if not ok then
+			warn("[Raspador] " .. tostring(fallo))
+		end
 		terminar(a)
 	end)
 	return function()

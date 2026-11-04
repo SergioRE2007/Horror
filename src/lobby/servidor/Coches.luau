@@ -2,7 +2,8 @@
 --   Cada coche (etiqueta "Coche", los pone Gasolinera) tiene Config.Coches.Plazas asientos. Prompt "Get in" (E): te
 --   sienta en el primero libre; te bajas saltando. El primero que sube es el dueño: elige una de sus ranuras de
 --   partida, si empieza de cero y arranca. Si el dueño se baja, pasa a ser dueño el siguiente que subió.
---   Atributos del coche: Dueno (UserId), Ranura, Nueva, Salida (hora del servidor a la que sale; nil = parado).
+--   Atributos del coche: Dueno (UserId), Ranura, Nueva, Salida (hora del servidor a la que sale; nil = parado; tras
+--   un viaje que sale bien vuelve a nil cuando el coche se vacía, y queda libre otra vez).
 --   Atributo del jugador: Coche (el nombre del coche en el que va).
 --   Remote Coche: ("Ranura", n), ("Nueva", nueva) o ("Arrancar"), solo del dueño. A la hora, Viaje.ir los lleva.
 -- La interfaz, en el cliente (CochesUi).
@@ -22,6 +23,9 @@ local Coches = {}
 
 type Coche = { modelo: Model, asientos: { Seat }, orden: { Player }, prompt: ProximityPrompt, saliendo: boolean }
 local coches: { Coche } = {}
+-- Último cambio de Ranura o Nueva de cada jugador: como mucho uno cada 0,2 s (cada uno se replica a todos). Arrancar no
+-- cuenta: solo vale una vez por salida y no se debe perder.
+local ultimo: { [Player]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 local function avisar(jugadores: { Player }, texto: string)
 	for _, jugador in jugadores do
@@ -66,7 +70,11 @@ local function rehacer(c: Coche)
 		c.modelo:SetAttribute("Dueno", id)
 		c.modelo:SetAttribute("Ranura", 1)
 		c.modelo:SetAttribute("Nueva", false)
-		parar(c)
+		-- Mientras Viaje.ir espera, no (el nuevo dueño podía arrancar un segundo viaje a la vez), salvo con el coche
+		-- vacío: el viaje ya se ha ido (o se han bajado todos) y el coche vuelve a estar libre.
+		if not c.saliendo or #c.orden == 0 then
+			parar(c)
+		end
 	end
 	c.prompt.Enabled = #c.orden < #c.asientos and not c.saliendo
 end
@@ -99,13 +107,22 @@ local function arrancar(c: Coche)
 		local ok, porque = Viaje.ir(van, dueno.UserId, c.modelo:GetAttribute("Ranura"), c.modelo:GetAttribute("Nueva"))
 		if not ok then
 			avisar(van, if porque == "studio" then "Teleport doesn't work in Studio." else "Couldn't start the game. Try again.")
-			parar(c)
+			if c.modelo:GetAttribute("Salida") == hora then -- si se vació y ya va otro viaje, a ese no se le para
+				parar(c)
+			end
 			rehacer(c)
 		end
 	end)
 end
 
 local function pedir(jugador: Player, que: unknown, valor: unknown)
+	if que ~= "Arrancar" then
+		local ahora = os.clock()
+		if ahora - (ultimo[jugador] or -math.huge) < 0.2 then
+			return
+		end
+		ultimo[jugador] = ahora
+	end
 	for _, c in coches do
 		if c.orden[1] ~= jugador or c.saliendo then
 			continue

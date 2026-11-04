@@ -959,6 +959,58 @@ do
 	guardable(buena, "partida con preparativos")
 end
 
+-- Tutorial (14.2): los pasos del día en orden, lo ya hecho se salta, el anochecer pasa a las cortinas, se acaba al
+-- amanecer y si mueren todos vuelve a lo del día.
+do
+	local PT = cargar("src/shared/PasosTutorial")
+	local function vista(cambios)
+		local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, mochila = false, hacha = false, cargando = nil,
+			generador = false, cortinas = 3 }
+		for clave, valor in cambios do
+			v[clave] = valor
+		end
+		return v
+	end
+	local e = PT.nuevo()
+	igual(PT.avanzar(e, vista({})), false, "tutorial: empieza sin acabar")
+	igual(e.paso, "Mochila", "tutorial: primero la mochila")
+	PT.avanzar(e, vista({ mochila = true }))
+	igual(e.paso, "Hacha", "tutorial: luego el hacha")
+	PT.avanzar(e, vista({ hacha = true, cargando = "Tablon" }))
+	igual(e.paso, "Generador", "tutorial: con un tablón en las manos se salta talar y serrar")
+	PT.avanzar(e, vista({ generador = true }))
+	igual(e.paso, "Espera", "tutorial: todo lo del día hecho, a esperar la noche")
+	PT.avanzar(e, vista({ quedan = 15 }))
+	igual(e.paso, "Cortinas", "tutorial: al ponerse el sol, las cortinas")
+	igual(e.noche, 1, "tutorial: apunta la noche que enseña")
+	PT.avanzar(e, vista({ fase = "Noche", cortinas = 0 }))
+	igual(e.paso, "Amanecer", "tutorial: cortinas cerradas, a aguantar")
+	PT.avanzar(e, vista({ fase = "Noche", cortinas = 2 }))
+	igual(e.paso, "Amanecer", "tutorial: si luego abren alguna, no vuelve atrás")
+	-- Mueren todos: vuelve el mismo día.
+	igual(PT.avanzar(e, vista({ fase = "Dia", noche = 1 })), false, "tutorial: volver al día no lo acaba")
+	igual(e.paso, "Espera", "tutorial: tras morir todos, lo del día ya estaba hecho")
+	igual(e.noche, nil, "tutorial: la noche se vuelve a apuntar")
+	PT.avanzar(e, vista({ fase = "Noche", cortinas = 1 }))
+	igual(e.paso, "Cortinas", "tutorial: esa noche otra vez las cortinas")
+	igual(PT.avanzar(e, vista({ fase = "Dia", noche = 2 })), false, "tutorial: amanecer sin cerrar las cortinas: no acaba")
+	igual(e.paso, "Espera", "tutorial: sin cortinas, a esperar la noche siguiente")
+	PT.avanzar(e, vista({ fase = "Noche", noche = 2, cortinas = 0 }))
+	igual(e.paso, "Amanecer", "tutorial: la noche 2, con las cortinas cerradas")
+	igual(PT.avanzar(e, vista({ fase = "Dia", noche = 3 })), true, "tutorial: al amanecer se acaba")
+	-- Quieto todo el rato (AFK): no se acaba nunca.
+	local quieto = PT.nuevo()
+	PT.avanzar(quieto, vista({ fase = "Noche", noche = 1, cortinas = 4 }))
+	igual(PT.avanzar(quieto, vista({ fase = "Dia", noche = 2 })), false, "tutorial: sin hacer nada no hay premio")
+	-- Quien entra de noche: directo a las cortinas y se acaba al amanecer.
+	local tarde = PT.nuevo()
+	PT.avanzar(tarde, vista({ fase = "Noche", noche = 4, cortinas = 0 }))
+	igual(tarde.paso, "Amanecer", "tutorial: entrar de noche con todo cerrado")
+	igual(PT.avanzar(tarde, vista({ fase = "Dia", noche = 5, quedan = 5 })), true, "tutorial: amanecer visto ya de tarde")
+	igual(PT.numero("Cortinas"), 7, "tutorial: número del paso")
+	igual(PT.numero("Nada"), 0, "tutorial: paso que no existe")
+end
+
 -- Remotes: sin nombres repetidos.
 do
 	local fuente = fs.readFile("src/shared/Remotes.luau")
@@ -969,6 +1021,200 @@ do
 		vistos[nombre] = true
 		comprobaciones += 1
 	end
+end
+
+-- Postura (14.6): agacharse y asomarse. Solo ("Agachado", sí/no) y ("Asomar", -1/0/1), como poco cada
+-- Config.Postura.Cada s, y nada muerto, escondido ni cargando (con la mochila abierta, agacharse sí y asomarse no).
+do
+	local PR = cargar("src/shared/PosturaReglas")
+	local cada = Config.Postura.Cada
+	local function quien(cambios)
+		local j = { vivo = true, escondido = false, cargando = false, mochila = false }
+		for clave, valor in cambios or {} do
+			j[clave] = valor
+		end
+		return j
+	end
+	local e = PR.nuevo()
+	local cambia, agachado = PR.pedir(e, "Agachado", true, 10, quien())
+	igual(cambia, true, "postura: agacharse")
+	igual(agachado.agachado, true, "postura: queda agachado")
+	igual(e.agachado, false, "postura: el estado de antes no se toca")
+	igual((PR.pedir(agachado, "Agachado", false, 10 + cada / 2, quien())), false, "postura: demasiado seguido, no cambia")
+	igual((PR.pedir(agachado, "Agachado", true, 20, quien())), false, "postura: pedir lo que ya está no es un cambio")
+	local _, igualQue = PR.pedir(agachado, "Agachado", true, 20, quien())
+	igual(igualQue.ultimo, 10, "postura: lo que no cambia no cuenta para Cada")
+	local asomado
+	cambia, asomado = PR.pedir(agachado, "Asomar", 1, 10 + cada + 0.01, quien())
+	igual(cambia, true, "postura: asomarse pasado Cada")
+	igual(asomado.asomado, 1, "postura: asomado a la derecha")
+	igual(asomado.agachado, true, "postura: se puede asomar agachado")
+	local _, izquierda = PR.pedir(asomado, "Asomar", -1, 30, quien())
+	igual(izquierda.asomado, -1, "postura: de un lado al otro")
+	local _, derecho = PR.pedir(izquierda, "Asomar", -0, 31, quien())
+	igual(1 / derecho.asomado, math.huge, "postura: -0 queda en 0")
+	-- Lo que llega del cliente puede ser cualquier cosa.
+	local raros = {
+		{ "Asomar", 0.5 }, { "Asomar", 2 }, { "Asomar", -2 }, { "Asomar", 0 / 0 }, { "Asomar", math.huge },
+		{ "Asomar", "1" }, { "Asomar", true }, { "Asomar" }, { "Agachado", 1 }, { "Agachado", "true" }, { "Agachado" },
+		{ "Agachado", {} }, { "Saltar", true }, { 5, true }, {},
+	}
+	for i, raro in raros do
+		igual((PR.pedir(PR.nuevo(), raro[1], raro[2], 100, quien())), false, `postura: petición rara {i} no cambia`)
+	end
+	-- Muerto, escondido o cargando: nada (tampoco levantarse: Postura ya lo ha quitado).
+	igual((PR.pedir(PR.nuevo(), "Agachado", true, 100, quien({ vivo = false }))), false, "postura: muerto no se agacha")
+	igual((PR.pedir(PR.nuevo(), "Agachado", true, 100, quien({ escondido = true }))), false, "postura: escondido no se agacha")
+	igual((PR.pedir(PR.nuevo(), "Asomar", -1, 100, quien({ cargando = true }))), false, "postura: cargando no se asoma")
+	igual((PR.pedir(agachado, "Agachado", false, 100, quien({ vivo = false }))), false, "postura: muerto no cambia nada")
+	-- Mochila abierta: agacharse sí; asomarse no, pero dejar de asomarse sí.
+	igual((PR.pedir(PR.nuevo(), "Agachado", true, 100, quien({ mochila = true }))), true, "postura: agacharse con la mochila")
+	igual((PR.pedir(PR.nuevo(), "Asomar", 1, 100, quien({ mochila = true }))), false, "postura: con la mochila no se asoma")
+	igual((PR.pedir(asomado, "Asomar", 0, 100, quien({ mochila = true }))), true, "postura: con la mochila se deja de asomar")
+	-- Limpiar: lo que ya no puede ser se quita, sin contar como cambio.
+	local todo = { agachado = true, asomado = 1, ultimo = 5 }
+	local quita, limpio = PR.limpiar(todo, quien({ escondido = true }))
+	igual(quita, true, "postura: al esconderse se quita")
+	igual(limpio.agachado, false, "postura: escondido, de pie")
+	igual(limpio.asomado, 0, "postura: escondido, sin asomarse")
+	igual(limpio.ultimo, 5, "postura: quitarla no cuenta para Cada")
+	igual(todo.agachado, true, "postura: limpiar no toca el de antes")
+	igual(select(2, PR.limpiar(todo, quien({ cargando = true }))).agachado, false, "postura: al cargar algo, de pie")
+	igual(select(2, PR.limpiar(todo, quien({ vivo = false }))).asomado, 0, "postura: al morir, sin asomarse")
+	quita, limpio = PR.limpiar(todo, quien({ mochila = true }))
+	igual(limpio.agachado, true, "postura: al abrir la mochila sigue agachado")
+	igual(limpio.asomado, 0, "postura: al abrir la mochila deja de asomarse")
+	igual((PR.limpiar(todo, quien())), false, "postura: vivo y libre, no se quita nada")
+	igual((PR.limpiar(PR.nuevo(), quien({ vivo = false }))), false, "postura: de pie ya, nada que quitar")
+	local reaparece = PR.quitar(todo)
+	igual(reaparece.agachado or reaparece.asomado ~= 0, false, "postura: al reaparecer, de pie y derecho")
+	igual(Config.Postura.Velocidad > 0 and Config.Postura.Velocidad < 1, true, "postura: agachado anda más despacio")
+	local CP = Config.Postura
+	igual(CP.Baja > 0 and CP.Baja < 2.5 and CP.Asomar > 0 and CP.Asomar < 2, true, "postura: la cámara no sale del cuerpo")
+	igual(CP.Giro > 0 and CP.Giro < 30 and CP.Cada > 0 and CP.Cada < 1, true, "postura: ladeo y espera razonables")
+	local remotes = fs.readFile("src/shared/Remotes.luau")
+	igual(string.find(remotes, '"Postura"', 1, true) ~= nil, true, "postura: existe el remote Postura")
+
+	-- Esconderse agachado: debajo de algo solo te ven y te oyen muy de cerca; agachado, peor; te pueden oler.
+	igual(PR.alcanceVista(60, false, false), 60, "esconderse: de pie te ven como siempre")
+	igual(PR.alcanceVista(60, true, false), 60 * CP.VistaAgachado, "esconderse: agachado te ven peor")
+	igual(PR.alcanceVista(60, true, true), CP.VerCubierto, "esconderse: debajo de algo, solo muy de cerca")
+	igual(PR.alcanceVista(2, true, true), 2, "esconderse: nunca más lejos que su vista")
+	igual(PR.alcanceOido(8, false, false), 8, "esconderse: de pie te oyen como siempre")
+	igual(PR.alcanceOido(8, true, false), math.min(8, CP.OirAgachado), "esconderse: agachado te oyen peor")
+	igual(PR.alcanceOido(8, true, true), math.min(8, CP.VerCubierto), "esconderse: debajo de algo casi no te oyen")
+	igual(PR.alcanceOido(1, true, true), 1, "esconderse: nunca más lejos que su oído")
+	igual(PR.alcanceOido(1, true, false), 1, "esconderse: agachado, tampoco")
+	local olor = 0
+	for _ = 1, 10 do
+		olor = PR.oler(olor, 0.25, CP.Olfato - 1)
+	end
+	igual(olor, 2.5, "esconderse: cerca, el olor sube 1 por segundo")
+	igual(PR.huele(olor), false, "esconderse: aún no sabe dónde estás")
+	igual(PR.oler(olor, 1, CP.Olfato + 1), 2, "esconderse: lejos, se le olvida a la mitad de deprisa")
+	igual(PR.oler(0.1, 1, CP.Olfato + 1), 0, "esconderse: el olor no baja de 0")
+	igual(PR.oler(CP.Huele - 0.1, 1, 0), CP.Huele, "esconderse: el olor no pasa de Huele")
+	igual(PR.huele(PR.oler(CP.Huele - 0.1, 1, 0)), true, "esconderse: a Huele s ya te ha olido")
+	-- Quién te ha pillado (escena de muerte): el que gateaba a por ti aunque otro tenga la cabeza más cerca (antes
+	-- ganaba siempre el Golpeador si había uno cerca); si nadie gatea a por ti, el de la cabeza más cerca.
+	igual(PR.quienPilla({}), nil, "pillar: sin bichos cerca, nadie")
+	igual(PR.quienPilla({ { distancia = 1 }, { distancia = 4, gatea = 2 } }), 2, "pillar: gana el que gateaba a por ti")
+	igual(PR.quienPilla({ { distancia = 5 }, { distancia = 1.5 }, { distancia = 3 } }), 2, "pillar: si no, el más cerca")
+	igual(PR.quienPilla({ { distancia = 1, gatea = 30 }, { distancia = 2 } }), 1,
+		"pillar: gatear a por otro (lejos) no cuenta, va por distancia")
+	igual(PR.quienPilla({ { distancia = 3, gatea = 30 }, { distancia = 2 } }), 2, "pillar: gatear a por otro no gana")
+	igual(PR.quienPilla({ { distancia = 3, gatea = 1 }, { distancia = 2, gatea = 2 } }), 2,
+		"pillar: dos gateando a por ti, el más cerca")
+	igual(PR.quienPilla({ { distancia = 0 / 0 }, { distancia = 6 } }), 2, "pillar: una distancia rota no gana")
+	local muerteVista = fs.readFile("src/juego/cliente/MuerteVista.luau")
+	igual(string.find(muerteVista, "Vista.rugir(cabeza) or", 1, true), nil, "pillar: la escena no elige por orden fijo")
+	for _, bicho in { "Golpeador", "Raspador", "Trepador", "Imitador", "Acechador", "Bestia" } do
+		local vista = fs.readFile(`src/juego/cliente/{bicho}Vista.luau`)
+		igual(string.find(vista, `function {bicho}Vista.candidatos(`, 1, true) ~= nil, true, `pillar: {bicho}Vista.candidatos`)
+		igual(string.find(vista, `function {bicho}Vista.rugir(punto: Vector3, modelo: Model?)`, 1, true) ~= nil, true,
+			`pillar: {bicho}Vista.rugir del elegido`)
+		local mira = string.find(muerteVista, `{bicho}Vista,`, 1, true) or string.find(muerteVista, `{bicho}Vista }`, 1, true)
+		igual(mira ~= nil, true, `pillar: MuerteVista mira a {bicho}Vista`)
+	end
+	igual(CP.Alto > 1.5 and CP.Alto < 3.2, true, "esconderse: agachado cabe bajo una mesa y no atraviesa nada")
+	igual(CP.VerCubierto < CP.OirAgachado and CP.OirAgachado < CP.Oido and CP.Olfato > CP.VerCubierto, true,
+		"esconderse: cubierto se nota menos que agachado, y agachado menos que de pie")
+	igual(CP.Huele > 0 and CP.Gatear > 0 and CP.VistaAgachado > 0 and CP.VistaAgachado < 1, true,
+		"esconderse: tiempos y vista razonables")
+	igual(CP.FueraBestia >= CP.Fuera and CP.Fuera > 1.5 and CP.CercaBorde > 1 and CP.SeEscapa > CP.CercaBorde, true,
+		"esconderse: se para fuera del mueble y le alcanza al borde")
+	igual(CP.FueraRaspador >= CP.Fuera and CP.FueraTrepador >= CP.Fuera and CP.FueraBestia < 6, true,
+		"esconderse: los que sacan brazos o cabeza se paran algo más lejos, sin pasarse")
+	igual(CP.Atasco > 0 and CP.MaxOlor > 0 and CP.MaxOlor < CP.Huele and CP.Ancho > 0.5 and CP.Ancho < 2, true,
+		"esconderse: atasco, olor de una vez y anchura razonables")
+	igual(CP.SinSalida > CP.Atasco and CP.SinSalida < 120, true, "esconderse: un borde sin salida se vuelve a probar al rato")
+end
+
+do -- Caza.borde: por dónde se mete el bicho debajo de un mueble (sacada del texto: Caza necesita Roblox)
+	local roblox = require("@lune/roblox")
+	local V3, CF = roblox.Vector3, roblox.CFrame
+	local fuente = fs.readFile("src/juego/servidor/Caza.luau")
+	local i = string.find(fuente, "function Caza.borde(", 1, true)
+	local _, f = string.find(fuente, "\r?\nend\r?\n", i)
+	local borde = luau.load("local Caza = {}\n" .. string.sub(fuente, i, f) .. "\nreturn Caza.borde",
+		{ debugName = "Caza.borde", environment = { Vector3 = V3, CFrame = CF } })()
+	local caja, tam, lejos = CF.new(0, 1.3, 0), V3.new(4, 2.6, 6), V3.new(0, 3, -40)
+	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5), V3.new(4.5, 0, 0.5), "debajo: el lado más cercano, a ras de suelo")
+	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5, function(b) return b.X < 2 end), V3.new(1, 0, -5.5),
+		"debajo: pared en ese lado, el siguiente (nunca a través de ella)")
+	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5, function(b) return not (b.X > 2 and b.Z > -1) end),
+		V3.new(4.5, 0, -1), "debajo: entre sillas, se corre a lo largo del lado")
+	igual((borde(caja, tam, V3.zero, lejos, 2.5, function() return false end)), nil, "debajo: sin sitio, nada")
+	-- Girada y en otro sitio: lo mismo, girado con ella.
+	local girada = CF.new(-25.5, 1.3, -15) * CF.Angles(0, math.pi / 2, 0)
+	local b2 = borde(girada, tam, girada:PointToWorldSpace(V3.new(1.5, -0.3, 0.5)), girada:PointToWorldSpace(lejos), 2.5)
+	igual((b2 - girada:PointToWorldSpace(V3.new(4.5, -1.3, 0.5))).Magnitude < 1e-4, true, "debajo: mueble girado, borde girado")
+	-- Lado más corto que las dos patas: en medio. Y la cara, en la boca del hueco frente a él.
+	local estrecha = V3.new(1.5, 2.6, 6)
+	local b3, c3 = borde(caja, estrecha, V3.new(0, 1, 2.9), lejos, 2.5, function(b) return b.Z > 3.5 end)
+	igual(b3, V3.new(0, 0, 5.5), "debajo: lado corto, en medio")
+	igual(c3, V3.new(0, 0, 3), "debajo: la cara, en la boca del hueco")
+end
+
+do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y workspace:Raycast no los ve)
+	local roblox = require("@lune/roblox")
+	local V3, CF = roblox.Vector3, roblox.CFrame
+	local zonas = {}
+	local MR = luau.load(fs.readFile("src/juego/cliente/MuebleRayo.luau"), { debugName = "MuebleRayo", environment = {
+		game = { GetService = function() return { GetTagged = function() return zonas end } end },
+		workspace = { Raycast = function() return nil end },
+		Vector3 = V3,
+		CFrame = CF,
+	} })()
+	local caja = { cf = CF.new(0, 3, 0) * CF.Angles(0, math.pi / 4, 0), medio = V3.new(2, 0.5, 2), pieza = {}, bajo = V3.zero, alto = V3.zero }
+	local t = MR.entra(caja, V3.new(0, 0, 0), V3.new(0, 5, 0))
+	igual(t ~= nil and math.abs(t - 0.5) < 1e-6, true, "mueble: rayo hacia arriba entra por abajo")
+	igual(MR.entra(caja, V3.new(0, 3, 0), V3.new(0, 5, 0)), nil, "mueble: si empieza dentro no lo ve (como Raycast)")
+	igual(MR.entra(caja, V3.new(3, 0, 0), V3.new(0, 5, 0)), nil, "mueble: por fuera de la caja girada no da")
+	igual(MR.entra(caja, V3.new(0, 0, 0), V3.new(0, 2, 0)), nil, "mueble: rayo corto que no llega")
+	-- La mesa del comedor como en Mapa: zona Debajo, mueble con Tam y pivote, y la caja Choque de una pata en su casa.
+	local esPieza = function(_, c) return c == "BasePart" end
+	local pivote = CF.new(-25.5, 1, -15) * CF.Angles(0, math.pi / 2, 0)
+	local pataCF = pivote * CF.new(-4.88, 1.42, -1.6)
+	local pata = { Name = "Choque", CFrame = pataCF, Position = pataCF.Position, Size = V3.new(0.68, 2.84, 0.45), IsA = esPieza }
+	local casa = { GetChildren = function() return { pata } end }
+	local mueble = {
+		Name = "MesaComedorPH",
+		Parent = casa,
+		IsA = function(_, c) return c == "Model" end,
+		GetPivot = function() return pivote end,
+		GetAttribute = function(_, k) return if k == "Tam" then V3.new(13, 3.51, 5.56) else nil end,
+	}
+	local zonaCF = pivote * CF.new(0, 1.42, 0.035)
+	table.insert(zonas, { Name = "Debajo", Parent = mueble, CFrame = zonaCF, Position = zonaCF.Position, Size = V3.new(9.08, 2.84, 2.81), IsA = esPieza })
+	local cajas = MR.cajas(V3.new(-25.5, 1, -15), 10)
+	igual(#cajas, 2, "mueble: el tablero de la zona y la pata de su casa")
+	-- Bajo el voladizo del lado largo (la zona llega a 1,4 del centro y el tablero a 2,78): ve el tablero a 2,84.
+	local g = MR.rayo(V3.new(-25.5 - 2.6, 1.4, -15), V3.new(0, 4.5, 0), {} :: any, cajas)
+	igual(g ~= nil and math.abs(g.Position.Y - 3.84) < 1e-3 and g.Instance == mueble, true,
+		"mueble: el tablero entero, hasta el borde que se ve")
+	igual(MR.rayo(V3.new(-25.5 - 3, 1.4, -15), V3.new(0, 4.5, 0), {} :: any, cajas), nil, "mueble: fuera del tablero, nada")
+	igual(#MR.cajas(V3.new(30, 1, 30), 5), 0, "mueble: lejos, ninguna caja")
 end
 
 print(`Todo bien: {comprobaciones} comprobaciones.`)

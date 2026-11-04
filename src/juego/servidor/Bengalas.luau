@@ -28,8 +28,6 @@ local ultimo: { [Player]: number } = {}
 local filtroMundo = RaycastParams.new()
 filtroMundo.FilterType = Enum.RaycastFilterType.Exclude
 filtroMundo.RespectCanCollide = true -- sin chocar con zonas invisibles ni prompts
-local filtroBichos = RaycastParams.new()
-filtroBichos.FilterType = Enum.RaycastFilterType.Include -- los bichos pueden no chocar: se miran aparte
 
 local function cabezaDe(jugador: Player): BasePart?
 	local personaje = jugador.Character
@@ -51,6 +49,37 @@ local function bichoDe(pieza: Instance): Caza.Bicho?
 	return nil
 end
 
+-- Dónde corta el segmento desde -> desde + vector la caja que envuelve al modelo: (t de 0 a 1, normal) o nil.
+local function contraCaja(desde: Vector3, vector: Vector3, modelo: Model): (number?, Vector3?)
+	local cf, tam = modelo:GetBoundingBox()
+	local o, d = cf:PointToObjectSpace(desde), cf:VectorToObjectSpace(vector)
+	local medio = tam / 2
+	local entra, sale, eje, signo = 0, 1, nil, 0
+	for _, k in { "X", "Y", "Z" } do
+		local oi, di, mi = (o :: any)[k], (d :: any)[k], (medio :: any)[k]
+		if math.abs(di) < 1e-9 then
+			if oi < -mi or oi > mi then
+				return nil
+			end
+		else
+			local t1, t2 = (-mi - oi) / di, (mi - oi) / di
+			local lado = -1 -- entra por la cara de -mi
+			if t1 > t2 then
+				t1, t2, lado = t2, t1, 1
+			end
+			if t1 > entra then
+				entra, eje, signo = t1, k, lado
+			end
+			sale = math.min(sale, t2)
+			if entra > sale then
+				return nil
+			end
+		end
+	end
+	local normal = if eje == "X" then Vector3.xAxis elseif eje == "Y" then Vector3.yAxis elseif eje == "Z" then Vector3.zAxis else -d.Unit
+	return entra, cf:VectorToWorldSpace(normal * (if eje then signo else 1))
+end
+
 -- Tira el rayo: lo primero que choca del mundo, o un bicho si está antes.
 local function rayo(desde: Vector3, hacia: Vector3): (Vector3, Vector3?, Instance?)
 	local vector = hacia * B.Alcance
@@ -68,15 +97,26 @@ local function rayo(desde: Vector3, hacia: Vector3): (Vector3, Vector3?, Instanc
 	filtroMundo.FilterDescendantsInstances = ignorar
 	local mundo = workspace:Raycast(desde, vector, filtroMundo)
 
-	local bichos: { Instance } = { Caza.carpeta() }
-	if bestia then
-		table.insert(bichos, bestia)
+	-- Los miembros de los bichos no se pueden mirar con rayos (CanQuery = false en Cuerpo: solo quedaba la raíz, de
+	-- 3 × 3 × 1,5, y una bengala a la cabeza o al lomo de la Bestia la atravesaba). Se mira la caja que los envuelve.
+	local modelos: { Model } = {}
+	for _, b in Caza.todos() do
+		if b.modelo and b.modelo.Parent then
+			table.insert(modelos, b.modelo)
+		end
 	end
-	filtroBichos.FilterDescendantsInstances = bichos
-	local bicho = workspace:Raycast(desde, vector, filtroBichos)
-
-	if bicho and (not mundo or bicho.Distance <= mundo.Distance) then
-		return bicho.Position, bicho.Normal, bicho.Instance
+	if bestia and not table.find(modelos, bestia) then
+		table.insert(modelos, bestia)
+	end
+	local mejor, normalBicho, cual = math.huge, nil, nil
+	for _, modelo in modelos do
+		local t, n = contraCaja(desde, vector, modelo)
+		if t and t < mejor then
+			mejor, normalBicho, cual = t, n, modelo
+		end
+	end
+	if cual and (not mundo or mejor * vector.Magnitude <= mundo.Distance) then
+		return desde + vector * mejor, normalBicho, cual.PrimaryPart or cual
 	elseif mundo then
 		return mundo.Position, mundo.Normal, nil
 	end

@@ -606,7 +606,7 @@ local function puertaAbierta(e, est)
 end
 
 -- Puerta tapiada de los que no se entra (como el `edificio(..., cerrado)` de antes): hoja, marco y tablones clavados.
-local function puertaTapiada(e)
+local function puertaTapiada(e, est)
 	local cf = PuebloPlano.puertaCF(e) * CFrame.new(0, 4, 0)
 	adorno("Puerta", Vector3.new(4, 8, 0.2), cf * CFrame.new(0, 0, -0.6), COLOR.Puerta, Enum.Material.WoodPlanks)
 	for _, lado in { -1, 1 } do
@@ -616,7 +616,9 @@ local function puertaTapiada(e)
 	tablones(cf, 4, 8, -0.85, 4)
 	-- Una tabla en diagonal, de esquina a esquina.
 	adorno("Tablon", Vector3.new(9, 0.7, 0.18), cf * CFrame.new(0, 0, -1.05) * CFrame.Angles(0, 0, math.rad(62)), COLOR.Tabla, Enum.Material.WoodPlanks)
-	adorno("Escalon", Vector3.new(5, 0.5, 1.2), cf * CFrame.new(0, -3.75, -1.1), COLOR.PiedraOscura, Enum.Material.Slate)
+	-- Encima del porche (a y = 1) o, sin porche, en el suelo (flotaba a 1 stud).
+	adorno("Escalon", Vector3.new(5, 0.5, 1.2), cf * CFrame.new(0, if est.porche then -3.75 else -4.75, -1.1), COLOR.PiedraOscura,
+		Enum.Material.Slate)
 	return cf
 end
 
@@ -796,9 +798,10 @@ end
 local function tienda(e, est)
 	local hx, hz, H0 = caja(e)
 	solido("Tejado", Vector3.new(2 * hx + 0.8, 0.4, 2 * hz + 0.8), CFrame.new(e.x, H0 + 0.2, e.z), Color3.fromRGB(38, 36, 34), Enum.Material.Slate)
+	-- El pretil del oeste, uno solo (estaba dentro del bucle y salían dos iguales); al este va la fachada falsa.
+	adorno("Pretil", Vector3.new(1, 1.2, 2 * hz - 2), CFrame.new(e.x - hx + 0.5, H0 + 1, e.z), est.color, Enum.Material.Brick)
 	for _, s in { -1, 1 } do
 		adorno("Pretil", Vector3.new(2 * hx, 1.2, 1), CFrame.new(e.x, H0 + 1, e.z + s * (hz - 0.5)), est.color, Enum.Material.Brick)
-		adorno("Pretil", Vector3.new(1, 1.2, 2 * hz - 2), CFrame.new(e.x - hx + 0.5, H0 + 1, e.z), est.color, Enum.Material.Brick)
 		adorno("Cornisa", Vector3.new(2 * hx + 1, 0.5, 0.6), CFrame.new(e.x, H0 - 0.3, e.z + s * (hz + 0.1)), COLOR.PiedraClara, Enum.Material.Slate)
 		adorno("Cornisa", Vector3.new(0.6, 0.5, 2 * hz + 1), CFrame.new(e.x + s * (hx + 0.1), H0 - 0.3, e.z), COLOR.PiedraClara, Enum.Material.Slate)
 	end
@@ -896,16 +899,19 @@ local function iglesia(e, cumbre: number)
 	local contrafuertes = { { "E", -6 }, { "E", 0 }, { "E", 6 }, { "E", -12.5 }, { "E", 12.5 }, { "O", 12.5 } }
 	for _, c in contrafuertes do
 		local f = PuebloPlano.LADOS[c[1]]
-		local base = enCara(e, c[1], c[2], 0, 0.75)
+		-- Los del este, menos hondos: entre ellos y la valla del cementerio pasa el camino a su entrada (con 1,5 de fondo
+		-- quedaban 1,8 studs y de frente no se cabía).
+		local fondo = if c[1] == "E" then 0.6 else 1.5
+		local base = enCara(e, c[1], c[2], 0, fondo / 2)
 		local cf = CFrame.lookAt(base, base + f)
-		solido("Contrafuerte", Vector3.new(1.2, 7, 1.5), cf * CFrame.new(0, 3.5, 0), COLOR.Piedra, Enum.Material.Cobblestone)
+		solido("Contrafuerte", Vector3.new(1.2, 7, fondo), cf * CFrame.new(0, 3.5, 0), COLOR.Piedra, Enum.Material.Cobblestone)
 		local w = Instance.new("WedgePart")
 		w.Name = "Contrafuerte"
 		w.Anchored = true
 		w.CanCollide = false
 		w.CanQuery = false
 		w.CanTouch = false
-		w.Size = Vector3.new(1.2, 2.6, 1.5)
+		w.Size = Vector3.new(1.2, 2.6, fondo)
 		w.CFrame = cf * CFrame.new(0, 8.3, 0)
 		w.Color = COLOR.Piedra
 		w.Material = Enum.Material.Cobblestone
@@ -936,7 +942,9 @@ local function iglesia(e, cumbre: number)
 		barra("Arco", cf * Vector3.new(lado * 2.35, 8.4, -0.62), cf * Vector3.new(0, 10.6, -0.62), 0.55, 0.45, COLOR.PiedraOscura, Enum.Material.Slate,
 			fuera)
 	end
-	solido("Escalon", Vector3.new(6, 0.5, 1.6), cf * CFrame.new(0, -0.75, -1.3), COLOR.PiedraOscura, Enum.Material.Slate)
+	-- De 0 a 0,75, entre la plaza (0,5) y el umbral (1): de 0,5 de alto su cara de arriba coincidía con la de la plaza y
+	-- parpadeaban (las dos llevan SinSeparar).
+	solido("Escalon", Vector3.new(6, 0.75, 1.6), cf * CFrame.new(0, -0.625, -1.3), COLOR.PiedraOscura, Enum.Material.Slate)
 	-- Sangre seca en el muro, al otro lado de la puerta (lejos de la pista).
 	sangre(enCara(e, "O", 3.4, 2.3, 0.06), fuera, 1.6, 1)
 end
@@ -1027,7 +1035,7 @@ local function edificio(e, est)
 			ventana(e, w)
 		end
 	end
-	local puerta = if e.entra then puertaAbierta(e, est) else puertaTapiada(e)
+	local puerta = if e.entra then puertaAbierta(e, est) else puertaTapiada(e, est)
 	remates(e, est)
 	if est.porche then
 		porche(e)

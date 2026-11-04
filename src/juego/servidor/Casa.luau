@@ -54,6 +54,9 @@ local function publicar(el: Model)
 		end
 		local hoja = el:FindFirstChild("Hoja") :: BasePart
 		hoja.CanCollide = not e.abierta
+		-- El servidor nunca gira la hoja (lo hace cada cliente): abierta sigue en el marco, así que tampoco tapa rayos.
+		-- Si no, los bichos no veían ni pillaban por una puerta abierta (Caza) y el flash no pasaba (Equipo).
+		hoja.CanQuery = not e.abierta
 		-- El bicho planea su camino a través de las puertas sin llave: las abre a golpes.
 		local modificador = hoja:FindFirstChildOfClass("PathfindingModifier")
 		if not e.bloqueada and not modificador then
@@ -262,6 +265,18 @@ function Casa.exportar()
 	return t
 end
 
+-- Cierra de golpe esa puerta y la deja entera (Preparativos, la puerta principal en la noche final). Solo toca esa:
+-- antes se hacía con exportar/importar de toda la casa y se perdían el refuerzo de más del Carpintero y los tiempos.
+function Casa.cerrar(el: Model)
+	local e = estados[el]
+	if not e or e.tipo ~= "Puerta" then
+		return
+	end
+	e.abierta = false
+	e.vida = e.vidaMax
+	publicar(el)
+end
+
 -- Deja toda la casa como en `t` (lo de Casa.exportar, ya arreglado); lo que no esté, como nuevo.
 function Casa.importar(t)
 	for el, viejo in estados do
@@ -312,12 +327,33 @@ local function prepararClavar(jugador: Player, el: Instance, pieza: BasePart): (
 	return bisagra * CFrame.new(el:GetAttribute("Ancho") / 2, 4.5, 0.6 * lado) * inclinado, Config.Talar.Clavar
 end
 
+-- Una ventana o puerta que ya se está clavando: si llegaba otro con un tablón, el suyo se gastaba sin hacer nada.
+local clavando: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+
+local function empezarClavar(jugador: Player, el: Instance, pieza: BasePart): (CFrame?, number?)
+	if clavando[el] then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Someone is already using it."))
+		return nil
+	end
+	local cf, segundos = prepararClavar(jugador, el, pieza)
+	if cf then
+		clavando[el] = true
+	end
+	return cf, segundos
+end
+
+local function dejarClavar(_jugador: Player, el: Instance, _pieza: BasePart)
+	clavando[el] = nil
+end
+
 function Casa.start()
 	Cargar.alUsar("Tablon", {
 		etiquetas = { "Ventana", "Puerta" },
 		accion = "Clavar",
-		preparar = prepararClavar,
+		preparar = empezarClavar,
+		cancelar = dejarClavar,
 		terminar = function(_jugador, el, pieza)
+			clavando[el] = nil
 			pieza:Destroy()
 			local e = estados[el :: Model]
 			Defensa.reparar(e)
@@ -327,8 +363,10 @@ function Casa.start()
 	Cargar.alUsar("TablonReforzado", {
 		etiquetas = { "Ventana", "Puerta" },
 		accion = "Clavar",
-		preparar = prepararClavar,
+		preparar = empezarClavar,
+		cancelar = dejarClavar,
 		terminar = function(jugador, el, pieza)
+			clavando[el] = nil
 			pieza:Destroy()
 			-- El Carpintero le da más vida de más (sin guardarse: al cargar la partida vuelve a la normal).
 			local factor = 1 + (Config.Taller.Refuerzo - 1) * Stats.valor(jugador, "Refuerzo")
@@ -339,7 +377,8 @@ function Casa.start()
 	for _, el in CollectionService:GetTagged("Ventana") do
 		preparar(el, "Ventana")
 	end
-	-- Con las manos ocupadas no salen los prompts: una puerta cerrada se abre de un empujón al ir hacia ella.
+	-- Con las manos ocupadas no salen los prompts: una puerta cerrada se abre de un empujón al ir hacia ella. Menos la
+	-- que está golpeando el bicho: al llevarle un tablón para clavarlo se abría sin querer y le dejaba entrar.
 	task.spawn(function()
 		while true do
 			task.wait(0.2)
@@ -351,7 +390,7 @@ function Casa.start()
 				for el, e in estados do
 					local mando = el:FindFirstChild("Mando") :: BasePart
 					local hacia = (mando.Position - raiz.Position) * Vector3.new(1, 0, 1)
-					if e.tipo == "Puerta" and not e.abierta and not e.bloqueada and hacia.Magnitude < 4.5
+					if e.tipo == "Puerta" and not e.abierta and not e.bloqueada and not e.atacada and hacia.Magnitude < 4.5
 						and hacia.Unit:Dot(raiz.CFrame.LookVector) > 0.5 and Defensa.puerta(e, ahora(), cfg) then
 						publicar(el)
 					end

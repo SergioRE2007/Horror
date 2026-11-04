@@ -28,16 +28,6 @@ local function teclaDe(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputT
 	return prompt.KeyboardKeyCode.Name
 end
 
-local function ordenar()
-	local i = 0
-	for _, pintado in pintados do
-		if pintado.boton then
-			pintado.boton.LayoutOrder = i
-			i += 1
-		end
-	end
-end
-
 local function mostrar(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputType)
 	local tactil = tipo == Enum.ProximityPromptInputType.Touch
 	local fila = math.floor(prompt.UIOffset.Y / 60) -- el segundo prompt de una cosa va debajo
@@ -97,6 +87,7 @@ local function mostrar(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputT
 	if tactil then
 		local boton = Ui.boton(textoDe(prompt), { -- grande: en el móvil el HUD se encoge a la mitad y hay que darle con el dedo
 			Size = UDim2.fromOffset(200, 90),
+			LayoutOrder = fila, -- en el orden de los carteles: el de abajo es el de abajo (REPARAR bajo CERRAR CORTINAS)
 		})
 		Ui.queQuepa(boton, 28) -- las frases largas (y en otros idiomas) bajan de letra en vez de salirse
 		boton.Parent = botonera
@@ -119,7 +110,6 @@ local function mostrar(prompt: ProximityPrompt, tipo: Enum.ProximityPromptInputT
 		end
 	end))
 	pintados[prompt] = pintado
-	ordenar()
 end
 
 local function ocultar(prompt: ProximityPrompt)
@@ -135,7 +125,6 @@ local function ocultar(prompt: ProximityPrompt)
 	if pintado.boton then
 		pintado.boton:Destroy()
 	end
-	ordenar()
 end
 
 function Controles.start()

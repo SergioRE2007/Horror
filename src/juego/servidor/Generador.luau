@@ -38,6 +38,7 @@ local luces = 0 -- sube con cada cambio: un parpadeo viejo se para solo
 local enchufe: Model
 local promptEnchufe: ProximityPrompt
 local enchufado: BasePart? = nil -- el móvil que se está cargando
+local cargado = 0 -- segundos que lleva cargándose desde la última vez que se apuntó su Carga (gastar)
 
 local function publicar()
 	gen:SetAttribute("Gasolina", gasolina / G.Deposito)
@@ -151,8 +152,11 @@ local function bidon()
 			gasolina += echado
 			pieza:SetAttribute("Carga", math.max(0, (pieza:GetAttribute("Carga") or 0) - echado / porBidon))
 			publicar()
+			-- Encima de los sacos de al lado (Mapa, vestir el cobertizo: su caja de choque, arriba a 2,4). En el suelo no
+			-- cabe: detrás está la pared, a los lados no hay sitio, el cemento y el otro bidón ocupan la esquina de la
+			-- entrada y delante está el paso, la cuerda y su prompt.
 			local tapon = (gen:GetAttribute("Tapon") :: CFrame).Position
-			Cargar.liberar(pieza, CFrame.new(tapon + Vector3.new(-1.8, -2.5, -2.6)))
+			Cargar.liberar(pieza, CFrame.new(tapon + Vector3.new(4, -0.95, 1.81)))
 		end,
 		cancelar = function()
 			gen:SetAttribute("Llenando", nil)
@@ -167,6 +171,7 @@ local function ponerMovil(carga: number)
 	pieza.Anchored = true
 	pieza:SetAttribute("Enchufado", true)
 	enchufado = pieza
+	cargado = 0 -- lo del anterior no es suyo
 	promptEnchufe.Enabled = false
 	pieza.AncestryChanged:Connect(function()
 		if not pieza.Parent and enchufado == pieza then -- lo han cogido
@@ -240,13 +245,17 @@ local function gastar(dt: number)
 	end
 	local cargando = encendido and enchufado ~= nil
 	if cargando then
-		local pieza = enchufado :: BasePart
-		pieza:SetAttribute("Carga", math.min(1, (pieza:GetAttribute("Carga") or 0) + dt / Config.Movil.Carga))
+		cargado += dt
 	end
 	cuenta += dt
-	if cuenta >= 0.5 then -- lo que va bajando poco a poco, dos veces por segundo
+	if cuenta >= 0.5 then -- lo que va cambiando poco a poco, dos veces por segundo (cada atributo se manda a todos)
 		cuenta = 0
 		gen:SetAttribute("Gasolina", gasolina / G.Deposito)
+		local movil = enchufado
+		if movil and cargado > 0 then
+			movil:SetAttribute("Carga", math.min(1, (movil:GetAttribute("Carga") or 0) + cargado / Config.Movil.Carga))
+		end
+		cargado = 0
 		local luz = enchufe:FindFirstChild("Luz") :: BasePart
 		luz.Color = if cargando then Color3.fromRGB(90, 160, 80) else Color3.fromRGB(45, 43, 42)
 	end
