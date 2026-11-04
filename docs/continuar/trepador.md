@@ -10,7 +10,7 @@ Archivo: `src/juego/cliente/TrepadorVista.luau` (solo cliente). Nada visto en St
   sitios"). Con `Gatea` (Vector3) y `GateaHora` en su modelo:
   - Mide el tablero con rayos hacia arriba en 21 carriles (cada 0,75 studs, ±7,5: lo que abre las patas).
   - Si la cabeza (asoma 3,65) o las rodillas (aplastado, 2,9) le quedan sobre la mesa, primero se echa atrás (hasta 3
-    studs), con la cabeza derecha y la boca cerrada.
+    studs) de golpe, como quien se aparta de un salto, con la cabeza derecha y la boca cerrada.
   - Se aplasta: el torso a 0,66 del suelo, las patas muy abiertas (6,8 de la cadera a la punta). Rodillas a 2,3-2,5.
   - Se cuela a tirones, la cabeza (del revés) a 0,7 del suelo y mirándote (frente a ~1,15 de ti), olfateando entre
     tirón y tirón. Mete la frente como mucho 2,6 por debajo del tablero.
@@ -26,7 +26,7 @@ Archivo: `src/juego/cliente/TrepadorVista.luau` (solo cliente). Nada visto en St
     agudas al apoyar cada par.
   - Con Rendimiento: avanza seguido, sin olfatear, sin pisadas, y solo los ruidos de aplastarse y del final.
 - La vida de espera se pausa mientras gatea (`and not gateando`).
-- Banco de Lune (32 casos, todos bien):
+- Banco de Lune (32 casos, todos bien en 4 pasadas seguidas: la pose de espera tiene azar):
   - Mesas: comedor por el lado largo y por la punta; cocina por delante.
   - Distancias al borde: 1,8, 2,2 y 3. Diagonales: 27º, 45º en la esquina y dos con la raíz mirando al mueble (el marco
     gira).
