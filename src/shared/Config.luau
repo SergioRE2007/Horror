@@ -455,7 +455,9 @@ Config.Correr = {
 	Factor = 1.5, -- corriendo, la velocidad de andar por esto (16 → 24; con la clase Corredor, 19,2 → 28,8)
 	Dura = 6.5, -- segundos de aguante seguido corriendo, con el aguante lleno
 	Espera = 1, -- segundos sin correr hasta que el aguante empieza a volver
-	Andando = 1 / 10, -- aguante que vuelve por segundo andando (de vacío a lleno, 10 s)
+	-- Aguante que vuelve por segundo andando (de vacío a lleno, 12 s). Con 10, el mejor ciclo de correr y andar
+	-- sostenía 18,9 studs/s, casi la Bestia (19): se la dejaba en tablas en línea recta (tests/bancos/correr-cuentas).
+	Andando = 1 / 12,
 	Quieto = 1 / 5, -- y quieto o agachado (5 s)
 	Volver = 1 / 3, -- agotado del todo, no se vuelve a correr hasta tener esto
 	Frena = 1.2, -- segundos que frenas al agotarte...
