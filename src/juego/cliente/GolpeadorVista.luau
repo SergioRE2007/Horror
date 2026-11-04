@@ -24,7 +24,8 @@ local Sonido = require(script.Parent.Sonido)
 local GolpeadorVista = {}
 
 -- Números visuales a ojo (se retocan en Studio).
-local LEJOS = 250 -- studs de la cámara: más lejos no se le mueve nada
+local LEJOS = 250 -- studs de la cámara: más lejos no se le mueve nada...
+local LEJOS_RENDIMIENTO = 120 -- ...o más lejos que esto con Rendimiento (a ojo)
 local VIDA_LEJOS = 120 -- la vida (respirar, tirones, crisparse...) solo hasta aquí...
 local VIDA_RENDIMIENTO = 45 -- ...o hasta aquí con Rendimiento
 local VAHO_LEJOS = 60
@@ -88,6 +89,8 @@ local GATEO = {
 	Tirones = { { 0.5, 0.68, 0.4 }, { 1, 1.18, 0.72 }, { 1.5, 1.75, 1 } },
 	Susto = 2.2, -- segundos que se queda en el suelo si te pilla (MuerteVista mira su cara)
 }
+-- Cuándo suena cada ruido del gateo (en segundos de un gateo de 2 s): al echarse y al empezar cada tirón.
+local EVENTOS = { GATEO.Cae, GATEO.Tirones[1][1], GATEO.Tirones[2][1], GATEO.Tirones[3][1] }
 -- Medidas del cuerpo (Golpeador.crear) que usa el gateo.
 local CABEZA_CENTRO = Vector3.new(0, 0.6, -0.4) -- del cuello al centro de la cabeza (en la cabeza)
 local GARRAS = Vector3.new(0, -7.36, -0.32) -- del hombro a la punta de las garras (en el brazo)
@@ -715,7 +718,7 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 			local t = math.clamp(workspace:GetServerTimeNow() - hora, 0, dura)
 			-- Si llega tarde, los ruidos que ya han pasado no suenan todos de golpe.
 			local sonados = 0
-			for _, en in { GATEO.Cae, GATEO.Tirones[1][1], GATEO.Tirones[2][1], GATEO.Tirones[3][1] } do
+			for _, en in EVENTOS do
 				if t * 2 / dura > en + 0.15 then
 					sonados += 1
 				end
@@ -907,10 +910,9 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 
 	-- Los ruidos, cada uno una vez (con Rendimiento, solo al echarse y el gruñido del final).
 	local u = g.t * 2 / dura
-	local eventos = { GATEO.Cae, GATEO.Tirones[1][1], GATEO.Tirones[2][1], GATEO.Tirones[3][1] }
-	if activo and g.sonados < #eventos and u >= eventos[g.sonados + 1] then
+	if activo and g.sonados < #EVENTOS and u >= EVENTOS[g.sonados + 1] then
 		g.sonados += 1
-		if not poco or g.sonados == 1 or g.sonados == #eventos then
+		if not poco or g.sonados == 1 or g.sonados == #EVENTOS then
 			ruidoGateo(b, g.sonados)
 		end
 	end
@@ -925,6 +927,7 @@ local function animar(dt: number)
 	local ojo = workspace.CurrentCamera.CFrame.Position
 	local poco = jugador:GetAttribute("Rendimiento") == true
 	local vidaLejos = if poco then VIDA_RENDIMIENTO else VIDA_LEJOS
+	local lejos = if poco then LEJOS_RENDIMIENTO else LEJOS
 	local noche = workspace:GetAttribute("Fase") == "Noche"
 	local mirilla = jugador:GetAttribute("Mirilla") == true
 	for modelo, b in bichos do
@@ -933,7 +936,7 @@ local function animar(dt: number)
 			continue
 		end
 		local distancia = (b.raiz.Position - ojo).Magnitude
-		if distancia > LEJOS then
+		if distancia > lejos then
 			continue
 		end
 		local m = b.motores
@@ -1058,9 +1061,12 @@ local function animar(dt: number)
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
 
 		-- Sin atravesar el tablero de la mesa de al lado: la postura de pie (de la que sale y a la que vuelve al gatear) y,
-		-- por si acaso, lo que quede después de gatear (al echarse y al levantarse, a medio camino entre las dos).
-		mesaCerca(b, ahora)
-		apartarBrazos(b, dt, b.aparta)
+		-- por si acaso, lo que quede después de gatear (al echarse y al levantarse, a medio camino entre las dos). Solo
+		-- cerca (o gateando): de más lejos no se nota, y buscar la mesa y probar los brazos contra ella cuesta.
+		if distancia < VIDA_LEJOS or gateando then
+			mesaCerca(b, ahora)
+			apartarBrazos(b, dt, b.aparta)
+		end
 
 		-- Debajo de un mueble: se echa al suelo y gatea a por ti, encima de todo lo anterior.
 		gatear(b, dt, ahora, poco, abre)
