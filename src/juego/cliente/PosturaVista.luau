@@ -9,6 +9,7 @@
 --   Postura). Si el servidor no lo publica (lo ha tirado por llegar muy seguido) se le vuelve a mandar; si no lo
 --   quiere, o lo quita él (atributos Agachado y Asomado a nil), te pones de pie.
 --   CuerpoVista mueve tu cámara con PosturaVista.agachado() y PosturaVista.asomado(); a los demás los pinta BrazosVista.
+--   Pedir correr agachado te levanta si cabes (CorrerVista llama a PosturaVista.levantarse(), 14.8).
 --   Al agacharte, al levantarte y al empezar a asomarte, un roce flojo de los pies en el suelo (el sonido de los pasos
 --   de ese suelo), solo para ti.
 -- El cuerpo agachado (R15; pedido por el usuario, 03-11-2026: "agacharte también debería servir para esconderte, por
@@ -648,6 +649,17 @@ local function levantar()
 		quiereAgachado = false
 		sincronizar()
 	end
+end
+
+-- Para correr (CorrerVista, 14.8): de pie si cabes, como al saltar. Devuelve si ya no quieres seguir agachado (de pie
+-- o levantándote); false si no cabes de pie (el golpecito contra lo de arriba).
+function PosturaVista.levantarse(): boolean
+	if not (quiereAgachado or estado.agachado) then
+		return true
+	end
+	cabeHora = -math.huge -- se mira de nuevo si cabes
+	levantar()
+	return not quiereAgachado
 end
 
 local function conPersonaje(personaje: Model)
