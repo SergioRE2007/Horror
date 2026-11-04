@@ -25,6 +25,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local PosturaReglas = require(ReplicatedStorage.Shared.PosturaReglas)
 local GolpeadorVista = require(script.Parent.GolpeadorVista)
 local RaspadorVista = require(script.Parent.RaspadorVista)
 local TrepadorVista = require(script.Parent.TrepadorVista)
@@ -426,6 +427,23 @@ local function quitarSangre(capaSangre: Frame, despues: number)
 	end)
 end
 
+-- El bicho que te ha pillado (el remote solo dice dónde tiene la cara), rugiendo. Antes se quedaba con el primero de
+-- una lista fija que estuviese cerca: con un Golpeador al lado, la escena enfocaba al Golpeador y el Raspador que te
+-- sacaba de debajo de la mesa se levantaba en medio del susto. Ahora, el que gateaba a por ti o el más cerca.
+local VISTAS = { GolpeadorVista, RaspadorVista, TrepadorVista, ImitadorVista, AcechadorVista, BestiaVista }
+local function quienPilla(cabeza: Vector3): Model?
+	local lista: { PosturaReglas.Candidato } = {}
+	local de: { { vista: typeof(GolpeadorVista), modelo: Model } } = {}
+	for _, vista in VISTAS do
+		for _, c in vista.candidatos(cabeza) do
+			table.insert(lista, { distancia = c.distancia, gatea = if c.gatea then (c.gatea - cabeza).Magnitude else nil })
+			table.insert(de, { vista = vista :: any, modelo = c.modelo })
+		end
+	end
+	local i = PosturaReglas.quienPilla(lista)
+	return if i then de[i].vista.rugir(cabeza, de[i].modelo) else nil
+end
+
 local function meHanPillado(cabeza: Vector3)
 	susto = true
 	cortarAliento(true) -- conteniendo o soltándolo: se corta en seco
@@ -437,8 +455,7 @@ local function meHanPillado(cabeza: Vector3)
 	local hacia = (desde - cabeza)
 	hacia = if hacia.Magnitude > 0.1 then hacia.Unit else Vector3.zAxis
 	-- La cara del bicho de frente, con la boca abierta, echándose encima; una luz para que se le vea en lo oscuro.
-	local bicho = GolpeadorVista.rugir(cabeza) or RaspadorVista.rugir(cabeza) or TrepadorVista.rugir(cabeza)
-		or ImitadorVista.rugir(cabeza) or AcechadorVista.rugir(cabeza) or BestiaVista.rugir(cabeza)
+	local bicho = quienPilla(cabeza)
 	local cara = bicho and bicho:FindFirstChild("Cabeza") :: BasePart?
 	local luz: Attachment? = nil
 	if cara then
