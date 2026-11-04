@@ -219,7 +219,17 @@ local function huir(jugador: Player)
 		alHuir()
 	end
 	Recompensas.final(C.Cinematica)
+	-- Los escondidos, fuera del escondite antes de anclarlos: si no, su latido y su respiración sonaban encima de la
+	-- escena y con E (o espacio, o B) salían y se desanclaban en mitad de ella. Muerte.sacar es lo mismo que salir;
+	-- con pcall y solo si existe, para que nada deje la huida a medias.
+	local sacar = (Muerte :: any).sacar
 	for _, j in Players:GetPlayers() do
+		if sacar and Muerte.escondite(j) then
+			local ok, fallo = pcall(sacar, j)
+			if not ok then
+				warn("[Coche] sacar: " .. tostring(fallo))
+			end
+		end
 		Cargar.soltar(j)
 		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz then
