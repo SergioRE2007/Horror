@@ -84,13 +84,16 @@ local GATEO = {
 	Llega = 0.9, -- la punta de los dedos, a esto de ti al acabar
 	Fuera = 0.8, -- al echarse, la mano en el suelo a esto por fuera del borde
 	Hombro = 0.55, -- el hombro, al menos a esto por fuera del borde
-	Holgura = 0.35, -- el brazo pasa a esto (como poco) de la esquina del tablero
+	Holgura = 0.45, -- el brazo pasa a esto (como poco) por fuera de la esquina de abajo del tablero (lo gordo del brazo)
 	Encorva = 0.75, -- radianes que se le dobla la espalda hacia delante
 	Cabeza = 1.25, -- altura del centro de la cabeza: la cara a ras de suelo, a la altura de tus ojos
 	Asoma = 0.1, -- la cara, a esto del borde por fuera (al acabar)
 	Ladeo = 0.8, -- radianes de la cabeza ladeada mirándote
 	Alto = 2.85, -- sin tablero que choque: a esta altura (la mesa del comedor; y el borde a 1,6 de ti)
 	Luz = 0.5, -- brillo de la luz floja en la cara (solo cerca)
+	Recoge = 0.35, -- segundos en sacar la mano y la cabeza de debajo al acabar, antes de levantarse
+	Aparta = 0.8, -- echándose y levantándose, la cara algo más lejos del borde (si no, al subir rozaba el tablero)
+	Cadera = 0.15, -- lo más bajo de la cadera, a esto del suelo como poco (encorvado, se metía en él)
 }
 
 type Mirilla = {
@@ -111,11 +114,13 @@ type Gateo = {
 	punto: Vector3, -- Gatea: dónde está el jugador debajo (mundo)
 	hora: number, -- GateaHora (hora del servidor)
 	inicio: number, -- os.clock en que empezó aquí
-	borde: number, -- studs (en planta) de la raíz al borde del mueble, hacia el jugador
+	borde: number, -- studs (en planta) de la raíz al borde del mueble, hacia el jugador...
+	bordeBrazo: number, -- ...y por el lado del brazo que mete
 	alto: number, -- studs del suelo a lo de abajo del tablero
 	mezcla: number, -- 0..1: cuánto manda gatear sobre la pose de siempre (lineal; se suaviza al usarla)
 	fin: number?, -- os.clock en que se quitó Gatea
 	k: number, -- 0..1: por dónde va (se queda donde estaba al acabar)
+	recoge: number, -- 0..1: al acabar, cuánto ha sacado ya la mano y la cabeza de debajo
 	tirones: number, -- tirones que ya han sonado
 	cayo: boolean, -- ya ha sonado el golpe al echarse
 	cuello: number, -- largo del cuello estirado
@@ -501,7 +506,9 @@ end
 -- El servidor le pone Gatea (dónde estás debajo) y GateaHora (cuándo empezó) mientras dura (Config.Postura.Gatear);
 -- luego te pilla o lo deja, y los quita. Él, encorvado en el borde del mueble con una mano en el suelo: el cuello se
 -- le estira hasta el suelo y asoma la cara por el borde a ras de suelo, ladeada, mirándote; el otro brazo baja por el
--- borde y entra arañando el suelo, a tirones y con una parada de olfatear, hasta dejarte la mano al lado.
+-- borde y entra arañando el suelo, a tirones y con una parada de olfatear, hasta dejarte la mano al lado. Al acabar,
+-- saca la mano y la cabeza y luego se levanta. Comprobado con Lune contra las mesas del comedor y de la cocina (con el
+-- bicho a 1-5 studs del borde, de frente y en diagonal): ni el suelo, ni el tablero, ni las patas se atraviesan.
 
 local techo = RaycastParams.new()
 techo.FilterType = Enum.RaycastFilterType.Exclude
@@ -527,14 +534,92 @@ local function enTiron(k: number): number
 	return -1
 end
 
--- El borde del mueble entre la raíz y `punto` (en planta, desde la raíz) y lo alto de su hueco: rayos hacia arriba
--- cada medio stud. Sin nada que choque, a ojo: el borde a 1,6 de ti.
-local function medirMueble(b: Bicho, punto: Vector3): (number, number)
+-- El tablero de un mueble con zona Debajo (Mapa, HUECOS): su centro y su tamaño. Las piezas de los muebles y sus cajas
+-- de choque no se ven con rayos (CanQuery false), así que se mira el atributo Tam del mueble (el tablero llega a sus
+-- bordes, de lo alto de la zona hasta arriba); si su pivote no cuadra con la zona, se da por hecho que sobresale
+-- SALIENTE de la zona por cada lado. (Lo mismo que GolpeadorVista.)
+local SALIENTE = 2 -- lo que más sobresale un tablero de su zona (la mesa del comedor, 1,96 por las puntas)
+local function cajaTablero(zona: BasePart): (CFrame, Vector3)
+	local medio = zona.Size / 2
+	local cf = zona.CFrame * CFrame.new(0, medio.Y + 0.4, 0)
+	local tam = Vector3.new(zona.Size.X + 2 * SALIENTE, 0.8, zona.Size.Z + 2 * SALIENTE)
+	local mueble = zona.Parent
+	local medida = if mueble and mueble:IsA("Model") then mueble:GetAttribute("Tam") else nil
+	if mueble and typeof(medida) == "Vector3" then
+		local pivote = (mueble :: Model):GetPivot()
+		local z = pivote:PointToObjectSpace(zona.Position)
+		if math.abs(pivote.XVector:Dot(zona.CFrame.XVector)) > 0.99 and math.abs(pivote.YVector:Dot(Vector3.yAxis)) > 0.99
+			and math.abs(z.X) + medio.X <= medida.X / 2 + 0.05 and math.abs(z.Z) + medio.Z <= medida.Z / 2 + 0.05
+			and math.abs(z.Y - medio.Y) < 0.1 and medida.Y > zona.Size.Y
+		then
+			cf = pivote * CFrame.new(0, (zona.Size.Y + medida.Y) / 2, 0)
+			tam = Vector3.new(medida.X, medida.Y - zona.Size.Y, medida.Z)
+		end
+	end
+	return cf, tam
+end
+
+-- El tablero que tapa a quien está en `punto` (el de la zona Debajo en la que está) y lo alto de su hueco, o nil.
+local function tableroEn(punto: Vector3): (CFrame?, Vector3?, number?)
+	for _, zona in CollectionService:GetTagged("Debajo") do
+		if not zona:IsA("BasePart") then
+			continue
+		end
+		local medio = zona.Size / 2
+		local p = zona.CFrame:PointToObjectSpace(punto)
+		if math.abs(p.X) > medio.X + 0.5 or math.abs(p.Z) > medio.Z + 0.5 or p.Y < -medio.Y - 1 or p.Y > medio.Y + 3 then
+			continue
+		end
+		local cf, tam = cajaTablero(zona)
+		return cf, tam, zona.Size.Y
+	end
+	return nil, nil, nil
+end
+
+-- El borde del mueble entre la raíz y `punto` (en planta, desde la raíz) y lo alto de su hueco: por la zona Debajo en
+-- la que estás (en el juego los rayos no dan nunca en los muebles: CanQuery false) y, si no estás en ninguna, con rayos
+-- hacia arriba cada medio stud. Por el medio y a los lados (la cabeza y los brazos): el borde más cercano, por si llega
+-- torcido. Sin nada, a ojo: el borde a 1,6 de ti.
+local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 	local suelo = b.raiz.Position - Vector3.new(0, ALTURA, 0)
 	local hacia = plano(punto - suelo)
 	local largo = hacia.Magnitude
 	if largo < 0.5 then
-		return 0, GATEO.Alto
+		return 0, GATEO.Alto, 0
+	end
+	local u = hacia.Unit
+	local lado = u:Cross(Vector3.yAxis)
+	local cf, tam, hueco = tableroEn(punto)
+	if cf and tam and hueco then
+		local medio = tam / 2
+		local d = cf:VectorToObjectSpace(u)
+		-- Por donde entra en el tablero una raya por el suelo a `x` studs a la derecha de la del medio.
+		local function entrada(x: number): number
+			local o = cf:PointToObjectSpace(Vector3.new(suelo.X, cf.Position.Y, suelo.Z) + lado * x)
+			local entra, sale = -math.huge, math.huge
+			for _, eje in { "X", "Z" } do
+				local oe, de, me = (o :: any)[eje], (d :: any)[eje], (medio :: any)[eje]
+				if math.abs(de) < 1e-6 then
+					if math.abs(oe) > me then
+						entra = math.huge
+					end
+				else
+					local t1, t2 = (-me - oe) / de, (me - oe) / de
+					entra, sale = math.max(entra, math.min(t1, t2)), math.min(sale, math.max(t1, t2))
+				end
+			end
+			return if entra <= sale and sale > 0 then math.max(0, entra) else largo
+		end
+		-- El del cuerpo y la cabeza, también a stud y medio (llegando en diagonal, los brazos rozaban el tablero por fuera
+		-- de las rayas de un stud); el del brazo que mete (el derecho), solo por su lado.
+		local borde, brazo = largo, largo
+		for _, x in { 0, -1, 1, -1.5, 1.5 } do
+			borde = math.min(borde, entrada(x))
+		end
+		for _, x in { 0.3, 0.7, 1.1, 1.4 } do
+			brazo = math.min(brazo, entrada(x))
+		end
+		return borde, math.max(1, (cf.Position.Y - medio.Y) - suelo.Y), brazo
 	end
 	local ignorar: { Instance } = {}
 	if b.modelo.Parent then
@@ -546,9 +631,6 @@ local function medirMueble(b: Bicho, punto: Vector3): (number, number)
 		end
 	end
 	techo.FilterDescendantsInstances = ignorar
-	local u = hacia.Unit
-	local lado = u:Cross(Vector3.yAxis)
-	-- Por el medio y a un stud de cada lado (la cabeza y los brazos): el borde más cercano, por si la mesa está torcida.
 	local borde, alto = math.huge, math.huge
 	for _, x in { 0, -1, 1 } do
 		local function arriba(d: number): RaycastResult?
@@ -576,9 +658,9 @@ local function medirMueble(b: Bicho, punto: Vector3): (number, number)
 		end
 	end
 	if borde == math.huge then
-		return math.max(0, largo - 1.6), GATEO.Alto
+		return math.max(0, largo - 1.6), GATEO.Alto, math.max(0, largo - 1.6)
 	end
-	return borde, math.max(1, alto)
+	return borde, math.max(1, alto), borde
 end
 
 -- CFrame con su eje Y hacia `y` y su Z lo más hacia `z`.
@@ -600,33 +682,39 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	local f = raiz:VectorToObjectSpace(fW)
 	f = Vector3.new(f.X, 0, f.Z).Unit
 	local G = CFrame.fromMatrix(Vector3.new(0, -ALTURA, 0), f:Cross(Vector3.yAxis), Vector3.yAxis)
-	local D, E, k = haciaW.Magnitude, g.borde, g.k
-	local p = tirones(k)
-	local u = enTiron(k)
+	local D, E, EB, k = haciaW.Magnitude, g.borde, g.bordeBrazo, g.k
+	local p = tirones(k) * (1 - suave(g.recoge))
+	local u = if g.recoge > 0 then -1 else enTiron(k)
 	local olfa = math.clamp(math.min((k - GATEO.Olfatea[1]) / 0.03, (GATEO.Olfatea[2] - k) / 0.03), 0, 1)
 	local lejosFin = suave((k - 0.93) / 0.2) -- ya ha llegado
 
 	-- La mano: del suelo por fuera del borde hasta tu lado, arañando entre tirón y tirón.
-	local finMano = math.max(E + 0.3, D - GATEO.Llega)
-	local mano = (E - GATEO.Fuera) + (finMano - (E - GATEO.Fuera)) * p
+	local finMano = math.max(EB + 0.3, D - GATEO.Llega)
+	local mano = (EB - GATEO.Fuera) + (finMano - (EB - GATEO.Fuera)) * p
 	if adornos and u < 0 and olfa <= 0 then
 		mano += 0.09 * math.sin(ahora * 13) -- araña
 	end
 	local manoX = 0.3
 
-	-- El hombro derecho: fuera del borde y lo bastante alto para que el brazo (recto) baje por el borde y llegue a la
-	-- mano; si pasaría por el tablero, más atrás.
+	-- La espalda encorvada sobre el borde (más en cada tirón; se yergue un poco al olfatear).
+	local a = GATEO.Encorva + 0.12 * (if u >= 0 then math.sin(u * math.pi) else 0) - 0.12 * olfa
+	-- Lo más bajo que pueden ir los hombros sin que la cadera (con su trapo) se meta en el suelo.
+	local minimo = GATEO.Cadera + 3.6 * math.cos(a) + 0.55 * math.sin(a)
+
+	-- El hombro derecho: fuera del borde (también del de su izquierda, por donde va el otro hombro) y lo bastante alto
+	-- para que el brazo (recto) baje por el borde y llegue a la mano; si pasaría por el tablero (por dentro de su esquina
+	-- de abajo), más atrás.
 	local hombroD, alto = E - GATEO.Hombro, 0
 	for _ = 1, 16 do
 		local horiz = math.sqrt((mano - hombroD) ^ 2 + (1.25 - manoX) ^ 2)
-		alto = math.clamp(0.06 + math.sqrt(math.max(0, GATEO.Brazo ^ 2 - horiz ^ 2)), 2.6, 0.06 + GATEO.Brazo)
-		local tablero = g.alto + 0.25
-		if mano <= E or alto <= tablero then
+		alto = math.clamp(0.06 + math.sqrt(math.max(0, GATEO.Brazo ^ 2 - horiz ^ 2)), math.max(2.6, minimo), 0.06 + GATEO.Brazo)
+		if mano <= EB or alto <= g.alto then
 			break
 		end
-		-- Dónde pasa el brazo a la altura de lo de arriba del tablero.
-		local enTablero = hombroD + (mano - hombroD) * (alto - tablero) / (alto - 0.06)
-		if enTablero <= E - GATEO.Holgura then
+		-- Dónde pasa el brazo a la altura de lo de abajo del tablero (antes se miraba a 0,25 de él y, como el tablero es
+		-- más gordo, se metía por su canto; comprobado con Lune).
+		local enTablero = hombroD + (mano - hombroD) * (alto - g.alto) / (alto - 0.06)
+		if enTablero <= EB - GATEO.Holgura then
 			break
 		end
 		hombroD -= 0.2
@@ -639,8 +727,6 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	local dirD = (plana * horiz + Vector3.new(0, -vy, 0)).Unit
 	local brazoD = ejes(S + dirD * 1.8, -dirD, Vector3.yAxis)
 
-	-- La espalda encorvada sobre el borde (más en cada tirón; se yergue un poco al olfatear).
-	local a = GATEO.Encorva + 0.12 * (if u >= 0 then math.sin(u * math.pi) else 0) - 0.12 * olfa
 	local yT = Vector3.new(0, math.cos(a), -math.sin(a))
 	local arriba = S - Vector3.new(1.25, 0, 0) + yT * 0.2 -- lo alto del torso (donde nace el cuello)
 	local torso = ejes(arriba - yT * 1.5, yT, Vector3.new(0, math.sin(a), math.cos(a)))
@@ -667,7 +753,7 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 
 	-- La cabeza: cuelga del cuello estirado y asoma por el borde a ras de suelo, ladeada, mirándote (al olfatear se
 	-- levanta un poco y da golpes de nariz); el cuello va de lo alto del torso a ella.
-	local dCabeza = (E - GATEO.Asoma - 0.6) - 0.4 * (1 - p)
+	local dCabeza = (E - GATEO.Asoma - 0.6) - 0.4 * (1 - p) - GATEO.Aparta * (1 - m)
 	local hc = GATEO.Cabeza + 0.12 * olfa - 0.06 * (if u >= 0 then math.sin(u * math.pi) else 0)
 	local centro = Vector3.new(-0.3, hc, -dCabeza)
 	-- Te mira a ti si eres tú el de debajo (la cámara junto a Gatea y a poca altura); si no, a donde está.
@@ -689,7 +775,8 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	-- La boca: se le va abriendo según llega (cerrada al olfatear); te pilla: abierta del todo. Nunca contra el suelo.
 	local boca = 0.06 + 0.2 * p + 0.12 * (if u >= 0 then math.sin(u * math.pi) else 0) - 0.1 * olfa + 0.25 * lejosFin
 		+ (if chillando then 0.4 + 0.08 * math.sin(ahora * 30) else 0)
-	local bocaMax = math.asin(math.clamp((hc - 0.8) / (1.1 * math.max(0.2, math.cos(ladeo))), 0, 1))
+	-- (con algo de margen: chillando, la cabeza tiembla y la barbilla rozaba el suelo)
+	local bocaMax = math.asin(math.clamp((hc - 0.9) / (1.1 * math.max(0.2, math.cos(ladeo))), 0, 1))
 	boca = math.clamp(boca, 0, bocaMax)
 
 	-- Las Transform ya mezcladas (`m`: 0 = su pose de siempre, b.pose; 1 = gateando). Al echarse y al levantarse, el
@@ -772,9 +859,9 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	if typeof(punto) == "Vector3" then
 		local t = if type(hora) == "number" then hora else servidor
 		if not g or g.fin or (g.punto - punto).Magnitude > 0.5 or math.abs(g.hora - t) > 0.05 then
-			local borde, alto = medirMueble(b, punto)
-			local nuevo: Gateo = { punto = punto, hora = t, inicio = ahora, borde = borde, alto = alto,
-				mezcla = if g then g.mezcla else 0, fin = nil, k = 0, tirones = 0, cayo = false, cuello = b.cuelloTam.Y,
+			local borde, alto, bordeBrazo = medirMueble(b, punto)
+			local nuevo: Gateo = { punto = punto, hora = t, inicio = ahora, borde = borde, bordeBrazo = bordeBrazo, alto = alto,
+				mezcla = if g then g.mezcla else 0, fin = nil, k = 0, recoge = 0, tirones = 0, cayo = false, cuello = b.cuelloTam.Y,
 				luz = if g then g.luz else nil, pose = if g then g.pose else {} }
 			g = nuevo
 			b.gateo = nuevo
@@ -789,7 +876,12 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 		g.k = math.clamp((servidor - g.hora) / GATEAR, 0, 1)
 	end
 	local pilla = b.chillido >= g.inicio and ahora - b.chillido < 2.2
-	local meta = if not g.fin or pilla then 1 else 0
+	-- Al acabar (si no te ha pillado), primero saca la mano y la cabeza de debajo y luego se levanta: levantándose con
+	-- ellas dentro, a medio camino el brazo atravesaba el tablero (comprobado con Lune).
+	if g.fin and not pilla then
+		g.recoge = math.min(1, g.recoge + dt / GATEO.Recoge)
+	end
+	local meta = if not g.fin or pilla or g.recoge < 1 then 1 else 0
 	g.mezcla = if meta > g.mezcla then math.min(meta, g.mezcla + dt / GATEO.Cae) else math.max(meta, g.mezcla - dt / GATEO.Vuelve)
 	if g.fin and g.mezcla <= 0 then
 		terminarGateo(b)
@@ -850,8 +942,9 @@ local function animar(dt: number)
 		b.estirado += ((if abierto then 1 else 0) - b.estirado) * math.min(1, dt * 3)
 		local chillando = ahora - b.chillido < 2
 		local t = ahora - b.llamada
-		-- Esperando en la puerta principal (o, sin ella cargada, delante de la mirilla mientras miras).
-		local enPuerta = b.quietud > 0.6 and not abierto
+		-- Esperando en la puerta principal (o, sin ella cargada, delante de la mirilla mientras miras). Gateando no: su vida
+		-- de espera (tirones, golpecitos, crispaciones) se pausa y vuelve suave al levantarse.
+		local enPuerta = b.quietud > 0.6 and not abierto and not b.gateo
 			and (if delante then plano(b.raiz.Position - delante).Magnitude < 4 else mira and distancia < MIRILLA.Radio)
 
 		-- La cabeza ladeada, escuchando: recta mientras habla, luego se le va torciendo, demasiado, con algún tirón.
