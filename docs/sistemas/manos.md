@@ -128,6 +128,37 @@ al principio de cada módulo; los de juego, en `Config.Postura`.
   algo hacia delante; asomados, el tronco ladeado. R6, como está.
 - Probado en Studio (03-11-2026): C agacha (cámara -1,7, velocidad a la mitad) y levanta; Z asoma (1,3 de lado, ~14°).
 
+## Esconderse agachado: el cuerpo (`PosturaVista`, `servidor/Postura`, `CuerpoVista`, `BrazosVista`, `MuerteVista`)
+
+Pedido por el usuario (03-11-2026): "agacharte también debería servir para esconderte, por ejemplo debajo de mesas…
+que sea útil agacharte es la finalidad". Los bichos que te huelen y gatean, en `bichos.md`. Sin ver en Studio.
+- Mesas con hueco (`Mapa`, `HUECOS`): la del comedor (2,84 bajo el tablero) y la de la cocina (3,29; solo la mitad de
+  delante). Cada una tiene una zona invisible `Debajo` (etiqueta) entre las patas y cajas `Choque` para el tablero y
+  las patas.
+- Servidor (`Postura`): atributo `Cubierto` (true o nil) si vas agachado con la raíz en una zona Debajo; se mira cada
+  0,2 s solo a los agachados. Bajo el voladizo del tablero (fuera de la zona entre patas) no cuentas como cubierto:
+  los bichos te ven como a un agachado cualquiera.
+- Agachado, de tu cuerpo solo choca la raíz, encogida de 1,1 a `Config.Postura.Alto` (2,6) del suelo (HipHeight 1,1);
+  lo demás va al grupo de colisión `Agachado`, que no choca. La raíz se queda en su grupo para que el Humanoid siga
+  viendo el suelo. Se entra andando bajo el tablero, los peldaños de 1 se siguen subiendo y la vista queda a la misma
+  altura que antes.
+- Debajo no te puedes levantar (C, saltar, escalera, sentarse) hasta que quepas, tampoco bajo el voladizo: Cruje
+  flojo y respingo de cámara. El techo se mira a mano (`techoDebajo`, con el `Tam` del mueble) porque los muebles no
+  se ven con rayos. Si el servidor te quita `Agachado` debajo, el cuerpo sigue abajo hasta que quepas.
+- Cámara (`CuerpoVista`): debajo de algo baja más y nunca se mete en el tablero; andando hacia él empieza a bajar
+  antes. Los demás (`BrazosVista`) te ven con las piernas dobladas y, debajo, encorvado sin sacar la cabeza.
+- `MuerteVista`: cubierto y con un bicho cerca contienes la respiración (bordes que se cierran y latido) y, siempre
+  que estás cubierto, unos bordes oscuros flojos.
+- R6: sin cuerpo físico (solo la cámara): no cabe debajo. Tu sombra en primera persona no dobla las piernas.
+- Probar en Studio: (1) en la mesa del comedor, C en suelo llano y en un peldaño; en el cliente
+  `local p=game.Players.LocalPlayer local h=p.Character.Humanoid local r=h.RootPart return h.HipHeight, r.Size.Y, r.Position.Y, h:GetState(), h.FloorMaterial`
+  → 1,1, 1,5, suelo + 1,85, Running (no Freefall) y el material del suelo (no Air); la vista donde antes. (2) Andar
+  agachado debajo: entra, la vista baja antes del borde sin meterse y `Cubierto` es true dentro y nil fuera (Server:
+  `game.Players:GetPlayers()[1]:GetAttribute("Cubierto")`). (3) Debajo y bajo el voladizo, C y espacio no levantan;
+  fuera del todo, sí. (4) La escalera del sótano agachado. (5) Con un bicho cerca debajo de la mesa: respiración
+  contenida. (6) Dos jugadores: el otro, agachado y encorvado debajo, sin sacar la cabeza por el tablero. (7)
+  Esconderse en el armario agachado y morir agachado: el cuerpo vuelve a su sitio.
+
 ## Apoyarse en las paredes (`ManosGestos`, capa "Pared", prioridad 4)
 
 Pedido por el usuario: "manos que se apoyan en la pared al pegarte a ella". Números a ojo en `APOYO`, al principio de
