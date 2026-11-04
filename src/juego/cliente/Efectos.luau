@@ -119,8 +119,9 @@ end
 local carpeta: Folder -- lo de este módulo que está en el mundo (cristales del suelo)
 local bichosCarpeta: Instance? = nil
 
--- Rayos que no chocan con bichos, personajes ni lo nuestro (lo que se pone aparte, en `mas`).
-local function filtro(mas: { Instance }?): RaycastParams
+-- Rayos que no chocan con bichos, personajes ni lo nuestro (lo que se pone aparte, en `mas`). Con `f`, lo reutiliza
+-- (solo cambia su lista) en vez de crear otro.
+local function filtro(mas: { Instance }?, f: RaycastParams?): RaycastParams
 	local fuera: { Instance } = { carpeta }
 	if bichosCarpeta then
 		table.insert(fuera, bichosCarpeta)
@@ -133,10 +134,10 @@ local function filtro(mas: { Instance }?): RaycastParams
 	for _, i in mas or {} do
 		table.insert(fuera, i)
 	end
-	local f = RaycastParams.new()
-	f.FilterType = Enum.RaycastFilterType.Exclude
-	f.FilterDescendantsInstances = fuera
-	return f
+	local params = f or RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = fuera
+	return params
 end
 
 -- Dónde estaba cada pieza la primera vez que la vimos (su sitio de verdad): `buscar` puede volver a pasar con un
@@ -816,7 +817,7 @@ local function polvoTecho(pies: Vector3, camara: Vector3, fuerza: number)
 		return
 	end
 	if not rayoTecho or os.clock() - rayoHora > 3 then
-		rayoTecho, rayoHora = filtro(), os.clock()
+		rayoTecho, rayoHora = filtro(nil, rayoTecho), os.clock()
 	end
 	local golpe = workspace:Raycast(desde, Vector3.new(0, math.max(1, pies.Y - desde.Y + 0.5), 0), rayoTecho)
 	if not golpe then
@@ -885,6 +886,9 @@ type Acecho = { p: number, plantado: number }
 local acechos: { [Model]: Acecho } = {}
 
 local function moverAcechos(dt: number, camara: Vector3)
+	if next(bichos) == nil and next(acechos) == nil then
+		return -- sin bichos y sin ninguno a medio irse: nada que mirar en cada ventana
+	end
 	for el, e in CasaVista.elementos do
 		if not el.Parent then
 			continue
@@ -944,6 +948,10 @@ end
 local corrienteVentana: { [Model]: number } = {} -- lo que debería llegarle a cada ventana (se mira cada medio segundo)
 local corrientes: { [Model]: number } = {} -- lo que le llega ahora a cada ventana (suavizado)
 local proximoMirar = 0
+-- Reutilizados en cada mirada (cada medio segundo) en vez de crearlos.
+local entradas: { Vector3 } = {}
+local fueraCorriente: { Instance } = {} -- lo que no corta el aire: cortinas y lámparas
+local rayoCorriente: RaycastParams? = nil
 
 -- Por dónde entra el aire: un cristal roto o una ventana o puerta echada abajo.
 local function entraAire(el: Model): boolean
@@ -955,11 +963,12 @@ end
 local function mirarCorrientes(camara: Vector3)
 	table.clear(corrienteVentana)
 	table.clear(corrienteLampara)
+	table.clear(entradas)
+	table.clear(fueraCorriente)
 	if poco() or not dentroDeCasa(camara) then
 		return
 	end
-	local entradas: { Vector3 } = {}
-	local fuera: { Instance } = {}
+	local fuera = fueraCorriente
 	for el, e in CasaVista.elementos do
 		if el.Parent and entraAire(el) and (e.centro.Position - camara).Magnitude < CORRIENTE.Cerca + CORRIENTE.Alcance then
 			table.insert(entradas, e.centro.Position - e.centro.LookVector * CORRIENTE.Dentro)
@@ -976,7 +985,8 @@ local function mirarCorrientes(camara: Vector3)
 			table.insert(fuera, p)
 		end
 	end
-	local rayo = filtro(fuera)
+	local rayo = filtro(fuera, rayoCorriente)
+	rayoCorriente = rayo
 	local function llega(aqui: Vector3): number
 		local mejor = 0
 		for _, entrada in entradas do
@@ -1172,8 +1182,35 @@ end
 
 -- Los del suelo crujen al pisarlos. Se mira cada 0,1 s y solo con campos cerca de la cámara; para no saltarse
 -- trozos entre dos miradas se mira todo el tramo andado.
+local cerca: { Campo } = {} -- los campos cerca de la cámara en esta mirada (reutilizada)
+
+-- Si `quien` ha pisado algún trozo de los campos de `cerca` desde la última mirada, cruje.
+local function pisa(quien: Instance, pies: Vector3, fuerza: number)
+	local antes = piesAntes[quien] or pies
+	piesAntes[quien] = pies
+	if (pies - antes).Magnitude > 8 then
+		antes = pies -- un salto grande (reaparece, lo mueven): solo cuenta donde está
+	end
+	for _, campo in cerca do
+		if aTramo(campo.centro, antes, pies) > campo.radio + 2 then
+			continue
+		end
+		for _, trozo in campo.trozos do
+			local d = trozo.Position
+			if math.abs(d.Y - pies.Y) < 1.6 and aTramo(d, antes, pies) < CFG.Pisar then
+				local ultimo = crujidos[quien]
+				if not ultimo or (pies - ultimo).Magnitude > CFG.CadaCrujido then
+					crujidos[quien] = pies
+					crujir(campo, trozo, fuerza)
+				end
+				return
+			end
+		end
+	end
+end
+
 local function pisarCristales(camara: Vector3)
-	local cerca: { Campo } = {}
+	table.clear(cerca)
 	for _, campo in campos do
 		if #campo.trozos > 0 and (campo.centro - camara).Magnitude <= CFG.Cerca then
 			table.insert(cerca, campo)
@@ -1182,29 +1219,6 @@ local function pisarCristales(camara: Vector3)
 	if #cerca == 0 then
 		table.clear(piesAntes)
 		return
-	end
-	local function pisa(quien: Instance, pies: Vector3, fuerza: number)
-		local antes = piesAntes[quien] or pies
-		piesAntes[quien] = pies
-		if (pies - antes).Magnitude > 8 then
-			antes = pies -- un salto grande (reaparece, lo mueven): solo cuenta donde está
-		end
-		for _, campo in cerca do
-			if aTramo(campo.centro, antes, pies) > campo.radio + 2 then
-				continue
-			end
-			for _, trozo in campo.trozos do
-				local d = trozo.Position
-				if math.abs(d.Y - pies.Y) < 1.6 and aTramo(d, antes, pies) < CFG.Pisar then
-					local ultimo = crujidos[quien]
-					if not ultimo or (pies - ultimo).Magnitude > CFG.CadaCrujido then
-						crujidos[quien] = pies
-						crujir(campo, trozo, fuerza)
-					end
-					return
-				end
-			end
-		end
 	end
 	-- Quién puede pisarlos: los jugadores y los bichos (con dónde tienen los pies).
 	for _, j in Players:GetPlayers() do
@@ -1229,7 +1243,7 @@ local function moverCristales(dt: number, ahora: number, camara: Vector3)
 	end
 	for _, campo in campos do
 		if #campo.volando > 0 and ahora - campo.filtroHora > 3 then
-			campo.filtro, campo.filtroHora = filtro({ campo.el }), ahora -- con los personajes de ahora
+			campo.filtro, campo.filtroHora = filtro({ campo.el }, campo.filtro), ahora -- con los personajes de ahora
 		end
 		-- Los que vuelan: caen, rebotan una vez y se posan.
 		for i = #campo.volando, 1, -1 do
