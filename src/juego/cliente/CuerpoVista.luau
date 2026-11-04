@@ -18,6 +18,18 @@
 --   tablero) baja más: nunca se mete dentro (rayos hacia arriba donde está la cabeza y donde va la cámara) y andando
 --   hacia ello empieza a bajar ANTICIPA s antes de llegar. Sin sitio para levantarte, sigue abajo (PosturaVista.bajo)
 --   y, al intentarlo, la cabeza da un respingo contra lo de arriba (PosturaVista.tope).
+--   Correr (14.8, pedido por el usuario: "todo animado e inmersivo"), mezclado con CorrerVista.ritmo() para que no
+--   salte: la cabeza sube y baja más, más seguido (zancada ZANCADA_CORRE, como Pasos) y cabecea en cada pisada, y el
+--   campo de visión se abre CAMPO grados. Al frenar en seco (venías corriendo y la velocidad cae de golpe: soltar, una
+--   pared, agotarte), la cabeza sigue un poco hacia delante y vuelve. Cansado (CorrerVista.cansancio), respira más
+--   deprisa y más hondo, y de noche fuera echa más vaho. Al tropezar (CorrerVista.tropiezo), la vista cae hacia delante
+--   y de lado, baja un poco y se recupera en TROPIEZO_VUELVE s, sin meterse en el suelo, paredes ni muebles (rayos con
+--   MuebleRayo). Con Rendimiento, sin campo de visión, sin balanceo de más ni sacudida al frenar; el tropiezo sí, más
+--   corto. Las cuentas, en funciones sueltas sin Roblox (CuerpoVista.balanceo, campo, tropiezo, frenazo, respiracion)
+--   para probarlas con Lune.
+--   El campo de visión se suma igual que el giro: se quita en Camera - 1 si sigue como lo dejamos (si otro lo ha
+--   cambiado, se deja). Al empezar un vistazo (atributo Vistazo), MirarVista apunta el de antes con lo nuestro dentro
+--   y al acabar lo devuelve: eso se quita una vez al volver (`deuda`) para que no se quede abierto.
 -- Con lo pesado en las manos el balanceo lo pone CargarVista: aquí no se suma.
 -- Se pinta encima de la cámara de Roblox (BindToRenderStep, Camera + 1): solo mueve la posición y la inclina de lado.
 -- Lo sumado se quita antes del fotograma siguiente (Camera - 1), girando en el espacio del mundo: los temblores de
@@ -34,6 +46,8 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local CorrerVista = require(script.Parent.CorrerVista)
+local MuebleRayo = require(script.Parent.MuebleRayo)
 local PosturaVista = require(script.Parent.PosturaVista)
 
 local CuerpoVista = {}
@@ -56,6 +70,37 @@ local RODILLAS = 2.5 -- golpecito al agacharte (velocidad que se suma al muelle 
 local CERCA_TECHO = 0.15 -- studs que se queda la cámara por debajo de lo de arriba (un tablero), además de ATRAS
 local ANTICIPA = 0.3 -- s: andando agachado se mira lo de arriba donde estarás, para ir bajando la vista antes
 local TOPE = 1.6 -- respingo hacia arriba al darte con lo de arriba queriendo levantarte (como RODILLAS)
+-- Correr (14.8). Números a ojo (para mirarlos en Studio).
+local ZANCADA_CORRE = 6.2 -- studs entre paso y paso corriendo (como Pasos): pasos más seguidos
+local CORRE_SUBE = 0.9 -- corriendo, el sube y baja de la cabeza va por (1 + esto)...
+local CORRE_LADO = 0.6 -- ...el vaivén de lado...
+local CORRE_MECE = 1.2 -- ...y la inclinación de lado
+local CORRE_CABECEA = math.rad(0.8) -- y en cada pisada la cabeza cabecea esto hacia abajo
+local CAMPO = 7 -- grados de más de campo de visión corriendo deprisa
+local CAMPO_PLENO = 20 -- studs/s a los que se abre del todo (corriendo de verdad: 24)
+local SUAVE_CAMPO = 5 -- por segundo: lo deprisa que se abre y se cierra
+local FRENAZO_DESDE = 9 -- studs/s que tiene que caer la velocidad de golpe para sacudir (de correr a andar: 8, no)
+local FRENAZO_PLENO = 20 -- y del todo (de correr a parar en seco: unos 22)
+local FRENAZO_GIRO = 1.1 -- rad/s que se suman al cabeceo hacia delante (del todo: unos 2,5 grados)
+local FRENAZO_BAJA = 1.5 -- y a la caída (como RODILLAS: unos 0,06 studs)
+local FRENAZO_CADA = 0.6 -- s como poco entre dos sacudidas
+local RECIEN = 0.35 -- s: venías corriendo si corriste hace menos de esto
+local MEDIA = 6 -- por segundo: la velocidad de hace un momento (para ver si cae de golpe)
+local CANSADO_RESPIRA = 2.4 -- agotado, el ritmo de la respiración de más (el normal es 1,3 por segundo)
+local CANSADO_HONDO = 0.04 -- studs de más que sube y baja al respirar agotado
+local CANSADO_CABECEA = math.rad(0.6) -- y lo que cabecea con cada respiración
+local CANSADO_VAHO = 1.7 -- s de menos entre vaho y vaho agotado (y VAHO_CANSADO nubecillas de más)
+local VAHO_CANSADO = 4
+local TROPIEZO_CAE = 0.2 -- s que tarda en caer (cada vez más deprisa)
+local TROPIEZO_ABAJO = 0.15 -- s que se queda abajo (con un rebote pequeño)
+local TROPIEZO_VUELVE = 1.4 -- s desde que tropieza hasta estar recuperado
+local TROPIEZO_VUELVE_REND = 1 -- y con Rendimiento
+local TROPIEZO_CABECEO = math.rad(16) -- lo que cae la vista hacia delante
+local TROPIEZO_ALABEO = math.rad(7) -- y de lado (a un lado al azar)
+local TROPIEZO_BAJA = 0.7 -- studs que baja
+local TROPIEZO_DELANTE = 0.3 -- studs que va hacia delante
+local SUELO_MIN = 1.2 -- studs que se queda la cámara sobre el suelo, como poco, al tropezar
+local CAJAS_RADIO = 6 -- studs alrededor en los que se miran los muebles al tropezar (MuebleRayo.cajas, una vez)
 
 local fase = 0
 local fuerza = 0 -- cuánto se nota el andar (sube y baja suave al empezar y al parar)
@@ -81,6 +126,21 @@ local pesoLadeo = 1 -- 0..1: cuánto se nota el ladeo (a 0 mientras la cámara e
 local giroAplicado: CFrame? = nil -- lo que `paso` le ha sumado a la cámara este fotograma
 local camaraTras: CFrame? = nil -- y cómo quedó la cámara justo después
 local filtroDe: Model? = nil -- el personaje que tienen fuera los rayos de `rayo`
+-- Correr.
+local media = 0 -- la velocidad de hace un momento (suave)
+local cabeceo = 0 -- lo que cabecea la cabeza al frenar en seco (vuelve sola, con un muelle como la caída)
+local velCabeceo = 0
+local ultimoFrenazo = -math.huge
+local campoMas = 0 -- grados de más de campo de visión ahora (suave)
+local campoSumado = 0 -- lo sumado al FieldOfView este fotograma...
+local campoTras: number? = nil -- ...y cómo quedó
+local deuda: number? = nil -- lo nuestro que se llevó MirarVista dentro de su campo "de antes" (se quita al volver)
+local deudaEn = 0 -- el campo con eso dentro
+local tropiezoAntes: number? = nil -- lo que dio CorrerVista.tropiezo() el fotograma anterior (para ver uno nuevo)
+local tropiezoLado = 1
+local cajasTropiezo: { MuebleRayo.Caja } = {} -- los muebles de alrededor al tropezar
+local cajasListas = false -- ya se han mirado para este tropiezo
+local azar = Random.new()
 local rayo = RaycastParams.new()
 rayo.FilterType = Enum.RaycastFilterType.Exclude
 rayo.RespectCanCollide = true -- cortinas, hojas y lo que no choca no paran la cabeza
@@ -92,7 +152,7 @@ local function enCasa(p: Vector3): boolean
 end
 
 -- El vaho: una nubecilla que sale de la boca y se deshace (las partículas se quedan donde salen).
-local function echarVaho(cf: CFrame)
+local function echarVaho(cf: CFrame, cantidad: number)
 	if not vaho then
 		local a = Instance.new("Attachment")
 		a.Name = "Vaho"
@@ -113,8 +173,81 @@ local function echarVaho(cf: CFrame)
 		boca, vaho = a, e
 	end
 	(boca :: Attachment).WorldCFrame = cf * CFrame.new(0, -0.35, -0.6)
-	;(vaho :: ParticleEmitter):Emit(5)
+	;(vaho :: ParticleEmitter):Emit(cantidad)
 end
+
+-- Cuentas de correr (sin nada de Roblox: para el banco de Lune) -------------------------------------------------------
+
+local function suave01(x: number): number
+	x = math.clamp(x, 0, 1)
+	return x * x * (3 - 2 * x)
+end
+
+-- Studs entre paso y paso con `ritmo` (CorrerVista.ritmo, 0..1).
+function CuerpoVista.zancada(ritmo: number): number
+	return ZANCADA + (ZANCADA_CORRE - ZANCADA) * math.clamp(ritmo, 0, 1)
+end
+
+-- El andar en `enFase` (pi por paso) con `cuanto` (rapidez / 16, hasta 1,4) y `ritmo` de correr: lo que sube la
+-- cabeza, lo que va de lado (studs), lo que se mece de lado y lo que cabecea (radianes; negativo, hacia abajo).
+function CuerpoVista.balanceo(enFase: number, cuanto: number, ritmo: number): (number, number, number, number)
+	local r = math.clamp(ritmo, 0, 1)
+	local s = math.sin(enFase)
+	local pisa = math.abs(s)
+	local sube = SUBE * cuanto * (1 + CORRE_SUBE * r) * (1 - 2 * pisa)
+	local lado = s * LADO * cuanto * (1 + CORRE_LADO * r)
+	local mece = s * MECE * cuanto * (1 + CORRE_MECE * r)
+	local cabecea = -CORRE_CABECEA * r * math.min(cuanto, 1) * pisa * pisa * pisa
+	return sube, lado, mece, cabecea
+end
+
+-- Grados de más de campo de visión que tocan con `ritmo` yendo a `rapidez` studs/s (contra una pared, apenas).
+function CuerpoVista.campo(ritmo: number, rapidez: number): number
+	return CAMPO * suave01(ritmo) * math.clamp(rapidez / CAMPO_PLENO, 0, 1)
+end
+
+-- De 0 a 1, lo caído en un tropiezo a los `t` s: cae cada vez más deprisa, rebota un poco abajo y se recupera suave
+-- hasta `vuelve` s (0 antes y después).
+function CuerpoVista.curvaTropiezo(t: number, vuelve: number?): number
+	local fin = math.max(vuelve or TROPIEZO_VUELVE, TROPIEZO_CAE + TROPIEZO_ABAJO + 0.05)
+	if t ~= t or t < 0 or t >= fin then
+		return 0
+	end
+	if t < TROPIEZO_CAE then
+		local x = t / TROPIEZO_CAE
+		return x * x
+	end
+	local abajo = TROPIEZO_CAE + TROPIEZO_ABAJO
+	if t < abajo then
+		return 1 - 0.08 * math.sin(math.pi * (t - TROPIEZO_CAE) / TROPIEZO_ABAJO)
+	end
+	return 1 - suave01((t - abajo) / (fin - abajo))
+end
+
+-- El tropiezo a los `t` s: cabeceo (radianes, negativo: hacia abajo), alabeo (radianes, sin el lado), lo que baja y lo
+-- que va hacia delante (studs, antes de mirar el suelo y las paredes).
+function CuerpoVista.tropiezo(t: number, rendimiento: boolean): (number, number, number, number)
+	local f = CuerpoVista.curvaTropiezo(t, if rendimiento then TROPIEZO_VUELVE_REND else TROPIEZO_VUELVE)
+	return -TROPIEZO_CABECEO * f, TROPIEZO_ALABEO * f, TROPIEZO_BAJA * f, TROPIEZO_DELANTE * f
+end
+
+-- De 0 a 1, la sacudida al frenar: la velocidad ha caído de `antes` (la de hace un momento) a `ahora` de golpe y
+-- `venias` corriendo.
+function CuerpoVista.frenazo(antes: number, ahora: number, venias: boolean): number
+	if not venias then
+		return 0
+	end
+	return math.clamp((antes - ahora - FRENAZO_DESDE) / (FRENAZO_PLENO - FRENAZO_DESDE), 0, 1)
+end
+
+-- La respiración con `susto` (el miedo) y `cansancio` (0..1): su ritmo (radianes por segundo), lo que sube y baja (studs) y lo
+-- que cabecea con ella (radianes).
+function CuerpoVista.respiracion(susto: number, cansancio: number): (number, number, number)
+	local c = math.clamp(cansancio, 0, 1)
+	return 1.3 + susto * 2.2 + c * CANSADO_RESPIRA, 0.012 + susto * 0.03 + c * CANSADO_HONDO, c * CANSADO_CABECEA
+end
+
+-- ---------------------------------------------------------------------------------------------------------------------
 
 local function enJuego(raiz: BasePart): boolean
 	if camara.CameraType ~= Enum.CameraType.Custom then
@@ -173,6 +306,45 @@ local function deshacer()
 	if giro and tras and camara.CameraType == Enum.CameraType.Custom then
 		camara.CFrame = tras * giro:Inverse() * tras:Inverse() * camara.CFrame
 	end
+	-- El campo de visión: solo si sigue como lo dejamos (si otro lo ha cambiado, es suyo).
+	local sumado, campoDejado = campoSumado, campoTras
+	campoSumado, campoTras = 0, nil
+	if campoDejado and math.abs(camara.FieldOfView - campoDejado) < 0.01 then
+		camara.FieldOfView -= sumado
+	end
+	-- Lo nuestro que se llevó un vistazo en su campo "de antes": al volver la cámara, si lo ha dejado tal cual, se quita.
+	if deuda and camara.CameraType == Enum.CameraType.Custom and jugador:GetAttribute("Vistazo") == nil then
+		if math.abs(camara.FieldOfView - deudaEn) < 0.01 then
+			camara.FieldOfView -= deuda
+		end
+		deuda = nil
+	end
+end
+
+-- Lo que has metido en la cámara para que no se meta en lo de debajo ni en lo de delante al tropezar: lo que puede
+-- bajar y lo que puede ir hacia `delante` (en planta) desde `desde`.
+local function limitarTropiezo(desde: Vector3, baja: number, delante: number, frente: Vector3): (number, number)
+	if baja > 0 then
+		local abajo = MuebleRayo.rayo(desde, Vector3.new(0, -(baja + SUELO_MIN), 0), rayo, cajasTropiezo)
+		if abajo then
+			baja = math.min(baja, math.max(0, abajo.Distance - SUELO_MIN))
+		end
+	end
+	if delante > 0 and frente.Magnitude > 0.01 then
+		local hacia = frente.Unit * (delante + HOLGURA)
+		local choque = MuebleRayo.rayo(desde - Vector3.new(0, baja, 0), hacia, rayo, cajasTropiezo)
+		if choque then
+			delante = math.min(delante, math.max(0, choque.Distance - HOLGURA))
+		end
+	end
+	return baja, delante
+end
+
+local function filtrar(personaje: Model)
+	if filtroDe ~= personaje then
+		filtroDe = personaje -- los rayos no ven tu cuerpo ni lo que cuelga de la cámara (sin una tabla por fotograma)
+		rayo.FilterDescendantsInstances = { personaje, camara }
+	end
 end
 
 -- Le suma `giro` a la cámara (por la derecha, en su espacio) y lo apunta para deshacerlo.
@@ -207,10 +379,7 @@ local function postura(dt: number)
 	local metaAsomo = if derecho then 0 else PosturaVista.asomado()
 	local k = if muerto then 1 else 1 - math.exp(-dt * SUAVE_POSTURA)
 	local cabezaRaiz = 1.5 + (raiz.Size.Y - 2) / 2 -- donde pone la cámara de Roblox la cabeza sobre la raíz
-	if filtroDe ~= personaje then
-		filtroDe = personaje -- los rayos no ven tu cuerpo ni lo que cuelga de la cámara (sin una tabla por fotograma)
-		rayo.FilterDescendantsInstances = { personaje, camara }
-	end
+	filtrar(personaje)
 	-- Agachado, lo de arriba (debajo de una mesa la vista va más baja): hacia donde vas, para ir bajando antes de llegar.
 	local mirarTecho = (abajo or cuerpoBaja > 0.01) and not muerto
 	local ojoPie = raiz.Position.Y + cuerpoBaja + cabezaRaiz -- donde tendrías los ojos de pie
@@ -267,20 +436,30 @@ local function paso(dt: number)
 	local agachado = PosturaVista.agachado()
 	local cambioPostura = agachado ~= estabaAgachado
 	estabaAgachado = agachado
+	-- Un tropiezo nuevo (aunque ahora no se vea: así no se pinta a medias al volver).
+	local tropezando = CorrerVista.tropiezo()
+	local tropiezoNuevo = tropezando ~= nil and (tropiezoAntes == nil or tropezando < tropiezoAntes)
+	tropiezoAntes = tropezando
+	if tropiezoNuevo then
+		tropiezoLado = if azar:NextNumber() < 0.5 then -1 else 1
+		cajasListas = false
+	end
 	-- Asomado, la cabeza se ladea hacia ese lado (a la derecha, lo de arriba de la imagen va a la derecha). Solo con la
 	-- cámara de Roblox; si ha sido de otro un rato (una cinemática, un vistazo, el escondite), vuelve suave sin saltar.
 	pesoLadeo = if camara.CameraType == Enum.CameraType.Custom then math.min(1, pesoLadeo + dt * VUELVE_LADEO) else 0
 	local ladeo = -asomo * math.rad(P.Giro) * pesoLadeo * pesoLadeo * (3 - 2 * pesoLadeo)
-	if not hum or not raiz or not enJuego(raiz) then
+	if not personaje or not hum or not raiz or not enJuego(raiz) then
 		fuerza, inclinado, caida, velCaida = 0, 0, 0, 0
+		cabeceo, velCabeceo, campoMas, media = 0, 0, 0, 0
 		-- El ladeo vuelve suave aunque ahora no toque balancear (al abrir la mochila asomándote, p. ej.).
 		if hum and ladeo ~= 0 and not jugador:GetAttribute("Escondido") then
 			aplicar(CFrame.Angles(0, 0, ladeo))
 		end
 		return
 	end
+	local rendimiento = jugador:GetAttribute("Rendimiento") == true
 	-- Al agacharte, las rodillas: la cabeza baja un poco de más y vuelve (con el muelle de la caída).
-	if cambioPostura and jugador:GetAttribute("Rendimiento") ~= true then
+	if cambioPostura and not rendimiento then
 		velCaida += if agachado then -RODILLAS else RODILLAS * 0.4
 	end
 	-- Queriendo levantarte debajo de algo: la cabeza da contra ello (un respingo hacia arriba que vuelve). Con
@@ -296,44 +475,97 @@ local function paso(dt: number)
 	local rapidez = plano.Magnitude
 	local enSuelo = hum.FloorMaterial ~= Enum.Material.Air
 	local cargando = jugador:GetAttribute("Cargando") ~= nil
+	-- Corriendo: con Rendimiento, sin balanceo de más ni campo de visión.
+	local ritmo = if rendimiento then 0 else CorrerVista.ritmo()
 
-	-- Andar: una bajada por paso.
+	-- Andar: una bajada por paso (más seguidas corriendo).
 	local andando = enSuelo and rapidez > 1 and not cargando
 	fuerza += ((if andando then math.clamp(rapidez / 16, 0, 1.4) else 0) - fuerza) * (1 - math.exp(-dt * 6))
 	if andando then
-		fase += rapidez * dt / ZANCADA * math.pi
+		fase += rapidez * dt / CuerpoVista.zancada(CorrerVista.ritmo()) * math.pi
 	end
-	local sube = -math.abs(math.sin(fase)) * SUBE * fuerza * 2 + SUBE * fuerza
-	local lado = math.sin(fase) * LADO * fuerza
-	local mece = math.sin(fase) * MECE * fuerza
+	local sube, lado, mece, cabecea = CuerpoVista.balanceo(fase, fuerza, ritmo)
 
 	-- De lado: se inclina hacia donde va.
 	local deLado = plano:Dot(cf.RightVector)
 	inclinado += (-deLado / 16 * INCLINA - inclinado) * (1 - math.exp(-dt * 5))
 
-	-- Caer: la cabeza baja de golpe y vuelve con un muelle. A pasitos de 1/60 s como mucho: con fotogramas largos (un
-	-- móvil lento, un tirón al aterrizar) el muelle se disparaba y la cámara salía volando.
+	-- Frenar en seco tras correr: la cabeza sigue un poco hacia delante y vuelve.
+	local venias = CorrerVista.corriendo() or CorrerVista.recien() < RECIEN
+	local frena = CuerpoVista.frenazo(media, rapidez, venias)
+	media += (rapidez - media) * (1 - math.exp(-dt * MEDIA))
+	if frena > 0 and not rendimiento and enSuelo and os.clock() - ultimoFrenazo >= FRENAZO_CADA then
+		ultimoFrenazo = os.clock()
+		velCabeceo -= FRENAZO_GIRO * frena
+		velCaida -= FRENAZO_BAJA * frena
+	end
+
+	-- Caer: la cabeza baja de golpe y vuelve con un muelle (y el cabeceo del frenazo, igual). A pasitos de 1/60 s como
+	-- mucho: con fotogramas largos (un móvil lento, un tirón al aterrizar) el muelle se disparaba y la cámara salía volando.
 	local pasos = math.clamp(math.ceil(dt * 60), 1, 15)
 	local h = math.min(dt, 0.25) / pasos
 	for _ = 1, pasos do
 		velCaida += (-caida * 120 - velCaida * 16) * h
 		caida += velCaida * h
+		velCabeceo += (-cabeceo * 120 - velCabeceo * 16) * h
+		cabeceo += velCabeceo * h
 	end
 	if caida ~= caida or velCaida ~= velCaida then
 		caida, velCaida = 0, 0 -- por si acaso (NaN): que no se rompa la cámara
 	end
+	if cabeceo ~= cabeceo or velCabeceo ~= velCabeceo then
+		cabeceo, velCabeceo = 0, 0
+	end
 
-	-- Respirar, con miedo si hay un bicho cerca.
+	-- Respirar, con miedo si hay un bicho cerca y más hondo cuanto más cansado.
 	bichoCerca -= dt
 	if bichoCerca <= 0 then
 		bichoCerca = 0.4
 		local d = distanciaBicho(raiz.Position)
 		miedo = math.clamp(1 - (d - 8) / (MIEDO - 8), 0, 1)
 	end
-	respiracion += dt * (1.3 + miedo * 2.2)
-	local respira = math.sin(respiracion) * (0.012 + miedo * 0.03)
+	local cansancio = CorrerVista.cansancio()
+	local deprisa, hondo, respiraCabecea = CuerpoVista.respiracion(miedo, cansancio)
+	respiracion += dt * deprisa
+	local respira = math.sin(respiracion) * hondo
+	local respiraGiro = math.sin(respiracion) * respiraCabecea
 
-	aplicar(CFrame.new(lado, sube + respira + caida, 0) * CFrame.Angles(0, 0, mece + inclinado + ladeo))
+	-- Tropezar: la vista cae hacia delante y de lado, y baja (sin meterse en el suelo ni en lo de delante).
+	local trCabeceo, trAlabeo, trBaja, trDelante = 0, 0, 0, 0
+	if tropezando then
+		filtrar(personaje)
+		if not cajasListas then
+			cajasListas = true
+			cajasTropiezo = MuebleRayo.cajas(raiz.Position, CAJAS_RADIO) -- una vez por tropiezo
+		end
+		trCabeceo, trAlabeo, trBaja, trDelante = CuerpoVista.tropiezo(tropezando, rendimiento)
+		local frente = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+		trBaja, trDelante = limitarTropiezo(cf.Position, trBaja, trDelante, frente)
+		trAlabeo *= tropiezoLado
+		if frente.Magnitude > 0.01 then
+			frente = frente.Unit
+		end
+		local mueve = cf:VectorToObjectSpace(Vector3.new(0, -trBaja, 0) + frente * trDelante)
+		sube += mueve.Y
+		lado += mueve.X
+		trDelante = mueve.Z -- (ya en el espacio de la cámara)
+	elseif #cajasTropiezo > 0 then
+		cajasTropiezo = {}
+	end
+
+	aplicar(CFrame.new(lado, sube + respira + caida, if tropezando then trDelante else 0)
+		* CFrame.Angles(cabecea + cabeceo + respiraGiro + trCabeceo, 0, mece + inclinado + ladeo + trAlabeo))
+
+	-- El campo de visión, abierto corriendo deprisa (se quita en `deshacer`).
+	local metaCampo = if rendimiento then 0 else CuerpoVista.campo(ritmo, rapidez)
+	campoMas += (metaCampo - campoMas) * (1 - math.exp(-dt * SUAVE_CAMPO))
+	if campoMas < 0.01 and metaCampo == 0 then
+		campoMas = 0
+	end
+	if campoMas > 0 then
+		camara.FieldOfView += campoMas
+		campoSumado, campoTras = campoMas, camara.FieldOfView
+	end
 
 	-- Hacia dónde miras, para que los demás vean tu cabeza y tu linterna (BrazosVista), cada 0,2 s si ha cambiado.
 	-- Se compara con lo que ha publicado el servidor (atributo Mirada, entre -1,4 y 1,4 y redondeado a 0,05), no con lo
@@ -349,13 +581,12 @@ local function paso(dt: number)
 		end
 	end
 
-	-- Vaho de noche fuera de casa, al soltar el aire (más seguido con miedo).
+	-- Vaho de noche fuera de casa, al soltar el aire (más seguido con miedo o cansado, y más cansado).
 	local ahora = os.clock()
 	if ahora >= proximoVaho then
-		proximoVaho = ahora + 3.2 - miedo * 1.6
-		if workspace:GetAttribute("Fase") == "Noche" and not enCasa(cf.Position)
-			and jugador:GetAttribute("Rendimiento") ~= true then
-			echarVaho(camara.CFrame)
+		proximoVaho = ahora + math.max(1, 3.2 - miedo * 1.6 - cansancio * CANSADO_VAHO)
+		if workspace:GetAttribute("Fase") == "Noche" and not enCasa(cf.Position) and not rendimiento then
+			echarVaho(camara.CFrame, 5 + math.floor(cansancio * VAHO_CANSADO + 0.5))
 		end
 	end
 end
@@ -387,6 +618,12 @@ function CuerpoVista.start()
 	if jugador.Character then
 		task.spawn(conPersonaje, jugador.Character)
 	end
+	-- Un vistazo apunta el campo de visión de antes (con lo nuestro dentro) para devolverlo al acabar: ver `deshacer`.
+	jugador:GetAttributeChangedSignal("Vistazo"):Connect(function()
+		if jugador:GetAttribute("Vistazo") ~= nil and campoTras and math.abs(camara.FieldOfView - campoTras) < 0.01 then
+			deuda, deudaEn = campoSumado, campoTras
+		end
+	end)
 	RunService:BindToRenderStep("CuerpoPostura", Enum.RenderPriority.Camera.Value - 1, postura)
 	RunService:BindToRenderStep("Cuerpo", Enum.RenderPriority.Camera.Value + 1, paso)
 end
