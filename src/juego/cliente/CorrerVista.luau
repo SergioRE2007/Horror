@@ -202,17 +202,22 @@ local function enCine(): boolean
 	return camara ~= nil and camara.CameraType == Enum.CameraType.Scriptable and jugador:GetAttribute("Vistazo") == nil
 end
 
+-- Tus datos para CorrerReglas, en la misma tabla siempre (se mira cada fotograma).
+local misDatos: CorrerReglas.Jugador = {
+	vivo = false, escondido = false, cargando = false, mochila = false, agachado = false, asomado = false,
+	vistazo = false, cine = false,
+}
 local function datos(hum: Humanoid?): CorrerReglas.Jugador
-	return {
-		vivo = hum ~= nil and hum.Health > 0 and not jugador:GetAttribute("Muerto"),
-		escondido = jugador:GetAttribute("Escondido") ~= nil,
-		cargando = jugador:GetAttribute("Cargando") ~= nil or jugador:GetAttribute("Trabajando") ~= nil,
-		mochila = jugador:GetAttribute("MochilaAbierta") == true,
-		agachado = PosturaVista.agachado(),
-		asomado = PosturaVista.asomado() ~= 0,
-		vistazo = jugador:GetAttribute("Vistazo") ~= nil,
-		cine = enCine(),
-	}
+	local q = misDatos
+	q.vivo = hum ~= nil and hum.Health > 0 and not jugador:GetAttribute("Muerto")
+	q.escondido = jugador:GetAttribute("Escondido") ~= nil
+	q.cargando = jugador:GetAttribute("Cargando") ~= nil or jugador:GetAttribute("Trabajando") ~= nil
+	q.mochila = jugador:GetAttribute("MochilaAbierta") == true
+	q.agachado = PosturaVista.agachado()
+	q.asomado = PosturaVista.asomado() ~= 0
+	q.vistazo = jugador:GetAttribute("Vistazo") ~= nil
+	q.cine = enCine()
+	return q
 end
 
 -- Todo a reposo (muerto, escondido): sin pedir nada, sin resoplar, sin tropiezo.
@@ -393,9 +398,9 @@ local function cada(dt: number)
 		end
 	end
 
-	-- Resoplidos tras agotarte, cada vez más flojos y espaciados.
+	-- Resoplidos tras agotarte, cada vez más flojos y espaciados. Debajo de un mueble (Cubierto) respira MuerteVista.
 	if resoplando then
-		if fuera or CorrerReglas.cansancio(estado) <= RESOPLA then
+		if fuera or jugador:GetAttribute("Cubierto") == true or CorrerReglas.cansancio(estado) <= RESOPLA then
 			resoplando = false
 		elseif ahora >= proximoResoplido then
 			local t = estado.aguante / RESOPLA_HASTA
