@@ -368,14 +368,17 @@ local function crearHud()
 		cuenta.Visible = mira.Visible
 	end)
 
-	-- Móvil: botón BENGALA en la fila del equipo (la crea EquipoVista); solo se ve con la pistola en la mochila.
+	-- Móvil: botón BENGALA en la fila del equipo (la crea EquipoVista); solo se ve con la pistola en la mochila. Va el
+	-- último (LayoutOrder 8), en la casilla de arriba a la izquierda que queda libre: la rejilla salta los botones
+	-- escondidos, y con el 3 al coger o tirar la pistola MÓVIL, AGACHARSE y CORRER cambiaban de casilla y se pulsaba
+	-- lo que no era.
 	if tactil then
 		local fila = hud:FindFirstChild("EquipoBotones")
 		if fila then
 			local boton = Ui.boton(Lang.t(nil, "Flare"))
 			Ui.queQuepa(boton, 24)
 			boton.Name = "Bengala"
-			boton.LayoutOrder = 3 -- en la fila de abajo, junto a FLASH y LINTERNA (orden en EquipoVista)
+			boton.LayoutOrder = 8 -- después de CORRER (7): nada se mueve al aparecer o irse (orden en EquipoVista)
 			boton.Visible = false
 			boton.Activated:Connect(disparar)
 			boton.Parent = fila
