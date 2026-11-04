@@ -313,10 +313,11 @@ local function crearHud()
 
 	-- Móvil: los botones del equipo a la izquierda del de saltar de Roblox, en dos filas de cuatro como mucho para no
 	-- meterse en la zona del joystick (el 40 % izquierdo de la pantalla: a 1164 de ancho de diseño, la rejilla empieza
-	-- en el 40,8 %). Se rellena desde abajo a la derecha, junto al pulgar, por LayoutOrder: FLASH 1, LINTERNA 2, BENGALA
-	-- 3 (BengalasVista, solo con la pistola), MOCHILA 4 (MochilaUi), MÓVIL 5 (MovilUi), AGACHARSE 6 (PosturaVista) y
-	-- CORRER 7 (CorrerVista, 14.8). Escondido o muerto no se ven (el botón SALIR y el de revivir van ahí). Por encima de
-	-- la zona segura de abajo (Ui.zonaSegura) y con hueco debajo para la barra del aguante (CorrerBarra).
+	-- en el 40,8 %). Se rellena desde abajo a la derecha, junto al pulgar, por LayoutOrder: abajo FLASH 1, LINTERNA 2,
+	-- MOCHILA 4 (MochilaUi) y MÓVIL 5 (MovilUi); arriba AGACHARSE 6 (PosturaVista), CORRER 7 (CorrerVista, 14.8) y BENGALA
+	-- 8 (BengalasVista, solo con la pistola: la última, a la izquierda de CORRER, así nada se mueve al aparecer o irse; la
+	-- casilla de arriba a la izquierda queda libre). Escondido o muerto no se ven (el botón SALIR y el de revivir van
+	-- ahí). Por encima de la zona segura de abajo (Ui.zonaSegura) y con hueco debajo para la barra del aguante (CorrerBarra).
 	if tactil then
 		local fila = Instance.new("Frame")
 		fila.Name = "EquipoBotones"
