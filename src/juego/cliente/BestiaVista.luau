@@ -96,6 +96,8 @@ local GATEO = {
 	LuzCerca = 14,
 	LuzAlcance = 4.5, -- ...y su alcance (la cabeza es grande)
 }
+-- Lo más deprisa que sube el salto de echarse atrás al ir (studs/s): Sube·π·1,5 (la pendiente de suave) / (tramo 1 · Cae).
+local SALTO_SUBE = GATEO.Sube * math.pi * 1.5 / (GATEO.Tramos[1] * GATEO.Cae)
 -- Medidas del cuerpo (servidor/Bestia.luau): del centro del lomo a su frente y a cada cadera (las patas, en x = ±).
 local LOMO_FRENTE = 3.1
 -- La punta de las garras del brazo, desde el hombro: a lo largo del brazo y hacia dentro (su -Z).
@@ -741,7 +743,8 @@ end
 -- La pose de gatear en `g.pose` (Transform de cada motor), mezclada con la de siempre (b.pose) por el camino de tres
 -- tramos (`mezcla` 0..1): atrás arriba (lo justo para que nada alto quede sobre el mueble), bajar fuera del borde y
 -- meterse a ras de suelo. Cada pieza va en línea recta en cada tramo (en el espacio de la raíz).
-local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adornos: boolean, chillando: boolean, mezcla: number)
+local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adornos: boolean, chillando: boolean, mezcla: number,
+	dt: number)
 	local raiz = b.raiz.CFrame
 	local suelo = raiz.Position - Vector3.new(0, ALTURA, 0)
 	local haciaW = plano(g.punto - suelo)
@@ -845,6 +848,10 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	local salto = if tramo == 1 then GATEO.Sube * math.sin(math.pi * s) else 0
 	if g.vuelve then
 		salto = math.min(salto, g.salto)
+	else
+		-- Al ir, como mucho tan deprisa como sube yendo de cero: un gateo nuevo a mitad de levantarse (con el salto ya
+		-- bajado) no lo da de golpe en un fotograma.
+		salto = math.min(salto, g.salto + dt * SALTO_SUBE)
 	end
 	g.salto = salto
 	local res = resGateo
@@ -1009,7 +1016,9 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	if meta == 0 and g.atras > 0.05 and rapidez < 1.5 and not suelta then
 		meta = math.min(g.mezcla, GATEO.Tramos[1])
 	end
-	g.vuelve = meta < g.mezcla
+	if meta ~= g.mezcla then -- parada a mitad (frena junto al borde), sigue hacia donde iba: si no, el salto volvía de golpe
+		g.vuelve = meta < g.mezcla
+	end
 	g.mezcla = if meta > g.mezcla then math.min(meta, g.mezcla + dt / GATEO.Cae) else math.max(meta, g.mezcla - dt / GATEO.Vuelve)
 	if g.fin and g.mezcla <= 0 then
 		terminarGateo(b)
@@ -1019,7 +1028,7 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	for _, pieza in g.colgantes do
 		pieza.LocalTransparencyModifier = esconde
 	end
-	poseGateo(b, g, ahora, ojo, adornos, ahora - b.pilla < 2.5, g.mezcla)
+	poseGateo(b, g, ahora, ojo, adornos, ahora - b.pilla < 2.5, g.mezcla, dt)
 	if distancia < CERCA then -- los sonidos, también con Rendimiento: se oye venir
 		sonidosGateo(b, g, adornos, distancia)
 	end
