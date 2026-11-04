@@ -1116,10 +1116,14 @@ do
 	igual(PR.oler(CP.Huele - 0.1, 1, 0), CP.Huele, "esconderse: el olor no pasa de Huele")
 	igual(PR.huele(PR.oler(CP.Huele - 0.1, 1, 0)), true, "esconderse: a Huele s ya te ha olido")
 	igual(CP.Alto > 1.5 and CP.Alto < 3.2, true, "esconderse: agachado cabe bajo una mesa y no atraviesa nada")
-	igual(CP.VerCubierto < CP.OirAgachado and CP.OirAgachado < 8 and CP.Olfato > CP.VerCubierto, true,
+	igual(CP.VerCubierto < CP.OirAgachado and CP.OirAgachado < CP.Oido and CP.Olfato > CP.VerCubierto, true,
 		"esconderse: cubierto se nota menos que agachado, y agachado menos que de pie")
 	igual(CP.Huele > 0 and CP.Gatear > 0 and CP.VistaAgachado > 0 and CP.VistaAgachado < 1, true,
 		"esconderse: tiempos y vista razonables")
+	igual(CP.FueraBestia >= CP.Fuera and CP.Fuera > 1.5 and CP.CercaBorde > 1 and CP.SeEscapa > CP.CercaBorde, true,
+		"esconderse: se para fuera del mueble y le alcanza al borde")
+	igual(CP.Atasco > 0 and CP.MaxOlor > 0 and CP.MaxOlor < CP.Huele and CP.Ancho > 0.5 and CP.Ancho < 2, true,
+		"esconderse: atasco, olor de una vez y anchura razonables")
 end
 
 do -- Caza.borde: por dónde se mete el bicho debajo de un mueble (sacada del texto: Caza necesita Roblox)

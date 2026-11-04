@@ -52,7 +52,7 @@ local OLFATO_ALTO = Config.Bestia.OlfatoAlto
 local ARANAR = Config.Bestia.Aranar
 local SIN_TRAMPILLA = Config.Bestia.SinTrampilla
 local CERCA_TRAMPILLA = Config.Bestia.CercaTrampilla
-local FUERA_MUEBLE = 3 -- studs fuera del mueble donde se para a gatear (es enorme; los demás, 2,5). A ojo.
+local FUERA_MUEBLE = Config.Postura.FueraBestia -- studs fuera del mueble donde se para a gatear (es enorme)
 
 -- La escalera del vestíbulo (Mapa): los caminos no la suben (con los peldaños de arriba sueltos PathfindingService
 -- pide saltos), así que ella va al pie o a lo alto y la sube o baja recta por el medio.
