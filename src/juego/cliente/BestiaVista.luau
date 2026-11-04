@@ -153,6 +153,8 @@ type Gateo = {
 	abajo: { [string]: CFrame }, -- la pose al bajar fuera del borde (en G)...
 	dentro: { [string]: CFrame }, -- ...y metida (en G)
 	luz: PointLight?, -- la luz floja en la cara (luzGateo)
+	vuelve: boolean, -- la mezcla va hacia atrás (se levanta)
+	salto: number, -- studs que sube ahora por el salto de echarse atrás (al volver, solo baja)
 }
 
 type Bicho = {
@@ -837,11 +839,18 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	-- El camino: atrás arriba, bajar fuera del borde y meterse.
 	local s = if tramo == 1 then suave(mezcla / t1) elseif tramo == 2 then suave((mezcla - t1) / (t2 - t1))
 		else suave((mezcla - t2) / (1 - t2))
+	-- El salto de echarse atrás, solo al ir: al volver (echa a andar y se levanta) solo baja. Si no, al levantarse
+	-- andando junto al borde volvía a subir 0,4 y metía el brazo en el tablero (comprobado con Lune).
+	local salto = if tramo == 1 then GATEO.Sube * math.sin(math.pi * s) else 0
+	if g.vuelve then
+		salto = math.min(salto, g.salto)
+	end
+	g.salto = salto
 	local res = resGateo
 	for _, nombre in PIEZAS do
 		local cf = antes[nombre]
 		if tramo == 1 then
-			cf = cf:Lerp(cf + atras, s) + Vector3.new(0, GATEO.Sube * math.sin(math.pi * s), 0)
+			cf = cf:Lerp(cf + atras, s) + Vector3.new(0, salto, 0)
 		elseif tramo == 2 then
 			cf = (cf + atras):Lerp(G * g.abajo[nombre], s)
 			if nombre == "PiernaI" or nombre == "PiernaD" then
@@ -977,7 +986,7 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 			local nuevo: Gateo = { punto = punto, hora = t, inicio = ahora, borde = borde, alto = alto, pata = pata, patas = patas,
 				mezcla = if g then g.mezcla else 0, fin = nil, k = 0, tirones = 0, cayo = g ~= nil and g.mezcla >= 1, atras = 0,
 				olio = false, colgantes = colgantesDe(modelo), pose = if g then g.pose else {}, abajo = {}, dentro = {},
-				luz = if g then g.luz else nil }
+				luz = if g then g.luz else nil, vuelve = false, salto = if g then g.salto else 0 }
 			g = nuevo
 			b.gateo = nuevo
 		end
@@ -999,6 +1008,7 @@ local function gatear(b: Bicho, ahora: number, servidor: number, dt: number, ojo
 	if meta == 0 and g.atras > 0.05 and rapidez < 1.5 and not suelta then
 		meta = math.min(g.mezcla, GATEO.Tramos[1])
 	end
+	g.vuelve = meta < g.mezcla
 	g.mezcla = if meta > g.mezcla then math.min(meta, g.mezcla + dt / GATEO.Cae) else math.max(meta, g.mezcla - dt / GATEO.Vuelve)
 	if g.fin and g.mezcla <= 0 then
 		terminarGateo(b)
