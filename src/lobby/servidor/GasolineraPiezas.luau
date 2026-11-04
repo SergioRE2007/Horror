@@ -5,7 +5,6 @@
 --     no tapa rayos ni toca (CanCollide, CanQuery y CanTouch a false) y solo hace sombra si es grande.
 --   P.cilindro(...) / P.cuna(...) / P.bola(...): lo mismo con otra forma (el cilindro va a lo largo de X, como en Roblox).
 --   P.luz(pieza, clase, brillo, alcance, color, sombras?) -> Light: "PointLight", "SpotLight" o "SurfaceLight".
---   P.textura(pieza, cara, id, color, tamU, tamV?, transparencia?) -> Texture (imágenes claras que se tiñen).
 --   P.mancha(pieza, cara, id?, color?, transparencia?) -> Decal (una de P.MANCHAS si no se da id).
 --   P.letrero(pieza, cara, texto, color, fuente?) -> SurfaceGui con un TextLabel que llena la cara (solo palabras de
 --     marca o números: "GAS", "24H", "ICE"; nada de frases, que no pasan por Lang).
@@ -15,11 +14,7 @@ local CollectionService = game:GetService("CollectionService")
 
 local P = {}
 
--- Imágenes ya subidas que valen aquí (tools/texturas): tablas viejas, tejas y manchas de humedad.
-P.TEX = {
-	Tablas = "rbxassetid://90779205383663",
-	Tejas = "rbxassetid://91640019978622",
-}
+-- Manchas de humedad ya subidas (tools/texturas).
 P.MANCHAS = { "rbxassetid://85700610438600", "rbxassetid://78490976398688", "rbxassetid://76547078941684" }
 
 -- Colores apagados de gasolinera vieja (la noche y la niebla hacen el resto).
@@ -100,19 +95,6 @@ function P.luz(pieza: Instance, clase: string, brillo: number, alcance: number, 
 	l.Shadows = sombras == true
 	l.Parent = pieza
 	return l
-end
-
-function P.textura(pieza: BasePart, cara: Enum.NormalId, id: string, color: Color3, tamU: number, tamV: number?,
-	transparencia: number?): Texture
-	local t = Instance.new("Texture")
-	t.Texture = id
-	t.Color3 = color
-	t.StudsPerTileU = tamU
-	t.StudsPerTileV = tamV or tamU
-	t.Face = cara
-	t.Transparency = transparencia or 0
-	t.Parent = pieza
-	return t
 end
 
 local azar = Random.new(77) -- siempre igual: el lobby sale idéntico en cada servidor
