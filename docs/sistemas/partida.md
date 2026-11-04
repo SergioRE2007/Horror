@@ -44,9 +44,11 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
   a los vivos, reaparecer), `MovilUi`, `MochilaUi` y `CorrerVista` (resoplidos). No vale `workspace.Final`: en el
   incendio se pone ~17 s antes de la escena (`Incendio.prender`) y se quita sin escena si el fuego se cancela. Tampoco
   `CameraType == Scriptable`, que también lo es escondido, por la mirilla o las cortinas y en el susto.
-- `Muerte.esconder` rechaza mientras `workspace.Final` está puesto (la huida, o el incendio ya prendido), también la
-  orden `Esconder` del modo de pruebas. Con `Final` y sin escena (el fuego corriendo), `MuerteVista` mantiene el
-  escondite de siempre y al salir devuelve la cámara a Custom. La escena empieza sacando a todos (`Muerte.sacar`).
+- `Muerte.esconder` rechaza durante la escena de un final (`Muerte.escena(true)`, que ponen `Coche.huir` e
+  `Incendio.terminar` antes de sacar a todos y quitan al acabar), también la orden `Esconder` del modo de pruebas.
+  Mientras corre el fuego del incendio (`Final` puesto, sin escena) los bichos siguen cazando y sí se puede: `MuerteVista`
+  mantiene el escondite de siempre y al salir devuelve la cámara a Custom. La escena empieza sacando a todos
+  (`Muerte.sacar`).
 - Remote `Muerte` (quien, cabeza, modelo): trae el bicho que pilla y la escena lo enfoca a él (ver `bichos.md`).
 - API nueva de `Muerte`: `vivo(jugador)` (como mirar en `vivos()`, sin hacer la lista), `sacar(jugador)` (fuera del
   escondite, lo mismo que salir) y `alMorir(fn)` (`fn(jugador)` una vez por muerte, muera como muera; Caza olvida su olor).
@@ -56,7 +58,7 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
   tutorial se apagan con el Hud apagado o en cinemáticas; el tirón de los sustos (`Util.tiron`) se deshace antes de la
   cámara de Roblox y no toca la Scriptable.
 - Bancos de Lune: `tests/bancos/muerte.luau` (Final sin escena, escena con el susto y, en el servidor, que no se
-  esconde con Final) y `tests/bancos/escenas.luau` (MovilUi y MochilaUi de verdad, con EscenaFinal, escondite y Vistazo).
+  esconde en la escena y sí con Final y sin ella) y `tests/bancos/escenas.luau` (MovilUi y MochilaUi de verdad, con EscenaFinal, escondite y Vistazo).
 - Probar en Studio (sin probar). Antes, en Edit: que Rojo ha sincronizado (`string.find(<script>.Source, "EscenaFinal")`
   no da nil en `MuerteVista`, `HuidaVista`, `IncendioVista`, `MovilUi`, `MochilaUi` y `CorrerVista`). Al acabar cada
   escena: `LocalPlayer:GetAttribute("EscenaFinal")` vuelve a nil y `CameraType` es Custom; errores con
@@ -67,7 +69,8 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
   - Fuego cancelado: A escondido y B prende; antes de la escena, quitar el fuego en Server (que amanezca, o
     `workspace:SetAttribute("Final", nil)` y `Remotes.Incendio:FireAllClients("Apagar")`). A sigue en el escondite que
     respira y al pulsar E vuelve a Custom. Nada congelado.
-  - Huida (y fuego del incendio): con `Final` puesto, E junto a un armario no te mete (`Escondido` nil, `Ocupado` 0).
+  - Huida: en la escena, E junto a un armario no te mete (`Escondido` nil, `Ocupado` 0). Durante el fuego del
+    incendio (antes de la escena) sí te escondes, como siempre.
   - Susto antes de la escena: con `Final` del incendio, que te pille un bicho ~2 s antes de que acabe el fuego. Si la
     escena empieza durante el susto, al acabarlo la cámara sigue en la escena (Scriptable), no en Custom.
   - `Prueba:Fire("Quemar")` con un escondido (`Prueba:Fire("Esconder", <punto junto a un armario>)` antes de prender)
