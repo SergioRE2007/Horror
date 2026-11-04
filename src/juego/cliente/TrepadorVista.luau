@@ -16,6 +16,8 @@
 --   dormitorio) y se le oye arrastrarse.
 --   Remote Trepador: "Baja" (algo arrastrándose por dentro del tiro y hollín cayendo al hogar), "Entra" (sale al salón
 --   entre una nube de hollín, chillando) y "Quema" (chilla con el fuego).
+--   Gateando (Gatea y GateaHora en su modelo): se aplasta contra el suelo con las patas muy abiertas y se cuela a tirones
+--   debajo del mueble donde te escondes (ver GATEO).
 -- Un solo bucle (Stepped) que solo corre mientras hay alguno; la vida, solo cerca de la cámara. Si el modelo se va
 -- (StreamOut o lo quita el servidor) se olvida, y si vuelve se prepara otra vez.
 local CollectionService = game:GetService("CollectionService")
@@ -66,9 +68,56 @@ local PATAS = {
 	{ arriba = "PiernaI", abajo = "EspinillaI", lado = -1, desfase = math.pi, delante = false },
 	{ arriba = "PiernaD", abajo = "EspinillaD", lado = 1, desfase = 0, delante = false },
 }
+-- Gatear a por alguien escondido debajo de un mueble (pedido por el usuario: "que el monstruo pueda gatear si te huele
+-- con una animación guapa para pillarte debajo de sitios"). El servidor (Caza) le para en el borde, de cara a ti, y pone
+-- en su modelo Gatea (dónde estás) y GateaHora (workspace:GetServerTimeNow() al empezar) durante Config.Postura.Gatear s.
+-- Como una araña: si la cabeza o las rodillas le quedan sobre la mesa, primero se echa atrás; luego se aplasta contra el
+-- suelo con las patas muy abiertas (las rodillas bajan de 2,5) y se cuela a tirones, con la cabeza (del revés) a ras de
+-- suelo y mirándote, parándose a olfatear. Las patas siguen pisando por cinemática inversa: al aplastarse y entre tirón
+-- y tirón las mueve de dos en dos (en diagonal), y las puntas que caerían debajo del tablero se agarran por fuera de él.
+-- Al acabar saca la cabeza, se retira a donde se echó atrás y se levanta ahí (se queda retirado hasta que vuelve a
+-- andar: si no, al volver a su sitio metería la cabeza en el tablero). Comprobado con Lune contra la mesa del comedor
+-- (tablero a 2,84 del suelo) y la de la cocina (a 3,29), a 1,8, 2,2 y 3 studs del borde y en diagonal: ni el suelo ni
+-- el tablero se atraviesan en ningún fotograma.
+local ALTURA = 2.2 -- de los pies al centro de la raíz (Trepador.luau)
+local GATEO = {
+	Atras = 0.3, -- (en un gateo de 2 s) cuándo acaba de echarse atrás...
+	Cae = 0.45, -- ...y de aplastarse
+	Sale = 0.45, -- al acabar, segundos en sacar la cabeza de debajo y retirarse...
+	Levanta = 0.6, -- ...y en levantarse
+	Plano = 0.66, -- studs del suelo al centro del torso, aplastado (el torso mide 1,1 de alto)
+	Hasta = 1.1, -- studs entre su frente y tú al acabar
+	Dentro = 2.6, -- studs que mete la frente por debajo del tablero, como mucho (las caderas se quedan fuera)
+	Margen = 0.35, -- studs entre el tablero y la cabeza, las rodillas o las puntas que se quedan fuera
+	AtrasMax = 3, -- studs que se echa atrás como mucho
+	Abre = 6.8, -- studs de la cadera a la punta, por el suelo, con las patas abiertas (así las rodillas, a ~2,2)
+	Adelante = 2.4, -- de eso, cuánto va hacia delante (las de delante) o hacia atrás (las de detrás)
+	Punta = 0.55, -- studs del suelo a la punta apoyada: los dedos, que siguen más allá, quedan a ras de suelo
+	Alza = 0.35, -- studs que levanta la punta al moverla
+	Borde = 1.4, -- studs del borde del mueble hasta ti, si los rayos no encuentran el tablero
+	-- Los tirones, en un gateo de 2 s: {empieza, acaba, hasta dónde ha llegado (0..1)}.
+	Tirones = { { 0.5, 0.68, 0.4 }, { 1, 1.18, 0.72 }, { 1.5, 1.75, 1 } },
+	-- Cuándo mueve las patas, en un gateo de 2 s: {empiezan las de un par, las del otro, acaban}. Al aplastarse y en cada
+	-- parada entre tirones (al salir y al levantarse, cada par en media vuelta).
+	Pasos = { { 0.1, 0.27, 0.45 }, { 0.72, 0.84, 0.96 }, { 1.22, 1.34, 1.46 } },
+	Susto = 2.2, -- segundos que se queda aplastado si te pilla (MuerteVista mira su cara)
+}
+-- Medidas del cuerpo (Trepador.crear) que usa el gateo: del centro del torso a la frente, y a lo más adelantado de las
+-- rodillas de delante con las patas abiertas.
+local CABEZA_FRENTE, RODILLA = 3.65, 2.9
+local CARRILES, CARRIL = 10, 0.75 -- el borde se mide en carriles cada 0,75 studs, 10 a cada lado (lo que abre las patas)
+-- Cuándo suenan los ruidos del gateo (ruidoGateo) y cada pisada (al apoyar cada par de patas), en un gateo de 2 s.
+local RUIDOS = { GATEO.Cae, GATEO.Tirones[1][1], GATEO.Tirones[2][1], GATEO.Tirones[3][1] }
+local PISADAS = {}
+for _, paso in GATEO.Pasos do
+	table.insert(PISADAS, paso[2])
+	table.insert(PISADAS, paso[3])
+end
 
 local jugador = Players.LocalPlayer
 local azar = Random.new()
+local filtroGateo = RaycastParams.new()
+filtroGateo.FilterType = Enum.RaycastFilterType.Exclude
 
 type Pata = {
 	arriba: Motor6D,
@@ -88,6 +137,29 @@ type Pata = {
 	antes: Vector3, -- de dónde venía al moverla
 	movida: number, -- os.clock desde que la mueve
 	crispa: number, -- os.clock de la última crispación
+}
+
+-- Un gateo: el de ahora o el último (mientras vuelve a su pose). Todo en el marco: en el suelo bajo la raíz, con -Z
+-- hacia el escondido.
+type Gateo = {
+	hora: number, -- GateaHora (hora del servidor)
+	punto: Vector3, -- Gatea: dónde está el escondido
+	t: number, -- segundos desde que empezó (se queda en el último al acabar)
+	sonados: number, -- cuántos ruidos del gateo han sonado...
+	pisadas: number, -- ...y cuántas pisadas
+	sale: number, -- 0..1: al acabar, cuánto ha sacado ya la cabeza y se ha retirado
+	levanta: boolean, -- ya se está levantando (b.gateo baja de 1 a 0)
+	marco: CFrame, -- en la raíz
+	bordes: { number }, -- studs hasta el tablero en cada carril (hacia delante); math.huge si no hay
+	torso0: CFrame, -- el torso al empezar, las puntas, la cabeza y la boca (lo que se veía el fotograma anterior: así no
+	puntas0: { Vector3 }, -- salta nada, ni si empieza otro gateo a medio levantarse)
+	cabeza0: CFrame,
+	boca0: CFrame,
+	zAtras: number, -- dónde se pone el torso al echarse atrás...
+	zFin: number, -- ...y al acabar de colarse (z: menos es más adelante)
+	plantas: { { Vector3 } }, -- dónde apoya cada pata tras cada vez que las mueve (se calcula al necesitarlo)...
+	plantasSimple: { { Vector3 } }, -- ...con Rendimiento
+	salida: { Vector3 }?, -- ...y al salir
 }
 
 type Bicho = {
@@ -128,6 +200,15 @@ type Bicho = {
 	proximaSacudida: number,
 	castaneo: number,
 	proximoCastaneo: number,
+	gateo: number, -- 1 mientras gatea; levantándose, de 1 a 0
+	gatea: Gateo?,
+	agarra: number, -- os.clock de rugir: el susto al morir le deja aplastado
+	retiro: Vector3, -- en la raíz: tras gatear se queda donde se echó atrás, hasta que vuelve a andar
+	puntas: { Vector3 }, -- las puntas este fotograma (en la raíz)...
+	ultimas: { Vector3 }, -- ...y las del anterior, ya con el gateo
+	ultimoTorso: CFrame?, -- el torso del fotograma anterior (en la raíz), su cabeza y su boca
+	ultimaCabeza: CFrame,
+	ultimaBoca: CFrame,
 }
 local bichos: { [Model]: Bicho } = {}
 local conexion: RBXScriptConnection? = nil
@@ -269,6 +350,318 @@ local function crujir(b: Bicho, ahora: number, volumen: number)
 	fuerte("Crujido", b.raiz.Position, azar:NextNumber(0.75, 0.95), volumen)
 end
 
+local function duraGateo(): number
+	local reglas = Config.Postura
+	return if reglas and reglas.Gatear then reglas.Gatear else 2
+end
+
+-- Studs (por el suelo, hacia delante) del marco al tablero que tapa al escondido, en cada carril: rayos hacia arriba
+-- cada poco. Lo que quede más bajo que un escondite (el asiento de una silla) no cuenta. Si no da con nada en ningún
+-- carril, el borde recto a GATEO.Borde de ti.
+local function buscarBordes(marco: CFrame, largo: number): { number }
+	local fuera: { Instance } = {}
+	local carpeta = workspace:FindFirstChild("Bichos")
+	if carpeta then
+		table.insert(fuera, carpeta)
+	end
+	for _, otro in Players:GetPlayers() do
+		if otro.Character then
+			table.insert(fuera, otro.Character)
+		end
+	end
+	filtroGateo.FilterDescendantsInstances = fuera
+	local bordes, alguno = {}, false
+	for i = -CARRILES, CARRILES do
+		local borde = math.huge
+		local d = 0
+		while d < largo + 3 do
+			local base = marco * Vector3.new(i * CARRIL, 0.4, -d)
+			local choque = workspace:Raycast(base, Vector3.new(0, 4.5, 0), filtroGateo)
+			if choque and choque.Instance.Name ~= "Debajo" and choque.Position.Y - marco.Y > 2.3 then
+				borde, alguno = math.max(0, d - 0.25), true
+				break
+			end
+			d += 0.25
+		end
+		bordes[i + CARRILES + 1] = borde
+	end
+	if not alguno then
+		for i in bordes do
+			bordes[i] = math.max(0, largo - GATEO.Borde)
+		end
+	end
+	return bordes
+end
+
+-- Lo más cerca que está el tablero entre dos carriles (x en el marco). Entre dos rayos, una esquina del tablero puede
+-- quedar algo más cerca: medio carril menos.
+local function bordeEntre(bordes: { number }, desde: number, hasta: number): number
+	local menor = math.huge
+	local i1 = math.max(-CARRILES, math.floor(math.min(desde, hasta) / CARRIL))
+	for i = i1, math.min(CARRILES, math.ceil(math.max(desde, hasta) / CARRIL)) do
+		menor = math.min(menor, bordes[i + CARRILES + 1])
+	end
+	return menor - CARRIL / 2
+end
+
+-- Por dónde va el gateo en `u` (segundos de un gateo de 2 s): cuánto se ha colado (0..1), cuánto olfatea (0..1, entre
+-- tirones) y el empujón de cada tirón (0..1). Simple (Rendimiento): seguido, sin olfatear.
+local function avanceGateo(u: number, simple: boolean): (number, number, number)
+	if simple then
+		return suave(math.clamp((u - GATEO.Cae) / (1.75 - GATEO.Cae), 0, 1)), 0, 0
+	end
+	local a = 0
+	for _, tiron in GATEO.Tirones do
+		if u >= tiron[2] then
+			a = tiron[3]
+		elseif u > tiron[1] then
+			local k = (u - tiron[1]) / (tiron[2] - tiron[1])
+			return a + (tiron[3] - a) * (1 - (1 - k) ^ 3), 0, math.sin(math.pi * k)
+		else
+			break
+		end
+	end
+	return a, if u > GATEO.Cae then 1 else 0, 0
+end
+
+-- Lo que lleva echado atrás en `u` (0..1): de golpe, como quien se aparta de un salto, y frenando.
+local function echado(u: number): number
+	return 1 - (1 - math.clamp(u / GATEO.Atras, 0, 1)) ^ 2
+end
+
+-- El torso entrando, en `u`: se echa atrás (y se pone de cara a ti), se aplasta y se cuela a tirones.
+local function torsoEntrando(g: Gateo, u: number, simple: boolean): CFrame
+	local kb = echado(u)
+	local kh = suave(math.clamp((u - 0.08) / (GATEO.Cae - 0.08), 0, 1))
+	local a = avanceGateo(u, simple)
+	local p0 = g.torso0.Position
+	local z = p0.Z + (g.zAtras - p0.Z) * kb + (g.zFin - g.zAtras) * a
+	return CFrame.new(p0.X * (1 - kb), p0.Y + (GATEO.Plano - p0.Y) * kh, z) * g.torso0.Rotation:Lerp(CFrame.new(), kb)
+end
+
+-- Dónde apoya la pata con el torso aplastado en `z`: abierta y hacia delante (o atrás), y si la punta cayera debajo del
+-- tablero, por fuera de él (más abierta, para que la rodilla no suba).
+local function plantar(g: Gateo, p: Pata, z: number): Vector3
+	local cadera = Vector3.new(p.cadera.X, 0, z + p.cadera.Z)
+	local dz = if p.delante then -GATEO.Adelante else GATEO.Adelante
+	local tope = -(bordeEntre(g.bordes, cadera.X, cadera.X + p.lado * (GATEO.Abre + 0.5)) - GATEO.Margen)
+	if cadera.Z + dz < tope then
+		dz = math.min(tope - cadera.Z, GATEO.Abre - 1)
+	end
+	local abre = math.sqrt(GATEO.Abre * GATEO.Abre - dz * dz)
+	return Vector3.new(cadera.X + p.lado * abre, GATEO.Punta, cadera.Z + dz)
+end
+
+-- Dónde apoyan las patas tras moverlas la vez `k` (GATEO.Pasos): donde les toca con el torso a medio camino de lo que
+-- avanza mientras siguen ahí (así se estiran y se encogen lo mismo y no resbalan).
+local function planta(g: Gateo, patas: { Pata }, k: number, i: number, simple: boolean): Vector3
+	local cache = if simple then g.plantasSimple else g.plantas
+	local fila = cache[k]
+	if not fila then
+		local siguiente = GATEO.Pasos[k + 1]
+		local z1 = torsoEntrando(g, GATEO.Pasos[k][3], simple).Position.Z
+		local z2 = torsoEntrando(g, if siguiente then siguiente[1] else 2, simple).Position.Z
+		fila = {}
+		for j, p in patas do
+			fila[j] = plantar(g, p, (z1 + z2) / 2)
+		end
+		cache[k] = fila
+	end
+	return fila[i]
+end
+
+-- La punta de un sitio a otro por el aire, de `ini` a `fin` de `k`.
+local function pisada(desde: Vector3, hasta: Vector3, k: number, ini: number, fin: number): Vector3
+	if k <= ini then
+		return desde
+	elseif k >= fin then
+		return hasta
+	end
+	local q = (k - ini) / (fin - ini)
+	local alza = GATEO.Alza * math.sin(math.pi * q) * math.min(1, (hasta - desde).Magnitude / 0.6)
+	return desde:Lerp(hasta, suave(q)) + Vector3.new(0, alza, 0)
+end
+
+-- La punta de una pata entrando, en `u`: las mueve de dos en dos (en diagonal, como al andar).
+local function puntaEntrando(g: Gateo, patas: { Pata }, i: number, u: number, simple: boolean): Vector3
+	local pos = g.puntas0[i]
+	local primero = patas[i].desfase == 0
+	for k, paso in GATEO.Pasos do
+		local ini = if primero then paso[1] else paso[2]
+		local fin = if primero then paso[2] else paso[3]
+		if u <= ini then
+			return pos
+		end
+		local destino = planta(g, patas, k, i, simple)
+		if u < fin then
+			return pisada(pos, destino, u, ini, fin)
+		end
+		pos = destino
+	end
+	return pos
+end
+
+-- Los ruidos del gateo: 1 se aplasta; 2 y 3, cada tirón (araña el suelo); 4, el último, un chillido que se corta.
+local function ruidoGateo(b: Bicho, n: number)
+	local donde = b.cabeza.Position
+	if n == 1 then
+		Sonido.en("Paso", b.raiz.Position - Vector3.new(0, 1.5, 0), 1.3)
+		Sonido.en("Cruje", donde, 1.1)
+		return
+	end
+	Sonido.en("Aranazo", donde, if n == 4 then 1.35 else 1.2)
+	if n == 4 then
+		local corto = Sonido.en("Chillido", donde, 1.6)
+		task.delay(0.35, function()
+			if corto.Parent then
+				corto:Stop()
+			end
+		end)
+	end
+end
+
+-- Empieza un gateo: el marco de cara a ti, el tablero en cada carril, cuánto se echa atrás (que ni la cabeza ni las
+-- rodillas queden sobre la mesa al aplastarse) y hasta dónde se cuela (su frente a GATEO.Hasta de ti, sin pasar de
+-- GATEO.Dentro por debajo del tablero). Sale de la pose del fotograma anterior: así no salta si empieza otro.
+local function empezarGateo(b: Bicho, punto: Vector3, hora: number, torsoT: CFrame): Gateo
+	local m = b.motores
+	local enRaiz = b.raiz.CFrame:PointToObjectSpace(punto)
+	local plano = Vector3.new(enRaiz.X, 0, enRaiz.Z)
+	local lejos = plano.Magnitude
+	local marco = CFrame.new(0, -ALTURA, 0) * CFrame.Angles(0, if lejos > 0.3 then math.atan2(-plano.X, -plano.Z) else 0, 0)
+	local antes = b.ultimoTorso
+	local torso0 = marco:Inverse() * (antes or m.Torso.C0 * torsoT * m.Torso.C1:Inverse())
+	local puntas0 = {}
+	for i in b.patas do
+		puntas0[i] = marco:PointToObjectSpace(if antes then b.ultimas[i] else b.puntas[i])
+	end
+	local bordes = buscarBordes(b.raiz.CFrame * marco, lejos)
+	local cabeza = bordeEntre(bordes, -0.7, 0.7)
+	local rodillas = math.min(bordeEntre(bordes, -5.5, -0.2), bordeEntre(bordes, 0.2, 5.5))
+	local f0 = -torso0.Position.Z -- studs que el torso está por delante del marco
+	local atras = math.clamp(math.min(cabeza - CABEZA_FRENTE, rodillas - RODILLA) - GATEO.Margen, f0 - GATEO.AtrasMax, f0)
+	local fin = math.clamp(lejos - GATEO.Hasta - CABEZA_FRENTE, atras, math.max(atras, cabeza + GATEO.Dentro - CABEZA_FRENTE))
+	return {
+		hora = hora, punto = punto, t = 0, sonados = 0, pisadas = 0, sale = 0, levanta = false, marco = marco,
+		bordes = bordes, torso0 = torso0, puntas0 = puntas0, cabeza0 = b.ultimaCabeza, boca0 = b.ultimaBoca, zAtras = -atras,
+		zFin = -fin, plantas = {}, plantasSimple = {}, salida = nil,
+	}
+end
+
+-- El gateo, en lugar de la pose de siempre (`torsoT` y b.puntas, ya calculadas este fotograma; la cabeza y la boca ya
+-- están en sus juntas): devuelve el torso y deja en b.puntas dónde va cada punta. Con Gatea y GateaHora en el modelo se
+-- cuela; sin ellos, saca la cabeza, se retira y se levanta hasta quedar justo en la pose de siempre.
+local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, torsoT: CFrame, chillando: boolean): CFrame
+	local punto = b.modelo:GetAttribute("Gatea")
+	local hora = b.modelo:GetAttribute("GateaHora")
+	local activo = typeof(punto) == "Vector3" and typeof(hora) == "number"
+	local dura = duraGateo()
+	local g = b.gatea
+	if activo then
+		if not g or g.hora ~= hora then
+			g = empezarGateo(b, punto, hora, torsoT)
+			b.gatea = g
+		end
+		local actual = g :: Gateo
+		actual.punto = punto
+		actual.t = math.clamp(workspace:GetServerTimeNow() - hora, 0, dura)
+	end
+	if not g then
+		return torsoT
+	end
+	local m = b.motores
+	local marco = g.marco
+	-- Gateando (o mientras dura el susto si te ha pillado) se aplasta; al acabar, se retira y luego se levanta.
+	if activo or ahora - b.agarra < GATEO.Susto then
+		b.gateo = 1
+	else
+		g.sale = math.min(1, g.sale + dt / GATEO.Sale)
+		if g.sale >= 1 then
+			if not g.levanta then
+				g.levanta = true
+				b.retiro = marco.Rotation * Vector3.new(0, 0, g.zAtras) -- se levanta ahí y ahí se queda
+			end
+			b.gateo = math.max(0, b.gateo - dt / GATEO.Levanta)
+		end
+	end
+	if b.gateo <= 0 then
+		b.gatea = nil
+		return torsoT
+	end
+	local u = g.t * 2 / dura
+	local a, olfatea, empuje = avanceGateo(u, poco)
+	local husmea = if poco then 0 else olfatea
+	local cuerpo = torsoEntrando(g, u, poco)
+	local sale = suave(g.sale)
+	local levanta = if g.levanta then 1 - b.gateo else 0
+	local patas = b.patas
+	if g.sale > 0 then
+		-- Sale: el torso vuelve a donde se echó atrás y las patas, a donde les toca ahí.
+		local z = cuerpo.Position.Z
+		local salida = g.salida
+		if not salida then
+			salida = {}
+			for i, p in patas do
+				salida[i] = plantar(g, p, (z + g.zAtras) / 2)
+			end
+			g.salida = salida
+		end
+		local hasta = salida :: { Vector3 }
+		local fuera = CFrame.new(cuerpo.Position.X, cuerpo.Position.Y, z + (g.zAtras - z) * sale) * cuerpo.Rotation
+		local normal = marco:Inverse() * (m.Torso.C0 * torsoT * m.Torso.C1:Inverse())
+		cuerpo = fuera:Lerp(normal, suave(levanta))
+		for i, p in patas do
+			-- Cada par en media vuelta; levantándose, de ahí a su pose de siempre (al acabar, justo ella: no salta).
+			local ini, fin = if p.desfase == 0 then 0 else 0.45, if p.desfase == 0 then 0.45 else 0.9
+			local desde = pisada(puntaEntrando(g, patas, i, u, poco), hasta[i], g.sale, ini, fin)
+			b.puntas[i] = marco * pisada(desde, marco:PointToObjectSpace(b.puntas[i]), levanta, ini, fin)
+		end
+		a, husmea, empuje = a * (1 - sale), 0, 0
+	else
+		-- Olfateando: respira contra el suelo.
+		cuerpo *= CFrame.new(0, husmea * 0.03 * math.sin(ahora * 21), 0)
+		for i in patas do
+			b.puntas[i] = marco * puntaEntrando(g, patas, i, u, poco)
+		end
+	end
+	local nuevoT = m.Torso.C0:Inverse() * (marco * cuerpo) * m.Torso.C1
+
+	-- La cabeza: mientras se echa atrás y se aplasta, derecha y con la boca cerrada (del revés, la boca le queda arriba y
+	-- por detrás: al cabecear o abrirla bajo el tablero, lo rozaría). Ya abajo, de cara a ti y a tu altura, sin cabecear
+	-- hacia el suelo; olfateando, a golpecitos; con cada tirón, un empujón; si chilla, temblando.
+	local junta = b.raiz.CFrame * marco * cuerpo * m.Cabeza.C0
+	local suelo = b.raiz.Position.Y - ALTURA
+	local mira = Vector3.new(g.punto.X, suelo + math.clamp(g.punto.Y - suelo, 0.6, 2), g.punto.Z)
+	local cabeceo, giro = mirada(junta, mira)
+	cabeceo = math.max(cabeceo, 0.03)
+	giro += husmea * 0.12 * math.sin(ahora * 7) + (if chillando then math.sin(ahora * 30) * 0.2 else 0)
+	local derecha = if g.sale > 0 then 1 else echado(u)
+	local abajo = if g.sale > 0 then 1 else suave(math.clamp((u - GATEO.Atras) / (GATEO.Cae - GATEO.Atras), 0, 1))
+	local cabezaT = g.cabeza0:Lerp(CFrame.new(), derecha):Lerp(CFrame.fromEulerAnglesYXZ(cabeceo, giro, husmea * 0.08
+		* math.sin(ahora * 9)) * CFrame.new(0, 0, -0.15 * empuje), abajo)
+	m.Cabeza.Transform = cabezaT:Lerp(m.Cabeza.Transform, suave(levanta))
+	-- La boca, abriéndose según se cuela; olfateando, a golpecitos; con cada tirón, un chasquido; si te pilla, chillando.
+	local abre = (0.15 + 0.3 * a + husmea * 0.08 * math.abs(math.sin(ahora * 13)) + 0.2 * empuje
+		+ (if chillando then 0.55 + 0.1 * math.sin(ahora * 35) else 0)) * abajo
+	local boca = g.boca0:Lerp(CFrame.new(), derecha) * CFrame.Angles(-abre, 0, 0)
+	m.Mandibula.Transform = boca:Lerp(m.Mandibula.Transform, suave(levanta))
+
+	-- Los ruidos, cada uno una vez (con Rendimiento, solo al aplastarse y el chillido del final), y las pisadas.
+	if activo and g.sonados < #RUIDOS and u >= RUIDOS[g.sonados + 1] then
+		g.sonados += 1
+		if u < RUIDOS[g.sonados] + 0.15 and (not poco or g.sonados == 1 or g.sonados == #RUIDOS) then
+			ruidoGateo(b, g.sonados) -- si llega tarde, los que ya han pasado no suenan todos de golpe
+		end
+	end
+	if activo and g.pisadas < #PISADAS and u >= PISADAS[g.pisadas + 1] then
+		g.pisadas += 1
+		if not poco and u < PISADAS[g.pisadas] + 0.1 then
+			Sonido.en("Paso", b.raiz.Position - Vector3.new(0, 1.5, 0), azar:NextNumber(1.5, 1.7))
+		end
+	end
+	return nuevoT
+end
+
 local function apagar()
 	if conexion then
 		conexion:Disconnect()
@@ -339,7 +732,12 @@ local function animar(dt: number)
 		local zancada = math.min(1, b.rapidez / 2)
 		b.fase += dt * b.rapidez * RITMO
 		local s = math.sin(b.fase)
-		b.vida = acercar(b.vida, if b.rapidez < QUIETO and not chillando and not bajando and distancia < vidaLejos then 1 else 0, dt, 4)
+		local gateando = b.gatea ~= nil or modelo:GetAttribute("Gatea") ~= nil -- mientras gatea, la vida de espera se pausa
+		b.vida = acercar(b.vida, if b.rapidez < QUIETO and not chillando and not bajando and not gateando and distancia < vidaLejos
+			then 1 else 0, dt, 4)
+		if b.rapidez > QUIETO and not gateando then
+			b.retiro *= math.max(0, 1 - dt * 2) -- retirado tras gatear: al volver a andar, vuelve a su sitio
+		end
 		local vida = b.vida
 		b.amenaza = acercar(b.amenaza, if chillando then 1 else 0, dt, if chillando then 10 else 3)
 		local amenaza = b.amenaza
@@ -440,10 +838,10 @@ local function animar(dt: number)
 			0,
 			s * 0.06 * paso + 0.05 * w + sac * 0.1 * math.sin(ts * 29)
 		)
-		m.Torso.Transform = torsoT
+		torsoT = m.Torso.C0:Inverse() * CFrame.new(b.retiro) * m.Torso.C0 * torsoT
 		local torsoCF = m.Torso.C0 * torsoT * m.Torso.C1:Inverse() -- el torso, en la raíz
 
-		-- Patas: cada punta a su sitio (en la raíz) y las juntas, por cinemática inversa.
+		-- Patas: cada punta a su sitio (en la raíz); las juntas, por cinemática inversa al final (tras el gateo).
 		local alza = SUELO - b.suelo
 		for i, p in b.patas do
 			-- Andando: media vuelta la punta va hacia atrás pegada al suelo, tan deprisa como avanza el cuerpo (no
@@ -477,7 +875,7 @@ local function animar(dt: number)
 				y += (AMENAZA.Y + 0.15 * math.sin(ahora * 45 + i)) * amenaza
 				z += AMENAZA.Z * amenaza
 			end
-			pisar(p, torsoCF:PointToObjectSpace(p.reposo + Vector3.new(p.lado * x, y, z)))
+			b.puntas[i] = p.reposo + Vector3.new(p.lado * x, y, z) + b.retiro
 		end
 
 		-- La cabeza (del revés): a tirones; escuchando, quieta y ladeada hacia quien tenga más cerca.
@@ -517,6 +915,17 @@ local function animar(dt: number)
 			+ sac * 0.3 * math.abs(math.sin(ts * 25))
 			+ (if chillando then 0.7 + 0.1 * math.sin(ahora * 35) else 0)
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
+
+		-- Debajo de un mueble: se aplasta y gatea a por ti, encima de todo lo anterior. Luego, las patas.
+		torsoT = gatear(b, dt, ahora, poco, torsoT, chillando)
+		m.Torso.Transform = torsoT
+		torsoCF = m.Torso.C0 * torsoT * m.Torso.C1:Inverse()
+		b.ultimoTorso = torsoCF
+		b.ultimaCabeza, b.ultimaBoca = m.Cabeza.Transform, m.Mandibula.Transform
+		for i, p in b.patas do
+			b.ultimas[i] = b.puntas[i]
+			pisar(p, torsoCF:PointToObjectSpace(b.puntas[i]))
+		end
 
 		-- Pasos pesados y crujidos en la pared y el tejado (escuchando, silencio); en el suelo, pasos normales.
 		local pie = if s >= 0 then 1 else -1
@@ -594,6 +1003,8 @@ local function preparar(modelo: Instance)
 		proximaMueve = ahora + rango(MUEVE), ultimaPata = 1, proximaCrispa = ahora + rango(CRISPA),
 		sacudida = -math.huge, proximaSacudida = ahora + rango(SACUDIDA),
 		castaneo = -math.huge, proximoCastaneo = ahora + rango(CASTANETEA),
+		gateo = 0, gatea = nil, agarra = -math.huge, retiro = Vector3.zero, puntas = table.create(#patas, Vector3.zero),
+		ultimas = table.create(#patas, Vector3.zero), ultimoTorso = nil, ultimaCabeza = CFrame.new(), ultimaBoca = CFrame.new(),
 	}
 	encender()
 end
@@ -639,11 +1050,15 @@ local function hollin(cf: CFrame, cuanto: number, hacia: Vector3)
 	end)
 end
 
--- Chilla con las patas de delante en alto (el susto al morir). Devuelve el Trepador cerca de `punto`, si hay.
+-- Chilla con las patas de delante en alto (el susto al morir; si gateaba, aplastado). Devuelve el Trepador cerca de
+-- `punto`, si hay.
 function TrepadorVista.rugir(punto: Vector3): Model?
 	local b = cercano(punto, 12)
 	if b then
 		b.chillido = os.clock()
+		if b.gatea then
+			b.agarra = os.clock() -- te ha pillado gateando: se queda aplastado mientras dura el susto
+		end
 		return b.modelo
 	end
 	return nil
