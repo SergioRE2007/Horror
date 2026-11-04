@@ -7,6 +7,10 @@
 --   Con R se usa con algo (Cargar.alUsar): serrar en el caballete, clavar en una ventana o puerta, echar gasolina,
 --   montar una pieza en el coche.
 -- Mientras se lleva no choca con los jugadores (grupos de colisión "Cargado" y "Personajes").
+-- Cargar.ajustarVelocidad es la única que pone el WalkSpeed de los jugadores: lo que frena (mochila, trabajando,
+-- agachado, lo que lleva y Frena al agotarse corriendo) es un factor, el más bajo gana; con la clase (Stats Velocidad)
+-- sale la velocidad de andar, que se publica en el atributo Andar. Corriendo (14.8, lo pone Correr) solo cuenta sin
+-- nada que frene: CorrerReglas.velocidad. Nada de multiplicadores escondidos.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PhysicsService = game:GetService("PhysicsService")
@@ -16,6 +20,7 @@ local StarterPlayer = game:GetService("StarterPlayer")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Stats = require(ReplicatedStorage.Shared.Stats)
+local CorrerReglas = require(ReplicatedStorage.Shared.CorrerReglas)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Mapa = require(script.Parent.Mapa)
@@ -47,8 +52,8 @@ local function raizDe(jugador: Player): BasePart?
 	return jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 end
 
--- Velocidad y salto según lo que lleva, si tiene la mochila abierta o si va agachado (Mochila y Postura también lo
--- llaman).
+-- Velocidad y salto según lo que lleva, si tiene la mochila abierta, si va agachado y si corre o frena tras agotarse
+-- (Mochila, Postura y Correr también lo llaman).
 function Cargar.ajustarVelocidad(jugador: Player)
 	local humanoide = humanoideDe(jugador)
 	if not humanoide then
@@ -65,6 +70,10 @@ function Cargar.ajustarVelocidad(jugador: Player)
 	if jugador:GetAttribute("Agachado") then
 		factor = math.min(factor, Config.Postura.Velocidad)
 	end
+	-- Frenando tras agotarse corriendo (14.8, lo pone Correr).
+	if jugador:GetAttribute("Frena") then
+		factor = math.min(factor, Config.Correr.FactorFrena)
+	end
 	local agarre = agarres[jugador]
 	if agarre then
 		local peso = agarre.pieza:GetAttribute("Peso")
@@ -72,7 +81,12 @@ function Cargar.ajustarVelocidad(jugador: Player)
 		factor = math.min(factor, if cuantos >= peso then C.Frena[peso] else C.Arrastrar)
 		salto = false
 	end
-	humanoide.WalkSpeed = StarterPlayer.CharacterWalkSpeed * factor * Stats.valor(jugador, "Velocidad")
+	local andar = StarterPlayer.CharacterWalkSpeed * factor * Stats.valor(jugador, "Velocidad")
+	if jugador:GetAttribute("Andar") ~= andar then
+		jugador:SetAttribute("Andar", andar) -- para el cliente (CorrerVista): lo que anda sin correr
+	end
+	-- Corriendo solo sin nada que frene (Correr ya no corre agachado, cargando...; esto cubre lo que llegue entre medias).
+	humanoide.WalkSpeed = CorrerReglas.velocidad(andar, jugador:GetAttribute("Corriendo") == true and factor == 1)
 	humanoide.JumpHeight = if salto then StarterPlayer.CharacterJumpHeight else 0
 	humanoide.JumpPower = if salto then StarterPlayer.CharacterJumpPower else 0
 end

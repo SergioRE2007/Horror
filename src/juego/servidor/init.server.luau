@@ -24,6 +24,7 @@ require(Sistemas.Golpeador).start()
 require(Sistemas.Cargar).start()
 require(Sistemas.Mochila).start()
 require(Sistemas.Postura).start() -- agacharse y asomarse (14.6): atributos Agachado y Asomado
+require(Sistemas.Correr).start() -- correr y aguante (14.8): atributos Corriendo, Aguante, Agotado, Frena y Tropiezo
 require(Sistemas.Equipo).start()
 require(Sistemas.Recursos).start()
 require(Sistemas.Generador).start()
