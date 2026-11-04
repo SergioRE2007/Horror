@@ -25,6 +25,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
 
 local ImitadorVista = {}
@@ -535,32 +536,8 @@ local function enTiron(k: number): number
 	return -1
 end
 
--- El tablero de un mueble con zona Debajo (Mapa, HUECOS): su centro y su tamaño. Las piezas de los muebles y sus cajas
--- de choque no se ven con rayos (CanQuery false), así que se mira el atributo Tam del mueble (el tablero llega a sus
--- bordes, de lo alto de la zona hasta arriba); si su pivote no cuadra con la zona, se da por hecho que sobresale
--- SALIENTE de la zona por cada lado. (Lo mismo que GolpeadorVista.)
-local SALIENTE = 2 -- lo que más sobresale un tablero de su zona (la mesa del comedor, 1,96 por las puntas)
-local function cajaTablero(zona: BasePart): (CFrame, Vector3)
-	local medio = zona.Size / 2
-	local cf = zona.CFrame * CFrame.new(0, medio.Y + 0.4, 0)
-	local tam = Vector3.new(zona.Size.X + 2 * SALIENTE, 0.8, zona.Size.Z + 2 * SALIENTE)
-	local mueble = zona.Parent
-	local medida = if mueble and mueble:IsA("Model") then mueble:GetAttribute("Tam") else nil
-	if mueble and typeof(medida) == "Vector3" then
-		local pivote = (mueble :: Model):GetPivot()
-		local z = pivote:PointToObjectSpace(zona.Position)
-		if math.abs(pivote.XVector:Dot(zona.CFrame.XVector)) > 0.99 and math.abs(pivote.YVector:Dot(Vector3.yAxis)) > 0.99
-			and math.abs(z.X) + medio.X <= medida.X / 2 + 0.05 and math.abs(z.Z) + medio.Z <= medida.Z / 2 + 0.05
-			and math.abs(z.Y - medio.Y) < 0.1 and medida.Y > zona.Size.Y
-		then
-			cf = pivote * CFrame.new(0, (zona.Size.Y + medida.Y) / 2, 0)
-			tam = Vector3.new(medida.X, medida.Y - zona.Size.Y, medida.Z)
-		end
-	end
-	return cf, tam
-end
-
--- El tablero que tapa a quien está en `punto` (el de la zona Debajo en la que está) y lo alto de su hueco, o nil.
+-- El tablero que tapa a quien está en `punto` (el de la zona Debajo en la que está) y lo alto de su hueco, o nil. Los
+-- muebles no se ven con rayos (CanQuery false): lo calcula MuebleRayo.tablero con el Tam del mueble.
 local function tableroEn(punto: Vector3): (CFrame?, Vector3?, number?)
 	for _, zona in CollectionService:GetTagged("Debajo") do
 		if not zona:IsA("BasePart") then
@@ -571,16 +548,16 @@ local function tableroEn(punto: Vector3): (CFrame?, Vector3?, number?)
 		if math.abs(p.X) > medio.X + 0.5 or math.abs(p.Z) > medio.Z + 0.5 or p.Y < -medio.Y - 1 or p.Y > medio.Y + 3 then
 			continue
 		end
-		local cf, tam = cajaTablero(zona)
+		local cf, tam = MuebleRayo.tablero(zona)
 		return cf, tam, zona.Size.Y
 	end
 	return nil, nil, nil
 end
 
 -- El borde del mueble entre la raíz y `punto` (en planta, desde la raíz) y lo alto de su hueco: por la zona Debajo en
--- la que estás (en el juego los rayos no dan nunca en los muebles: CanQuery false) y, si no estás en ninguna, con rayos
--- hacia arriba cada medio stud. Por el medio y a los lados (la cabeza y los brazos): el borde más cercano, por si llega
--- torcido. Sin nada, a ojo: el borde a 1,6 de ti.
+-- la que estás y, si no estás en ninguna (entonces el servidor no le hace gatear: por si acaso), con rayos hacia arriba
+-- cada medio stud que ven los muebles (MuebleRayo: con workspace:Raycast no se ven, CanQuery false). Por el medio y a
+-- los lados (la cabeza y los brazos): el borde más cercano, por si llega torcido. Sin nada, a ojo: el borde a 1,6 de ti.
 local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 	local suelo = b.raiz.Position - Vector3.new(0, ALTURA, 0)
 	local hacia = plano(punto - suelo)
@@ -632,10 +609,11 @@ local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 		end
 	end
 	techo.FilterDescendantsInstances = ignorar
+	local muebles = MuebleRayo.cajas(suelo, largo + 8)
 	local borde, alto = math.huge, math.huge
 	for _, x in { 0, -1, 1 } do
-		local function arriba(d: number): RaycastResult?
-			return workspace:Raycast(suelo + u * d + lado * x + Vector3.new(0, 0.2, 0), Vector3.new(0, 4.3, 0), techo)
+		local function arriba(d: number): MuebleRayo.Golpe?
+			return MuebleRayo.rayo(suelo + u * d + lado * x + Vector3.new(0, 0.2, 0), Vector3.new(0, 4.3, 0), techo, muebles)
 		end
 		for d = 0, math.min(largo, borde), 0.5 do
 			local r = arriba(d)

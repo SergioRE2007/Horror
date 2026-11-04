@@ -19,6 +19,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
 
 local GolpeadorVista = {}
@@ -376,32 +377,8 @@ local function duraGateo(): number
 	return if reglas and reglas.Gatear then reglas.Gatear else 2
 end
 
--- El tablero de un mueble con zona Debajo (Mapa, HUECOS). Las piezas de los muebles y sus cajas de choque no se ven con
--- rayos (CanQuery false), así que se mira el atributo Tam del mueble (el tablero llega a sus bordes, desde lo alto de la
--- zona hasta arriba); si su pivote no cuadra con la zona, se da por hecho que el tablero sobresale SALIENTE de la zona
--- por cada lado. Devuelve su centro y su tamaño.
-local SALIENTE = 2 -- lo que más sobresale un tablero de su zona (la mesa del comedor, 1,96 por las puntas)
-local function cajaTablero(zona: BasePart): (CFrame, Vector3)
-	local medio = zona.Size / 2
-	local cf = zona.CFrame * CFrame.new(0, medio.Y + 0.4, 0)
-	local tam = Vector3.new(zona.Size.X + 2 * SALIENTE, 0.8, zona.Size.Z + 2 * SALIENTE)
-	local mueble = zona.Parent
-	local medida = if mueble and mueble:IsA("Model") then mueble:GetAttribute("Tam") else nil
-	if mueble and typeof(medida) == "Vector3" then
-		local pivote = (mueble :: Model):GetPivot()
-		local z = pivote:PointToObjectSpace(zona.Position)
-		if math.abs(pivote.XVector:Dot(zona.CFrame.XVector)) > 0.99 and math.abs(pivote.YVector:Dot(Vector3.yAxis)) > 0.99
-			and math.abs(z.X) + medio.X <= medida.X / 2 + 0.05 and math.abs(z.Z) + medio.Z <= medida.Z / 2 + 0.05
-			and math.abs(z.Y - medio.Y) < 0.1 and medida.Y > zona.Size.Y
-		then
-			cf = pivote * CFrame.new(0, (zona.Size.Y + medida.Y) / 2, 0)
-			tam = Vector3.new(medida.X, medida.Y - zona.Size.Y, medida.Z)
-		end
-	end
-	return cf, tam
-end
-
--- El tablero que tapa al escondido en `punto` (el de la zona Debajo en la que está), o nil.
+-- El tablero que tapa al escondido en `punto` (el de la zona Debajo en la que está), o nil. Las piezas de los muebles y
+-- sus cajas de choque no se ven con rayos (CanQuery false): lo calcula MuebleRayo.tablero con el Tam del mueble.
 local function tablero(punto: Vector3): (CFrame?, Vector3?, BasePart?)
 	for _, zona in CollectionService:GetTagged("Debajo") do
 		if not zona:IsA("BasePart") then
@@ -412,7 +389,7 @@ local function tablero(punto: Vector3): (CFrame?, Vector3?, BasePart?)
 		if math.abs(p.X) > medio.X + 0.5 or math.abs(p.Z) > medio.Z + 0.5 or p.Y < -medio.Y - 1 or p.Y > medio.Y + 3 then
 			continue
 		end
-		local cf, tam = cajaTablero(zona)
+		local cf, tam = MuebleRayo.tablero(zona)
 		return cf, tam, zona
 	end
 	return nil, nil, nil
@@ -620,7 +597,7 @@ local function mesaCerca(b: Bicho, ahora: number)
 	local mejor = APARTA.Cerca
 	for _, zona in CollectionService:GetTagged("Debajo") do
 		if zona:IsA("BasePart") and (zona.Position - raiz).Magnitude < APARTA.Cerca + 12 then
-			local cf, tam = cajaTablero(zona)
+			local cf, tam = MuebleRayo.tablero(zona)
 			local q = cf:PointToObjectSpace(raiz)
 			local fuera = Vector3.new(math.max(0, math.abs(q.X) - tam.X / 2), 0, math.max(0, math.abs(q.Z) - tam.Z / 2)).Magnitude
 			if fuera < mejor then

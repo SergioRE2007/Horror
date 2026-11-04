@@ -1,10 +1,11 @@
 --!strict
--- Rayos que ven los muebles, para los gateos que miden la mesa con rayos (TrepadorVista y BestiaVista). Las piezas de
--- los muebles y sus cajas "Choque" tienen CanQuery = false (Piezas y Mapa: que no tapen la vista de los bichos ni la
--- linterna), así que workspace:Raycast no las ve nunca: los gateos medían "sin mesa" y se metían por el tablero.
--- `cajas` junta, una vez por gateo, lo que choca cerca: el tablero entero de cada zona Debajo (con el atributo Tam de
--- su mueble, hasta el borde que se ve) y las cajas Choque de su casa (patas, travesaños, otros muebles). `rayo` es
--- workspace:Raycast que además ve esas cajas. Librería sin start().
+-- Rayos que ven los muebles, para los gateos que miden la mesa con rayos (TrepadorVista, BestiaVista y los rayos de
+-- reserva de ImitadorVista), y el tablero de cada zona Debajo (`tablero`, también para GolpeadorVista, ImitadorVista,
+-- RaspadorVista y PosturaVista). Las piezas de los muebles y sus cajas "Choque" tienen CanQuery = false (Piezas y Mapa:
+-- que no tapen la vista de los bichos ni la linterna), así que workspace:Raycast no las ve nunca: los gateos medían
+-- "sin mesa" y se metían por el tablero. `cajas` junta, una vez por gateo, lo que choca cerca: el tablero entero de
+-- cada zona Debajo (con el atributo Tam de su mueble, hasta el borde que se ve) y las cajas Choque de su casa (patas,
+-- travesaños, otros muebles). `rayo` es workspace:Raycast que además ve esas cajas. Librería sin start().
 
 local CollectionService = game:GetService("CollectionService")
 
@@ -18,8 +19,10 @@ export type Golpe = { Position: Vector3, Instance: Instance, Distance: number }
 local SALIENTE = 2 -- si el pivote del mueble no cuadra: lo que más sobresale un tablero de su zona (1,96 el comedor)
 
 -- El tablero de un mueble con zona Debajo (Mapa, HUECOS): del alto de la zona a lo alto del mueble y hasta los bordes
--- de su Tam. Igual que `cajaTablero` de GolpeadorVista e ImitadorVista. Devuelve su centro y su tamaño.
-function MuebleRayo.tablero(zona: BasePart): (CFrame, Vector3)
+-- de su Tam. Si el mueble no tiene Tam o su pivote no cuadra con la zona (girado, o la zona fuera de él), se da por
+-- hecho que sobresale SALIENTE de la zona por cada lado. Devuelve su centro, su tamaño y si salió del Tam (`medido`).
+-- El único sitio que lo calcula: lo usan los gateos de todos los bichos y el techo de PosturaVista.
+function MuebleRayo.tablero(zona: BasePart): (CFrame, Vector3, boolean)
 	local medio = zona.Size / 2
 	local cf = zona.CFrame * CFrame.new(0, medio.Y + 0.4, 0)
 	local tam = Vector3.new(zona.Size.X + 2 * SALIENTE, 0.8, zona.Size.Z + 2 * SALIENTE)
@@ -34,9 +37,10 @@ function MuebleRayo.tablero(zona: BasePart): (CFrame, Vector3)
 		then
 			cf = pivote * CFrame.new(0, (zona.Size.Y + medida.Y) / 2, 0)
 			tam = Vector3.new(medida.X, medida.Y - zona.Size.Y, medida.Z)
+			return cf, tam, true
 		end
 	end
-	return cf, tam
+	return cf, tam, false
 end
 
 local function caja(cf: CFrame, medio: Vector3, pieza: Instance): Caja

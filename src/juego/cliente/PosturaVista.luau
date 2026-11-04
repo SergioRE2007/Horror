@@ -39,6 +39,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local PosturaReglas = require(ReplicatedStorage.Shared.PosturaReglas)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -145,8 +146,7 @@ end
 
 -- Lo que tapa el tablero de una zona Debajo, en los ejes de la zona. Las zonas van solo entre las patas y el tablero
 -- sobresale (en la mesa del comedor, 1,96 por las puntas y 0,7 por los lados largos, y por ahí se pasa agachado): se
--- saca de las medidas del mueble (su atributo Tam, con el pivote abajo en el centro, como en Mapa) y, si no cuadran,
--- ALERO de más alrededor.
+-- saca de las medidas del mueble (MuebleRayo.tablero, con su atributo Tam) y, si no cuadran, ALERO de más alrededor.
 local function techoDe(zona: BasePart): Techo
 	local t = techos[zona]
 	if t and t.cf == zona.CFrame then
@@ -154,18 +154,12 @@ local function techoDe(zona: BasePart): Techo
 	end
 	local medio = zona.Size / 2
 	local x1, x2, z1, z2 = -medio.X - ALERO, medio.X + ALERO, -medio.Z - ALERO, medio.Z + ALERO
-	local mueble = zona.Parent
-	local tam = if mueble and mueble:IsA("Model") then mueble:GetAttribute("Tam") else nil
-	if mueble and typeof(tam) == "Vector3" then
-		local pivote = (mueble :: Model):GetPivot()
-		-- La zona va girada como el mueble (Mapa la pone en sus ejes) y apoyada en su suelo.
-		if pivote.XVector:Dot(zona.CFrame.XVector) > 0.99 and pivote.YVector:Dot(zona.CFrame.YVector) > 0.99 then
-			local centro = pivote:PointToObjectSpace(zona.Position)
-			if math.abs(centro.Y - medio.Y) < 0.1 and tam.Y > zona.Size.Y then
-				x1, x2 = math.min(x1, -tam.X / 2 - centro.X), math.max(x2, tam.X / 2 - centro.X)
-				z1, z2 = math.min(z1, -tam.Z / 2 - centro.Z), math.max(z2, tam.Z / 2 - centro.Z)
-			end
-		end
+	local cf, tam, medido = MuebleRayo.tablero(zona)
+	if medido then
+		-- El tablero va en los ejes del mueble, que son los de la zona (o del revés): su centro en los de la zona.
+		local centro = zona.CFrame:PointToObjectSpace(cf.Position)
+		x1, x2 = math.min(x1, centro.X - tam.X / 2), math.max(x2, centro.X + tam.X / 2)
+		z1, z2 = math.min(z1, centro.Z - tam.Z / 2), math.max(z2, centro.Z + tam.Z / 2)
 	end
 	local nuevo = { cf = zona.CFrame, x1 = x1, x2 = x2, z1 = z1, z2 = z2 }
 	techos[zona] = nuevo
