@@ -103,19 +103,19 @@ end
 
 -- Dónde entra en la caja el rayo de `origen` a `origen + direccion`, en partes de `direccion` (0..1); nil si no la
 -- toca. Si empieza dentro, tampoco (como workspace:Raycast).
-function MuebleRayo.entra(caja: Caja, origen: Vector3, direccion: Vector3): number?
-	local o = caja.cf:PointToObjectSpace(origen)
-	local d = caja.cf:VectorToObjectSpace(direccion)
+function MuebleRayo.entra(c: Caja, origen: Vector3, direccion: Vector3): number?
+	local o = c.cf:PointToObjectSpace(origen)
+	local d = c.cf:VectorToObjectSpace(direccion)
 	local desde: number?, hasta = -math.huge, math.huge
-	desde, hasta = franja(o.X, d.X, caja.medio.X, desde :: number, hasta)
+	desde, hasta = franja(o.X, d.X, c.medio.X, desde :: number, hasta)
 	if desde == nil or desde > hasta then
 		return nil
 	end
-	desde, hasta = franja(o.Y, d.Y, caja.medio.Y, desde, hasta)
+	desde, hasta = franja(o.Y, d.Y, c.medio.Y, desde, hasta)
 	if desde == nil or desde > hasta then
 		return nil
 	end
-	desde, hasta = franja(o.Z, d.Z, caja.medio.Z, desde, hasta)
+	desde, hasta = franja(o.Z, d.Z, c.medio.Z, desde, hasta)
 	if desde == nil or desde > hasta or desde < 0 or desde > 1 then
 		return nil
 	end
