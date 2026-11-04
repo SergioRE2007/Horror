@@ -759,7 +759,8 @@ local function sonidosGateo(b: Bicho, g: Gateo, adornos: boolean, distancia: num
 			s.RollOffMinDistance = 8
 		end
 		if adornos then
-			local borde = b.raiz.Position + plano(g.punto - b.raiz.Position).Unit * g.borde
+			local hacia = plano(g.punto - b.raiz.Position)
+			local borde = b.raiz.Position + (if hacia.Magnitude > 0.1 then hacia.Unit * g.borde else Vector3.zero)
 			Sonido.en("Cruje", borde, azar:NextNumber(0.8, 1)).Volume *= 0.7
 			temblar(borde, 0.04, 20)
 		end
