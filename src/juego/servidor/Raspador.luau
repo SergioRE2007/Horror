@@ -81,6 +81,7 @@ local function crear(cf: CFrame): Caza.Bicho
 		Pillar = R.Pillar,
 		Vista = R.Vista,
 		VioEsconderse = R.VioEsconderse,
+		Fuera = Config.Postura.FueraRaspador,
 	})
 end
 

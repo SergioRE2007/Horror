@@ -94,6 +94,7 @@ local function crear(cf: CFrame): Caza.Bicho
 		Pillar = T.Pillar,
 		Vista = T.Vista,
 		VioEsconderse = T.VioEsconderse,
+		Fuera = Config.Postura.FueraTrepador,
 	})
 end
 
