@@ -67,6 +67,11 @@ local function soltarSitio(jugador: Player)
 end
 
 local function esconder(jugador: Player, sitio: Model)
+	-- En un final no (la huida o el incendio, ya prendido): te metía dentro en mitad de la escena y al salir quedabas
+	-- desanclado; y en el fuego, la escena empieza sacándote igual (Muerte.sacar).
+	if workspace:GetAttribute("Final") then
+		return
+	end
 	local personaje = jugador.Character
 	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not raiz or not vivo(jugador) or escondidos[jugador] or sitio:GetAttribute("Ocupado") ~= 0 then

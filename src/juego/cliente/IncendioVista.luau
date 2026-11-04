@@ -752,6 +752,13 @@ local function escena(segundos: number, devolver: { () -> () })
 		UserInputService.MouseIconEnabled = raton
 	end)
 	UserInputService.MouseIconEnabled = false
+	-- La cámara es de la escena: EscenaFinal (solo en este cliente) se lo dice a MuerteVista, MovilUi, MochilaUi y
+	-- CorrerVista (Final de workspace no vale: en el incendio se pone mientras corre el fuego, mucho antes). Se quita
+	-- siempre al acabar, después de devolver la cámara.
+	jugador:SetAttribute("EscenaFinal", true)
+	alAcabar(function()
+		jugador:SetAttribute("EscenaFinal", nil)
+	end)
 	camara.CameraType = Enum.CameraType.Scriptable
 	alAcabar(function()
 		camara.CameraType = Enum.CameraType.Custom

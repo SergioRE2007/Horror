@@ -1,9 +1,12 @@
 -- Banco de Muerte y la escena de muerte (14.9.2): el servidor dice qué bicho te pilla y la escena lo enfoca sin adivinar.
 -- Ejecutar desde la raíz: lune run tests/bancos/muerte.luau (lo corre regressions.luau).
 --   Servidor (Muerte de verdad): matar manda (jugador, cabeza, modelo) por el remote Muerte, devuelve si ha matado,
---   avisa una vez a los de Muerte.alMorir (también si muere de otra cosa) y vivo dice lo mismo que vivos.
+--   avisa una vez a los de Muerte.alMorir (también si muere de otra cosa) y vivo dice lo mismo que vivos. En un final
+--   (Final de workspace) no te deja esconderte.
 --   Cliente (MuerteVista de verdad, con las Vistas de mentira): con el modelo ruge ese bicho aunque otro tenga la cabeza
---   más cerca; sin modelo, el de la cabeza más cerca. Y en un final no pone la cámara en Custom al salir del escondite.
+--   más cerca; sin modelo, el de la cabeza más cerca. Con Final y sin escena (el fuego del incendio corriendo) el
+--   escondite es el de siempre y al salir vuelve la cámara; en la escena de un final (EscenaFinal) no toca la cámara al
+--   salir del escondite ni al acabar el susto.
 local crearMundo = require("./_roblox")
 
 local cuentas = 0
@@ -81,6 +84,31 @@ do -- El servidor.
 	m.correr(0.1)
 	local sin = enviadosMuerte()[#enviadosMuerte()]
 	igual(sin[1] == a and sin[3] == nil, true, "servidor: sin modelo, el remote lleva nil")
+
+	-- Esconderse: en un final no (la huida o el incendio ya prendido).
+	Muerte.revivir(a)
+	m.correr(0.2)
+	local raizA = a.Character:FindFirstChild("HumanoidRootPart")
+	local sitio = Instance.new("Model")
+	sitio.Name = "Armario"
+	local mando = m.caja(raizA.Position, Vector3.new(1, 1, 1), { Name = "Mando", Anchored = true })
+	Instance.new("ProximityPrompt").Parent = mando
+	mando.Parent = sitio
+	local CFrame = g.CFrame
+	sitio:SetAttribute("Ocupado", 0)
+	sitio:SetAttribute("Dentro", CFrame.new(raizA.Position + Vector3.new(0, 0, 3)))
+	sitio:SetAttribute("Vista", CFrame.new(raizA.Position + Vector3.new(0, 1.5, 3)))
+	sitio:SetAttribute("Salida", CFrame.new(raizA.Position))
+	sitio.Parent = m.workspace
+	m.workspace:SetAttribute("Final", true)
+	Muerte.esconder(a, sitio)
+	igual(a:GetAttribute("Escondido"), nil, "servidor: en un final no se esconde")
+	igual(sitio:GetAttribute("Ocupado"), 0, "servidor: en un final el escondite sigue libre")
+	m.workspace:SetAttribute("Final", nil)
+	Muerte.esconder(a, sitio)
+	igual(typeof(a:GetAttribute("Escondido")), "CFrame", "servidor: sin final, sí se esconde")
+	Muerte.sacar(a)
+	igual(a:GetAttribute("Escondido"), nil, "servidor: y sale")
 	igual(#m.errores, 0, "servidor: sin errores " .. table.concat(m.errores, "\n"))
 end
 
@@ -173,13 +201,27 @@ do -- El cliente: la escena enfoca al bicho que dice el servidor.
 	igual(rugidos[1] and rugidos[1].modelo, golpeador, "cliente: sin modelo, el de la cabeza más cerca")
 	m.correr(4)
 
-	-- Un final (la huida o el incendio llevan la cámara): al salir del escondite no se pone en Custom.
+	-- Final sin escena (el fuego del incendio corre, ~17 s antes de la escena; o se cancela): el escondite es el de
+	-- siempre y al salir vuelve la cámara (se quedaba congelada en Scriptable).
 	m.jugadorLocal:SetAttribute("Muerto", nil)
 	m.correr(0.2)
-	m.jugadorLocal:SetAttribute("Escondido", CFrame.new(0, 3, 0))
+	m.workspace:SetAttribute("Final", true)
+	local vista = CFrame.new(0, 3, 0)
+	m.jugadorLocal:SetAttribute("Escondido", vista)
+	m.correr(0.6)
+	igual(m.camara.CameraType, Enum.CameraType.Scriptable, "cliente: con Final y sin escena, cámara del escondite")
+	igual((m.camara.CFrame.Position - vista.Position).Magnitude < 0.5, true, "cliente: con Final, la cámara va al escondite")
+	m.jugadorLocal:SetAttribute("Escondido", nil)
+	m.correr(0.1)
+	igual(m.camara.CameraType, Enum.CameraType.Custom, "cliente: con Final y sin escena, al salir vuelve la cámara")
+	m.workspace:SetAttribute("Final", nil) -- el fuego se cancela
+
+	-- La escena de un final (la huida o el incendio llevan la cámara): al salir del escondite no se pone en Custom.
+	m.jugadorLocal:SetAttribute("Escondido", vista)
 	m.correr(0.3)
 	igual(m.camara.CameraType, Enum.CameraType.Scriptable, "cliente: escondido, cámara del escondite")
 	m.workspace:SetAttribute("Final", true)
+	m.jugadorLocal:SetAttribute("EscenaFinal", true) -- lo que ponen HuidaVista e IncendioVista
 	m.camara.CameraType = Enum.CameraType.Scriptable -- la de la escena
 	local escena = CFrame.new(50, 20, 50)
 	m.camara.CFrame = escena
@@ -188,6 +230,17 @@ do -- El cliente: la escena enfoca al bicho que dice el servidor.
 	m.jugadorLocal:SetAttribute("Escondido", nil)
 	m.correr(0.1)
 	igual(m.camara.CameraType, Enum.CameraType.Scriptable, "cliente: en un final, al salir no se pone en Custom")
+
+	-- Te pillan justo antes de la escena y empieza durante el susto: al acabarlo no le quita la cámara.
+	m.jugadorLocal:SetAttribute("EscenaFinal", nil)
+	m.camara.CameraType = Enum.CameraType.Custom
+	m.jugadorLocal:SetAttribute("Muerto", true)
+	m.alCliente("Muerte", m.jugadorLocal, boca, raspador)
+	m.correr(0.4)
+	m.jugadorLocal:SetAttribute("EscenaFinal", true)
+	m.correr(4)
+	igual(m.camara.CameraType, Enum.CameraType.Scriptable, "cliente: el susto acaba en la escena y no la corta")
+	m.jugadorLocal:SetAttribute("EscenaFinal", nil)
 	igual(#m.errores, 0, "cliente: sin errores " .. table.concat(m.errores, "\n"))
 end
 
