@@ -147,7 +147,7 @@ Cómo empezar: en Edit, que Rojo ha sincronizado (buscar un texto nuevo en el `S
 Play al acabar.
 
 Lo que puede romper una partida o atascar al jugador:
-1. Escenas finales y escondites (14.9), probado con un jugador el 04-11-2026 (bien); falta lo de dos jugadores: el fuego con alguien escondido y el fuego cancelado (la cámara no se congela),
+1. Escenas finales y escondites (14.9), probado con un jugador el 04-11-2026 (bien, también la mirilla con el tutorial y sustos seguidos); falta lo de dos jugadores: el fuego con alguien escondido y el fuego cancelado (la cámara no se congela),
    no esconderse en la escena (sí durante el fuego), el susto justo antes de la escena, `EscenaFinal` que vuelve a nil, nadie revive en un
    final. `docs/sistemas/partida.md`, "Muerte y finales", Probar en Studio.
 2. Arreglos de la revisión del código de la rama `claude/admiring-bell-jvgvch` (los pasos, en cada commit): morir todos
