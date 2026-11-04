@@ -81,6 +81,8 @@ local respiracion: Sound? -- en bucle mientras estás escondido (si hay grabaci�
 local respiracionVolumen = 0
 local voz: Sound? -- el último Contener o Exhalar, para cortarlo si sales a medias
 local cubiertoDesde: number? = nil -- cuándo te metiste debajo de un mueble (os.clock), mientras lo estás
+local cubiertoVisto = -math.huge -- la última vez que se vio Cubierto (os.clock)
+local SALIR_CUBIERTO = 0.5 -- s sin Cubierto antes de dejar el aliento (rozando el borde de la zona, va y viene)
 
 local function personajeVisible(visible: boolean)
 	local personaje = jugador.Character
@@ -200,9 +202,15 @@ local function respirarEnBucle()
 end
 
 -- Debajo de un mueble (atributo Cubierto): el aliento como escondido, sin tocar la cámara (la lleva CuerpoVista). El
--- latido solo se oye con un bicho cerca. true mientras dura.
+-- latido solo se oye con un bicho cerca. true mientras dura. Sin Cubierto sigue SALIR_CUBIERTO s más: el servidor lo
+-- mira cada poco y, en el borde de la zona, va y viene (el latido y la respiración empezarían de nuevo cada vez).
 local function debajoDeMueble(dt: number): boolean
-	if jugador:GetAttribute("Cubierto") ~= true or susto or jugador:GetAttribute("Muerto") then
+	local t = os.clock()
+	if jugador:GetAttribute("Cubierto") == true then
+		cubiertoVisto = t
+	end
+	if (not cubiertoDesde and t ~= cubiertoVisto) or t - cubiertoVisto >= SALIR_CUBIERTO or susto
+		or jugador:GetAttribute("Muerto") then
 		if cubiertoDesde then
 			cubiertoDesde = nil
 			cortarAliento(false) -- si sales a medias, sin soltar el aire (como del escondite)
@@ -213,7 +221,6 @@ local function debajoDeMueble(dt: number): boolean
 		end
 		return false
 	end
-	local t = os.clock()
 	if not cubiertoDesde then
 		cubiertoDesde = t
 		latido = latido or Sonido.bucle("Latido")

@@ -1,5 +1,5 @@
 -- Agacharse y asomarse (14.6, pedido por el usuario: "cuerpo: agacharse (botón también en el móvil) y asomarse por las
--- esquinas"). Solo cuerpo y cámara: los bichos no lo notan (no cambia nada de su juego).
+-- esquinas"). Los bichos (Caza, Bestia) leen Agachado y Cubierto: agachado te ven y te oyen peor y, cubierto, te huelen.
 --   El cliente (PosturaVista) pide con el remote Postura: ("Agachado", sí/no) o ("Asomar", -1 / 0 / 1). Aquí se valida
 --   con shared/PosturaReglas (tipos, cada cuánto y si puede) y se publica en los atributos del jugador Agachado (true o
 --   nil) y Asomado (-1, 1 o nil), que leen CuerpoVista (su cámara) y BrazosVista (los demás le ven agachado o asomado).
@@ -12,7 +12,7 @@
 --   esa etiqueta que pone Mapa en el hueco de cada mueble que lo tiene). Se mira cada CADA_CUBIERTO s, solo a los
 --   agachados, y se quita con Agachado (al levantarse, morir, esconderse o reaparecer). Lo leen los bichos.
 --   El grupo de colisión GRUPO_AGACHADO (no choca con nada) se registra aquí: PosturaVista mete en él tu cuerpo
---   agachado y solo deja chocar una banda baja (ver PosturaVista).
+--   agachado salvo la raíz, que encoge y choca baja (ver PosturaVista).
 local CollectionService = game:GetService("CollectionService")
 local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
