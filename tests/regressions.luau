@@ -1351,8 +1351,13 @@ do
 	igual(CR.cansancio(CR.nuevo()), 0, "correr: descansado")
 	local re = CR.reaparecer(agotado)
 	igual(re.aguante == 1 and not re.agotado and not re.quiere and re.ultimo == agotado.ultimo, true, "correr: al reaparecer")
-	-- Los bichos te oyen desde más lejos corriendo que de pie.
+	-- Los bichos te oyen desde más lejos corriendo que de pie (y agachado o debajo de algo no se corre).
 	igual(C.Oido > Config.Postura.Oido, true, "correr: hace ruido")
+	local PR = cargar("src/shared/PosturaReglas")
+	local oido = Config.Postura.Oido
+	igual(PR.alcanceOido(oido, false, false, true), C.Oido, "correr: te oyen a Config.Correr.Oido")
+	igual(PR.alcanceOido(oido, false, false), oido, "correr: andando, como siempre")
+	igual(PR.alcanceOido(oido, false, true, true), math.min(oido, Config.Postura.VerCubierto), "correr: cubierto manda")
 end
 
 -- Bancos (tests/bancos, 14.8): módulos del cliente con un Roblox de mentira (tests/bancos/_roblox.luau) y cuentas,

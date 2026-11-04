@@ -13,7 +13,9 @@
 --   al cambiar cualquiera de los dos. Corriendo hace ruido: Caza lo lee (PosturaReglas.alcanceOido).
 --   Al reaparecer, descansado. Shift no activa el Shift Lock (se quita al arrancar y a cada uno al entrar).
 -- Seguridad: el cliente no dice cuánto aguante tiene ni a qué velocidad va; si miente con su velocidad (su personaje lo
--- simula él), lo más que consigue es no correr.
+-- simula él), lo más que consigue es no correr. Mirar por la mirilla o las cortinas (Vistazo) y las cinemáticas solo
+-- las sabe su cliente: ahí no pide correr, pero un tramposo podría (solo se perjudica a sí mismo: el aguante lo sigue
+-- gastando el servidor).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -125,8 +127,8 @@ local function pedir(jugador: Player, valor: unknown)
 		d.ventana, d.cuantas = ahora, 0
 	end
 	d.cuantas += 1
-	if d.cuantas > TOPE then
-		return
+	if d.cuantas > TOPE and valor ~= false then
+		return -- dejar de correr siempre llega: que una ráfaga no le deje corriendo
 	end
 	local cambia, nuevo = CorrerReglas.pedir(d.estado, valor, ahora)
 	if cambia then
