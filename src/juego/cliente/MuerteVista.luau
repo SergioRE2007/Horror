@@ -31,7 +31,6 @@ local UserInputService = game:GetService("UserInputService")
 
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
-local PosturaReglas = require(ReplicatedStorage.Shared.PosturaReglas)
 local CorrerVista = require(script.Parent.CorrerVista)
 local GolpeadorVista = require(script.Parent.GolpeadorVista)
 local RaspadorVista = require(script.Parent.RaspadorVista)
@@ -529,26 +528,44 @@ local function quitarSangre(capaSangre: Frame, despues: number)
 	end)
 end
 
--- El bicho que te ha pillado (el remote solo dice dónde tiene la cara), rugiendo. Antes se quedaba con el primero de
--- una lista fija que estuviese cerca: con un Golpeador al lado, la escena enfocaba al Golpeador y el Raspador que te
--- sacaba de debajo de la mesa se levantaba en medio del susto. Ahora, el que gateaba a por ti o el más cerca.
+-- El bicho que te ha pillado, rugiendo. El servidor manda su modelo (Muerte.matar): cada Vista ruge solo con un modelo
+-- suyo (con otro no hace nada) y el suyo, si gateaba, se queda en la pose de agarrarte. Sin modelo (no ha llegado,
+-- ya no está o no es un bicho), el de la cabeza más cerca de `cabeza` en la carpeta Bichos.
 local VISTAS = { GolpeadorVista, RaspadorVista, TrepadorVista, ImitadorVista, AcechadorVista, BestiaVista }
-local function quienPilla(cabeza: Vector3): Model?
-	local lista: { PosturaReglas.Candidato } = {}
-	local de: { { vista: typeof(GolpeadorVista), modelo: Model } } = {}
-	for _, vista in VISTAS do
-		for _, c in vista.candidatos(cabeza) do
-			table.insert(lista, { distancia = c.distancia, gatea = if c.gatea then (c.gatea - cabeza).Magnitude else nil })
-			table.insert(de, { vista = vista :: any, modelo = c.modelo })
+local CERCA_SUSTO = 16 -- studs de `cabeza` a los que se busca al bicho sin modelo (la cabeza del Acechador va muy alta)
+
+local function cabezaMasCerca(cabeza: Vector3): Model?
+	local carpeta = workspace:FindFirstChild("Bichos")
+	local mejor, distancia = nil, CERCA_SUSTO
+	for _, bicho in if carpeta then carpeta:GetChildren() else {} do
+		local cara = bicho:FindFirstChild("Cabeza") or bicho:FindFirstChild("HumanoidRootPart")
+		if bicho:IsA("Model") and cara and cara:IsA("BasePart") then
+			local d = (cara.Position - cabeza).Magnitude
+			if d < distancia then
+				mejor, distancia = bicho, d
+			end
 		end
 	end
-	local i = PosturaReglas.quienPilla(lista)
-	return if i then de[i].vista.rugir(cabeza, de[i].modelo) else nil
+	return mejor
+end
+
+local function quienPilla(cabeza: Vector3, modelo: Model?): Model?
+	local bicho = if typeof(modelo) == "Instance" and modelo:IsA("Model") and modelo.Parent then modelo
+		else cabezaMasCerca(cabeza)
+	if not bicho then
+		return nil
+	end
+	for _, vista in VISTAS do
+		if vista.rugir(cabeza, bicho) then
+			break
+		end
+	end
+	return bicho -- aunque no lo anime ninguna Vista, se le mira a la cara
 end
 
 -- La escena del susto. Lo que hay que quitar al acabar (la luz, la sangre) se deja en `quitar`, para que meHanPillado
 -- lo quite aunque falle a medias.
-local function escenaPillado(cabeza: Vector3, quitar: { luz: Attachment?, capaSangre: Frame? })
+local function escenaPillado(cabeza: Vector3, modelo: Model?, quitar: { luz: Attachment?, capaSangre: Frame? })
 	cortarAliento(true) -- conteniendo o soltándolo: se corta en seco
 	ContextActionService:UnbindAction("SalirEscondite")
 	salir.Visible = false
@@ -567,7 +584,7 @@ local function escenaPillado(cabeza: Vector3, quitar: { luz: Attachment?, capaSa
 	TweenService:Create(rojo, TweenInfo.new(1.4), { BackgroundTransparency = 1 }):Play()
 	quitar.capaSangre = sangre()
 	-- La cara del bicho de frente, con la boca abierta, echándose encima; una luz para que se le vea en lo oscuro.
-	local okBicho, bicho = pcall(quienPilla, cabeza)
+	local okBicho, bicho = pcall(quienPilla, cabeza, modelo)
 	if not okBicho then
 		warn("[MuerteVista] no se encuentra al bicho del susto:", bicho)
 		bicho = nil
@@ -612,10 +629,10 @@ end
 
 -- El susto y, pase lo que pase en él, la vuelta: si fallaba a medias se quedaban la cámara congelada en Scriptable y
 -- `susto` puesto para toda la partida (al esconderte otra vez la cámara ya no entraba al armario).
-local function meHanPillado(cabeza: Vector3)
+local function meHanPillado(cabeza: Vector3, modelo: Model?)
 	susto = true
 	local quitar: { luz: Attachment?, capaSangre: Frame? } = {}
-	local ok, fallo = pcall(escenaPillado, cabeza, quitar)
+	local ok, fallo = pcall(escenaPillado, cabeza, modelo, quitar)
 	if not ok then
 		warn("[MuerteVista] el susto ha fallado:", fallo)
 	end
@@ -785,9 +802,9 @@ function MuerteVista.start()
 		end
 		camara.CameraSubject = personaje:WaitForChild("Humanoid")
 	end)
-	Remotes.Muerte.OnClientEvent:Connect(function(quien: Player, cabeza: Vector3)
+	Remotes.Muerte.OnClientEvent:Connect(function(quien: Player, cabeza: Vector3, modelo: Model?)
 		if quien == jugador then
-			task.spawn(meHanPillado, cabeza)
+			task.spawn(meHanPillado, cabeza, modelo)
 		else
 			local raiz = quien.Character and quien.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if raiz then

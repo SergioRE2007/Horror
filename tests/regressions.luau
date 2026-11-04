@@ -1209,27 +1209,33 @@ do
 	igual(PR.oler(0.1, 1, CP.Olfato + 1), 0, "esconderse: el olor no baja de 0")
 	igual(PR.oler(CP.Huele - 0.1, 1, 0), CP.Huele, "esconderse: el olor no pasa de Huele")
 	igual(PR.huele(PR.oler(CP.Huele - 0.1, 1, 0)), true, "esconderse: a Huele s ya te ha olido")
-	-- Quién te ha pillado (escena de muerte): el que gateaba a por ti aunque otro tenga la cabeza más cerca (antes
-	-- ganaba siempre el Golpeador si había uno cerca); si nadie gatea a por ti, el de la cabeza más cerca.
-	igual(PR.quienPilla({}), nil, "pillar: sin bichos cerca, nadie")
-	igual(PR.quienPilla({ { distancia = 1 }, { distancia = 4, gatea = 2 } }), 2, "pillar: gana el que gateaba a por ti")
-	igual(PR.quienPilla({ { distancia = 5 }, { distancia = 1.5 }, { distancia = 3 } }), 2, "pillar: si no, el más cerca")
-	igual(PR.quienPilla({ { distancia = 1, gatea = 30 }, { distancia = 2 } }), 1,
-		"pillar: gatear a por otro (lejos) no cuenta, va por distancia")
-	igual(PR.quienPilla({ { distancia = 3, gatea = 30 }, { distancia = 2 } }), 2, "pillar: gatear a por otro no gana")
-	igual(PR.quienPilla({ { distancia = 3, gatea = 1 }, { distancia = 2, gatea = 2 } }), 2,
-		"pillar: dos gateando a por ti, el más cerca")
-	igual(PR.quienPilla({ { distancia = 0 / 0 }, { distancia = 6 } }), 2, "pillar: una distancia rota no gana")
+	-- Quién te ha pillado (escena de muerte): ya no se adivina en el cliente (PosturaReglas.quienPilla): el servidor manda
+	-- el modelo del bicho con el remote Muerte y MuerteVista ruge con ese (banco tests/bancos/muerte.luau).
+	igual(PR.quienPilla, nil, "pillar: sin quienPilla en PosturaReglas")
 	local muerteVista = fs.readFile("src/juego/cliente/MuerteVista.luau")
+	igual(string.find(muerteVista, "PosturaReglas", 1, true), nil, "pillar: MuerteVista no adivina con PosturaReglas")
+	igual(string.find(muerteVista, ".candidatos(", 1, true), nil, "pillar: MuerteVista no pide candidatos a las Vistas")
 	igual(string.find(muerteVista, "Vista.rugir(cabeza) or", 1, true), nil, "pillar: la escena no elige por orden fijo")
 	for _, bicho in { "Golpeador", "Raspador", "Trepador", "Imitador", "Acechador", "Bestia" } do
 		local vista = fs.readFile(`src/juego/cliente/{bicho}Vista.luau`)
-		igual(string.find(vista, `function {bicho}Vista.candidatos(`, 1, true) ~= nil, true, `pillar: {bicho}Vista.candidatos`)
 		igual(string.find(vista, `function {bicho}Vista.rugir(punto: Vector3, modelo: Model?)`, 1, true) ~= nil, true,
 			`pillar: {bicho}Vista.rugir del elegido`)
 		local mira = string.find(muerteVista, `{bicho}Vista,`, 1, true) or string.find(muerteVista, `{bicho}Vista }`, 1, true)
 		igual(mira ~= nil, true, `pillar: MuerteVista mira a {bicho}Vista`)
 	end
+	-- Todos los que matan dicen quién: Muerte.matar(jugador, cabeza, modelo) con los tres (una coma fuera de paréntesis
+	-- de más cuenta como otro argumento).
+	local matan = 0
+	for _, nombre in fs.readDir("src/juego/servidor") do
+		local texto = if string.match(nombre, "%.luau$") then fs.readFile(`src/juego/servidor/{nombre}`) else ""
+		for args in string.gmatch(texto, "Muerte%.matar(%b())") do
+			local dentro = string.gsub(string.sub(args, 2, -2), "%b()", "")
+			local _, comas = string.gsub(dentro, ",", "")
+			igual(comas, 2, `pillar: {nombre} pasa el modelo a Muerte.matar{args}`)
+			matan += 1
+		end
+	end
+	igual(matan >= 4, true, "pillar: se encuentran los Muerte.matar (Caza, Acechador, Bestia)")
 	igual(CP.Alto > 1.5 and CP.Alto < 3.2, true, "esconderse: agachado cabe bajo una mesa y no atraviesa nada")
 	igual(CP.VerCubierto < CP.OirAgachado and CP.OirAgachado < CP.Oido and CP.Olfato > CP.VerCubierto, true,
 		"esconderse: cubierto se nota menos que agachado, y agachado menos que de pie")
