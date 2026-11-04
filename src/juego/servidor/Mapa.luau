@@ -3443,6 +3443,25 @@ local function porPartes(mapa: Folder)
 	end
 end
 
+-- Las zonas Debajo deben quedarse dentro de su sala: si una cruzase una pared, un bicho podría oler y gatear a por
+-- quien está al otro lado (Caza lo mira con rayos, pero mejor que no pase). Avisa en la Salida si dentro de alguna
+-- (algo encogida, para no contar el suelo, las patas ni el tablero, que la tocan) hay algo que choca que no sea una
+-- caja Choque de mueble o silla.
+local function revisarDebajo()
+	local filtro = OverlapParams.new()
+	filtro.RespectCanCollide = true
+	for _, zona in CollectionService:GetTagged("Debajo") do
+		if zona:IsA("BasePart") then
+			filtro.FilterDescendantsInstances = { zona }
+			for _, pieza in workspace:GetPartBoundsInBox(zona.CFrame, zona.Size - Vector3.new(0.8, 0.8, 0.8), filtro) do
+				if pieza.Name ~= "Choque" then
+					warn(`[Mapa] la zona Debajo de {zona:GetAttribute("Mueble")} cruza {pieza:GetFullName()}`)
+				end
+			end
+		end
+	end
+end
+
 function Mapa.start()
 	local mapa = workspace:WaitForChild("Mapa")
 	construirBosque(mapa)
@@ -3473,6 +3492,7 @@ function Mapa.start()
 	abandonar()
 	aligerar(mapa)
 	porPartes(mapa)
+	revisarDebajo()
 	-- Donde se aparece: invisible y encima del suelo de la casa (a ras de él, parpadeaba con el suelo). Justo al entrar,
 	-- mirando a la escalera y a la araña (11.8.1, elegido por el usuario).
 	local aparicion = Instance.new("SpawnLocation")
