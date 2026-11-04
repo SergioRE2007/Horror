@@ -1,7 +1,6 @@
 -- Banco del gateo debajo de las mesas (14.9.2, pedido por el usuario: "comprueba con bancos de Lune que los gateos
--- siguen sin atravesar la mesa"). Ejecutar desde la raíz: lune run tests/bancos/gateo.luau [Bicho] (mientras se llame
--- _gateo.luau, regressions.luau no lo lanza).
---   Sin nombre (como lo lanza regressions.luau): un proceso de Lune por bicho, los cinco a la vez (este mismo archivo,
+-- siguen sin atravesar la mesa"). Ejecutar desde la raíz: lune run tests/bancos/gateo.luau [Bicho].
+--   Sin nombre (como lo lanza regressions.luau, a la vez que los demás bancos): un proceso de Lune por bicho, los cinco a la vez (este mismo archivo,
 --   sin ruta escrita), con la tanda corta (casosDe: los casos que más han costado y uno de cada cosa, 8 por bicho):
 --   ~30 s con 4 CPU (la Bestia marca el paso). GATEO_TODO=1: los 15 casos de cada bicho, ~1 min con 4 CPU.
 --   Con un nombre: solo ese bicho, en este proceso (Bestia ~26 s la tanda corta y ~55 s entera; los demás, 6-10 s y
