@@ -261,7 +261,7 @@ return {
 	["On"] = "Sí",
 	["Off"] = "No",
 	-- Tutorial (14.2).
-	["Tutorial"] = "Tutorial",
+	["Tutorial  {n}/{total}"] = "Tutorial  {n}/{total}",
 	["Skip"] = "Saltar",
 	["Sure?"] = "¿Seguro?",
 	["Tutorial complete. +{monedas} coins"] = "Tutorial completado. +{monedas} monedas",

@@ -239,9 +239,10 @@ local function construir()
 		ZIndex = 41,
 	})
 	numero.Parent = cartel
+	-- En el móvil SALTAR mide un dedo de alto (casi todo el cartel): el texto acaba antes, para no meterse debajo.
 	textoPaso = Ui.texto("", {
 		Position = UDim2.fromOffset(16, 30),
-		Size = UDim2.new(1, -32, 0, 54),
+		Size = UDim2.new(1, if Ui.tactil() then -(16 + 110 + 8 + 16) else -32, 0, 54),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 41,
 	})
@@ -310,7 +311,8 @@ local function pintarCartel()
 		return
 	end
 	cartel.Visible = true
-	numero.Text = Ui.mayusculas(Lang.t(nil, "Tutorial")) .. `  {PasosTutorial.numero(paso)}/{#PasosTutorial.LISTA}`
+	numero.Text = Ui.mayusculas(Lang.t(nil, "Tutorial  {n}/{total}",
+		{ n = PasosTutorial.numero(paso), total = #PasosTutorial.LISTA }))
 	textoPaso.Text = frase(paso)
 	if paso ~= pasoAnterior then
 		if pasoAnterior then
@@ -348,6 +350,17 @@ local function cadaFotograma()
 		return
 	end
 	local camara = workspace.CurrentCamera
+	-- Con el HUD apagado (mirilla, cortinas, cinemáticas) o la cámara de una cinemática (de script sin estar escondido),
+	-- ni flecha ni contorno: se pintarían encima de la vista. Al volver se repinta en el siguiente repaso.
+	if not Ui.hud().Enabled or (camara.CameraType == Enum.CameraType.Scriptable
+		and typeof(yo:GetAttribute("Escondido")) ~= "CFrame") then
+		cartelMundo.Enabled = false
+		contorno.Enabled = false
+		flechaBorde.Visible = false
+		flechaBoton.Visible = false
+		siguiente = 0
+		return
+	end
 	local vaiven = math.sin(os.clock() * 4)
 
 	-- Buscar lo más cercano cuesta: solo un par de veces por segundo.
