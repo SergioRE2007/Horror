@@ -4,6 +4,9 @@
 --   Flash: clic, R2 o el botón en el móvil (con la pistola de bengalas en la mano, el clic es suyo: BengalasVista).
 --   Destello en todos los clientes; al que hace la foto, la pantalla en blanco.
 --   Lo que queda de pila y fotos sale abajo un momento cuando cambia, y se va (casi nada en pantalla).
+--   Correr (14.8): tu luz sale de la linterna con su temblor y su vaivén (Manos.dondeCosa, ManosCorrer): el haz se mueve
+--   con cada paso y tiembla agotado. Si entre la cámara y la punta de la linterna hay algo que choca (una pared, una
+--   puerta), la luz sale justo antes: ni el temblor ni el vaivén la meten detrás de la pared.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -74,6 +77,34 @@ local function nuevaLuz(otro: Player): Luz
 	return { punto = punto, foco = foco }
 end
 
+-- La luz, como mucho hasta lo primero que choca entre la cámara y la punta de la linterna (un rayo por fotograma, solo
+-- con tu linterna encendida). Los muebles no los ven los rayos (CanQuery = false): ahí, como antes.
+local filtroHaz = RaycastParams.new()
+filtroHaz.FilterType = Enum.RaycastFilterType.Exclude
+filtroHaz.RespectCanCollide = true -- ni adornos ni mallas que solo se ven
+filtroHaz.IgnoreWater = true
+local filtroDe: Model? = nil -- el personaje con el que está hecho el filtro
+local ANTES_DE_PARED = 0.12 -- studs que se separa la luz de lo que toca
+
+local function sinAtravesar(donde: CFrame): CFrame
+	local personaje = jugador.Character
+	if personaje ~= filtroDe then
+		filtroDe = personaje
+		filtroHaz.FilterDescendantsInstances = if personaje then { camara, personaje } else { camara }
+	end
+	local desde = camara.CFrame.Position
+	local hacia = donde.Position - desde
+	if hacia.Magnitude < 1e-3 then
+		return donde
+	end
+	local r = workspace:Raycast(desde, hacia, filtroHaz)
+	if not r then
+		return donde
+	end
+	local llega = math.max(0, (r.Position - desde).Magnitude - ANTES_DE_PARED)
+	return donde.Rotation + (desde + hacia.Unit * llega)
+end
+
 -- Coloca y enciende (o apaga) la luz de cada jugador; parpadea con poca pila.
 local function actualizarLuces()
 	local ahora = os.clock()
@@ -100,8 +131,8 @@ local function actualizarLuces()
 			-- poco abajo a la derecha.
 			luz.punto.Parent = workspace.Terrain
 			local enMano = Manos.dondeCosa("Linterna")
-			luz.punto.WorldCFrame = if enMano then camara.CFrame * enMano * CFrame.new(0, 0, -0.66)
-				else camara.CFrame * CFrame.new(0.6, -0.5, -0.5)
+			luz.punto.WorldCFrame = sinAtravesar(if enMano then camara.CFrame * enMano * CFrame.new(0, 0, -0.66)
+				else camara.CFrame * CFrame.new(0.6, -0.5, -0.5))
 			-- En las cinemáticas (la cámara la lleva un script) se apaga, solo aquí: si no, saldría de la cámara de cine.
 			-- Vuelve sola al acabar. Escondido o muerto ya la apaga el servidor.
 			luz.foco.Enabled = camara.CameraType == Enum.CameraType.Custom
