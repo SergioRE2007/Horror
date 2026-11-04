@@ -1,8 +1,8 @@
 -- Banco de Muerte y la escena de muerte (14.9.2): el servidor dice qué bicho te pilla y la escena lo enfoca sin adivinar.
 -- Ejecutar desde la raíz: lune run tests/bancos/muerte.luau (lo corre regressions.luau).
 --   Servidor (Muerte de verdad): matar manda (jugador, cabeza, modelo) por el remote Muerte, devuelve si ha matado,
---   avisa una vez a los de Muerte.alMorir (también si muere de otra cosa) y vivo dice lo mismo que vivos. En un final
---   (Final de workspace) no te deja esconderte.
+--   avisa una vez a los de Muerte.alMorir (también si muere de otra cosa) y vivo dice lo mismo que vivos. En la escena
+--   de un final (Muerte.escena) no te deja esconderte; con Final y sin escena (el fuego corriendo), sí.
 --   Cliente (MuerteVista de verdad, con las Vistas de mentira): con el modelo ruge ese bicho aunque otro tenga la cabeza
 --   más cerca; sin modelo, el de la cabeza más cerca. Con Final y sin escena (el fuego del incendio corriendo) el
 --   escondite es el de siempre y al salir vuelve la cámara; en la escena de un final (EscenaFinal) no toca la cámara al
@@ -85,7 +85,7 @@ do -- El servidor.
 	local sin = enviadosMuerte()[#enviadosMuerte()]
 	igual(sin[1] == a and sin[3] == nil, true, "servidor: sin modelo, el remote lleva nil")
 
-	-- Esconderse: en un final no (la huida o el incendio ya prendido).
+	-- Esconderse: en la escena de un final no; con Final y sin escena (el fuego del incendio corriendo), sí.
 	Muerte.revivir(a)
 	m.correr(0.2)
 	local raizA = a.Character:FindFirstChild("HumanoidRootPart")
@@ -100,15 +100,17 @@ do -- El servidor.
 	sitio:SetAttribute("Vista", CFrame.new(raizA.Position + Vector3.new(0, 1.5, 3)))
 	sitio:SetAttribute("Salida", CFrame.new(raizA.Position))
 	sitio.Parent = m.workspace
+	Muerte.escena(true)
+	Muerte.esconder(a, sitio)
+	igual(a:GetAttribute("Escondido"), nil, "servidor: en la escena de un final no se esconde")
+	igual(sitio:GetAttribute("Ocupado"), 0, "servidor: en la escena el escondite sigue libre")
+	Muerte.escena(false)
 	m.workspace:SetAttribute("Final", true)
 	Muerte.esconder(a, sitio)
-	igual(a:GetAttribute("Escondido"), nil, "servidor: en un final no se esconde")
-	igual(sitio:GetAttribute("Ocupado"), 0, "servidor: en un final el escondite sigue libre")
-	m.workspace:SetAttribute("Final", nil)
-	Muerte.esconder(a, sitio)
-	igual(typeof(a:GetAttribute("Escondido")), "CFrame", "servidor: sin final, sí se esconde")
+	igual(typeof(a:GetAttribute("Escondido")), "CFrame", "servidor: con Final y sin escena (el fuego), sí se esconde")
 	Muerte.sacar(a)
 	igual(a:GetAttribute("Escondido"), nil, "servidor: y sale")
+	m.workspace:SetAttribute("Final", nil)
 	igual(#m.errores, 0, "servidor: sin errores " .. table.concat(m.errores, "\n"))
 end
 

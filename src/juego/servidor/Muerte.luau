@@ -66,10 +66,17 @@ local function soltarSitio(jugador: Player)
 	jugador:SetAttribute("Escondido", nil)
 end
 
+-- La escena de un final en marcha (Coche.huir, Incendio.terminar): nadie se esconde hasta que acaba. Mientras corre el
+-- fuego del incendio (Final puesto, ~17 s antes de la escena) los bichos siguen cazando y sí se puede.
+local enEscena = false
+
+function Muerte.escena(activa: boolean)
+	enEscena = activa
+end
+
 local function esconder(jugador: Player, sitio: Model)
-	-- En un final no (la huida o el incendio, ya prendido): te metía dentro en mitad de la escena y al salir quedabas
-	-- desanclado; y en el fuego, la escena empieza sacándote igual (Muerte.sacar).
-	if workspace:GetAttribute("Final") then
+	-- En la escena de un final no: te metía dentro en mitad de ella y al salir quedabas desanclado.
+	if enEscena then
 		return
 	end
 	local personaje = jugador.Character

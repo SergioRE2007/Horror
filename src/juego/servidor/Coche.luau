@@ -221,7 +221,8 @@ local function huir(jugador: Player)
 	Recompensas.final(C.Cinematica)
 	-- Los escondidos, fuera del escondite antes de anclarlos: si no, su latido y su respiración sonaban encima de la
 	-- escena y con E (o espacio, o B) salían y se desanclaban en mitad de ella. Muerte.sacar es lo mismo que salir;
-	-- con pcall, para que nada deje la huida a medias.
+	-- con pcall, para que nada deje la huida a medias. Y nadie se vuelve a esconder hasta que acaba (Muerte.escena).
+	Muerte.escena(true)
 	for _, j in Players:GetPlayers() do
 		if Muerte.escondite(j) then
 			local ok, fallo = pcall(Muerte.sacar, j)
@@ -240,6 +241,7 @@ local function huir(jugador: Player)
 	end
 	Remotes.Huida:FireAllClients(C.Cinematica)
 	task.wait(C.Cinematica + 2)
+	Muerte.escena(false)
 	Viaje.volver(Players:GetPlayers(), "You escaped.")
 	for _, j in Players:GetPlayers() do -- en Studio no hay viaje: se puede seguir mirando
 		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?

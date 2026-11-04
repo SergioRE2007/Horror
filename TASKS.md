@@ -148,7 +148,7 @@ Play al acabar.
 
 Lo que puede romper una partida o atascar al jugador:
 1. Escenas finales y escondites (14.9): el fuego con alguien escondido y el fuego cancelado (la cámara no se congela),
-   no esconderse con `Final`, el susto justo antes de la escena, `EscenaFinal` que vuelve a nil, nadie revive en un
+   no esconderse en la escena (sí durante el fuego), el susto justo antes de la escena, `EscenaFinal` que vuelve a nil, nadie revive en un
    final. `docs/sistemas/partida.md`, "Muerte y finales", Probar en Studio.
 2. Arreglos de la revisión del código de la rama `claude/admiring-bell-jvgvch` (los pasos, en cada commit): morir todos
    justo antes de anochecer, dos bichos a la vez, bengala a la cabeza de la Bestia, fuego cancelado, mochila grande al

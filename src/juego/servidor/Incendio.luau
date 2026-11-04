@@ -79,6 +79,7 @@ local function terminar()
 		end
 	end
 	Recompensas.finalBestia(B.Cinematica)
+	Muerte.escena(true) -- nadie se vuelve a esconder hasta que acaba la escena
 	for _, j in Players:GetPlayers() do
 		-- Los escondidos, fuera del escondite antes de anclarlos (como Coche.huir): si no, su latido sonaba encima de la
 		-- escena y al salir se desanclaban en mitad de ella. Con pcall: que nada deje el final a medias.
@@ -99,6 +100,7 @@ local function terminar()
 	end
 	Remotes.Incendio:FireAllClients("Final", B.Cinematica)
 	task.wait(B.Cinematica + 2)
+	Muerte.escena(false)
 	Viaje.volver(Players:GetPlayers(), "The house burned with her inside.")
 	for _, j in Players:GetPlayers() do -- en Studio no hay viaje: se puede seguir mirando
 		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
