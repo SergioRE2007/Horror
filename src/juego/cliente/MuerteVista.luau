@@ -546,8 +546,9 @@ local function quienPilla(cabeza: Vector3): Model?
 	return if i then de[i].vista.rugir(cabeza, de[i].modelo) else nil
 end
 
-local function meHanPillado(cabeza: Vector3)
-	susto = true
+-- La escena del susto. Lo que hay que quitar al acabar (la luz, la sangre) se deja en `quitar`, para que meHanPillado
+-- lo quite aunque falle a medias.
+local function escenaPillado(cabeza: Vector3, quitar: { luz: Attachment?, capaSangre: Frame? })
 	cortarAliento(true) -- conteniendo o soltándolo: se corta en seco
 	ContextActionService:UnbindAction("SalirEscondite")
 	salir.Visible = false
@@ -556,12 +557,24 @@ local function meHanPillado(cabeza: Vector3)
 	local desde = if mia then mia.Position else camara.CFrame.Position
 	local hacia = (desde - cabeza)
 	hacia = if hacia.Magnitude > 0.1 then hacia.Unit else Vector3.zAxis
+	-- Antes que buscar al bicho (que llama a las vistas de todos): si una falla, la cámara ya está en el susto y se
+	-- mira desde donde estabas.
+	personajeVisible(false)
+	camara.CameraType = Enum.CameraType.Scriptable
+	camara.FieldOfView = 60
+	Sonido.tocar("Susto")
+	rojo.BackgroundTransparency = 0.35
+	TweenService:Create(rojo, TweenInfo.new(1.4), { BackgroundTransparency = 1 }):Play()
+	quitar.capaSangre = sangre()
 	-- La cara del bicho de frente, con la boca abierta, echándose encima; una luz para que se le vea en lo oscuro.
-	local bicho = quienPilla(cabeza)
+	local okBicho, bicho = pcall(quienPilla, cabeza)
+	if not okBicho then
+		warn("[MuerteVista] no se encuentra al bicho del susto:", bicho)
+		bicho = nil
+	end
 	local cara = bicho and bicho:FindFirstChild("Cabeza") :: BasePart?
-	local luz: Attachment? = nil
 	if cara then
-		luz = Instance.new("Attachment") -- delante de la cara: dentro de la cabeza no la alumbraría
+		local luz = Instance.new("Attachment") -- delante de la cara: dentro de la cabeza no la alumbraría
 		luz.Position = Vector3.new(0, -0.3, -1.6)
 		local foco = Instance.new("PointLight")
 		foco.Color = Color3.fromRGB(255, 215, 195)
@@ -569,17 +582,11 @@ local function meHanPillado(cabeza: Vector3)
 		foco.Range = 6
 		foco.Parent = luz
 		luz.Parent = cara
+		quitar.luz = luz
 	end
-	personajeVisible(false)
 	local filtroSusto = RaycastParams.new()
 	filtroSusto.FilterType = Enum.RaycastFilterType.Exclude
 	filtroSusto.FilterDescendantsInstances = { workspace:FindFirstChild("Bichos") :: Instance, personaje :: Instance }
-	camara.CameraType = Enum.CameraType.Scriptable
-	camara.FieldOfView = 60
-	Sonido.tocar("Susto")
-	rojo.BackgroundTransparency = 0.35
-	TweenService:Create(rojo, TweenInfo.new(1.4), { BackgroundTransparency = 1 }):Play()
-	local capaSangre = sangre()
 	local t0 = os.clock()
 	while os.clock() - t0 < 1.8 do
 		local t = os.clock() - t0
@@ -601,19 +608,34 @@ local function meHanPillado(cabeza: Vector3)
 			* CFrame.Angles(0, 0, azar:NextNumber(-fuerza, fuerza) * 0.5)
 		RunService.RenderStepped:Wait()
 	end
-	if luz then
-		luz:Destroy()
+end
+
+-- El susto y, pase lo que pase en él, la vuelta: si fallaba a medias se quedaban la cámara congelada en Scriptable y
+-- `susto` puesto para toda la partida (al esconderte otra vez la cámara ya no entraba al armario).
+local function meHanPillado(cabeza: Vector3)
+	susto = true
+	local quitar: { luz: Attachment?, capaSangre: Frame? } = {}
+	local ok, fallo = pcall(escenaPillado, cabeza, quitar)
+	if not ok then
+		warn("[MuerteVista] el susto ha fallado:", fallo)
+	end
+	if quitar.luz then
+		quitar.luz:Destroy()
 	end
 	TweenService:Create(negro, TweenInfo.new(0.6), { BackgroundTransparency = 0 }):Play()
 	task.wait(1.2)
 	-- El de Roblox, fijo: el que había al morir podía ser el de la mochila abierta (más cerrado) y se quedaba así.
 	camara.FieldOfView = 70
-	Ui.aviso(Lang.t(nil, "It got you. You'll wake up at dawn."), 5)
+	pcall(function()
+		Ui.aviso(Lang.t(nil, "It got you. You'll wake up at dawn."), 5)
+	end)
 	susto = false
 	camara.CameraType = Enum.CameraType.Custom
-	mirarVivos(false)
+	pcall(mirarVivos, false)
 	TweenService:Create(negro, TweenInfo.new(1.5), { BackgroundTransparency = 1 }):Play()
-	quitarSangre(capaSangre, 3) -- se queda goteando un poco sobre lo que ves de muerto
+	if quitar.capaSangre then
+		quitarSangre(quitar.capaSangre, 3) -- se queda goteando un poco sobre lo que ves de muerto
+	end
 end
 
 local function charco(posicion: Vector3)
@@ -756,7 +778,11 @@ function MuerteVista.start()
 		end
 	end)
 	jugador.CharacterAdded:Connect(function(personaje)
-		camara.CameraType = Enum.CameraType.Custom
+		-- Reaparecer en medio de un final (al amanecer reviven los muertos) no le quita la cámara a la escena (HuidaVista,
+		-- IncendioVista): ella la devuelve al acabar. Fuera de un final, o si nadie la lleva, la de siempre.
+		if not (workspace:GetAttribute("Final") and camara.CameraType == Enum.CameraType.Scriptable) then
+			camara.CameraType = Enum.CameraType.Custom
+		end
 		camara.CameraSubject = personaje:WaitForChild("Humanoid")
 	end)
 	Remotes.Muerte.OnClientEvent:Connect(function(quien: Player, cabeza: Vector3)
