@@ -99,12 +99,39 @@ function Util.pies(): Vector3
 	return Util.camara().Position - Vector3.new(0, 4.5, 0)
 end
 
+-- Los RaycastParams se guardan y solo se rehacen cuando cambia lo que hay que ignorar (la carpeta, el personaje, los
+-- bichos o la lista `ignorar`): la silueta de Figuras tira un rayo por fotograma mientras la miras.
+local guardados: RaycastParams? = nil
+local listaGuardada: { Instance } = {}
+
 local function parametros(ignorar: { Instance }?): RaycastParams
-	local lista = { Util.carpeta() } :: { Instance }
-	if jugador.Character then
-		table.insert(lista, jugador.Character)
-	end
+	local c = Util.carpeta()
+	local personaje = jugador.Character
 	local bichos = workspace:FindFirstChild("Bichos")
+	-- ¿Es la misma lista de la última vez? (sin crear tablas: se compara pieza a pieza)
+	local n = 1
+	local igual = guardados ~= nil and listaGuardada[1] == c
+	if personaje then
+		n += 1
+		igual = igual and listaGuardada[n] == personaje
+	end
+	if bichos then
+		n += 1
+		igual = igual and listaGuardada[n] == bichos
+	end
+	if ignorar then
+		for _, i in ignorar do
+			n += 1
+			igual = igual and listaGuardada[n] == i
+		end
+	end
+	if igual and #listaGuardada == n then
+		return guardados :: RaycastParams
+	end
+	local lista = { c } :: { Instance }
+	if personaje then
+		table.insert(lista, personaje)
+	end
 	if bichos then
 		table.insert(lista, bichos)
 	end
@@ -114,6 +141,7 @@ local function parametros(ignorar: { Instance }?): RaycastParams
 	local p = RaycastParams.new()
 	p.FilterType = Enum.RaycastFilterType.Exclude
 	p.FilterDescendantsInstances = lista
+	guardados, listaGuardada = p, lista
 	return p
 end
 
@@ -410,20 +438,44 @@ function Util.polvo(p: Vector3, cuanto: number)
 end
 
 -- Un tirón de la cámara, como un respingo (más flojo cuanto más lejos esté `desde`, si se da).
+-- El giro se pinta encima de la cámara de Roblox (Camera + 2) y se deshace en el fotograma siguiente antes de ella
+-- (Camera - 1), como el temblor de CasaVista: la cámara de Roblox sigue desde donde quedó la anterior y, sin
+-- deshacerlo, la mirada se quedaba desviada tras cada respingo. La sacudida va con el reloj (math.noise), no con el
+-- azar de cada fotograma, para que sea igual a 30 que a 144 fotogramas por segundo. En una cinemática no se toca.
+local giroTiron: CFrame? = nil -- el giro del último fotograma, para deshacerlo
 function Util.tiron(fuerza: number)
 	ManosGestos.sobresalto(fuerza) -- y las manos suben de golpe, por reflejo
 	local nombre = "SustosTiron"
+	local antes = "SustosTironAntes"
 	local fin = os.clock() + 0.35
+	local semilla = Util.azar:NextNumber(0, 100)
 	pcall(RunService.UnbindFromRenderStep, RunService, nombre)
+	pcall(RunService.UnbindFromRenderStep, RunService, antes)
+	RunService:BindToRenderStep(antes, Enum.RenderPriority.Camera.Value - 1, function()
+		local camara = workspace.CurrentCamera
+		if giroTiron then
+			if camara and camara.CameraType ~= Enum.CameraType.Scriptable then
+				camara.CFrame *= giroTiron:Inverse()
+			end
+			giroTiron = nil
+		end
+		if os.clock() >= fin then
+			RunService:UnbindFromRenderStep(antes)
+			RunService:UnbindFromRenderStep(nombre)
+		end
+	end)
 	RunService:BindToRenderStep(nombre, Enum.RenderPriority.Camera.Value + 2, function()
 		local queda = (fin - os.clock()) / 0.35
-		if queda <= 0 then
-			RunService:UnbindFromRenderStep(nombre)
+		local camara = workspace.CurrentCamera
+		if queda <= 0 or not camara or camara.CameraType == Enum.CameraType.Scriptable then
 			return
 		end
 		local f = fuerza * queda * 0.025
-		local camara = workspace.CurrentCamera
-		camara.CFrame *= CFrame.Angles(Util.azar:NextNumber(-1, 1) * f, Util.azar:NextNumber(-1, 1) * f, 0)
+		local t = os.clock() * 40
+		-- math.noise da de -0,5 a 0,5 más o menos: por 2 para el mismo -1 a 1 de antes.
+		local giro = CFrame.Angles(math.noise(t, semilla) * 2 * f, math.noise(semilla, t) * 2 * f, 0)
+		camara.CFrame *= giro
+		giroTiron = giro
 	end)
 end
 
