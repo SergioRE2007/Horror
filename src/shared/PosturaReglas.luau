@@ -111,12 +111,15 @@ function PosturaReglas.alcanceVista(vista: number, agachado: boolean, cubierto: 
 	return vista
 end
 
--- Hasta dónde le oye, con `oido` lo de siempre (de pie).
-function PosturaReglas.alcanceOido(oido: number, agachado: boolean, cubierto: boolean): number
+-- Hasta dónde le oye, con `oido` lo de siempre (de pie). Corriendo (atributo Corriendo, 14.8, pedido por el usuario:
+-- correr hace ruido, riesgo y premio) se le oye desde Config.Correr.Oido; agachado o debajo de algo no se corre.
+function PosturaReglas.alcanceOido(oido: number, agachado: boolean, cubierto: boolean, corriendo: boolean?): number
 	if cubierto then
 		return math.min(oido, Config.Postura.VerCubierto)
 	elseif agachado then
 		return math.min(oido, Config.Postura.OirAgachado)
+	elseif corriendo then
+		return math.max(oido, Config.Correr.Oido)
 	end
 	return oido
 end

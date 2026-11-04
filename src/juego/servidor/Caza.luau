@@ -11,6 +11,8 @@
 --   su olor de cada uno (`olor`) y, cuando le huele (o le vio meterse), va al borde del mueble (Caza.borde) y gatea a
 --   por él (Caza.aPorDebajo; la Bestia también). Mientras gatea, atributos Gatea (dónde está él) y GateaHora en el
 --   modelo, para el cliente.
+--   Correr hace ruido (14.8, pedido por el usuario: riesgo y premio): con el atributo Corriendo del jugador le oyen
+--   desde Config.Correr.Oido (PosturaReglas.alcanceOido). Lo usan todos los que eligen presa aquí, la Bestia también.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
@@ -502,7 +504,8 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 			local d = (suCabeza.Position - ojos).Magnitude
 			local loVe = alAlcance and d < PosturaReglas.alcanceVista(self.o.Vista, agachado, cubierto)
 				and libre(ojos, suCabeza.Position, { Caza.carpeta(), jugador.Character :: Model })
-			local nota = loVe or (alAlcance and d < PosturaReglas.alcanceOido(OIDO, agachado, cubierto))
+			local corriendo = jugador:GetAttribute("Corriendo") == true -- corriendo hace ruido (14.8)
+			local nota = loVe or (alAlcance and d < PosturaReglas.alcanceOido(OIDO, agachado, cubierto, corriendo))
 			local visto = self.vistoEn[jugador]
 			if nota then
 				self.vistoEn[jugador] = ahora
