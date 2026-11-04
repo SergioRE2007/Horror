@@ -150,9 +150,13 @@ Lo que puede romper una partida o atascar al jugador:
 1. Escenas finales y escondites (14.9), probado con un jugador el 04-11-2026 (bien, también la mirilla con el tutorial y sustos seguidos); falta lo de dos jugadores: el fuego con alguien escondido y el fuego cancelado (la cámara no se congela),
    no esconderse en la escena (sí durante el fuego), el susto justo antes de la escena, `EscenaFinal` que vuelve a nil, nadie revive en un
    final. `docs/sistemas/partida.md`, "Muerte y finales", Probar en Studio.
-2. Arreglos de la revisión del código de la rama `claude/admiring-bell-jvgvch` (los pasos, en cada commit): morir todos
-   justo antes de anochecer, dos bichos a la vez, bengala a la cabeza de la Bestia, fuego cancelado, mochila grande al
-   volver, dos jugadores clavando la misma ventana, "Wait for her" con el Carpintero.
+2. Arreglos de la revisión del código de la rama `claude/admiring-bell-jvgvch` (commits `d34e9d8` y `0b979c2`, ya
+   solo en el squash de la PR 24). Probado en Studio el 04-11-2026, todo bien y sin errores: morir todos justo antes de
+   anochecer (vuelve al día, sigue la noche 1), sin botón de reiniciar, dos bichos a la vez (se acercan juntos sin
+   tirones), bengala a la cabeza de la Bestia (acierto y cojea), fuego cancelado (0 fuegos en el cliente), "Wait for
+   her" con el Carpintero (`Config.Test.Clase`; la ventana reforzada sigue a 212,5 y nada más cambia). Falta: dos
+   jugadores clavando la misma ventana (Clients and Servers) y la mochila grande al volver (pide un pase de verdad:
+   publicado).
 3. Revisión entera del 03-11-2026 (14 commits "arreglos de la revisión", los pasos en cada uno): el Acechador no va a
    por quien está en la torre, las esquinas o el garaje; las cerillas no se pierden si amanece con el fuego; no se coge
    nada a través de las paredes del garaje; los bichos no pillan a través de paredes pero sí por una puerta abierta;
