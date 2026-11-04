@@ -273,22 +273,24 @@ local function crearHud()
 	fotos = Ui.texto("", { AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 26), TextSize = 20 })
 	fotos.Parent = cartel
 
-	-- Móvil: los botones del equipo a la izquierda del de saltar de Roblox, en dos filas de tres como mucho para no
-	-- meterse en la zona del joystick (el 40 % izquierdo de la pantalla). Se rellena desde abajo a la derecha, junto al
-	-- pulgar, por LayoutOrder: FLASH 1, LINTERNA 2, BENGALA 3 (BengalasVista, solo con la pistola), MOCHILA 4
-	-- (MochilaUi) y MÓVIL 5 (MovilUi). Escondido o muerto no se ven (el botón SALIR y el de revivir van ahí).
+	-- Móvil: los botones del equipo a la izquierda del de saltar de Roblox, en dos filas de cuatro como mucho para no
+	-- meterse en la zona del joystick (el 40 % izquierdo de la pantalla: a 1164 de ancho de diseño, la rejilla empieza
+	-- en el 40,8 %). Se rellena desde abajo a la derecha, junto al pulgar, por LayoutOrder: FLASH 1, LINTERNA 2, BENGALA
+	-- 3 (BengalasVista, solo con la pistola), MOCHILA 4 (MochilaUi), MÓVIL 5 (MovilUi), AGACHARSE 6 (PosturaVista) y
+	-- CORRER 7 (CorrerVista, 14.8). Escondido o muerto no se ven (el botón SALIR y el de revivir van ahí). Por encima de
+	-- la zona segura de abajo (Ui.zonaSegura) y con hueco debajo para la barra del aguante (CorrerBarra).
 	if tactil then
 		local fila = Instance.new("Frame")
 		fila.Name = "EquipoBotones"
 		fila.AnchorPoint = Vector2.new(1, 1)
-		fila.Position = UDim2.fromScale(0.8, 0.97)
-		fila.Size = UDim2.fromOffset(3 * 140 + 2 * 10, 2 * 80 + 10)
+		fila.Position = UDim2.new(0.8, 0, 0.97, -Ui.zonaSegura())
+		fila.Size = UDim2.fromOffset(4 * 108 + 3 * 8, 2 * 80 + 8)
 		fila.BackgroundTransparency = 1
 		local orden = Instance.new("UIGridLayout")
-		orden.CellSize = UDim2.fromOffset(140, 80)
-		orden.CellPadding = UDim2.fromOffset(10, 10)
+		orden.CellSize = UDim2.fromOffset(108, 80)
+		orden.CellPadding = UDim2.fromOffset(8, 8)
 		orden.FillDirection = Enum.FillDirection.Horizontal
-		orden.FillDirectionMaxCells = 3
+		orden.FillDirectionMaxCells = 4
 		orden.StartCorner = Enum.StartCorner.BottomRight
 		orden.SortOrder = Enum.SortOrder.LayoutOrder
 		orden.Parent = fila
