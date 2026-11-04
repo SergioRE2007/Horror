@@ -194,16 +194,21 @@ function Ui.aviso(texto: string, segundos: number?)
 	if avisoActual then
 		avisoActual:Destroy()
 	end
+	local tactil = Ui.tactil()
 	local t = Ui.texto(texto, {
 		AnchorPoint = Vector2.new(0.5, 1),
 		-- Encima del botón SALIR del escondite; en el móvil, más arriba aún: abajo están los botones del equipo.
-		Position = UDim2.fromScale(0.5, if Ui.tactil() then 0.64 else 0.76),
-		Size = UDim2.fromScale(0.8, 0.05),
+		Position = UDim2.fromScale(0.5, if tactil then 0.64 else 0.76),
+		-- En el móvil acaba antes del 78 % del ancho, donde empiezan los botones de acción (Hud.Acciones, que a esa altura
+		-- tienen el de abajo): una frase larga (64 letras a 640 × 360) baja a dos renglones en vez de pisarlos.
+		Size = UDim2.fromScale(if tactil then 0.56 else 0.8, if tactil then 0.1 else 0.05),
 		TextSize = 26,
+		TextYAlignment = Enum.TextYAlignment.Bottom, -- la frase corta queda abajo, donde siempre
 		TextTransparency = 1,
 		TextStrokeTransparency = 1,
 		ZIndex = 50,
 	})
+	Ui.queQuepa(t, 26) -- y si aun así no cabe (otros idiomas), la letra encoge
 	t.Parent = Ui.hud()
 	avisoActual = t
 	TweenService:Create(t, TweenInfo.new(0.4), { TextTransparency = 0, TextStrokeTransparency = 0.4 }):Play()
