@@ -11,7 +11,8 @@
 -- de verdad, se borra y vuelve a verse el de verdad. Y: la salida que se pasa a la llegada sin que se vea el de verdad
 -- ni un fotograma (y la copia que sale sigue hasta la niebla); entrar a medias (la copia, donde la de quien lo vio
 -- desde el principio); una Salida retrasada (quieta hasta su hora); Rendimiento (sin ruedas que ruedan, limpias ni
--- humo); un fallo a medias y que el servidor quite Llegada (todo vuelve). En el servidor (lobby/servidor/Coches de
+-- humo); un fallo a medias y que el servidor quite Llegada (todo vuelve); una salida o llegada que no sigue con alguien
+-- de pie en la plaza (lo aparta). En el servidor (lobby/servidor/Coches de
 -- verdad, con Viaje falso): Llegada al vaciarse tras el viaje, nadie se sube hasta entonces, por el carril no van dos a
 -- la vez (la Salida de otro y la Llegada de otro esperan) y a la hora queda libre. Y que los números de Coches cuadran
 -- con los de LlegadaVista.
@@ -493,6 +494,30 @@ do
 	comprobar(visible(modelo) and #copias(w) == 0, "salida retrasada: empieza antes de hora")
 	w.m.correr(0.2, DT)
 	comprobar(escondido(modelo) and #copias(w) == 1, "salida retrasada: no empieza a su hora")
+end
+
+-- Una salida que no sigue (Viaje falla o el dueño se baja: Salida vuelve a nil antes de hora) con alguien de pie en la
+-- plaza vacía (el de verdad, tapado, no choca): al volver el de verdad, lo pone a un lado, fuera del coche. Y una
+-- llegada igual (la función es la misma, en CocheCopia).
+for _, caso in { "salida", "llegada" } do
+	local w = montar()
+	local modelo = w.carpeta.Coche3
+	local carro = modelo.Carroceria
+	local atributo = if caso == "salida" then "Salida" else "Llegada"
+	local hora = w.ahora() + (if caso == "salida" then 7 else w.LlegadaVista.DURA)
+	modelo:SetAttribute(atributo, hora)
+	w.m.correr(3, DT)
+	comprobar(escondido(modelo), `{caso} que no sigue: no se esconde`)
+	local dentro = carro.CFrame * w.g.CFrame.new(0.7, 0, 0.5)
+	local personaje = w.m.personaje(w.g.CFrame.new(dentro.X, 3, dentro.Z))
+	w.m.paso(DT)
+	modelo:SetAttribute(atributo, nil)
+	w.m.paso(DT)
+	comprobar(visible(modelo) and #copias(w) == 0, `{caso} que no sigue: no vuelve el de verdad`)
+	local en = carro.CFrame:PointToObjectSpace(personaje.HumanoidRootPart.Position)
+	local _, tam = modelo:GetBoundingBox()
+	comprobar(math.abs(en.X) > math.min(tam.X, tam.Z) / 2, `{caso} que no sigue: se queda dentro del coche ({en})`)
+	comprobar(#w.m.errores == 0 and #w.m.avisos == 0, `{caso} que no sigue: {w.m.errores[1] or w.m.avisos[1]}`)
 end
 
 ------------------------------------------------------------------------------------------------------------------------

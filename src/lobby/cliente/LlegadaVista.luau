@@ -163,27 +163,6 @@ local function terminar(l: Llegada)
 	table.clear(l.devolver)
 end
 
--- Si estás de pie donde vuelve a estar el coche de verdad (que choca otra vez), te pone a un lado, junto a él.
-local function apartar(l: Llegada)
-	local plaza = l.plaza
-	local personaje = jugador.Character
-	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
-	local humanoide = personaje and personaje:FindFirstChildOfClass("Humanoid")
-	if not plaza or not raiz or not raiz:IsA("BasePart") or not humanoide or humanoide.SeatPart then
-		return
-	end
-	local caja = CocheCopia.caja(l.modelo)
-	local en = plaza.f0:PointToObjectSpace(raiz.Position)
-	local ancho = (caja.x2 - caja.x1) / 2 + 0.5
-	local largo = (caja.z2 - caja.z1) / 2 + 0.5
-	if math.abs(en.X) > ancho or math.abs(en.Z) > largo or raiz.Position.Y > caja.y2 + 1 then
-		return
-	end
-	local lado = if en.X >= 0 then 1 else -1
-	local fuera = plaza.f0:PointToWorldSpace(Vector3.new(lado * (ancho + 1.5), 0, en.Z))
-	personaje:PivotTo(CFrame.new(fuera.X, raiz.Position.Y, fuera.Z) * raiz.CFrame.Rotation)
-end
-
 local function paso(l: Llegada, dt: number, camara: Camera)
 	local t = workspace:GetServerTimeNow() - l.inicio
 	if t >= DURA then
@@ -354,7 +333,7 @@ local function empezar(modelo: Model, hora: number)
 	-- El de verdad, escondido desde ya (el coche se ha ido); vuelve al acabar pase lo que pase.
 	table.insert(l.devolver, function()
 		CocheCopia.destapar(modelo, l, true) -- vacío y apagado, como la copia
-		apartar(l)
+		CocheCopia.apartar(modelo, l.plaza)
 	end)
 	CocheCopia.tapar(modelo, l)
 	local falta = l.inicio - workspace:GetServerTimeNow()
