@@ -514,6 +514,29 @@ type Momento = {
 	ruido: CFrame, -- temblor de la cabeza
 }
 
+-- Mientras gatea todo esto corre cada fotograma: las tablas fijas viven aquí y las de cada fotograma se rellenan en vez
+-- de crearse (antes eran unas 85 tablas por fotograma, que el recolector limpiaba a tirones en pleno susto).
+local LADOS_PIERNA = { PiernaI = -1, PiernaD = 1 }
+-- Las 8 esquinas de una caja (signos), en el orden de antes: x, luego y, luego z (delanteDe busca la vecina en cada eje
+-- con los pasos 4, 2 y 1).
+local ESQUINAS: { Vector3 } = {}
+for _, x in { -1, 1 } do
+	for _, y in { -1, 1 } do
+		for _, z in { -1, 1 } do
+			table.insert(ESQUINAS, Vector3.new(x, y, z) / 2)
+		end
+	end
+end
+local PASOS = { 1, 2, 4 }
+local esquinasG: { Vector3 } = table.create(8, Vector3.zero) -- delanteDe: las esquinas en G (se reescriben cada vez)
+local PIEZAS_DELANTE = { "Lomo", "Cabeza", "BrazoD", "BrazoI" }
+-- Las tablas de cada fotograma de poseGateo (no se guardan en ningún sitio: solo se leen en el mismo fotograma).
+local momento: Momento = {
+	D = 0, E = 0, techo = 0, tiron = 0, olfa = 0, boca = 0, blanco = Vector3.zero, ruido = CFrame.identity,
+}
+local antesGateo: { [string]: CFrame } = {}
+local resGateo: { [string]: CFrame } = {}
+
 -- Aplastada con el frente del lomo a `frente` studs hacia ti y el brazo derecho abierto `barre` radianes hacia fuera:
 -- el CFrame de cada pieza (en G) en `en`. Devuelve lo que abre la boca (sin dar en el suelo ni en el tablero).
 local function aplastada(b: Bicho, c: Momento, en: { [string]: CFrame }, frente: number, barre: number): number
@@ -531,7 +554,7 @@ local function aplastada(b: Bicho, c: Momento, en: { [string]: CFrame }, frente:
 	local dI = hI * math.cos(GATEO.Baja) - Vector3.yAxis * math.sin(GATEO.Baja)
 	en.BrazoI = ejes(lomo * b.c0.BrazoI.Position + dI * b.c1.BrazoI.Position.Y, -dI, Vector3.new(hI.Z, 0, -hI.X))
 	-- Las patas de atrás, abiertas hacia atrás a ras de suelo (el pie de adorno, hacia arriba).
-	for nombre, lado in { PiernaI = -1, PiernaD = 1 } do
+	for nombre, lado in LADOS_PIERNA do
 		local cadera = lomo * Vector3.new(lado * CADERA.X, CADERA.Y, CADERA.Z)
 		local v = Vector3.new(lado * math.sin(GATEO.Patas), -0.05, math.cos(GATEO.Patas)).Unit
 		en[nombre] = ejes(cadera + v * b.c1[nombre].Position.Y, -v, Vector3.new(0, -1, 0))
@@ -565,13 +588,9 @@ end
 -- Lo más adelantado (hacia ti, en G) de la caja `cf` (espacio de la raíz) por encima de `h`: sus esquinas de arriba y
 -- donde sus aristas cruzan esa altura.
 local function delanteDe(G: CFrame, cf: CFrame, tam: Vector3, h: number): number
-	local q = table.create(8)
-	for _, x in { -1, 1 } do
-		for _, y in { -1, 1 } do
-			for _, z in { -1, 1 } do
-				table.insert(q, G:PointToObjectSpace(cf * Vector3.new(x * tam.X / 2, y * tam.Y / 2, z * tam.Z / 2)))
-			end
-		end
+	local q = esquinasG
+	for i, e in ESQUINAS do
+		q[i] = G:PointToObjectSpace(cf * (e * tam))
 	end
 	local mejor = -math.huge
 	for i = 1, 8 do
@@ -579,7 +598,7 @@ local function delanteDe(G: CFrame, cf: CFrame, tam: Vector3, h: number): number
 		if a.Y >= h then
 			mejor = math.max(mejor, -a.Z)
 		end
-		for _, paso in { 1, 2, 4 } do -- la esquina vecina en cada eje
+		for _, paso in PASOS do -- la esquina vecina en cada eje
 			if (i - 1) // paso % 2 == 0 then
 				local o = q[i + paso]
 				if (a.Y - h) * (o.Y - h) < 0 then
@@ -652,17 +671,16 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 		ruido = CFrame.Angles(olfa * math.abs(math.sin(ahora * 22)) * 0.06 + math.noise(ahora * 9, 1) * t,
 			math.noise(ahora * 9, 2) * t * 0.2, math.noise(ahora * 9, 3) * t * 0.2)
 	end
-	local c: Momento = {
-		D = D,
-		E = E,
-		techo = if bajo then math.huge else g.alto - GATEO.Techo,
-		tiron = tiron,
-		olfa = olfa,
-		boca = math.min(GATEO.Boca, 0.08 + 0.2 * p + 0.1 * tiron - 0.08 * olfa + 0.15 * lejosFin
-			+ (if chillando then 0.4 + 0.06 * math.sin(ahora * 30) else 0)),
-		blanco = if debajo then G:PointToObjectSpace(raiz:PointToObjectSpace(ojo)) else Vector3.new(0, 1, -D),
-		ruido = ruido,
-	}
+	local c = momento
+	c.D = D
+	c.E = E
+	c.techo = if bajo then math.huge else g.alto - GATEO.Techo
+	c.tiron = tiron
+	c.olfa = olfa
+	c.boca = math.min(GATEO.Boca, 0.08 + 0.2 * p + 0.1 * tiron - 0.08 * olfa + 0.15 * lejosFin
+		+ (if chillando then 0.4 + 0.06 * math.sin(ahora * 30) else 0))
+	c.blanco = if debajo then G:PointToObjectSpace(raiz:PointToObjectSpace(ojo)) else Vector3.new(0, 1, -D)
+	c.ruido = ruido
 	-- El tramo (y solo lo que hace falta para él: echada atrás, ni baja ni se mete).
 	local t1, t2 = GATEO.Tramos[1], GATEO.Tramos[2]
 	local tramo = if mezcla <= t1 then 1 elseif mezcla < t2 then 2 else 3
@@ -678,17 +696,16 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	local base, c0, c0i, c1, c1i = b.pose, b.c0, b.c0i, b.c1, b.c1i
 	local lomoB = c0.Lomo * base.Lomo * c1i.Lomo
 	local cabezaB = lomoB * c0.Cabeza * base.Cabeza * c1i.Cabeza
-	local antes = {
-		Lomo = lomoB,
-		Cabeza = cabezaB,
-		BrazoD = lomoB * c0.BrazoD * base.BrazoD * c1i.BrazoD,
-		BrazoI = lomoB * c0.BrazoI * base.BrazoI * c1i.BrazoI,
-		PiernaI = c0.PiernaI * base.PiernaI * c1i.PiernaI,
-		PiernaD = c0.PiernaD * base.PiernaD * c1i.PiernaD,
-	}
+	local antes = antesGateo
+	antes.Lomo = lomoB
+	antes.Cabeza = cabezaB
+	antes.BrazoD = lomoB * c0.BrazoD * base.BrazoD * c1i.BrazoD
+	antes.BrazoI = lomoB * c0.BrazoI * base.BrazoI * c1i.BrazoI
+	antes.PiernaI = c0.PiernaI * base.PiernaI * c1i.PiernaI
+	antes.PiernaD = c0.PiernaD * base.PiernaD * c1i.PiernaD
 	local alto = (if bajo then g.alto else math.min(g.alto, GATEO.Alto)) - 0.5
 	local delante = -math.huge
-	for _, nombre in { "Lomo", "Cabeza", "BrazoD", "BrazoI" } do
+	for _, nombre in PIEZAS_DELANTE do
 		delante = math.max(delante, delanteDe(G, antes[nombre], (b.motores[nombre].Part1 :: BasePart).Size, alto))
 	end
 	delante = math.max(delante, delanteDe(G, cabezaB * c0.Mandibula * base.Mandibula * c1i.Mandibula,
@@ -699,7 +716,7 @@ local function poseGateo(b: Bicho, g: Gateo, ahora: number, ojo: Vector3, adorno
 	-- El camino: atrás arriba, bajar fuera del borde y meterse.
 	local s = if tramo == 1 then suave(mezcla / t1) elseif tramo == 2 then suave((mezcla - t1) / (t2 - t1))
 		else suave((mezcla - t2) / (1 - t2))
-	local res = {}
+	local res = resGateo
 	for _, nombre in PIEZAS do
 		local cf = antes[nombre]
 		if tramo == 1 then
