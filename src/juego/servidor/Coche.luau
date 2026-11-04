@@ -224,24 +224,25 @@ local function huir(jugador: Player)
 	-- con pcall, para que nada deje la huida a medias. Y nadie se vuelve a esconder hasta que acaba (Muerte.escena).
 	Muerte.escena(true)
 	for _, j in Players:GetPlayers() do
-		if Muerte.escondite(j) then
-			local ok, fallo = pcall(Muerte.sacar, j)
-			if not ok then
-				warn("[Coche] sacar: " .. tostring(fallo))
+		local ok, fallo = pcall(function()
+			if Muerte.escondite(j) then
+				Muerte.sacar(j)
 			end
-		end
-		Cargar.soltar(j)
-		-- La mochila, cerrada (como Incendio.terminar): abierta, su desenfoque y la mochila 3D salían en la escena.
-		j:SetAttribute("MochilaAbierta", nil)
-		Cargar.ajustarVelocidad(j)
-		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if raiz then
-			raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena
+			Cargar.soltar(j)
+			-- La mochila, cerrada (como Incendio.terminar): abierta, su desenfoque y la mochila 3D salían en la escena.
+			j:SetAttribute("MochilaAbierta", nil)
+			Cargar.ajustarVelocidad(j)
+			local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if raiz then
+				raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena
+			end
+		end)
+		if not ok then
+			warn("[Coche] preparar la escena: " .. tostring(fallo))
 		end
 	end
 	Remotes.Huida:FireAllClients(C.Cinematica)
 	task.wait(C.Cinematica + 2)
-	Muerte.escena(false)
 	Viaje.volver(Players:GetPlayers(), "You escaped.")
 	for _, j in Players:GetPlayers() do -- en Studio no hay viaje: se puede seguir mirando
 		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -249,6 +250,7 @@ local function huir(jugador: Player)
 			raiz.Anchored = false
 		end
 	end
+	Muerte.escena(false) -- después de desanclar: mientras se espera el viaje, quietos y sin esconderse
 end
 
 local function porton(jugador: Player)
