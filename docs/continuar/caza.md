@@ -13,9 +13,11 @@ Pedido por el usuario (03-11-2026): "agacharte también debería servir para esc
 
 ## Falta
 
-- Probar en Studio (abajo).
-- Pasar la prueba de `Caza.borde` a `tests/regressions.luau`. Hoy está en Caza, que necesita Roblox: o se mueve a un módulo puro (`PosturaReglas.borde`), o la prueba la saca del texto de `Caza.luau`, como hace el script del scratchpad.
-- Números a ojo, en Caza y Bestia y no en `Config`: oído 8, `FUERA` 2,5 (Bestia 3), `CERCA_BORDE` 3, `SE_ESCAPA` 6, `ATASCO` 4, `MAX_DT` 0,5 y `ANCHO` 1,3. Se pueden pasar a `Config.Postura`.
+- Hecho (04-11-2026): la prueba de `Caza.borde` está en `tests/regressions.luau` (sacada del texto de `Caza.luau`), con mueble girado y lado corto; también `alcanceOido` nunca más que el oído.
+- Hecho: los números a ojo están en `Config.Postura` (al final: `Oido`, `Fuera`, `FueraBestia`, `CercaBorde`, `SeEscapa`, `Atasco`, `MaxOlor`, `Ancho`, y nuevo `SinSalida` 20), con los mismos valores.
+- Hecho, casos raros: `sinSalida` es una lista de como mucho 3 bordes que se olvidan a los `SinSalida` s (antes era uno para siempre: un mueble con un solo lado libre quedaba seguro para siempre si una vez no llegó). El atasco cuenta aunque él se mueva un poco debajo (antes `rumbo ~= borde` lo reiniciaba). Dos bichos no gatean en el mismo borde (`gateaEn`: el segundo busca otro lado o espera). Dentro de la zona solo le alcanza si no hay nada que choque desde la boca del hueco (nunca a través de una pared) y `Mapa` avisa en la Salida si una zona Debajo cruza algo que no sea una caja `Choque`. Revisado y bien: se va o muere a mitad (lo deja, sin apuntarle olor), personaje nuevo, bicho quitado, aturdido, amanecer, `Bestia.quemar` (quita también `gateaEn`).
+- Banco con un Roblox de mentira y reloj simulado (9 casos: pilla, se va, se escapa, dos bichos, sin salida, se mueve, pared, amanece): `scratchpad/caza/banco.luau` de la sesión (fuera del repo), `lune run` desde la raíz.
+- Falta: probarlo en Studio (abajo). El olor y `vistoEn` de quien muere no se borran hasta que se va (si revive y se mete debajo en los segundos siguientes, ese bicho ya le huele): menor.
 
 ## Probar en Studio
 
@@ -23,33 +25,15 @@ Pedido por el usuario (03-11-2026): "agacharte también debería servir para esc
 2. Agacharse debajo de la mesa del comedor (x -25,5, z -15) o de la de la cocina (x -19,5, z 6,9, entrando por +Z). Comprobar `Player:GetAttribute("Cubierto") == true`.
 3. Con el bicho a menos de 14 studs, a los ~5 s debe ir al borde (comedor: el lado +X, hacia z -17,7, donde no hay silla que choque) y gatear. Mirar en el servidor `workspace.Bichos:GetChildren()[1]:GetAttribute("Gatea")` y `"GateaHora"`. A los 2 s, susto con la cara baja en la boca de la mesa.
 4. Salir de debajo y alejarse más de 6 antes de los 2 s: los atributos vuelven a nil y sigue cazando (te persigue si te ve).
+4b. Mirar la Salida al empezar: no debe salir "[Mapa] la zona Debajo de … cruza …" (si sale con algo que no es pared, como una alfombra que choca, es ruido: avisar).
+4c. Con dos bichos (`Ataque` y `Raspador` a la vez), uno debajo de la mesa: no deben gatear los dos en el mismo sitio.
 5. Meterse debajo a la vista del bicho: va al momento (sin esperar a olerte).
 6. Bestia: `Prueba:Fire("Bestia")` y lo mismo dentro de la casa.
 
 ## Riesgos
 
 - Un mueble sin ningún lado libre (paredes o sillas que chocan en los cuatro) es un escondite seguro. La mesa del comedor tiene libre solo el trozo de +X sin silla; si se mueven las sillas, mirarlo.
-- Si una zona Debajo cruza una pared, se podría pillar a través de ella. Las zonas deben quedarse dentro de su sala.
+- Si una zona Debajo cruza una pared, ya no se pilla a través (rayo desde la boca) y Mapa avisa; pero el bicho iría y volvería a gatear cada pocos segundos. Las zonas deben quedarse dentro de su sala.
+- El rayo de dentro de la zona da por escapado a quien tenga algo que choca entre él y la boca: si alguna vez se meten sillas que chocan debajo del tablero, mirarlo.
 - El bicho puede subirse a una mesa baja si va recto (es como ya pasaba). Si no llega al borde, a los 4 s le deja.
 - Sin probar en Studio: el gateo, el olor y los rayos con las sillas de verdad.
-
-## Prueba de `Caza.borde` para `tests/regressions.luau` (la dio el agente; pasarla y comprobarla con Lune)
-
-```lua
-do -- Caza.borde: por dónde se mete el bicho debajo de un mueble (sacada del texto: Caza necesita Roblox)
-	local roblox = require("@lune/roblox")
-	local V3, CF = roblox.Vector3, roblox.CFrame
-	local fuente = fs.readFile("src/juego/servidor/Caza.luau")
-	local i = string.find(fuente, "function Caza.borde(", 1, true)
-	local _, f = string.find(fuente, "\r?\nend\r?\n", i)
-	local borde = luau.load("local Caza = {}\n" .. string.sub(fuente, i, f) .. "\nreturn Caza.borde",
-		{ debugName = "Caza.borde", environment = { Vector3 = V3, CFrame = CF } })()
-	local caja, tam, lejos = CF.new(0, 1.3, 0), V3.new(4, 2.6, 6), V3.new(0, 3, -40)
-	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5), V3.new(4.5, 0, 0.5), "debajo: el lado más cercano, a ras de suelo")
-	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5, function(b) return b.X < 2 end), V3.new(1, 0, -5.5),
-		"debajo: pared en ese lado, el siguiente (nunca a través de ella)")
-	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5, function(b) return not (b.X > 2 and b.Z > -1) end),
-		V3.new(4.5, 0, -1), "debajo: entre sillas, se corre a lo largo del lado")
-	igual((borde(caja, tam, V3.zero, lejos, 2.5, function() return false end)), nil, "debajo: sin sitio, nada")
-end
-```
