@@ -4,10 +4,12 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 
 ## Lo siguiente, en orden
 
-0. **Probar en Studio lo de "Pendientes para Studio"** (abajo): todo lo de las sesiones del 03 y 04-11-2026 está hecho
-   sin Studio o probado solo en parte.
-1. 14 Pulido, fase a fase (14.1 → 14.5; la 14.2 es el tutorial 13.1).
-2. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
+0. **Probar en Studio lo de "Pendientes para Studio"** (abajo, de lo más importante a lo menos): todo lo de las
+   sesiones del 03 y 04-11-2026 está hecho sin Studio o probado solo en parte.
+1. 14.2 (que Sergio apruebe el tutorial) y 14.5 Partida entera de prueba, con la propuesta a ojo de
+   `docs/sistemas/economia.md`.
+2. Sonidos e imágenes que faltan (`docs/sistemas/sonidos-pendientes.md`), cuando vuelva a haber créditos.
+3. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
 ## Hechas
 
@@ -139,27 +141,55 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 - Aviso suelto del asset 203785492 en la consola.
 - **Estado:** hecho (`docs/sistemas/movil.md`, `ajustes.md`, `rendimiento.md`; probado en Studio en PC el 02-11-2026; el HUD táctil, sin probar aún con el emulador de teléfono). Mapa por partes (StreamingEnabled) preparado pero apagado: antes hay que poner Atomic los bichos (ver `rendimiento.md`)
 
-### Pendientes para Studio (sesión en la nube del 03-11-2026, sin Studio)
-- Probar el tutorial (`Config.Test.Tutorial = true`, `docs/sistemas/tutorial.md`) y que Sergio lo apruebe.
-- Probar los arreglos de la revisión del código (commits de la rama `claude/admiring-bell-jvgvch`): morir todos justo
-  antes de anochecer, botón de reiniciar quitado, dos bichos a la vez, bengala a la cabeza de la Bestia, fuego
-  cancelado, mochila grande al volver a una partida, dos jugadores clavando la misma ventana, "Wait for her" con el
-  Carpintero.
-- Probar la revisión entera del 03-11-2026 (14 commits "arreglos de la revisión"; los pasos de cada uno, en su
-  commit). Lo más importante: el Acechador no debe ir a por quien está en la torre, las esquinas
-  o el garaje; las cerillas no se pierden si amanece con el fuego en marcha; tras un viaje el coche del lobby vuelve a
-  quedar libre (solo publicado); no se cogen cosas a través de las paredes del garaje; los bichos no pillan a través de
-  las paredes pero sí por una puerta abierta; teclas nuevas V (revivir), K (saltar tutorial) y P (ajustes) en PC.
-- Probar el lobby nuevo (`docs/sistemas/lobby.md`, "Probar en Studio"): niebla, lluvia, luces que fallan, la puerta,
-  los coches y la cinemática de salida, la sombra entre los árboles y el rendimiento en móvil.
-- Probar la respiración contenida y los escondites vistos desde fuera, y las reacciones nuevas de la casa
-  (`docs/sistemas/manos.md`, al final).
-- Probar esconderse agachado (04-11-2026, sin Studio): el cuerpo debajo de las mesas (`manos.md`, "Esconderse
-  agachado: el cuerpo") y los bichos que huelen y gatean, a mano y de verdad, con dos bichos y con Rendimiento
-  (`bichos.md`, "Probar en Studio"). Retocar a ojo las poses de gateo de los cinco bichos.
-- Mirar la vida de espera de los seis bichos (`bichos.md`, "Probar en Studio", paso 1) y el Imitador en la mirilla.
-- Probar correr y aguante (14.8, 04-11-2026, sin Studio): `docs/sistemas/correr.md`, "Probar en Studio" (PC, mando,
-  móvil, dos jugadores, perseguido por cada bicho y escondido cansado).
+### Pendientes para Studio (de lo más importante a lo menos)
+Cómo empezar: en Edit, que Rojo ha sincronizado (buscar un texto nuevo en el `Source` con `execute_luau`); errores con
+`LogService:GetLogHistory()` sin los `MessageOutput`; en Server, `game.ServerStorage.Prueba:Fire("Noche")`. Parar el
+Play al acabar.
+
+Lo que puede romper una partida o atascar al jugador:
+1. Escenas finales y escondites (14.9): el fuego con alguien escondido y el fuego cancelado (la cámara no se congela),
+   no esconderse con `Final`, el susto justo antes de la escena, `EscenaFinal` que vuelve a nil, nadie revive en un
+   final. `docs/sistemas/partida.md`, "Muerte y finales", Probar en Studio.
+2. Arreglos de la revisión del código de la rama `claude/admiring-bell-jvgvch` (los pasos, en cada commit): morir todos
+   justo antes de anochecer, dos bichos a la vez, bengala a la cabeza de la Bestia, fuego cancelado, mochila grande al
+   volver, dos jugadores clavando la misma ventana, "Wait for her" con el Carpintero.
+3. Revisión entera del 03-11-2026 (14 commits "arreglos de la revisión", los pasos en cada uno): el Acechador no va a
+   por quien está en la torre, las esquinas o el garaje; las cerillas no se pierden si amanece con el fuego; no se coge
+   nada a través de las paredes del garaje; los bichos no pillan a través de paredes pero sí por una puerta abierta;
+   teclas V (revivir), K (saltar tutorial) y P (ajustes) en PC.
+4. Muerte con el bicho que pilla: la escena enfoca al que gatea; morir gateando deja `Gatea` a nil; tras revivir vuelve a
+   tardar en olerte. `bichos.md`, "Probar en Studio", pasos 5 y 6.
+5. Correr con los bichos: perseguido por cada uno, el ruido, escondido cansado, morir corriendo, el remote a lo bruto.
+   `correr.md`, "Probar en Studio", pasos 2, 8, 9 y 12.
+6. Caminos de los bichos (`Caza`): sin tirones, recalcula en ≤1 s si algo tapa, sin errores al amanecer; y las puertas
+   con llave tras `Prueba:Fire("Abrir")`, que un bicho abre enseguida. `bichos.md`, pasos 12 y 13.
+7. Coche del lobby: el que llega (no choca con los otros, sin "Get in"), salida que pasa a llegada, carril ocupado, y
+   el que no sale o llega con alguien de pie en su plaza (lo aparta, sin lanzarlo). `lobby.md`, "Probar en Studio",
+   desde "Coche que llega". Tras un viaje el coche vuelve a quedar libre: solo publicado.
+
+Lo que se ve mucho:
+8. Gateos de los cinco bichos, a mano y de verdad (comedor y cocina, en diagonal, la Bestia bajo las dos mesas y
+   saliendo andando, garras del Golpeador, codo del Raspador, Trepador, luz de la Bestia, NaN). `bichos.md`, pasos 2-4,
+   7-10 y 14; el cuerpo debajo de las mesas, `manos.md`, "Esconderse agachado: el cuerpo".
+9. Tutorial (`Config.Test.Tutorial = true`, sin subirlo), con el paso de correr, y que Sergio lo apruebe.
+   `tutorial.md` y `correr.md`, paso 10.
+10. Móvil: emulador 640 × 360 e iPhone (rejilla, barra del aguante, avisos, revivir, ajustes, textos en singular), el
+   móvil escondido y la mochila por la mirilla. `movil.md` y `mochila.md`, "Probar en Studio"; `correr.md`, paso 6.
+11. Correr en PC, con mando y con dos jugadores (cámara, manos y linterna, resoplidos que se callan en la escena).
+   `correr.md`, pasos 1, 3-5, 7, 11 y 13.
+12. Lobby nuevo: niebla, lluvia, luces que fallan, la puerta, coches, cinemática de salida, la sombra, dos jugadores,
+   Rendimiento, emulador de móvil y el sonido de la llegada (Id 0 hoy). `lobby.md`, "Probar en Studio".
+13. Cinemáticas: mochila y móvil se cierran en la huida, la flecha del tutorial por la mirilla, la linterna del otro en
+   la escena, sustos seguidos que devuelven la mirada. `partida.md`, último punto de "Probar en Studio".
+14. Respiración contenida, escondites vistos desde fuera y la casa que reacciona más (mecedoras, efectos sin errores).
+   `manos.md`, al final, y `bichos.md`, paso 12.
+15. Vida de espera de los seis bichos, el Imitador en la mirilla y Rendimiento a 120 studs. `bichos.md`, pasos 1 y 11.
+
+Retoques a ojo:
+16. Poses de gateo de los cinco bichos, rapidez de los tirones y ruidos (`bichos.md`, "Pendiente" y "Números a ojo");
+   las manos (`manos.md`, "Si algo se ve mal").
+17. Números de correr (`correr.md`, "Números a ojo para mirar en Studio") y de la llegada al lobby (`lobby.md`,
+   "Números a ojo").
 
 ### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
 - **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
@@ -180,13 +210,15 @@ Cada fase es un paso entero en su rama. Lo que salga al probar, se apunta en su 
 - **Estado:** hecho sin Studio (`docs/sistemas/correr.md`): reglas y cuentas con Lune, bancos de la barra, la cámara y las manos con un Roblox de mentira (`tests/bancos`), revisado con `reviewer`. Paso nuevo del tutorial (3/9). Falta verlo en Studio y el sonido `Jadeo` de ElevenLabs.
 
 ### 14.9 Pulido general (propuesto por Claude, 04-11-2026)
-- **Estado (pausado el 04-11-2026, pedido por el usuario):** 1, 3, 4 y 5 hechos sin Studio; 2 hecho salvo terminar su banco; faltan la revisión final, los docs, la 6 y la PR. Dónde se quedó y cómo seguir: `docs/relevo-14-9.md`.
-1. Revisión de pulido por áreas con agentes (leer y apuntar, verificar cada hallazgo y arreglar): textos sin `Lang` o sin español y avisos de más de una línea; cosas a medias y warns de la Salida; botones que se tapan en el móvil (también con la barra nueva); lo que no se devuelve tras una cinemática y conexiones sin desconectar; coste por fotograma de los bichos (gateo y vida de espera solo cerca de la cámara). — pendiente
-2. Deudas del gateo (`bichos.md`, "Pendiente"): `Muerte.matar` manda el modelo que pilla (fuera la heurística de `quienPilla`); `cajaTablero` de Golpeador, Imitador y PosturaVista juntas en `MuebleRayo.tablero` y el Imitador con `MuebleRayo` en sus rayos de reserva; borrar el olor del que muere al revivir y mirar `Humanoid.Health` al gatear; luz floja en la cara de la Bestia al gatear. Bancos de Lune: los gateos no atraviesan la mesa. — pendiente
-3. Lobby: que llegue un coche conduciendo cuando uno se va (ahora reaparece de golpe), con su banco de Lune. — pendiente
-4. Sonidos e imágenes que faltan: `docs/sistemas/sonidos-pendientes.md` con el texto para ElevenLabs de cada uno y el de ChatGPT para la mano de sangre. — pendiente
-5. Ritmo y economía (skill `roblox-economy-balancing`): repaso de días, noches, monedas y precios con una partida típica simulada en Lune; propuesta a ojo para la 14.5. — pendiente
-6. Ordenar "Pendientes para Studio" de lo más importante a lo menos. — pendiente
+- **Estado:** hecho sin Studio (04-11-2026). Revisión final en dos rondas, por áreas y por enfoques, verificada a la
+  contra: 0 GRAVE; los MEDIO arreglados (cámara congelada al salir del escondite durante el fuego, el móvil escondido,
+  el coche del lobby que reaparece encima de alguien) y los LEVE también. Falta verlo en Studio (arriba).
+1. Revisión de pulido por áreas con agentes (leer y apuntar, verificar cada hallazgo y arreglar): textos sin `Lang` o sin español y avisos de más de una línea; cosas a medias y warns de la Salida; botones que se tapan en el móvil (también con la barra nueva); lo que no se devuelve tras una cinemática y conexiones sin desconectar; coste por fotograma de los bichos (gateo y vida de espera solo cerca de la cámara). — hecho (`movil.md`; lo de cada área en su doc: `datos.md` los textos, `partida.md` las cinemáticas y los finales, `bichos.md` el coste)
+2. Deudas del gateo (`bichos.md`, "Pendiente"): `Muerte.matar` manda el modelo que pilla (fuera la heurística de `quienPilla`); `cajaTablero` de Golpeador, Imitador y PosturaVista juntas en `MuebleRayo.tablero` y el Imitador con `MuebleRayo` en sus rayos de reserva; borrar el olor del que muere al revivir y mirar `Humanoid.Health` al gatear; luz floja en la cara de la Bestia al gatear. Bancos de Lune: los gateos no atraviesan la mesa. — hecho (`bichos.md`, banco `tests/bancos/gateo.luau`)
+3. Lobby: que llegue un coche conduciendo cuando uno se va (ahora reaparece de golpe), con su banco de Lune. — hecho (`lobby.md`, banco `tests/bancos/lobby-coche.luau`)
+4. Sonidos e imágenes que faltan: `docs/sistemas/sonidos-pendientes.md` con el texto para ElevenLabs de cada uno y el de ChatGPT para la mano de sangre. — hecho (`sonidos-pendientes.md`)
+5. Ritmo y economía (skill `roblox-economy-balancing`): repaso de días, noches, monedas y precios con una partida típica simulada en Lune; propuesta a ojo para la 14.5. — hecho (`economia.md`, banco `tests/bancos/economia.luau`)
+6. Ordenar "Pendientes para Studio" de lo más importante a lo menos. — hecho (arriba)
 
 ### 14.5 Partida entera de prueba
 - Una partida de principio a fin sin órdenes de prueba: ritmo de días y noches, monedas y precios (skill `roblox-economy-balancing`), fallos que salgan.
