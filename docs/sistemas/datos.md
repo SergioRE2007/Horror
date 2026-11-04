@@ -24,4 +24,5 @@
 ## Pruebas
 
 - `lune run tests/regressions.luau`: formato, candado con dos servidores sobre el mismo DataStore falso (ocupado, soltar, perdido, caducado, sin red), `Lang` y huecos de `LangEs`, remotes sin repetir.
+- Textos (14.9): regressions lee cada `.luau` y mira que todo texto escrito en el código tenga su español: literales de `Lang.t` (también con if/then/else), `ActionText`, el último de `nuevoPrompt`, los avisos por `acabar`, `Viaje.volver` y `avisar*`, `YA_HAY` (Pistas), `USOS` (CargarVista), `Config.Clases`, `Compras.Pases` y `Cosmeticos`. Un texto que llegue por otra tabla necesita su propio assert.
 - El candado de verdad necesita el juego publicado o el acceso de Studio a los servicios de API: sin probar en Studio.

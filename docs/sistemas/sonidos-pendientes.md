@@ -48,9 +48,10 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 19 | `Config.SonidosLobby.Radio` (0,5) | Radio vieja de la tienda con interferencias | 15 | bucle | 3 | nada |
 | 20 | `Config.SonidosLobby.Campanilla` (0,6) | Campanilla al abrirse la puerta de la tienda | 2 | suelto | 3 | nada |
 | 21 | `Config.SonidosLobby.Sello` (0,6), **clave nueva** | Sello al estamparse ELEGIDA / EN USO / TUYO en la tienda | 0,6 | suelto | 3 | nada (solo `Papel` al cambiar de separador y al cerrar) |
-| 22 | `Config.SonidosLobby.Arranque` (1) | El coche arranca y se va (cinemática de 7 s) | 7 | suelto | 3 | nada |
-| 23 | `Config.Sonidos.Mirilla` (0,5) | La tapita de latón de la mirilla | 0,6 | suelto | 3 | nada |
-| 24 | `Config.Sonidos.Papel` (0,75) | Papel de las pistas (y de la tienda y los coches) | — | — | — | ya hecho: 3 versiones que puso Claude |
+| 22 | `Config.SonidosLobby.MotorCoche` (0,8) | Motor de coche viejo al ralentí: el que llega al lobby tras un viaje (22 s) | 10 | bucle | 3 | nada: la llegada va muda |
+| 23 | `Config.SonidosLobby.Arranque` (1) | El coche arranca y se va (cinemática de 7 s) | 7 | suelto | 3 | nada |
+| 24 | `Config.Sonidos.Mirilla` (0,5) | La tapita de latón de la mirilla | 0,6 | suelto | 3 | nada |
+| 25 | `Config.Sonidos.Papel` (0,75) | Papel de las pistas (y de la tienda y los coches) | — | — | — | ya hecho: 3 versiones que puso Claude |
 
 Notas por fila:
 
@@ -64,7 +65,10 @@ Notas por fila:
 - **21 Sello**: añadir la clave a `Config.SonidosLobby`, tocarlo en `lobby/cliente/TiendaUi` donde se estampa
   (`fila.escalaSello.Scale = 1.7`) y meterlo en su `Sonido.precargar`.
 - **19 Radio**: pedida suave y apagada; si satura, de YouTube sin derechos (como la bombilla).
-- **24 Papel**: no generar más. Falta que Sergio elija en `sonidos-terror\miedo\escuchar.html`; si no le gusta ninguno,
+- **22 MotorCoche**: va antes que Arranque porque cada salida trae una llegada y dura el triple. `LlegadaVista` lo toca
+  en bucle en la copia y le sube el tono con la velocidad (`PlaybackSpeed` 0,8 + 0,012 × studs/s: 0,8 parado, ~1,16 a
+  30); al apagar el coche, volumen 0. Pedirlo a velocidad constante, sin arranque ni acelerones.
+- **25 Papel**: no generar más. Falta que Sergio elija en `sonidos-terror\miedo\escuchar.html`; si no le gusta ninguno,
   se pide otro.
 
 ## Tanda `pendientes` (pegar en `BATCHES`)
@@ -92,6 +96,7 @@ Notas por fila:
 	{ "name": "Radio", "seconds": 15, "versions": 3, "loop": true, "label": "Radio vieja de la tienda con interferencias (bucle)", "text": "Old transistor radio in a small shop, faint muffled crackling static with a distant indistinct voice fading in and out, soft and quiet, gentle, no harsh noise, no distortion, no music, seamless ambient loop" },
 	{ "name": "Campanilla", "seconds": 2, "versions": 3, "label": "Campanilla de la puerta de la tienda", "text": "Small brass shop door bell jingling as the door opens, a few bright tinkles that fade, realistic, dry, no music" },
 	{ "name": "Sello", "seconds": 0.6, "versions": 3, "label": "Sello de goma que se estampa en la libreta", "text": "Rubber stamp pressed hard onto paper on a wooden desk, a single firm muffled thump with a soft paper slap, very short, realistic, dry, no reverb, no music" },
+	{ "name": "MotorCoche", "seconds": 10, "versions": 3, "loop": true, "label": "Motor de coche viejo al ralentí (bucle; el que llega al lobby)", "text": "Old car engine idling steadily, low rough rumble with a slight irregular sputter, heard from outside the car a few meters away, constant engine speed, no starting, no revving, no driving away, no rain, no music, seamless loop" },
 	{ "name": "Arranque", "seconds": 7, "versions": 3, "label": "Coche viejo que arranca y se va bajo la lluvia", "text": "Old car engine cranking, starting with a cough and rumbling to life, then revving and driving away on a wet road in the rain, tires on wet asphalt, fading into the distance, no music" },
 	{ "name": "Mirilla", "seconds": 0.6, "versions": 3, "label": "La tapita de latón de la mirilla al apartarla", "text": "Small brass peephole cover on a wooden front door being slid aside, tiny metallic scrape and a soft click, very short, close, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "lluviatrozo", "seconds": 5, "versions": 2, "label": "Pieza (plan B de Lluvia): chaparrón cercano", "text": "Close burst of heavy rain on leaves and wet ground, dense clear raindrops, clean, no hiss, no thunder, no music" },
