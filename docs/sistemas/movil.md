@@ -49,3 +49,24 @@ esquina de arriba a la derecha.
   el escondite (SALIR) y la E de cada prompt (botón grande de acción). Asomarse (Z/X) es solo de teclado.
 - Hueco para el engranaje de Ajustes: arriba, a la izquierda de la esquina de la derecha (p. ej. `AnchorPoint` (1, 0)
   en `UDim2.new(0.8, 0, 0, 12)`, 80 × 80 en el móvil): no pisa los botones de Roblox ni los de acción.
+
+## Móvil y mochila en escondites y escenas (14.9)
+
+- Pedido antes por el usuario y recuperado en la 14.9: el móvil se puede mirar escondido (no se guarda al esconderse)
+  y la mochila se abre por la mirilla o entre las cortinas (`MirarVista` deja de mirar con `MochilaAbierta`). Los dos
+  se guardan o cierran solo al empezar la escena de un final (atributo `EscenaFinal`, ver `partida.md`) y no se abren
+  durante ella. Banco `tests/bancos/escenas.luau`.
+
+## Probar en Studio (14.9, sin probar)
+
+- Emulador 640 × 360 y un iPhone 844 × 390: rejilla abajo FLASH, LINTERNA, MOCHILA, MÓVIL; arriba AGACHARSE, CORRER y
+  BENGALA (solo con la pistola, sin mover a los demás); la barra del aguante debajo, sin chocar, también al girar. El
+  móvil abierto no pisa la fila de arriba ni queda bajo la barra de Roblox ni tapa Acciones.
+- Avisos: con un botón de acción en pantalla, el aviso largo (la reja) queda a su izquierda en una o dos líneas.
+- Revivir con 2-3 jugadores: botones de 144 con nombre arriba y precio abajo; con un nombre de 20 letras se corta el
+  nombre, nunca el precio. Ajustes: SÍ/NO y CERRAR de un dedo. Mochila: el engranaje no pinta encima. Tutorial: el
+  texto del paso acaba antes de SALTAR. Taller y vendedor: con su papel abierto no asoma su botón de acción.
+- Textos: con una foto, "1 PHOTO  +N" / "1 FOTO  +N"; con una bengala, "1 FLARE" / "1 BENGALA"; el aviso de la reja en
+  una línea ("La reja está lista. Tira de la palanca de la trampilla.").
+- Móvil escondido: abrirlo con M y meterse en un armario: sigue abierto. Cerrarlo con M dentro y abrirlo otra vez: se
+  abre. En la huida o el incendio, al empezar la escena se guarda y M no lo saca.

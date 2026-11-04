@@ -13,7 +13,8 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
 - Caminos (`Caza.pasoHacia`, 14.9): guarda el último y lo rehace solo si pasa `RUTA_VIDA` (1 s), si el destino se
   mueve más de max(`RUTA_MOVIDO` 3, 1/5 de lo que falta), si se acaba, si salta `Path.Blocked` o si iba en línea
   recta. Antes, con tres bichos, 12-20 `ComputeAsync` por segundo (banco `pulido-4`). `Casa.puertas()` da una lista
-  guardada y congelada.
+  guardada y congelada (`puertasSinLlave`): cada vez que una puerta deja de estar bloqueada (con llave, al importar o
+  con el modo de pruebas "Abrir") hay que vaciarla (`puertasSinLlave = nil`).
 - Modo de pruebas: `ServerStorage.Prueba:Fire("Trepador" | "Imitador" | "Acechador" | "Fuego")`. "Imitador" va con apagón; "Acechador" sale a por el primer jugador (que debe estar en el bosque).
 
 ## Cliente (`src/juego/cliente`)
@@ -112,7 +113,10 @@ Cliente (cada `<Bicho>Vista`, solo lo visual):
 - Escena de muerte (`MuerteVista`, 14.9): el remote Muerte trae el modelo que pilla y MuerteVista llama a
   `<Bicho>Vista.rugir(cabeza, modelo)`; sin modelo, el de la Cabeza más cerca en Bichos a menos de 16 studs
   (`CERCA_SUSTO`). Ya no hay `candidatos` ni `PosturaReglas.quienPilla`.
-- Comprobado con el banco del gateo (abajo).
+- Patas del mueble para el brazo que barre de la Bestia: solo sus cajas `Choque`, nunca el tablero ni la zona (con el
+  hueco bajo lo rozaría y no barrería). Hoy todas las zonas Debajo cuelgan de su modelo: no cambia nada a la vista.
+- Comprobado con Lune al juntar el tablero (14.9): mismas poses antes y después (5 bichos, con y sin mesa) y mismas
+  cajas del tablero. Y con el banco del gateo (abajo).
 
 ## Banco del gateo (`tests/bancos/gateo.luau`, 14.9)
 
@@ -125,8 +129,11 @@ Cliente (cada `<Bicho>Vista`, solo lo visual):
 - Cómo: lo lanza `regressions` (todos los bancos a la vez, ~36 s), un proceso por bicho con la tanda corta (8 casos,
   ~28 s). `lune run tests/bancos/gateo.luau Bestia` solo un bicho; `GATEO_TODO=1` los 15 casos (~55 s); `GATEO_VER=1`
   dice lo peor de cada fase sin parar; `GATEO_SOLO="<trozo de la etiqueta>"` solo esos casos.
-- Pasa con los cinco bichos y sin márgenes propios. Aceptado (no falla, sale con `GATEO_VER`): la Bestia parada mete
-  0,2-0,3 en el suelo los adornos del brazo que carga el peso, al llegar andando a 0,8 ya trae el BrazoD 1,16 en el
+- Pasa con los cinco bichos y sin márgenes propios. Aceptado (no falla, sale con `GATEO_VER`): la Bestia mete
+  en el suelo las garras de los dos brazos (`Bestia.luau`, `CFrame.new(i * 0.4, -3.7, -0.9) * Angles(1.1, 0, 0)`):
+  0,12-0,19 ya en la pose de reposo y ~0,35 con el temblor, la respiración y las crispaciones. Cargar el peso (`PESO`,
+  `PESO_LADEA`) no lo empeora: sube el brazo libre y el que carga se queda donde estaba (el comentario junto a
+  `PARA_VIDA` en el banco, "el brazo que carga", se podría matizar); al llegar andando a 0,8 ya trae el BrazoD 1,16 en el
   tablero (es de andar), y el Trepador de pie baja la cabeza ~0,6. La mesa de la cocina del banco tiene un `Tam` a ojo.
 
 ## Probar en Studio (esconderse agachado y vida de espera)
@@ -177,7 +184,19 @@ Lo de la 14.9 (igual, en Play y tras `Prueba:Fire("Noche")`; `y` es la altura de
 11. Rendimiento: un bicho a 120-250 studs y su `Torso.Transform` (Bestia: `Lomo`) no cambia en 1 s; a menos de 120, sí.
 12. Caminos: un Golpeador (`Prueba:Fire("Ataque", Vector3.new(25, 0, -40))`) o un Acechador por la casa y el bosque
    sigue el camino sin tirones y, si se le pone delante un bloque anclado, recalcula en ≤1 s; sin errores de Caza al
-   amanecer; con 2-3 bichos, menos Pathfinding en el MicroProfiler.
+   amanecer; con 2-3 bichos, menos Pathfinding en el MicroProfiler. Efectos (acechos tras una ventana, cortinas con
+   un cristal roto, cristales que crujen, polvo del techo) sin errores.
+13. Puertas con llave (Config.Test activo): en Server `game.ServerStorage.Prueba:Fire("Abrir")`: las puertas con
+   atributo `Llave` quedan sin bloquear y un bicho que caza cerca de una de ellas la abre enseguida (antes no, hasta que
+   otra cosa vaciaba la lista).
+14. Bestia de noche y tú debajo de la mesa del comedor (-26.1, 3, -15) y de la de la cocina (-19.5, 3, 7): gatea, el
+   brazo barre sin atravesar las patas ni la viga y no se queda rozando el tablero. Las garras de los dos brazos (las 4
+   piezas de 0,16 × 1,4 × 0,16), metidas ~0,15 en el suelo también parada y sin cargar el peso: es así (ver el banco).
+
+## Números a ojo
+
+- `LEJOS_RENDIMIENTO` 120 (con Rendimiento, hasta dónde se animan). Luz de la Bestia al gatear: brillo 0,5, a menos de
+  14 studs, alcance 4,5. `CERCA_SUSTO` 16 (sin modelo en el remote Muerte). Caza: `RUTA_VIDA` 1 s y `RUTA_MOVIDO` 3.
 
 ## Pendiente
 
