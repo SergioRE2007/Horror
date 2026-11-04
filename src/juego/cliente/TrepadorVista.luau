@@ -1050,10 +1050,29 @@ local function hollin(cf: CFrame, cuanto: number, hacia: Vector3)
 	end)
 end
 
+-- Para MuerteVista (quién te ha pillado, PosturaReglas.quienPilla): los Trepadores a menos de 12 de `punto` (la
+-- cara del susto), sin tocarlos: su modelo, a cuánto tiene la cabeza de `punto` y dónde estaba el escondido a por
+-- el que gatea (si gatea).
+function TrepadorVista.candidatos(punto: Vector3): { { modelo: Model, distancia: number, gatea: Vector3? } }
+	local lista = {}
+	for _, b in bichos do
+		if (b.raiz.Position - punto).Magnitude < 12 then
+			local cara = if b.cabeza.Parent then b.cabeza.Position else b.raiz.Position
+			table.insert(lista, {
+				modelo = b.modelo,
+				distancia = (cara - punto).Magnitude,
+				gatea = b.gatea and b.gatea.punto,
+			})
+		end
+	end
+	return lista
+end
+
 -- Chilla con las patas de delante en alto (el susto al morir; si gateaba, aplastado). Devuelve el Trepador cerca de
 -- `punto`, si hay.
-function TrepadorVista.rugir(punto: Vector3): Model?
-	local b = cercano(punto, 12)
+-- `modelo`: el que ha elegido MuerteVista (si no es un Trepador, nada); sin él, el más cerca de `punto`.
+function TrepadorVista.rugir(punto: Vector3, modelo: Model?): Model?
+	local b = if modelo then bichos[modelo] else cercano(punto, 12)
 	if b then
 		b.chillido = os.clock()
 		if b.gatea then

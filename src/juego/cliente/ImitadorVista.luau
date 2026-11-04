@@ -16,7 +16,7 @@
 --   de golpe se pega a ella, la cara llenando la mirilla (Sobresalto y un golpe sordo en la puerta), y al rato da un
 --   golpecito junto a ella. Una vez por llamada; si vuelves a mirar en la misma, se queda doblado delante de la
 --   mirilla, mirándote, sin moverse. La pose sale de cuentas (cinemática inversa del cuello).
--- ImitadorVista.rugir(punto): para el susto al morir.
+-- ImitadorVista.candidatos(punto) y rugir(punto, modelo): para el susto al morir.
 -- Un solo bucle (Stepped) mientras haya alguno; solo cerca de la cámara.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -1120,8 +1120,27 @@ local function cercano(punto: Vector3, maximo: number): Bicho?
 	return mejor
 end
 
-function ImitadorVista.rugir(punto: Vector3): Model?
-	local b = cercano(punto, 12)
+-- Para MuerteVista (quién te ha pillado, PosturaReglas.quienPilla): los Imitadores a menos de 12 de `punto` (la
+-- cara del susto), sin tocarlos: su modelo, a cuánto tiene la cabeza de `punto` y dónde estaba el escondido a por
+-- el que gatea (si gatea).
+function ImitadorVista.candidatos(punto: Vector3): { { modelo: Model, distancia: number, gatea: Vector3? } }
+	local lista = {}
+	for _, b in bichos do
+		if (b.raiz.Position - punto).Magnitude < 12 then
+			local cara = if b.cabeza.Parent then b.cabeza.Position else b.raiz.Position
+			table.insert(lista, {
+				modelo = b.modelo,
+				distancia = (cara - punto).Magnitude,
+				gatea = b.gateo and b.gateo.punto,
+			})
+		end
+	end
+	return lista
+end
+
+-- `modelo`: el que ha elegido MuerteVista (si no es un Imitador, nada); sin él, el más cerca de `punto`.
+function ImitadorVista.rugir(punto: Vector3, modelo: Model?): Model?
+	local b = if modelo then bichos[modelo] else cercano(punto, 12)
 	if b then
 		b.chillido = os.clock()
 		return b.modelo
