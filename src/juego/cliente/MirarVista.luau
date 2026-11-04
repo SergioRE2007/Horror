@@ -1630,11 +1630,6 @@ local function probar(tipo: string)
 	end
 end
 
--- Qué se está mirando ahora ("Mirilla", "Ventana" o nil), para otros módulos.
-function MirarVista.mirando(): string?
-	return if activo then activo.el.tipo else nil
-end
-
 function MirarVista.start()
 	for etiqueta, preparar in { Puerta = prepararPuerta, Ventana = prepararVentana } do
 		CollectionService:GetInstanceAddedSignal(etiqueta):Connect(function(modelo)

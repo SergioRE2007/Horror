@@ -540,15 +540,4 @@ end
 -- Un tirón de linterna y luces corto (para cuando algo desaparece).
 Util.CORTE = { { 0.05, 0.07 }, { 1, 0.05 }, { 0, 0.22 }, { 0.5, 0.04 }, { 0, 0.07 }, { 1, 0.01 } }
 
--- Quita una figura o pieza poco a poco.
-function Util.desvanecer(modelo: Instance, segundos: number)
-	local TweenService = game:GetService("TweenService")
-	for _, d in modelo:GetDescendants() do
-		if d:IsA("BasePart") then
-			TweenService:Create(d, TweenInfo.new(segundos), { Transparency = 1 }):Play()
-		end
-	end
-	task.delay(segundos, modelo.Destroy, modelo)
-end
-
 return Util
