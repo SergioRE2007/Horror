@@ -28,6 +28,10 @@ repo; si hace falta, se rehace.
     si cabe y da golpes de nariz de lado.
   - Con el hueco por debajo de 2,7 no mete la cabeza (el frente del lomo se queda a 3,7 del borde): solo el brazo.
   - No mete la cabeza en lo que choque a su altura (patas de la mesa, la viga de la cocina): rayos de lado al empezar.
+    Así, por la punta del comedor con el jugador al fondo, la cara se queda antes de las patas (a ~5,6 de él).
+  - Los rayos miden lo que choca (Mapa: el tablero al 90 %), pero la malla que se ve sale 0,28 (lados) y 0,65 (puntas)
+    más: por eso el lomo se queda a 0,9 del borde medido, lo alto a 0,9 al echarse atrás y, al bajar fuera del borde,
+    la cara también fuera de la malla.
   - Si te pilla (`rugir`, `b.pilla`): se queda aplastada 2,5 s con la boca abierta del todo (0,55) y temblando.
   - Al dejarlo se levanta por el mismo camino y **se queda echada atrás** hasta que echa a andar (de vuelta en su
     sitio, la pose de siempre metería los brazos por el tablero: ver Riesgos); mientras, su vida de espera sigue.
@@ -36,6 +40,16 @@ repo; si hace falta, se rehace.
   - Sonidos: al aplastarse, `Paso` grave fuerte, temblor y gruñido; en cada tirón, `Aranazo` en la mano, `Cruje` en el
     borde y un temblor flojo; al olfatear, resoplido y vaho (de noche). Con Rendimiento: sin arañar, sin temblor de la
     cabeza ni olfateo, y solo el golpe (con su temblor) y los arañazos.
+
+- Banco de Lune (38 casos, todos bien; 2 pasadas): mesa del comedor por el lado y por la punta, cocina, con el borde a
+  1,5, 3 y 5 de la raíz; diagonales 27º y 45º, de cara al mueble; mesa baja de mentira (hueco 2,4); donde la deja el
+  servidor (a 3 de la zona Debajo: comedor +X, -X, punta, punta con el jugador al fondo; cocina de frente y de lado);
+  con y sin Rendimiento; la cámara debajo; cortado a 0,3 y 1,1 s; te pilla. Mira contra la malla del tablero, no la
+  caja que choca. Resultado: sin NaN; nada atraviesa el tablero ni el suelo en ningún fotograma (aplastarse, tirones,
+  levantarse y echada atrás), salvo lo que ya atravesaba su pose de siempre al empezar, que se quita en ≤0,1 s; saltos
+  ≤0,75 studs por fotograma; garras a 1,4-1,75 de ti (2,1 si la cara se queda antes de las patas), la cara a 1,15
+  (2,1 por la punta), mirándote; boca 0,31 al llegar y 0,55 si te pilla. `selene` y `lune run tests/regressions.luau`
+  en verde.
 
 ## Falta
 
