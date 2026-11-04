@@ -15,7 +15,7 @@
 --   Gatea (atributos Gatea y GateaHora en su modelo, del servidor): a por quien se esconde debajo de un mueble. Se
 --   echa atrás, se aplasta fuera del borde y mete por debajo la cabeza, ladeada y mirándote, y el brazo derecho, que
 --   barre el suelo de lado a tirones hasta pasarte las garras al lado (ver "gatear", abajo).
--- BestiaVista.candidatos(punto) y rugir(punto, modelo): para el susto al morir (como los demás bichos).
+-- BestiaVista.rugir(punto, modelo): para el susto al morir (como los demás bichos).
 -- Un solo bucle (Stepped) mientras haya alguna; el temblor de la cámara, atado solo mientras tiembla y nunca con la
 -- cámara en Scriptable (cinemáticas, escondite, mirilla).
 local Debris = game:GetService("Debris")
@@ -1145,26 +1145,8 @@ local function cercano(punto: Vector3, maximo: number): Bicho?
 	return mejor
 end
 
--- Para MuerteVista (quién te ha pillado, PosturaReglas.quienPilla): las Bestias a menos de 14 de `punto` (la cara
--- del susto), sin tocarlos: su modelo, a cuánto tiene la cabeza de `punto` y dónde estaba el escondido a por el que
--- gatea (si gatea).
-function BestiaVista.candidatos(punto: Vector3): { { modelo: Model, distancia: number, gatea: Vector3? } }
-	local lista = {}
-	for _, b in bichos do
-		if (b.raiz.Position - punto).Magnitude < 14 then
-			local cara = if b.cabeza.Parent then b.cabeza.Position else b.raiz.Position
-			table.insert(lista, {
-				modelo = b.modelo,
-				distancia = (cara - punto).Magnitude,
-				gatea = b.gateo and b.gateo.punto,
-			})
-		end
-	end
-	return lista
-end
-
 -- Abre la boca del todo unos segundos (el susto al morir). Devuelve la Bestia con la cabeza cerca de `punto`, si hay.
--- `modelo`: el que ha elegido MuerteVista (si no es una Bestia, nada); sin él, el más cerca de `punto`.
+-- `modelo`: el que te pilla (lo trae el remote Muerte; si no es una Bestia, nada); sin él, el más cerca de `punto`.
 function BestiaVista.rugir(punto: Vector3, modelo: Model?): Model?
 	local b = if modelo then bichos[modelo] else cercano(punto, 14)
 	if b then

@@ -419,24 +419,8 @@ local function cercano(punto: Vector3, maximo: number): Bicho?
 	return mejor
 end
 
--- Para MuerteVista (quién te ha pillado, PosturaReglas.quienPilla): los Acechadores a menos de 16 de `punto` (la
--- cara del susto), sin tocarlos: su modelo y a cuánto tiene la cabeza de `punto` (no gatea).
-function AcechadorVista.candidatos(punto: Vector3): { { modelo: Model, distancia: number, gatea: Vector3? } }
-	local lista = {}
-	for _, b in bichos do
-		if (b.raiz.Position - punto).Magnitude < 16 then
-			local cara = if b.cabeza.Parent then b.cabeza.Position else b.raiz.Position
-			table.insert(lista, {
-				modelo = b.modelo,
-				distancia = (cara - punto).Magnitude,
-			})
-		end
-	end
-	return lista
-end
-
 -- La cabeza está muy alta: se busca por cualquier punto cercano a ella.
--- `modelo`: el que ha elegido MuerteVista (si no es un Acechador, nada); sin él, el más cerca de `punto`.
+-- `modelo`: el que te pilla (lo trae el remote Muerte; si no es un Acechador, nada); sin él, el más cerca de `punto`.
 function AcechadorVista.rugir(punto: Vector3, modelo: Model?): Model?
 	local b = if modelo then bichos[modelo] else cercano(punto, 16)
 	if b then
