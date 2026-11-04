@@ -1103,6 +1103,8 @@ do
 	igual(PR.alcanceOido(8, false, false), 8, "esconderse: de pie te oyen como siempre")
 	igual(PR.alcanceOido(8, true, false), math.min(8, CP.OirAgachado), "esconderse: agachado te oyen peor")
 	igual(PR.alcanceOido(8, true, true), math.min(8, CP.VerCubierto), "esconderse: debajo de algo casi no te oyen")
+	igual(PR.alcanceOido(1, true, true), 1, "esconderse: nunca más lejos que su oído")
+	igual(PR.alcanceOido(1, true, false), 1, "esconderse: agachado, tampoco")
 	local olor = 0
 	for _ = 1, 10 do
 		olor = PR.oler(olor, 0.25, CP.Olfato - 1)
@@ -1118,6 +1120,32 @@ do
 		"esconderse: cubierto se nota menos que agachado, y agachado menos que de pie")
 	igual(CP.Huele > 0 and CP.Gatear > 0 and CP.VistaAgachado > 0 and CP.VistaAgachado < 1, true,
 		"esconderse: tiempos y vista razonables")
+end
+
+do -- Caza.borde: por dónde se mete el bicho debajo de un mueble (sacada del texto: Caza necesita Roblox)
+	local roblox = require("@lune/roblox")
+	local V3, CF = roblox.Vector3, roblox.CFrame
+	local fuente = fs.readFile("src/juego/servidor/Caza.luau")
+	local i = string.find(fuente, "function Caza.borde(", 1, true)
+	local _, f = string.find(fuente, "\r?\nend\r?\n", i)
+	local borde = luau.load("local Caza = {}\n" .. string.sub(fuente, i, f) .. "\nreturn Caza.borde",
+		{ debugName = "Caza.borde", environment = { Vector3 = V3, CFrame = CF } })()
+	local caja, tam, lejos = CF.new(0, 1.3, 0), V3.new(4, 2.6, 6), V3.new(0, 3, -40)
+	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5), V3.new(4.5, 0, 0.5), "debajo: el lado más cercano, a ras de suelo")
+	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5, function(b) return b.X < 2 end), V3.new(1, 0, -5.5),
+		"debajo: pared en ese lado, el siguiente (nunca a través de ella)")
+	igual(borde(caja, tam, V3.new(1.5, 1, 0.5), lejos, 2.5, function(b) return not (b.X > 2 and b.Z > -1) end),
+		V3.new(4.5, 0, -1), "debajo: entre sillas, se corre a lo largo del lado")
+	igual((borde(caja, tam, V3.zero, lejos, 2.5, function() return false end)), nil, "debajo: sin sitio, nada")
+	-- Girada y en otro sitio: lo mismo, girado con ella.
+	local girada = CF.new(-25.5, 1.3, -15) * CF.Angles(0, math.pi / 2, 0)
+	local b2 = borde(girada, tam, girada:PointToWorldSpace(V3.new(1.5, -0.3, 0.5)), girada:PointToWorldSpace(lejos), 2.5)
+	igual((b2 - girada:PointToWorldSpace(V3.new(4.5, -1.3, 0.5))).Magnitude < 1e-4, true, "debajo: mueble girado, borde girado")
+	-- Lado más corto que las dos patas: en medio. Y la cara, en la boca del hueco frente a él.
+	local estrecha = V3.new(1.5, 2.6, 6)
+	local b3, c3 = borde(caja, estrecha, V3.new(0, 1, 2.9), lejos, 2.5, function(b) return b.Z > 3.5 end)
+	igual(b3, V3.new(0, 0, 5.5), "debajo: lado corto, en medio")
+	igual(c3, V3.new(0, 0, 3), "debajo: la cara, en la boca del hueco")
 end
 
 print(`Todo bien: {comprobaciones} comprobaciones.`)
