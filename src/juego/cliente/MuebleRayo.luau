@@ -11,7 +11,8 @@ local CollectionService = game:GetService("CollectionService")
 local MuebleRayo = {}
 
 -- `pieza`: el mueble (para el tablero) o la caja Choque. Nunca la zona: su nombre "Debajo" no cuenta como techo.
-export type Caja = { cf: CFrame, medio: Vector3, pieza: Instance }
+-- `bajo` y `alto`: las esquinas de la caja sin girar que la contiene (para descartarla deprisa).
+export type Caja = { cf: CFrame, medio: Vector3, pieza: Instance, bajo: Vector3, alto: Vector3 }
 export type Golpe = { Position: Vector3, Instance: Instance, Distance: number }
 
 local SALIENTE = 2 -- si el pivote del mueble no cuadra: lo que más sobresale un tablero de su zona (1,96 el comedor)
@@ -38,18 +39,37 @@ function MuebleRayo.tablero(zona: BasePart): (CFrame, Vector3)
 	return cf, tam
 end
 
--- Lo que choca de los muebles a menos de `radio` de `punto` (en planta). Una vez por gateo: recorre la casa.
+local function caja(cf: CFrame, medio: Vector3, pieza: Instance): Caja
+	local x, y, z = cf.XVector * medio.X, cf.YVector * medio.Y, cf.ZVector * medio.Z
+	local ancho = Vector3.new(
+		math.abs(x.X) + math.abs(y.X) + math.abs(z.X),
+		math.abs(x.Y) + math.abs(y.Y) + math.abs(z.Y),
+		math.abs(x.Z) + math.abs(y.Z) + math.abs(z.Z)
+	)
+	return { cf = cf, medio = medio, pieza = pieza, bajo = cf.Position - ancho, alto = cf.Position + ancho }
+end
+
+-- Lo que choca de los muebles a menos de `radio` de `punto` (en planta, y en su planta de la casa). Una vez por
+-- gateo: recorre la casa.
 function MuebleRayo.cajas(punto: Vector3, radio: number): { Caja }
 	local lista: { Caja } = {}
 	local function cerca(pos: Vector3, tam: Vector3): boolean
 		return Vector3.new(pos.X - punto.X, 0, pos.Z - punto.Z).Magnitude < radio + tam.Magnitude / 2
+			and math.abs(pos.Y - punto.Y) < 8 + tam.Magnitude / 2
 	end
 	local casas: { [Instance]: boolean } = {}
+	local vistos: { [Instance]: boolean } = {}
 	for _, zona in CollectionService:GetTagged("Debajo") do
 		if zona:IsA("BasePart") and cerca(zona.Position, zona.Size) then
-			local cf, tam = MuebleRayo.tablero(zona)
 			local mueble = zona.Parent
-			table.insert(lista, { cf = cf, medio = tam / 2, pieza = mueble or zona })
+			if mueble and vistos[mueble] then
+				continue -- otra zona del mismo mueble: el mismo tablero
+			end
+			local cf, tam = MuebleRayo.tablero(zona)
+			table.insert(lista, caja(cf, tam / 2, mueble or zona))
+			if mueble then
+				vistos[mueble] = true
+			end
 			local casa = mueble and mueble.Parent
 			if casa then
 				casas[casa] = true
@@ -59,7 +79,7 @@ function MuebleRayo.cajas(punto: Vector3, radio: number): { Caja }
 	for casa in casas do
 		for _, pieza in casa:GetChildren() do
 			if pieza.Name == "Choque" and pieza:IsA("BasePart") and cerca(pieza.Position, pieza.Size) then
-				table.insert(lista, { cf = pieza.CFrame, medio = pieza.Size / 2, pieza = pieza })
+				table.insert(lista, caja(pieza.CFrame, pieza.Size / 2, pieza))
 			end
 		end
 	end
@@ -111,10 +131,18 @@ function MuebleRayo.rayo(origen: Vector3, direccion: Vector3, filtro: RaycastPar
 		mejor = { Position = mundo.Position, Instance = mundo.Instance, Distance = (mundo.Position - origen).Magnitude }
 	end
 	local largo = direccion.Magnitude
-	for _, caja in cajas do
-		local t = MuebleRayo.entra(caja, origen, direccion)
+	local fin = origen + direccion
+	local x0, x1 = math.min(origen.X, fin.X), math.max(origen.X, fin.X)
+	local y0, y1 = math.min(origen.Y, fin.Y), math.max(origen.Y, fin.Y)
+	local z0, z1 = math.min(origen.Z, fin.Z), math.max(origen.Z, fin.Z)
+	for _, c in cajas do
+		-- Deprisa: si la caja sin girar que la contiene no cruza la del rayo, no la toca (el Trepador lanza cientos).
+		if c.alto.X < x0 or c.bajo.X > x1 or c.alto.Y < y0 or c.bajo.Y > y1 or c.alto.Z < z0 or c.bajo.Z > z1 then
+			continue
+		end
+		local t = MuebleRayo.entra(c, origen, direccion)
 		if t and (mejor == nil or t * largo < mejor.Distance) then
-			mejor = { Position = origen + direccion * t, Instance = caja.pieza, Distance = t * largo }
+			mejor = { Position = origen + direccion * t, Instance = c.pieza, Distance = t * largo }
 		end
 	end
 	return mejor
