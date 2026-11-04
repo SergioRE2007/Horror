@@ -159,7 +159,7 @@ local function ataque(a: Ataque)
 
 	local function sigue(): boolean
 		local rr = raizDe(presa)
-		return not b.prisa and b.modelo ~= nil and rr ~= nil and table.find(Muerte.vivos(), presa) ~= nil
+		return not b.prisa and b.modelo ~= nil and rr ~= nil and Muerte.vivo(presa)
 			and not aSalvo(rr.Position) and Muerte.escondite(presa) == nil
 			and not workspace:GetAttribute("Bestia") -- la noche final solo está ella
 	end
@@ -290,7 +290,7 @@ local function vigilar()
 	local activo = oscuro() and not Partida.terminada() and not workspace:GetAttribute("Bestia") -- la noche final solo sale ella
 	for _, jugador in Players:GetPlayers() do
 		local r = raizDe(jugador)
-		local expuesto = activo and r ~= nil and not aSalvo(r.Position) and table.find(Muerte.vivos(), jugador) ~= nil
+		local expuesto = activo and r ~= nil and not aSalvo(r.Position) and Muerte.vivo(jugador)
 		if not expuesto or siguiendo(jugador) then
 			fuera[jugador] = 0
 			espera[jugador] = nil
