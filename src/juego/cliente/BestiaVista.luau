@@ -26,6 +26,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
 
 local BestiaVista = {}
@@ -405,6 +406,7 @@ end
 -- El borde del mueble entre la raíz y `punto` (en planta, desde la raíz) y lo alto de su hueco: rayos hacia arriba
 -- cada medio stud, por el medio y a cada lado (lo que mete: la cabeza y el brazo). Sin nada que choque, a ojo. Y lo
 -- primero que choca a lo ancho de la cabeza hacia ti (las patas de la mesa, la viga de la de la cocina): rayos de lado.
+-- Los muebles no se ven con rayos (CanQuery false): MuebleRayo, con el tablero hasta el borde que se ve.
 local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 	local suelo = b.raiz.Position - Vector3.new(0, ALTURA, 0)
 	local hacia = plano(punto - suelo)
@@ -422,13 +424,14 @@ local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 		end
 	end
 	techo.FilterDescendantsInstances = ignorar
+	local muebles = MuebleRayo.cajas(suelo, largo + 8)
 	local u = hacia.Unit
 	local lado = u:Cross(Vector3.yAxis)
 	-- El borde más cercano (por si la mesa está torcida) y el hueco más bajo.
 	local borde, alto = math.huge, math.huge
 	for _, x in { 0, -1.5, 1.5, -3, 3 } do -- (a ±3, lo ancho del lomo y los hombros)
-		local function arriba(d: number): RaycastResult?
-			return workspace:Raycast(suelo + u * d + lado * x + Vector3.new(0, 0.2, 0), Vector3.new(0, 4.3, 0), techo)
+		local function arriba(d: number): MuebleRayo.Golpe?
+			return MuebleRayo.rayo(suelo + u * d + lado * x + Vector3.new(0, 0.2, 0), Vector3.new(0, 4.3, 0), techo, muebles)
 		end
 		for d = 0, math.min(largo, borde), 0.5 do
 			local r = arriba(d)
@@ -454,7 +457,7 @@ local function medirMueble(b: Bicho, punto: Vector3): (number, number, number)
 	local pata = math.huge
 	for _, x in { GATEO.CabezaX - 1.3, GATEO.CabezaX, GATEO.CabezaX + 1.3 } do
 		for _, y in { 0.5, 1.4, 2.3 } do
-			local r = workspace:Raycast(suelo + lado * x + Vector3.new(0, y, 0), u * largo, techo)
+			local r = MuebleRayo.rayo(suelo + lado * x + Vector3.new(0, y, 0), u * largo, techo, muebles)
 			if r then
 				pata = math.min(pata, plano(r.Position - suelo):Dot(u))
 			end
