@@ -148,8 +148,8 @@ end
 -- Lo que hay que bajar la vista (desde los ojos de pie, a la altura `ojoPie`) para no meter la cámara en lo que haya
 -- encima del punto (x, z): el tablero de un mueble (sus zonas Debajo, PosturaVista.techoDebajo: lo que choca de los
 -- muebles no se ve con rayos) o lo demás (un rayo: el hueco de una escalera, una viga). El rayo sale de la altura de
--- la raíz (`desdeY`), que agachado queda siempre por debajo de lo que tapa (la banda de PosturaVista no deja que se
--- meta nada ahí). 0 si no hay nada a esa altura.
+-- la raíz (`desdeY`), que agachado queda siempre por debajo de lo que tapa (la raíz encogida de PosturaVista choca
+-- hasta Config.Postura.Alto y no deja que se meta nada ahí). 0 si no hay nada a esa altura.
 local function techoEn(punto: Vector3, desdeY: number, ojoPie: number): number
 	local tope = ojoPie + ATRAS + CERCA_TECHO
 	if tope <= desdeY then

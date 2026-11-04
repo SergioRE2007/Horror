@@ -1,5 +1,5 @@
 -- Agacharse y asomarse (14.6, pedido por el usuario: "cuerpo: agacharse (botón también en el móvil) y asomarse por las
--- esquinas"). Solo cuerpo y cámara: los bichos no lo notan.
+-- esquinas"). Aquí, cuerpo y cámara; los bichos lo saben por el servidor (atributos Agachado y Cubierto, Postura).
 --   Agacharse: C o Ctrl izquierdo (alterna), B en el mando y el botón AGACHARSE en el móvil (Hud.EquipoBotones,
 --   LayoutOrder 6), que se enciende mientras estás agachado. Saltar levanta (y subir por una escalera o sentarse).
 --   Asomarse: mantener Z (izquierda) o X (derecha), solo con teclado. Con la mochila abierta, no. Mirando por la
@@ -13,12 +13,14 @@
 --   de ese suelo), solo para ti.
 -- El cuerpo agachado (R15; pedido por el usuario, 03-11-2026: "agacharte también debería servir para esconderte, por
 -- ejemplo debajo de mesas... que sea útil agacharte es la finalidad"):
---   Agachado, nada de tu cuerpo choca (grupo de colisión GRUPO, que registra el servidor en Postura) salvo una banda
---   invisible con la planta de la raíz que va de PASO_LIBRE a Config.Postura.Alto studs del suelo: cabes bajo un
---   tablero algo más alto y entras andando agachado. Por debajo de la banda no choca nada, así que los peldaños de 1 se
---   siguen subiendo agachado (con la raíz chocando, a esa altura, no se podía). El HipHeight baja hasta dejar la raíz
---   justo encima de PASO_LIBRE: los demás te ven más bajo (BrazosVista dobla las piernas lo que de verdad ha bajado).
---   Lo lleva este cliente, que es el dueño de la física de su personaje (nada de esto se replica).
+--   Agachado, de tu cuerpo solo choca la raíz (HumanoidRootPart), encogida: va de PASO_LIBRE a Config.Postura.Alto
+--   studs del suelo, así que cabes bajo un tablero algo más alto y entras andando agachado. Lo demás pasa al grupo de
+--   colisión GRUPO (no choca con nada; lo registra el servidor en Postura). La raíz se queda en su grupo: el sensor de
+--   suelo del Humanoid usa el grupo de la raíz, y en GRUPO no vería el suelo (caería sobre lo que chocara y andaría
+--   en Freefall). Por si la raíz no chocara (CanCollide lo lleva el Humanoid), una banda invisible soldada con su misma
+--   caja. Por debajo de PASO_LIBRE no choca nada, así que los peldaños de 1 se siguen subiendo agachado. El HipHeight
+--   baja a PASO_LIBRE y la raíz encoge a la vez: los demás te ven más bajo (BrazosVista dobla las piernas lo que de
+--   verdad ha bajado). Lo lleva este cliente, que es el dueño de la física de su personaje (nada de esto se replica).
 --   Para levantarte (C otra vez, saltar, una escalera, sentarte) tienes que caber de pie (una caja hacia arriba desde
 --   la raíz hasta la coronilla de pie): si no, sigues agachado y sin poder saltar, con un golpecito contra lo de arriba
 --   (Cruje flojo y la cámara da un respingo, en CuerpoVista). Si el servidor te quita Agachado estando debajo, el cuerpo
@@ -55,10 +57,10 @@ local SUELO: { [Enum.Material]: string } = { -- como en Pasos
 local QUE = { "Agachado", "Asomar" }
 -- El cuerpo agachado (ver la cabecera).
 local GRUPO = "Agachado" -- grupo de colisión que no choca con nada (lo registra el servidor, Postura)
-local PASO_LIBRE = 1.1 -- studs del suelo hasta donde empieza la banda que choca: lo de debajo se sube andando
+local PASO_LIBRE = 1.1 -- studs del suelo hasta donde empieza lo que choca (la raíz): lo de debajo se sube andando
 local CUERPO_VEL = 4 -- studs por segundo que baja o sube el cuerpo (HipHeight) al agacharte o levantarte
 local MIRAR_ARRIBA = 0.1 -- s que vale lo mirado hacia arriba (si cabes de pie)
-local ALERO = 0.4 -- studs que el tablero de un mueble sobresale de su zona Debajo (se mira eso de más alrededor)
+local ALERO = 0.4 -- studs de más alrededor de una zona Debajo cuyo mueble no tiene medidas (atributo Tam)
 local ESQUINAS = { { 0, 0 }, { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } } -- de la planta de la raíz, al mirar si cabes
 local HOLGURA_PIE = 0.1 -- studs de más sobre la coronilla al mirar si cabes de pie
 local TOPE_CADA = 0.6 -- s como poco entre dos golpecitos contra lo de arriba
@@ -73,9 +75,13 @@ type Cuerpo = {
 	pie: number, -- HipHeight de pie (el del servidor)
 	bajo: number, -- HipHeight agachado
 	puesto: number, -- el HipHeight puesto ahora (va de uno a otro a CUERPO_VEL)
-	banda: BasePart?, -- lo único que choca agachado (solo existe en este cliente)
+	abajo: boolean, -- con el cuerpo de agachado puesto (grupos, raíz encogida y banda)
+	alto: number, -- Size.Y de la raíz de pie
+	altoBajo: number, -- y agachado (de bajo a Config.Postura.Alto)
+	banda: BasePart?, -- la caja de la raíz, por si la raíz no chocara (solo existe en este cliente)
 	grupos: { [BasePart]: string }, -- el grupo de colisión que tenía cada pieza antes de agacharte
 	alAnadir: RBXScriptConnection?,
+	alQuitar: RBXScriptConnection?,
 	sinSalto: boolean, -- se le ha quitado saltar (no cabe de pie)
 }
 
@@ -100,6 +106,9 @@ local arriba = RaycastParams.new()
 arriba.FilterType = Enum.RaycastFilterType.Exclude
 arriba.RespectCanCollide = true -- cortinas y hojas no cuentan
 local zonas: { BasePart } = {} -- las zonas "Debajo" de los muebles (Mapa), que este cliente tiene siempre
+-- Lo que tapa el tablero de cada zona, en sus ejes: { x1, x2, z1, z2 }, medido con su CFrame de entonces.
+type Techo = { cf: CFrame, x1: number, x2: number, z1: number, z2: number }
+local techos: { [BasePart]: Techo } = {}
 
 -- Lo que se ve ahora (para CuerpoVista).
 function PosturaVista.agachado(): boolean
@@ -116,10 +125,16 @@ function PosturaVista.bajo(): boolean
 	return estado.agachado or atascado
 end
 
--- Studs que ha bajado ahora el cuerpo (el HipHeight): la cámara baja eso de menos.
+-- Studs que ha bajado ahora el cuerpo: la cámara baja eso de menos. El HipHeight y lo que ha encogido la raíz, que
+-- baja su centro la mitad y la cabeza que pone la cámara de Roblox otro tanto (con AutomaticScalingEnabled la cabeza va
+-- a 1,5 + (Size.Y - 2) / 2 del centro; si no, a 1,5 fijo).
 function PosturaVista.cuerpo(): number
 	local c = cuerpo
-	return if c then math.max(0, c.pie - c.puesto) else 0
+	if not c then
+		return 0
+	end
+	local encoge = if c.abajo then math.max(0, c.alto - c.raiz.Size.Y) else 0
+	return math.max(0, c.pie - c.puesto) + encoge * (if c.hum.AutomaticScalingEnabled then 1 else 0.5)
 end
 
 -- Cuándo te diste por última vez con lo de arriba al querer levantarte (os.clock), para el respingo de la cámara.
@@ -127,18 +142,48 @@ function PosturaVista.tope(): number
 	return ultimoTope
 end
 
+-- Lo que tapa el tablero de una zona Debajo, en los ejes de la zona. Las zonas van solo entre las patas y el tablero
+-- sobresale (en la mesa del comedor, 1,96 por las puntas y 0,7 por los lados largos, y por ahí se pasa agachado): se
+-- saca de las medidas del mueble (su atributo Tam, con el pivote abajo en el centro, como en Mapa) y, si no cuadran,
+-- ALERO de más alrededor.
+local function techoDe(zona: BasePart): Techo
+	local t = techos[zona]
+	if t and t.cf == zona.CFrame then
+		return t
+	end
+	local medio = zona.Size / 2
+	local x1, x2, z1, z2 = -medio.X - ALERO, medio.X + ALERO, -medio.Z - ALERO, medio.Z + ALERO
+	local mueble = zona.Parent
+	local tam = if mueble and mueble:IsA("Model") then mueble:GetAttribute("Tam") else nil
+	if mueble and typeof(tam) == "Vector3" then
+		local pivote = (mueble :: Model):GetPivot()
+		-- La zona va girada como el mueble (Mapa la pone en sus ejes) y apoyada en su suelo.
+		if pivote.XVector:Dot(zona.CFrame.XVector) > 0.99 and pivote.YVector:Dot(zona.CFrame.YVector) > 0.99 then
+			local centro = pivote:PointToObjectSpace(zona.Position)
+			if math.abs(centro.Y - medio.Y) < 0.1 and tam.Y > zona.Size.Y then
+				x1, x2 = math.min(x1, -tam.X / 2 - centro.X), math.max(x2, tam.X / 2 - centro.X)
+				z1, z2 = math.min(z1, -tam.Z / 2 - centro.Z), math.max(z2, tam.Z / 2 - centro.Z)
+			end
+		end
+	end
+	local nuevo = { cf = zona.CFrame, x1 = x1, x2 = x2, z1 = z1, z2 = z2 }
+	techos[zona] = nuevo
+	return nuevo
+end
+
 -- La cara de abajo del tablero que hay encima de `punto` (su x y su z; su y, la altura desde la que se mira, para no
 -- contar la mesa de otro piso), si lo hay. Las zonas Debajo de Mapa van del suelo a esa cara, y lo que choca de los
--- muebles no se puede mirar con rayos (CanQuery false, para no tapar la vista a los bichos): se miran a mano, con ALERO
--- de más alrededor por lo que sobresale el tablero. Lo usan cabeDePie y la cámara (CuerpoVista).
+-- muebles no se puede mirar con rayos (CanQuery false, para no tapar la vista a los bichos): se miran a mano, con todo
+-- lo que tapa el tablero (techoDe). Lo usan cabeDePie, la cámara (CuerpoVista) y el cuerpo de los demás (BrazosVista).
 function PosturaVista.techoDebajo(punto: Vector3): number?
 	local mas: number? = nil
 	for _, zona in zonas do
 		local rel = zona.CFrame:PointToObjectSpace(punto)
 		local medio = zona.Size / 2
+		local t = techoDe(zona)
 		-- (de un poco por debajo del suelo de la zona a un poco por encima del tablero: un avatar muy grande lleva la
 		-- raíz más alta que el hueco)
-		if math.abs(rel.X) <= medio.X + ALERO and math.abs(rel.Z) <= medio.Z + ALERO
+		if rel.X >= t.x1 and rel.X <= t.x2 and rel.Z >= t.z1 and rel.Z <= t.z2
 			and rel.Y >= -medio.Y - 1 and rel.Y <= medio.Y + 1.5 then
 			local y = zona.CFrame:PointToWorldSpace(Vector3.new(0, medio.Y, 0)).Y
 			mas = if mas then math.min(mas, y) else y
@@ -249,7 +294,7 @@ end
 -- empezar (una pared al lado) no cuenta. Vale MIRAR_ARRIBA s.
 local function cabeDePie(): boolean
 	local c = cuerpo
-	if not c or (not c.banda and c.puesto >= c.pie - 1e-3) then
+	if not c or (not c.abajo and c.puesto >= c.pie - 1e-3) then
 		return true
 	end
 	local ahora = os.clock()
@@ -259,11 +304,13 @@ local function cabeDePie(): boolean
 	cabeHora = ahora
 	local raiz = c.raiz
 	local cabeza = c.personaje:FindFirstChild("Head")
-	-- De pie, la coronilla: el centro de la cabeza (donde la pone la cámara de Roblox) y media cabeza.
-	local coronilla = 1.5 + (raiz.Size.Y - 2) / 2 + (if cabeza and cabeza:IsA("BasePart") then cabeza.Size.Y / 2 else 0.6)
+	-- De pie, la coronilla: el centro de la cabeza (donde la pone la cámara de Roblox) y media cabeza. Con la raíz de
+	-- pie (agachado está encogida y su centro, más abajo).
+	local alto = if c.abajo then c.alto else raiz.Size.Y
+	local coronilla = 1.5 + (alto - 2) / 2 + (if cabeza and cabeza:IsA("BasePart") then cabeza.Size.Y / 2 else 0.6)
 	arriba.FilterDescendantsInstances = { c.personaje, workspace.CurrentCamera :: Instance }
 	local caja = Vector3.new(raiz.Size.X * 0.9, 0.1, raiz.Size.Z * 0.9)
-	local subir = (c.pie - c.puesto) + coronilla + HOLGURA_PIE
+	local subir = (c.pie + alto / 2) - (c.puesto + raiz.Size.Y / 2) + coronilla + HOLGURA_PIE
 	cabeVisto = workspace:Blockcast(raiz.CFrame, caja, Vector3.new(0, subir, 0), arriba) == nil
 	-- Y los tableros de los muebles (no se ven con rayos): ni el centro ni las esquinas de la planta debajo de uno.
 	if cabeVisto then
@@ -303,60 +350,89 @@ local function puedeLevantarse(): boolean
 	return false
 end
 
+-- Todo el cuerpo a GRUPO salvo la raíz (lo que choca: ver la cabecera) y su banda.
 local function aGrupo(c: Cuerpo, parte: Instance)
-	if parte:IsA("BasePart") and parte ~= c.banda and c.grupos[parte] == nil then
+	if parte:IsA("BasePart") and parte ~= c.raiz and parte ~= c.banda and c.grupos[parte] == nil then
 		c.grupos[parte] = parte.CollisionGroup
 		parte.CollisionGroup = GRUPO
 	end
 end
 
--- La banda que choca: la planta de la raíz, de PASO_LIBRE a Config.Postura.Alto del suelo con el cuerpo ya abajo. Se
--- apunta en c.banda antes de colgarla del personaje (si no, alAnadir la metería también en GRUPO y no chocaría).
+-- La raíz de `alto` de alto, con la planta en el mismo sitio (el Humanoid la pone a HipHeight del suelo); la banda,
+-- igual que ella.
+local function altoRaiz(c: Cuerpo, alto: number)
+	local raiz = c.raiz
+	if math.abs(raiz.Size.Y - alto) > 1e-4 then
+		raiz.Size = Vector3.new(raiz.Size.X, alto, raiz.Size.Z)
+	end
+	local banda = c.banda
+	if banda and banda.Size ~= raiz.Size then
+		banda.Size = raiz.Size
+	end
+end
+
+-- La banda: la misma caja que la raíz (soldada en su centro, y altoRaiz la cambia con ella), por si la raíz no chocara.
+-- Se apunta en c.banda antes de colgarla del personaje (si no, alAnadir la metería también en GRUPO y no chocaría).
 local function crearBanda(c: Cuerpo)
 	local raiz = c.raiz
-	local alto = Config.Postura.Alto - PASO_LIBRE
 	local banda = Instance.new("Part")
 	banda.Name = "PosturaBanda"
-	banda.Size = Vector3.new(raiz.Size.X, alto, raiz.Size.Z)
+	banda.Size = raiz.Size
 	banda.Transparency = 1
 	banda.CastShadow = false
 	banda.CanCollide = true
 	banda.CanQuery = false
 	banda.CanTouch = false
 	banda.Massless = true
-	banda.CollisionGroup = c.grupos[raiz] or raiz.CollisionGroup -- el que tenía la raíz ("Personajes")
+	banda.CollisionGroup = raiz.CollisionGroup -- el de la raíz ("Personajes")
 	local union = Instance.new("Weld")
 	union.Part0 = raiz
 	union.Part1 = banda
-	union.C0 = CFrame.new(0, (PASO_LIBRE + Config.Postura.Alto) / 2 - (c.bajo + raiz.Size.Y / 2), 0)
 	union.Parent = banda
-	banda.CFrame = raiz.CFrame * union.C0
+	banda.CFrame = raiz.CFrame
 	c.banda = banda
 	banda.Parent = c.personaje
 end
 
--- Abajo: nada del cuerpo choca y la banda sí.
+-- Abajo: del cuerpo solo chocan la raíz (que irá encogiendo) y su banda.
 local function bajarCuerpo(c: Cuerpo)
 	if c.puesto >= c.pie - 1e-3 then
-		-- De pie del todo: el HipHeight de pie se vuelve a mirar (el avatar puede haber cambiado de tamaño).
+		-- De pie del todo: el HipHeight y la raíz de pie se vuelven a mirar (el avatar puede haber cambiado de tamaño).
 		c.pie = c.hum.HipHeight
 		c.puesto = c.pie
 		c.bajo = math.min(PASO_LIBRE, c.pie) -- un avatar tan bajito que ya cabe no baja
+		c.alto = c.raiz.Size.Y
 	end
+	-- Agachado, la raíz llega a Config.Postura.Alto (sin crecer: un avatar bajito ya cabe).
+	c.altoBajo = math.min(c.alto, math.max(0.2, Config.Postura.Alto - c.bajo))
+	c.abajo = true
 	for _, parte in c.personaje:GetDescendants() do
 		aGrupo(c, parte)
 	end
 	c.alAnadir = c.personaje.DescendantAdded:Connect(function(parte)
 		aGrupo(c, parte)
 	end)
+	-- Lo que sale del personaje (una herramienta que se suelta) vuelve a su grupo: en GRUPO caería por el suelo.
+	c.alQuitar = c.personaje.DescendantRemoving:Connect(function(parte)
+		local pieza = parte :: BasePart
+		local grupo = c.grupos[pieza]
+		if grupo then
+			c.grupos[pieza] = nil
+			pieza.CollisionGroup = grupo
+		end
+	end)
 	crearBanda(c)
 end
 
--- De pie otra vez: todo vuelve a chocar como antes y la banda se va.
+-- De pie otra vez: todo vuelve a chocar como antes, la raíz a su tamaño y la banda se va.
 local function soltarCuerpo(c: Cuerpo)
 	if c.alAnadir then
 		c.alAnadir:Disconnect()
 		c.alAnadir = nil
+	end
+	if c.alQuitar then
+		c.alQuitar:Disconnect()
+		c.alQuitar = nil
 	end
 	for parte, grupo in c.grupos do
 		if parte.Parent then
@@ -367,6 +443,10 @@ local function soltarCuerpo(c: Cuerpo)
 	if c.banda then
 		c.banda:Destroy()
 		c.banda = nil
+	end
+	if c.abajo then
+		c.abajo = false
+		altoRaiz(c, c.alto)
 	end
 end
 
@@ -386,7 +466,7 @@ local function cuidarCuerpo(dt: number)
 	if not c.hum.Parent or c.hum.Health <= 0 or jugador:GetAttribute("Escondido") ~= nil then
 		-- Muerto o escondido (el servidor te ancla y te mueve): todo a su sitio al momento.
 		atascado = false
-		if c.banda or c.puesto ~= c.pie then
+		if c.abajo or c.puesto ~= c.pie then
 			soltarCuerpo(c)
 			c.puesto = c.pie
 			c.hum.HipHeight = c.pie
@@ -394,16 +474,16 @@ local function cuidarCuerpo(dt: number)
 		quitarSalto(c, false)
 		return
 	end
-	if not c.banda and not estado.agachado then
+	if not c.abajo and not estado.agachado then
 		return -- de pie y sin nada que hacer
 	end
-	if not c.banda and not grupoListo() then
+	if not c.abajo and not grupoListo() then
 		return -- sin el grupo del servidor no se puede: solo la cámara (CuerpoVista), como antes
 	end
 	-- Queriendo estar de pie con el cuerpo abajo, solo si cabes.
 	atascado = not estado.agachado and not cabeDePie()
 	local abajo = estado.agachado or atascado
-	if abajo and not c.banda then
+	if abajo and not c.abajo then
 		bajarCuerpo(c)
 	end
 	local meta = if abajo then c.bajo else c.pie
@@ -411,6 +491,12 @@ local function cuidarCuerpo(dt: number)
 		local paso = CUERPO_VEL * dt
 		c.puesto = if math.abs(meta - c.puesto) <= paso then meta else c.puesto + math.sign(meta - c.puesto) * paso
 		c.hum.HipHeight = c.puesto
+	end
+	if c.abajo then
+		-- La raíz encoge a la vez que baja el HipHeight (y crece al subir): su tapa va de la de pie a Config.Postura.Alto.
+		local recorrido = c.pie - c.bajo
+		local k = if recorrido > 1e-3 then math.clamp((c.pie - c.puesto) / recorrido, 0, 1) else 1
+		altoRaiz(c, c.alto + (c.altoBajo - c.alto) * k)
 	end
 	if not abajo and c.puesto >= c.pie - 1e-3 then
 		soltarCuerpo(c) -- ya de pie del todo
@@ -431,9 +517,13 @@ local function prepararCuerpo(personaje: Model, hum: Humanoid)
 		pie = hum.HipHeight,
 		bajo = math.min(PASO_LIBRE, hum.HipHeight),
 		puesto = hum.HipHeight,
+		abajo = false,
+		alto = raiz.Size.Y,
+		altoBajo = raiz.Size.Y,
 		banda = nil,
 		grupos = {},
 		alAnadir = nil,
+		alQuitar = nil,
 		sinSalto = false,
 	}
 end
@@ -645,6 +735,7 @@ function PosturaVista.start()
 		if i then
 			table.remove(zonas, i)
 		end
+		techos[zona :: any] = nil
 	end)
 	RunService.Heartbeat:Connect(function(dt)
 		sincronizar()
