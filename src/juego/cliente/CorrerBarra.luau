@@ -128,32 +128,44 @@ end
 -- Lo de Roblox ----------------------------------------------------------------------------------------------------
 
 export type Barra = {
-	marco: Frame, -- la raya de fondo (posición y tamaño)
-	lleno: Frame, -- el relleno, centrado
+	marco: Frame, -- el hueco (Hud.Aguante, invisible): posición y el alto de la barra latiendo del todo
+	fondo: Frame, -- la raya de fondo, centrada en el hueco (su alto, en Scale: late sin saltos de píxel)
+	lleno: Frame, -- el relleno, centrado en la raya
 	pintado: Pintura?, -- lo último pintado (para no tocar nada si no cambia)
 	negro: Color3, -- el del fondo
 	hueso: Color3, -- el color de la barra...
 	rojo: Color3, -- ...y el de poco aguante
 }
 
--- Crea la barra colgada del HUD (escondida hasta que CorrerBarra.mover la enseñe).
+-- Crea la barra colgada del HUD (escondida hasta que CorrerBarra.mover la enseñe). El hueco mide lo que la barra
+-- latiendo del todo y la raya va centrada dentro con su alto en Scale: el Offset de un UDim es un entero, y con él el
+-- latido (de 4 a 6 px) saltaba de píxel en píxel y casi nunca llegaba arriba.
 function CorrerBarra.nueva(): Barra
 	local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 	local hud = Ui.hud()
 	local tactil = Ui.tactil()
+	local hueco = ALTO * (1 + ENGORDA)
 	local marco = Instance.new("Frame")
 	marco.Name = "Aguante"
 	marco.AnchorPoint = Vector2.new(0.5, 1)
-	marco.Size = UDim2.new(ANCHO, 0, 0, ALTO)
-	marco.BackgroundColor3 = Ui.Color.Negro
+	marco.Size = UDim2.new(ANCHO, 0, 0, hueco)
 	marco.BackgroundTransparency = 1
 	marco.BorderSizePixel = 0
 	marco.Active = false -- no quita toques ni clics
 	marco.Visible = false
 	marco.ZIndex = 5
+	local fondo = Instance.new("Frame")
+	fondo.Name = "Fondo"
+	fondo.AnchorPoint = Vector2.new(0.5, 0.5)
+	fondo.Position = UDim2.fromScale(0.5, 0.5)
+	fondo.Size = UDim2.fromScale(1, ALTO / hueco)
+	fondo.BackgroundColor3 = Ui.Color.Negro
+	fondo.BackgroundTransparency = 1
+	fondo.BorderSizePixel = 0
+	fondo.ZIndex = 5
 	local esquina = Instance.new("UICorner")
 	esquina.CornerRadius = UDim.new(1, 0)
-	esquina.Parent = marco
+	esquina.Parent = fondo
 	-- Los extremos, gastados: se pierden en el fondo.
 	local gastado = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0.75), NumberSequenceKeypoint.new(0.08, 0.15), NumberSequenceKeypoint.new(0.5, 0),
@@ -161,7 +173,8 @@ function CorrerBarra.nueva(): Barra
 	})
 	local degradado = Instance.new("UIGradient")
 	degradado.Transparency = gastado
-	degradado.Parent = marco
+	degradado.Parent = fondo
+	fondo.Parent = marco
 	local lleno = Instance.new("Frame")
 	lleno.Name = "Lleno"
 	lleno.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -177,16 +190,18 @@ function CorrerBarra.nueva(): Barra
 	local degradado2 = Instance.new("UIGradient")
 	degradado2.Transparency = gastado
 	degradado2.Parent = lleno
-	lleno.Parent = marco
+	lleno.Parent = fondo
 	local function colocar()
-		local abajo = if tactil then Ui.zonaSegura() + ABAJO_MOVIL else ABAJO_PC
-		marco.Position = UDim2.new(0.5, 0, 1, -abajo)
+		-- (el hueco sobresale ALTO · ENGORDA / 2 por abajo: la raya queda a `abajo` del borde)
+		local abajo = (if tactil then Ui.zonaSegura() + ABAJO_MOVIL else ABAJO_PC) - ALTO * ENGORDA / 2
+		marco.Position = UDim2.new(0.5, 0, 1, -math.round(abajo))
 	end
 	colocar()
 	hud:GetPropertyChangedSignal("AbsoluteSize"):Connect(colocar) -- al girar el teléfono cambia la zona segura
 	marco.Parent = hud
 	return {
 		marco = marco,
+		fondo = fondo,
 		lleno = lleno,
 		pintado = nil,
 		negro = Ui.Color.Negro,
@@ -210,9 +225,9 @@ function CorrerBarra.mover(barra: Barra, v: Vista)
 	end
 	barra.pintado = p
 	barra.marco.Visible = p.visible
-	barra.marco.BackgroundTransparency = p.fondo
-	barra.marco.BackgroundColor3 = barra.negro:Lerp(barra.rojo, FONDO_ROJO * p.fondoRojo)
-	barra.marco.Size = UDim2.new(ANCHO, 0, 0, ALTO * p.alto)
+	barra.fondo.BackgroundTransparency = p.fondo
+	barra.fondo.BackgroundColor3 = barra.negro:Lerp(barra.rojo, FONDO_ROJO * p.fondoRojo)
+	barra.fondo.Size = UDim2.fromScale(1, p.alto / (1 + ENGORDA))
 	barra.lleno.BackgroundTransparency = p.relleno
 	barra.lleno.Size = UDim2.fromScale(p.ancho, 1)
 	barra.lleno.BackgroundColor3 = barra.hueso:Lerp(barra.rojo, p.rojo)

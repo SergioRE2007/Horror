@@ -42,6 +42,7 @@ local PARADO_SIN = 2.5 -- y si aún no has echado a correr (para que dé tiempo 
 local TOLERANCIA = 0.03 -- de aguante que se deja separar la predicción del servidor
 local ACERCA = 4 -- por segundo: lo deprisa que la predicción va hacia lo del servidor cuando se separa
 local GRACIA_AGOTADO = 0.4 -- s (más el ping) que se espera a que el servidor confirme que te has agotado
+local REAPARECE = 0.5 -- s (más el ping) tras reaparecer sin hacer caso al Aguante del servidor (el viejo aún llega)
 local SUBE = 1 / 0.25 -- ritmo() por segundo al echar a correr...
 local BAJA = 1 / 0.4 -- ...y al parar
 local TROPIEZO = 1.6 -- s que dura un tropiezo
@@ -73,6 +74,7 @@ local ultimaCarrera = -math.huge
 local tropiezoEn = -math.huge
 local tropiezos = 0 -- el último valor visto del atributo Tropiezo
 local agotoEn = -math.huge
+local reaparecioEn = -math.huge
 local avisado = false -- ya se ha avisado de este agotamiento
 local servidorAgotado = false -- lo último visto del atributo Agotado (para ver cuándo se agota allí)
 local resoplando = false
@@ -326,8 +328,10 @@ local function cada(dt: number)
 		haCorrido, quietoDesde = false, nil
 	end
 
-	-- Lo que quieres: al servidor solo al cambiar; en la predicción, con las mismas reglas.
-	local quiere = shift or alterna
+	-- Lo que quieres: al servidor solo al cambiar; en la predicción, con las mismas reglas. Por la mirilla, las cortinas
+	-- o en una cinemática no se pide (eso solo lo sabe tu cliente: el servidor te haría correr y gastar aguante si te
+	-- mueves); al salir, con Shift aún apretado o lo alternado puesto, se vuelve a pedir.
+	local quiere = (shift or alterna) and not d.vistazo and not d.cine
 	if quiere ~= mandado then
 		mandado = quiere
 		Remotes.Correr:FireServer(quiere)
@@ -340,7 +344,7 @@ local function cada(dt: number)
 	-- Con el servidor: el aguante se le acerca si se separa (más lo que cambia mientras llega su número)...
 	local ping = jugador:GetNetworkPing()
 	local servidor = jugador:GetAttribute("Aguante")
-	if type(servidor) == "number" and dt > 0 then
+	if type(servidor) == "number" and dt > 0 and ahora - reaparecioEn > REAPARECE + ping then
 		local cambia = math.abs(estado.aguante - antes.aguante) / dt
 		local margen = TOLERANCIA + cambia * (ping + C.Publicar)
 		local dif = servidor - estado.aguante
@@ -419,6 +423,7 @@ local function conPersonaje()
 	estado = CorrerReglas.reaparecer(estado)
 	reposo()
 	empezo, ultimaCarrera, agotoEn, avisado = -math.huge, -math.huge, -math.huge, false
+	reaparecioEn = os.clock() -- el Aguante del servidor de antes de morir puede llegar aún: que no tire de la barra
 	vista = CorrerBarra.reposo()
 end
 
