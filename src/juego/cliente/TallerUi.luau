@@ -32,6 +32,7 @@ local filas: { { texto: TextLabel, boton: TextButton } } = {}
 local banco: Model? = nil
 local ocultas: { [number]: boolean } = {} -- recetas del banco abierto que aún no se enseñan (la reja, sin su pista)
 local abierto = 0 -- sube cada vez que se abre o se cierra: el bucle viejo de cerrar se para
+local apagado: ProximityPrompt? = nil -- el prompt del banco abierto, apagado mientras el papel está abierto
 
 local function nombre(tipo: string): string
 	local datos = Config.Objetos[tipo] or Config.Pesados[tipo]
@@ -59,11 +60,31 @@ local function tengo(): { [string]: number }
 	return cuenta
 end
 
+-- Con el papel abierto, el botón WORKBENCH del prompt (Hud.Acciones, en el móvil) asomaba bajo el papel: se apaga solo
+-- en este cliente, como el del vendedor (VendedorUi), y se vuelve a encender al cerrar.
+local function encenderPrompt()
+	if apagado and apagado.Parent then
+		apagado.Enabled = true
+	end
+	apagado = nil
+end
+
+local function apagarPrompt(de: Model)
+	encenderPrompt() -- el de otro banco que siguiera abierto
+	local mando = de:FindFirstChild("Mando")
+	local prompt = mando and mando:FindFirstChildOfClass("ProximityPrompt")
+	if prompt and prompt.Enabled then
+		prompt.Enabled = false
+		apagado = prompt
+	end
+end
+
 local function cerrar()
 	abierto += 1
 	banco = nil
 	panel.Visible = false
 	panel.Modal = false
+	encenderPrompt()
 end
 
 local function pintar()
@@ -110,6 +131,7 @@ local function abrir(nuevo: Model, lista: { number })
 	end
 	titulo.Text = Ui.mayusculas(Lang.t(nil, if nuevo:GetAttribute("Banco") == "Garaje" then "Car workshop" else "Workbench"))
 	pintar()
+	apagarPrompt(nuevo)
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
 	task.spawn(function()

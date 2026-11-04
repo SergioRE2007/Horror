@@ -322,9 +322,11 @@ local function cerrar(avisar: boolean)
 end
 
 local function abrir()
-	-- Lo mismo que mira el servidor (Mochila.abrir): si la rechaza, el atributo no cambia y aquí no se enteraría.
+	-- Lo mismo que mira el servidor (Mochila.abrir): si la rechaza, el atributo no cambia y aquí no se enteraría. Y no
+	-- en la escena de un final (EscenaFinal: la huida o el incendio llevan la cámara): el desenfoque y la mochila 3D
+	-- saldrían en ella. Por la mirilla o las cortinas sí se abre (MirarVista deja de mirar con MochilaAbierta).
 	if abierta or jugador:GetAttribute("Muerto") or jugador:GetAttribute("Escondido") or jugador:GetAttribute("Cargando")
-		or jugador:GetAttribute("Trabajando") then
+		or jugador:GetAttribute("Trabajando") or jugador:GetAttribute("EscenaFinal") then
 		return
 	end
 	abierta = true
@@ -367,7 +369,10 @@ local function crearGui()
 	raiz.Size = UDim2.fromScale(1, 1)
 	raiz.BackgroundTransparency = 1
 	raiz.Visible = false
-	raiz.ZIndex = 20
+	-- Encima del engranaje de Ajustes (ZIndex 25, en la barra de arriba): a 640 × 360 el papel sube hasta la barra y el
+	-- engranaje pintaba sobre su esquina manchada. Se deja el papel ahí (no se baja) para no encoger las casillas, que
+	-- en el móvil van al dedo; con la mochila abierta, tocar el engranaje es tocar fuera y la cierra.
+	raiz.ZIndex = 26
 	raiz.Parent = Ui.hud()
 
 	fondo = Instance.new("TextButton")
@@ -512,6 +517,13 @@ function MochilaUi.start()
 			cerrar(false)
 		elseif not abierta then
 			Remotes.Mochila:FireServer("Abrir", false)
+		end
+	end)
+	-- Empieza la escena de un final (la huida, el incendio) con la mochila abierta: se cierra, como la pistola de
+	-- bengalas (BengalasVista.libre). Si no, el desenfoque, el campo de visión cerrado y la mochila 3D seguían en ella.
+	jugador:GetAttributeChangedSignal("EscenaFinal"):Connect(function()
+		if abierta and jugador:GetAttribute("EscenaFinal") then
+			cerrar(true)
 		end
 	end)
 	UserInputService.InputBegan:Connect(function(entrada, procesado)

@@ -77,6 +77,7 @@ local function lanzarSilueta(d)
 	local huye: number? = nil
 	local lado = d.centro.RightVector * (if azar:NextNumber() < 0.5 then 1 else -1)
 	local hecho = false
+	local sinVentana = { d.ventana } -- lo que no tapa la vista (una vez, no en cada fotograma)
 	Util.temporal(RunService.RenderStepped:Connect(function()
 		local t = os.clock() - t0
 		if huye then
@@ -91,7 +92,7 @@ local function lanzarSilueta(d)
 		end
 		figura.poner(mira, t)
 		local pecho = pies + Vector3.new(0, 5.5, 0)
-		if vista(pecho, 9, { d.ventana }) then
+		if vista(pecho, 9, sinVentana) then
 			vistaDesde = vistaDesde or os.clock()
 			if os.clock() - (vistaDesde :: number) > 0.2 then
 				huye = os.clock()

@@ -22,9 +22,10 @@ local revividos: { [number]: number } = {} -- [UserId] = la noche en que revivi�
 local noche = 0 -- noches de este servidor: sube con cada una, también si se repite al morir todos
 local pendientes: { [Player]: Player } = setmetatable({}, { __mode = "k" }) :: any -- comprador -> a quién revive
 
+-- En un final (la huida o el incendio), no: el personaje nuevo saldría en mitad de la escena.
 local function puede(objetivo: Player): boolean
-	return Recibos.revivible(Ciclo.fase() == "Noche", objetivo:GetAttribute("Muerto") == true, revividos,
-		objetivo.UserId, noche)
+	return not workspace:GetAttribute("Final") and Recibos.revivible(Ciclo.fase() == "Noche",
+		objetivo:GetAttribute("Muerto") == true, revividos, objetivo.UserId, noche)
 end
 
 local function publicar()
@@ -71,6 +72,7 @@ function Revivir.start()
 		end
 		publicar()
 	end)
+	workspace:GetAttributeChangedSignal("Final"):Connect(publicar) -- los botones de revivir, fuera en el final
 	Players.PlayerAdded:Connect(alEntrar)
 	for _, jugador in Players:GetPlayers() do
 		alEntrar(jugador)

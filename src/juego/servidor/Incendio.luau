@@ -27,6 +27,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Recompensas = require(ServerScriptService:WaitForChild("Comun").Recompensas)
 local Viaje = require(ServerScriptService:WaitForChild("Comun").Viaje)
 local Cargar = require(script.Parent.Cargar)
+local Ciclo = require(script.Parent.Ciclo)
 local Golpeador = require(script.Parent.Golpeador)
 local Mochila = require(script.Parent.Mochila)
 local Muerte = require(script.Parent.Muerte)
@@ -41,7 +42,7 @@ local SOTANO = Vector3.new(0, -8, 56)
 -- el fuego aún se está comiendo el tejado y las ventanas de lejos (IncendioVista).
 local ARDE = B.ArdeCasa
 
--- Bestia y Preparativos se cargan en start(): así no hay require en círculo si ellos usan Incendio.ardiendo().
+-- Bestia y Preparativos se cargan en start(): así no hay require en círculo si algún día piden algo a Incendio.
 local Bestia: any
 local Preparativos: any
 local ardiendo = false
@@ -78,11 +79,25 @@ local function terminar()
 		end
 	end
 	Recompensas.finalBestia(B.Cinematica)
+	Muerte.escena(true) -- nadie se vuelve a esconder hasta que acaba la escena
 	for _, j in Players:GetPlayers() do
-		Cargar.soltar(j)
-		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if raiz then
-			raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena
+		-- Los escondidos, fuera del escondite antes de anclarlos (como Coche.huir): si no, su latido sonaba encima de la
+		-- escena y al salir se desanclaban en mitad de ella. Con pcall: que nada deje el final a medias.
+		local ok, fallo = pcall(function()
+			if Muerte.escondite(j) then
+				Muerte.sacar(j)
+			end
+			Cargar.soltar(j)
+			-- La mochila, cerrada: abierta, su desenfoque y la mochila 3D salían delante de la cámara de la escena.
+			j:SetAttribute("MochilaAbierta", nil)
+			Cargar.ajustarVelocidad(j)
+			local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if raiz then
+				raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena
+			end
+		end)
+		if not ok then
+			warn("[Incendio] preparar la escena: " .. tostring(fallo))
 		end
 	end
 	Remotes.Incendio:FireAllClients("Final", B.Cinematica)
@@ -94,6 +109,7 @@ local function terminar()
 			raiz.Anchored = false
 		end
 	end
+	Muerte.escena(false) -- después de desanclar: mientras se espera el viaje, quietos y sin esconderse
 end
 
 -- La cerilla al rastro. `forzado` (modo de pruebas): sin jugador ni comprobaciones.
@@ -136,6 +152,11 @@ local function prender(jugador: Player?, forzado: boolean?)
 		-- Que los clientes lo apaguen y que quien entre después no lo vea prender otra vez.
 		mensaje = nil
 		Remotes.Incendio:FireAllClients("Apagar")
+		-- Si ha amanecido mientras corría, el Director no revivió a nadie (había Final): se revive ahora, o los muertos
+		-- se pasaban el día entero sin personaje. De noche, nada: reviven al amanecer (o al volver a empezar el día).
+		if Ciclo.fase() == "Dia" then
+			Muerte.revivirTodos()
+		end
 		return -- no hay nada que devolver: la cerilla no se ha gastado
 	end
 	-- Ahora sí se gasta (si se ha ido o la ha soltado, nada: la partida acaba igual con este final).
@@ -150,10 +171,6 @@ end
 -- Partida: qué hacer al terminar así (dar la partida por terminada con final = "Bestia" y guardarla).
 function Incendio.alTerminar(fn: () -> ())
 	alTerminar = fn
-end
-
-function Incendio.ardiendo(): boolean
-	return ardiendo
 end
 
 function Incendio.start()

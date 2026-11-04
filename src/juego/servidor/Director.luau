@@ -164,7 +164,11 @@ function Director.start()
 			Imitador.irse()
 			Acechador.irse()
 			Bestia.irse()
-			Muerte.revivirTodos()
+			-- En un final (la huida o el incendio) no: el personaje nuevo no estaría escondido ni quieto para la escena.
+			-- Si el incendio fracasa y quita Final ya de día, revive él a todos (Incendio).
+			if not workspace:GetAttribute("Final") then
+				Muerte.revivirTodos()
+			end
 		else
 			noche(turno, n)
 		end

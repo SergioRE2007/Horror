@@ -20,8 +20,18 @@
 --   apoyan en la pared (ManosGestos), por debajo de todo lo demás.
 -- Se esconden muerto, escondido, con la mochila abierta, en tercera persona o en las cinemáticas (cámara Scriptable),
 -- salvo los gestos con `siempre` (el susto al morir).
+-- Correr (14.8, pedido por el usuario: "todo animado e inmersivo"; las cuentas, en ManosCorrer): lo que llevas en la
+-- mano (capas de 10 o más que no van pegadas) va y viene con cada paso, y tiembla: corriendo, un golpe en cada pisada
+-- y traqueteo; muy cansado, un temblor fino; sin correr y muy cansado, sube y baja con la respiración; al tropezar, da
+-- un tirón hacia abajo. El temblor va después del muelle (si no, se lo comería) y Manos.dondeCosa lo cuenta: la luz de
+-- la linterna tiembla con la mano. La zancada (Manos.fasePaso) es la de CuerpoVista y Pasos. Con Rendimiento, nada de
+-- esto (salvo el tirón al tropezar).
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+
+local CorrerVista = require(script.Parent.CorrerVista)
+local CuerpoVista = require(script.Parent.CuerpoVista)
+local ManosCorrer = require(script.Parent.ManosCorrer)
 
 local Manos = {}
 
@@ -83,8 +93,15 @@ type Brazo = {
 	l1: number, -- largos (los del avatar)
 	l2: number,
 	cosa: string?,
+	tiembla: number, -- cuánto temblor lleva (0: ninguno; lo que se mece, si lleva algo)
 }
 local brazos: { [string]: Brazo } = {}
+local SOSTENER = 10 -- desde esta prioridad, la capa sostiene algo (la linterna): con vaivén y temblor al correr
+local SEMILLA = { der = 1.7, izq = 5.3 } -- del temblor de cada mano (que no tiemblen igual)
+local fasePaso = 0 -- la zancada: pi por paso (como CuerpoVista y Pasos)
+local respiro = 0 -- la fase de la respiración
+local agitado = 0 -- de 0 a 1, lo que se corre (ritmo × lo deprisa que vas), para el temblor
+local cansado = 0 -- de 0 a 1, el cansancio para el temblor (0 con Rendimiento o escondidas)
 local modelo: Model
 local piezas: { BasePart } = {}
 local sitios: { CFrame } = {}
@@ -125,6 +142,7 @@ local function brazoSencillo(lado: string): Brazo
 		l1 = L1,
 		l2 = L2,
 		cosa = nil,
+		tiembla = 0,
 	}
 end
 
@@ -176,6 +194,7 @@ local function brazoDelAvatar(personaje: Model, lado: string): Brazo?
 		l1 = L1,
 		l2 = L2,
 		cosa = nil,
+		tiembla = 0,
 	}
 end
 
@@ -288,15 +307,35 @@ function Manos.cosa(nombre: string, crear: () -> Model, enMano: CFrame)
 	cosas[nombre] = { crear = crear, enMano = enMano, modelo = nil, partes = {}, rel = {} }
 end
 
--- Dónde está ahora esa cosa respecto a la cámara (nil si no está en la mano). Para la luz de la linterna.
+-- La palma de ese brazo con su temblor a los `t` s (os.clock), en la cámara.
+local function conTemblor(lado: string, b: Brazo, t: number): CFrame
+	if b.tiembla <= 0 or (agitado <= 0 and cansado <= 0) then
+		return b.rel
+	end
+	return ManosCorrer.aplicar(b.rel, Vector3.zero, ManosCorrer.temblor(t, fasePaso, agitado, cansado, SEMILLA[lado])
+		* b.tiembla)
+end
+
+-- Dónde está ahora esa cosa respecto a la cámara (nil si no está en la mano). Para la luz de la linterna: con el
+-- temblor de ahora (EquipoVista pone la luz justo después de las manos en cada fotograma y así van juntas).
 function Manos.dondeCosa(nombre: string): CFrame?
 	for _, lado in LADOS do
 		local b = brazos[lado]
 		if b and visible and b.cosa == nombre then
-			return b.rel * cosas[nombre].enMano
+			return conTemblor(lado, b, os.clock()) * cosas[nombre].enMano
 		end
 	end
 	return nil
+end
+
+-- La zancada (pi por paso; una pisada cada vez que su seno pasa por 0), para bracear al ritmo de los pasos.
+function Manos.fasePaso(): number
+	return fasePaso
+end
+
+-- La fase de la respiración (más deprisa cuanto más cansado), para las manos libres agotado.
+function Manos.respiro(): number
+	return respiro
 end
 
 -- Dónde está ahora la palma de esa mano en el mundo (nil si no se ve). Para lo que va hacia la mano.
@@ -473,7 +512,29 @@ local balanceo = 0
 local avisadas: { [string]: boolean } = {}
 local camaraAntes: CFrame? = nil
 local inercia = Vector3.zero -- las manos se quedan un poco atrás al girar la cámara
+-- Correr: la zancada, la respiración y lo que tiembla, antes de las capas (las de correr los leen).
+local function correr(dt: number, fuera: boolean, hum: Humanoid?)
+	local raiz = hum and hum.RootPart
+	local rapidez = 0
+	if raiz then
+		local v = raiz.AssemblyLinearVelocity
+		rapidez = Vector3.new(v.X, 0, v.Z).Magnitude
+	end
+	local enSuelo = hum ~= nil and hum.FloorMaterial ~= Enum.Material.Air
+	if enSuelo and rapidez > 1 then
+		fasePaso = ManosCorrer.fase(fasePaso, rapidez, dt, CuerpoVista.zancada(CorrerVista.ritmo()))
+	end
+	-- Con Rendimiento, ni temblor ni vaivén (como al andar).
+	local quieta = fuera or jugador:GetAttribute("Rendimiento") == true
+	cansado = if quieta then 0 else CorrerVista.cansancio()
+	respiro = (respiro + dt * ManosCorrer.respiracion(cansado)) % (2 * math.pi)
+	agitado = if quieta or not enSuelo then 0 else CorrerVista.ritmo() * ManosCorrer.deprisa(rapidez)
+end
+
 local function paso(dt: number)
+	local hum = jugador.Character and jugador.Character:FindFirstChildOfClass("Humanoid")
+	local fuera = Manos.escondidas()
+	correr(dt, fuera, hum)
 	-- La capa de más prioridad que pida cada mano.
 	local poses: { { prioridad: number, pose: Pose } } = {}
 	for nombre, c in capas do
@@ -488,9 +549,7 @@ local function paso(dt: number)
 	table.sort(poses, function(a, b)
 		return a.prioridad > b.prioridad
 	end)
-	local fuera = Manos.escondidas()
 	local cf = camara.CFrame
-	local hum = jugador.Character and jugador.Character:FindFirstChildOfClass("Humanoid")
 	local andando = hum ~= nil and hum.MoveDirection.Magnitude > 0.1 and hum.WalkSpeed > 0
 	if andando then
 		balanceo += dt * (4 + (hum :: Humanoid).WalkSpeed * 0.35)
@@ -507,6 +566,12 @@ local function paso(dt: number)
 	local meneo = (if andando then CFrame.new(math.sin(balanceo) * 0.025, -math.abs(math.cos(balanceo)) * 0.03, 0)
 		else CFrame.new(0, math.sin(os.clock() * 1.3) * 0.006, 0)) -- respirar
 		* CFrame.new(inercia)
+	-- Lo que llevas en la mano, corriendo, cansado o al tropezar (en la cámara, alrededor de la mano).
+	local despLleva, giroLleva = ManosCorrer.vaiven(fasePaso, agitado)
+	local dRes, gRes = ManosCorrer.respirar(respiro, cansado, 1 - CorrerVista.ritmo())
+	despLleva += dRes
+	giroLleva += gRes
+	local tropiezo = if fuera then nil else CorrerVista.tropiezo()
 
 	table.clear(piezas)
 	table.clear(sitios)
@@ -535,6 +600,19 @@ local function paso(dt: number)
 		local suMeneo = if velocidad == math.huge then CFrame.new() elseif mece >= 1 then meneo
 			else CFrame.new(meneo.Position * mece)
 		local destino = if objetivo then cf:ToObjectSpace(objetivo) * suMeneo else REPOSO[lado]
+		local sostiene = objetivo ~= nil and (duena or 0) >= SOSTENER and velocidad ~= math.huge and not fuera
+		b.tiembla = if sostiene then mece else 0
+		if sostiene then
+			local d, g = despLleva, giroLleva
+			if tropiezo then
+				local dT, gT = ManosCorrer.tropiezoLleva(SIGNO[lado], tropiezo)
+				d += dT
+				g += gT
+			end
+			if d ~= Vector3.zero or g ~= Vector3.zero then
+				destino = ManosCorrer.aplicar(destino, d * mece, g * mece)
+			end
+		end
 		local polo = if codo then cf:VectorToObjectSpace(codo) else POLO[lado]
 		if fuera and not objetivo then
 			b.rel = REPOSO[lado] -- escondidas de golpe: al volver suben desde abajo
@@ -548,8 +626,8 @@ local function paso(dt: number)
 			b.polo = b.polo:Lerp(polo, k)
 		end
 		-- Las dos manos se colocan siempre (la que no se usa, abajo, fuera de la vista: si no, se quedaba donde
-		-- estuvo, flotando en el mundo); el modelo solo se cuelga si alguna se ve.
-		local mano = cf * b.rel
+		-- estuvo, flotando en el mundo); el modelo solo se cuelga si alguna se ve. Con su temblor (después del muelle).
+		local mano = cf * conTemblor(lado, b, os.clock())
 		colocar(lado, b, mano)
 		if objetivo or (b.rel.Position - REPOSO[lado].Position).Magnitude > 0.35 then
 			alguna = true

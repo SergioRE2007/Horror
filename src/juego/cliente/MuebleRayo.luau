@@ -1,10 +1,12 @@
 --!strict
--- Rayos que ven los muebles, para los gateos que miden la mesa con rayos (TrepadorVista y BestiaVista). Las piezas de
--- los muebles y sus cajas "Choque" tienen CanQuery = false (Piezas y Mapa: que no tapen la vista de los bichos ni la
--- linterna), así que workspace:Raycast no las ve nunca: los gateos medían "sin mesa" y se metían por el tablero.
--- `cajas` junta, una vez por gateo, lo que choca cerca: el tablero entero de cada zona Debajo (con el atributo Tam de
--- su mueble, hasta el borde que se ve) y las cajas Choque de su casa (patas, travesaños, otros muebles). `rayo` es
--- workspace:Raycast que además ve esas cajas. Librería sin start().
+-- Rayos que ven los muebles, para los gateos que miden la mesa con rayos (TrepadorVista, BestiaVista y los rayos de
+-- reserva de ImitadorVista), y el tablero de cada zona Debajo (`tablero`, también para GolpeadorVista, ImitadorVista,
+-- RaspadorVista y PosturaVista). Las piezas de los muebles y sus cajas "Choque" tienen CanQuery = false (Piezas y Mapa:
+-- que no tapen la vista de los bichos ni la linterna), así que workspace:Raycast no las ve nunca: los gateos medían
+-- "sin mesa" y se metían por el tablero. `cajas` junta, una vez por gateo, lo que choca cerca: el tablero entero de
+-- cada zona Debajo (con el atributo Tam de su mueble, hasta el borde que se ve) y las cajas Choque de su casa (patas,
+-- travesaños, otros muebles). `rayo` es workspace:Raycast que además ve esas cajas, y `choca` si una caja se mete en
+-- ellas (el brazo de la Bestia, que barre por debajo). Librería sin start().
 
 local CollectionService = game:GetService("CollectionService")
 
@@ -18,8 +20,10 @@ export type Golpe = { Position: Vector3, Instance: Instance, Distance: number }
 local SALIENTE = 2 -- si el pivote del mueble no cuadra: lo que más sobresale un tablero de su zona (1,96 el comedor)
 
 -- El tablero de un mueble con zona Debajo (Mapa, HUECOS): del alto de la zona a lo alto del mueble y hasta los bordes
--- de su Tam. Igual que `cajaTablero` de GolpeadorVista e ImitadorVista. Devuelve su centro y su tamaño.
-function MuebleRayo.tablero(zona: BasePart): (CFrame, Vector3)
+-- de su Tam. Si el mueble no tiene Tam o su pivote no cuadra con la zona (girado, o la zona fuera de él), se da por
+-- hecho que sobresale SALIENTE de la zona por cada lado. Devuelve su centro, su tamaño y si salió del Tam (`medido`).
+-- El único sitio que lo calcula: lo usan los gateos de todos los bichos y el techo de PosturaVista.
+function MuebleRayo.tablero(zona: BasePart): (CFrame, Vector3, boolean)
 	local medio = zona.Size / 2
 	local cf = zona.CFrame * CFrame.new(0, medio.Y + 0.4, 0)
 	local tam = Vector3.new(zona.Size.X + 2 * SALIENTE, 0.8, zona.Size.Z + 2 * SALIENTE)
@@ -34,9 +38,10 @@ function MuebleRayo.tablero(zona: BasePart): (CFrame, Vector3)
 		then
 			cf = pivote * CFrame.new(0, (zona.Size.Y + medida.Y) / 2, 0)
 			tam = Vector3.new(medida.X, medida.Y - zona.Size.Y, medida.Z)
+			return cf, tam, true
 		end
 	end
-	return cf, tam
+	return cf, tam, false
 end
 
 local function caja(cf: CFrame, medio: Vector3, pieza: Instance): Caja
@@ -103,19 +108,19 @@ end
 
 -- Dónde entra en la caja el rayo de `origen` a `origen + direccion`, en partes de `direccion` (0..1); nil si no la
 -- toca. Si empieza dentro, tampoco (como workspace:Raycast).
-function MuebleRayo.entra(caja: Caja, origen: Vector3, direccion: Vector3): number?
-	local o = caja.cf:PointToObjectSpace(origen)
-	local d = caja.cf:VectorToObjectSpace(direccion)
+function MuebleRayo.entra(c: Caja, origen: Vector3, direccion: Vector3): number?
+	local o = c.cf:PointToObjectSpace(origen)
+	local d = c.cf:VectorToObjectSpace(direccion)
 	local desde: number?, hasta = -math.huge, math.huge
-	desde, hasta = franja(o.X, d.X, caja.medio.X, desde :: number, hasta)
+	desde, hasta = franja(o.X, d.X, c.medio.X, desde :: number, hasta)
 	if desde == nil or desde > hasta then
 		return nil
 	end
-	desde, hasta = franja(o.Y, d.Y, caja.medio.Y, desde, hasta)
+	desde, hasta = franja(o.Y, d.Y, c.medio.Y, desde, hasta)
 	if desde == nil or desde > hasta then
 		return nil
 	end
-	desde, hasta = franja(o.Z, d.Z, caja.medio.Z, desde, hasta)
+	desde, hasta = franja(o.Z, d.Z, c.medio.Z, desde, hasta)
 	if desde == nil or desde > hasta or desde < 0 or desde > 1 then
 		return nil
 	end
@@ -146,6 +151,63 @@ function MuebleRayo.rayo(origen: Vector3, direccion: Vector3, filtro: RaycastPar
 		end
 	end
 	return mejor
+end
+
+-- Lo que abulta una caja (centro `cf`, mitad `medio`) a lo largo de `eje`, desde su centro.
+local function radio(cf: CFrame, medio: Vector3, eje: Vector3): number
+	return math.abs(cf.XVector:Dot(eje)) * medio.X + math.abs(cf.YVector:Dot(eje)) * medio.Y
+		+ math.abs(cf.ZVector:Dot(eje)) * medio.Z
+end
+
+-- Si `eje` separa las dos cajas (`d`: de un centro al otro) dejando que se metan `h` studs.
+local function separa(eje: Vector3, d: Vector3, cf: CFrame, medio: Vector3, c: Caja, h: number): boolean
+	return math.abs(d:Dot(eje)) >= radio(cf, medio, eje) + radio(c.cf, c.medio, eje) - h
+end
+
+-- El eje de una caja: 1 = X, 2 = Y, 3 = Z.
+local function eje(cf: CFrame, i: number): Vector3
+	return if i == 1 then cf.XVector elseif i == 2 then cf.YVector else cf.ZVector
+end
+
+-- La primera de las `cajas` en la que la caja `cf` (mitad `medio`) se mete más de `holgura` studs, o nil (por los 15
+-- ejes que separan dos cajas giradas). Para que un brazo que barre no atraviese las patas (BestiaVista). Sin tablas
+-- nuevas: se llama varias veces por fotograma.
+function MuebleRayo.choca(cf: CFrame, medio: Vector3, cajas: { Caja }, holgura: number?): Caja?
+	local h = holgura or 0
+	local ancho = Vector3.new(radio(cf, medio, Vector3.xAxis), radio(cf, medio, Vector3.yAxis), radio(cf, medio, Vector3.zAxis))
+	local bajo, alto = cf.Position - ancho, cf.Position + ancho
+	for _, c in cajas do
+		if c.alto.X < bajo.X + h or c.bajo.X > alto.X - h or c.alto.Y < bajo.Y + h or c.bajo.Y > alto.Y - h
+			or c.alto.Z < bajo.Z + h or c.bajo.Z > alto.Z - h then
+			continue
+		end
+		local d = c.cf.Position - cf.Position
+		local libre = false
+		for i = 1, 3 do
+			if separa(eje(cf, i), d, cf, medio, c, h) or separa(eje(c.cf, i), d, cf, medio, c, h) then
+				libre = true
+				break
+			end
+		end
+		if not libre then
+			for i = 1, 3 do
+				for j = 1, 3 do
+					local x = eje(cf, i):Cross(eje(c.cf, j))
+					if x.Magnitude > 1e-4 and separa(x.Unit, d, cf, medio, c, h) then
+						libre = true
+						break
+					end
+				end
+				if libre then
+					break
+				end
+			end
+		end
+		if not libre then
+			return c
+		end
+	end
+	return nil
 end
 
 return MuebleRayo

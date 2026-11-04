@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Lang = require(ReplicatedStorage.Shared.Lang)
@@ -308,6 +309,19 @@ local function escena(segundos: number, devolver: { () -> () })
 		negro:Destroy()
 	end)
 
+	-- Sin la primera persona de Roblox el puntero del ratón queda suelto: fuera mientras dura (como SalidaVista).
+	local raton = UserInputService.MouseIconEnabled
+	alAcabar(function()
+		UserInputService.MouseIconEnabled = raton
+	end)
+	UserInputService.MouseIconEnabled = false
+	-- La cámara es de la escena: EscenaFinal (solo en este cliente) se lo dice a MuerteVista, MovilUi, MochilaUi y
+	-- CorrerVista (Final de workspace no vale: en el incendio se pone mientras corre el fuego, mucho antes). Se quita
+	-- siempre al acabar, después de devolver la cámara.
+	jugador:SetAttribute("EscenaFinal", true)
+	alAcabar(function()
+		jugador:SetAttribute("EscenaFinal", nil)
+	end)
 	camara.CameraType = Enum.CameraType.Scriptable
 	alAcabar(function()
 		camara.CameraType = Enum.CameraType.Custom

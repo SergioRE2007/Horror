@@ -1163,7 +1163,9 @@ local function pasoVistazo(v: Vistazo, dt: number)
 	local ultimo = v.ultimo
 	if v.camara and (camara.CameraType ~= Enum.CameraType.Scriptable
 		or (ultimo and (camara.CFrame.Position - ultimo.Position).Magnitude > 0.5)) then
-		if RunService:IsStudio() then -- (ojo: execute_luau de Studio devuelve la cámara a Custom si un script la cambia)
+		-- Solo para depurar en Studio, con el atributo MirarDepurar del Workspace (ojo: execute_luau de Studio devuelve
+		-- la cámara a Custom si un script la cambia).
+		if RunService:IsStudio() and workspace:GetAttribute("MirarDepurar") then
 			print("[MirarVista] otro coge la cámara:", camara.CameraType.Name,
 				if ultimo then (camara.CFrame.Position - ultimo.Position).Magnitude else -1)
 		end
@@ -1626,11 +1628,6 @@ local function probar(tipo: string)
 	if mejor then
 		empezar(mejor, true)
 	end
-end
-
--- Qué se está mirando ahora ("Mirilla", "Ventana" o nil), para otros módulos.
-function MirarVista.mirando(): string?
-	return if activo then activo.el.tipo else nil
 end
 
 function MirarVista.start()

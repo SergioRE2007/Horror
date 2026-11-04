@@ -22,6 +22,8 @@ al principio de cada módulo; los que puede querer tocar Sergio, en `Config.Lobb
 | cliente | `Clima` | Niebla, lluvia, salpicaduras, goteo, relámpagos y sonidos de fondo |
 | cliente | `GasolineraVista` | La vida: luces que fallan, puerta automática, faros y limpias, polillas y la sombra entre los árboles |
 | cliente | `SalidaVista` | La cinemática del coche que se va |
+| cliente | `LlegadaVista` | El coche que llega a la plaza tras un viaje (14.9.3) |
+| cliente | `CocheCopia` | Librería de las dos: la copia del coche, su camino de la plaza al carril (`plaza`, `enPlaza`, `curva`), `mover` (un solo BulkMoveTo), `tapar`/`destapar` del de verdad (lo pueden pedir varios a la vez; escondido tampoco choca) y `apartar` |
 
 ## Plano
 
@@ -46,7 +48,11 @@ Etiquetas (CollectionService) y atributos dentro de `workspace.Mapa`:
   PointLight `Brillo`), `Piloto`, `Limpia1`/`Limpia2` (`Eje`, `Normal` hacia fuera del parabrisas), Attachment
   `Escape`, `Rueda` y `Llanta`. Los asientos van invisibles dentro del cuerpo que choca: al saltar, sales por arriba.
 - `Mostrador` (hijo directo de Mapa) con el prompt `Tienda` (lo busca TiendaUi).
-- Atributo local `SaliendoLocal` en el coche real mientras su copia sale (lo pone SalidaVista; GasolineraVista no lo toca).
+- Atributo `Llegada` del coche (lo pone `Coches`): hora del servidor a la que se para en su plaza el coche que llega tras
+  un viaje (nil = nada). Se pone al vaciarse tras el viaje, antes de quitar `Salida`; mientras, el prompt está apagado y
+  `subir()` no deja subir. A la hora vuelve a nil.
+- Atributo local `SaliendoLocal` en el coche real mientras está escondido en ese cliente (`CocheCopia.tapar`, al salir y
+  al llegar; GasolineraVista y Clima no lo tocan). Las copias van en `workspace.CochesSaliendo`.
 
 ## Luz y clima (Clima)
 
@@ -70,15 +76,40 @@ Etiquetas (CollectionService) y atributos dentro de `workspace.Mapa`:
 
 ## Salida (SalidaVista)
 
-- Cuando el coche tiene `Salida` (la cuenta atrás de `Config.Coches.Salida` = 7 s): el coche real se esconde en ese
-  cliente y una copia enciende faros y limpias, tiembla al arrancar, sale de la plaza (con marcha atrás si no cabe)
-  hasta el carril x = 3,5 y acelera hasta 40 studs/s hacia la niebla. Todo según la hora del servidor.
+- Cuando el coche tiene `Salida` (la cuenta atrás de `Config.Coches.Salida` = 7 s, más larga si el carril está ocupado:
+  ver Llegada): el coche real se esconde en ese cliente y una copia enciende faros y limpias, tiembla al arrancar, sale
+  de la plaza (con marcha atrás si no cabe) hasta el carril x = 3,5 y acelera hasta 40 studs/s hacia la niebla. Todo
+  según la hora del servidor.
 - Quien va dentro: interfaz y CoreGui escondidas, dos planos (delante a un lado; detrás siguiéndolo) y fundido a negro
   propio antes de la hora. Se devuelve todo si el servidor para el coche, si te bajas, a los 12 s o si algo falla.
 - Bajarse (saltando o con BAJAR): `CochesUi` te pone de pie junto a la puerta de tu lado (si no cabe, por la otra,
   por detrás o por delante), cuando el asiento ya te ha soltado. Sin eso caías en el suelo del coche, entre las
   puertas que chocan, con la cabeza por el techo (visto en Studio). Lo hace el cliente: desde el servidor el personaje
   volvía dentro y arrastraba el asiento aún soldado.
+- Si la salida no sigue (`Viaje` falla, el dueño se baja; en Studio siempre), al destapar el de verdad
+  `CocheCopia.apartar(modelo, plaza)` pone a un lado al jugador local si está de pie dentro de su caja (el coche vuelve
+  a chocar). No hace nada si otro lo sigue tapando o si el jugador va sentado. La llegada lo llama igual al acabar.
+  Banco `lobby-coche`, los dos casos.
+- Si se han ido de verdad, el coche ya tiene `Llegada` al quitarse `Salida`: la copia sigue hasta la niebla y el de verdad
+  sigue escondido hasta que acaba la llegada (sin que se vea ni un fotograma).
+
+## Llegada (LlegadaVista, 14.9.3)
+
+Pedido por el usuario: el coche de verdad reaparecía de golpe en su plaza al quedar libre. Hecho sin Studio, con el banco
+`tests/bancos/lobby-coche.luau`.
+- Cuando se han ido todos los del viaje, `Coches` pone `Llegada` y otro coche llega por la carretera: 22 s
+  (`Coches.LLEGADA` = `LlegadaVista.DURA`; los últimos 16, `CERCA`, ya delante de las plazas). Aparece entre la niebla
+  en z ≈ +240 por el carril x = 3,5 con los faros, a 30 studs/s; frena 3,2 s (pilotos más rojos), se pasa 2 studs del
+  final de la curva, entra marcha atrás por el camino de salida al revés (sin darle a los de delante y detrás), avanza
+  lo que el que sale da de marcha atrás, 1,2 s al ralentí, apaga y vuelve el de verdad en el mismo sitio.
+- Todo según la hora del servidor (quien entra a medias lo ve donde toca). Lo devuelve siempre: a la hora, si `Llegada`
+  cambia o vuelve a nil y si algo falla (`warn` de `[LlegadaVista]`). Si al acabar estás de pie en la plaza, te aparta
+  (`CocheCopia.apartar`).
+- Carril de uno en uno (`Coches`): delante de las plazas no van dos a la vez. Una `Salida` que pisaría una llegada se
+  retrasa (la cuenta atrás dura más y SalidaVista no arranca hasta entonces) y una `Llegada` espera a la anterior (el
+  que sale ocupa el carril sus primeros 6 s; entre dos, 0,5 s).
+- El motor: el bucle `Config.SonidosLobby.MotorCoche`, con el tono según la velocidad, solo si tiene Id > 0
+  (`Sonido.hay`). Si no, suena el `Arranque` una vez a `CERCA` s de la hora. Con los dos en Id 0 (hoy) no suena nada.
 
 ## Interfaz (CochesUi y TiendaUi)
 
@@ -95,18 +126,23 @@ sin animaciones.
 - Los "¿SEGURO?" y "¿COMPRAR?" no se confirman con un doble toque sin querer: un toque a menos de 0,4 s del anterior
   no cuenta y el botón da un respingo (también en los de Robux, ELEGIR y USAR). Tras confirmar, el botón sigue así
   hasta que responde el servidor.
+- Sentado en un coche, su "Get in" se apaga en ese cliente (si el servidor lo enciende, se vuelve a apagar); al bajarte,
+  vuelve (banco `pulido-2`).
 
 ## Sonidos
 
 - Ya existen y se usan: Viento, Zumbido, Parpadeo, Nevera, NeveraClac, Buho, Lobo, Rama, Ramita.
 - **Faltan** (`Config.SonidosLobby`, para ElevenLabs): Lluvia (bucle), LluviaChapa (bucle en la chapa de la
   marquesina), Trueno (dos o tres), Radio (radio vieja con interferencias, bucle), Campanilla (puerta de la tienda),
-  Arranque (el coche arrancando y saliendo).
+  Arranque (el coche arrancando y saliendo; también el coche que llega si no hay MotorCoche), MotorCoche (motor viejo al
+  ralentí, bucle: el coche que llega).
 
 ## Rendimiento
 
 - Unas 3.250 piezas sin contar los pinos (base 700, coches 465, tienda 1.070, explanada 1.120) y 417 pinos de 2 mallas.
 - Lo pequeño sin sombra y sin chocar; en el cliente, lluvia con 64 emisores como mucho (36 con Rendimiento).
+- Coche que sale o llega: con Rendimiento (salvo el coche en el que vas) o a más de `Config.Lobby.Cerca` studs, la copia
+  solo se mueve, sin ruedas, limpias, humo ni temblor. La que llega, a más de 250 studs (en la niebla), cada 0,25 s.
 
 ## Probar en Studio
 
@@ -119,4 +155,44 @@ sin animaciones.
   USO), coche (fichas, doble toque en NUEVA PARTIDA que no borra, CONTINUAR, cinemática y vuelta de la imagen),
   bajarse saltando (sale junto a la puerta), máquina expendedora y banco en su sitio, sin piezas que se acumulen. Falta:
   emulador de móvil, dos jugadores (el que mira desde fuera), la sombra y Rendimiento.
-- Que no salga ningún `warn` de `[Clima]`, `[Bucle]`, `[Gasolinera]` o `[GasolineraVista]`.
+- Que no salga ningún `warn` de `[Clima]`, `[Bucle]`, `[Gasolinera]`, `[GasolineraVista]` o `[LlegadaVista]`.
+- Coche que llega (14.9, sin probar). En Client,
+  `game.Players.LocalPlayer.Character:PivotTo(CFrame.lookAt(Vector3.new(22, 3.5, 30), Vector3.new(3.5, 2, 90)))`; en
+  Server, `workspace.Coches.Coche2:SetAttribute("Llegada", workspace:GetServerTimeNow() + 22)`: el Coche2 desaparece,
+  la copia sale de la niebla con los faros, entra marcha atrás sin tocar al Coche1 ni al Coche3 y a los 22 s se cambia
+  por el de verdad sin salto; sin "Get in" mientras llega. Repetir con Coche1 y Coche4, con Rendimiento, con 2
+  jugadores (lo ven a la vez) y de pie en la plaza (te aparta).
+- Salida que pasa a llegada (en Server; el de verdad no se ve en ningún momento y la que sale sigue hasta la niebla):
+  ```lua
+  local c = workspace.Coches.Coche3
+  c:SetAttribute("Salida", workspace:GetServerTimeNow() + 7)
+  task.delay(9, function() c:SetAttribute("Llegada", workspace:GetServerTimeNow() + 24); c:SetAttribute("Salida", nil) end)
+  ```
+- Carril ocupado: durante una llegada, arrancar otro coche: su cuenta atrás es más larga y no sale hasta que el otro
+  para. `workspace.CochesSaliendo` vacía al acabar. Sentado en un coche no sale su "Get in"; al bajarte, sí.
+- Antes (en Edit, con el lobby servido en el puerto 34873): que Rojo ha sincronizado,
+  `string.find(<LlegadaVista>.Source, 'Sonido.hay("MotorCoche")')` no da nil.
+- Sonido de la llegada con `MotorCoche` y `Arranque` en Id 0 (hoy): `Coche2` con `Llegada` = ahora + 22 (en Server);
+  en el cliente no hay ningún Attachment `MotorLlegada` en `workspace.Terrain` mientras llega y no sale ningún warn.
+  Para oír el respaldo, en una partida de prueba (sin subirlo) poner en el cliente, antes de que cargue, un Id real a
+  `Config.SonidosLobby.Arranque` con `MotorCoche` en 0: a 16 s de la hora suena el Arranque una vez desde la copia. Con
+  un Id real en `MotorCoche`, suena el bucle y cambia de tono con la velocidad.
+- Salida que no sigue (te aparta): en Server `workspace.Coches.Coche3:SetAttribute("Salida",
+  workspace:GetServerTimeNow() + 7)`; a los 2-3 s, en Client, ponerse de pie en la plaza vacía
+  (`Character:PivotTo(CFrame.new(Carroceria.Position.X, 3, Carroceria.Position.Z))`); antes de la hora, en Server,
+  `SetAttribute("Salida", nil)`. El coche de verdad vuelve a verse y chocar y el personaje queda de pie a un lado (~1,5
+  studs del borde), sin salir lanzado: `Carroceria.CFrame:PointToObjectSpace(raiz.Position)` con |X| mayor que medio
+  ancho del coche. Lo mismo de verdad: subirse como dueño, arrancar y bajarse en la cuenta atrás con otro jugador (Test
+  → Clients 2) de pie en la plaza (en Studio `Viaje.ir` da 'studio': la salida no sigue). Y la llegada (`Llegada` =
+  ahora + 22, de pie en la plaza): a la hora queda a un lado, como antes.
+
+## Números a ojo
+
+- Llegada: 22 s (`Coches.LLEGADA` = `LlegadaVista.DURA`), los últimos 16 delante de las plazas (`CERCA`), 30 studs/s.
+- Carril: el que sale lo ocupa sus primeros 6 s; entre dos, 0,5 s.
+
+## Ideas no hechas
+
+- Repartir el carril por zonas (ahora delante de las plazas va uno a la vez).
+- Luz de marcha atrás y ruido de ruedas mojadas en el coche que llega.
+- Que la copia del coche esquive a quien se le ponga delante (ahora lo atraviesa: no choca).

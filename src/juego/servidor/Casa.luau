@@ -21,6 +21,9 @@ local Casa = {}
 
 local cfg = Config.Casa
 local estados: { [Model]: Defensa.Estado } = {}
+-- La lista de Casa.puertas, hecha una vez (Caza la pide en cada paso de cada bicho): nil = hay que rehacerla (puerta
+-- nueva, abierta con llave o casa importada).
+local puertasSinLlave: { Model }? = nil
 local prompts: { [Model]: { principal: ProximityPrompt, reparar: ProximityPrompt } } = {}
 local gastarLlave: ((jugador: Player, llave: string) -> boolean)? = nil -- lo pone Llaves
 
@@ -107,6 +110,7 @@ local function preparar(el: Model, tipo: string)
 	local e = Defensa.nueva(tipo, cfg)
 	e.bloqueada = el:GetAttribute("Bloqueada") == true
 	estados[el] = e
+	puertasSinLlave = nil
 	local mando = el:WaitForChild("Mando") :: BasePart
 	if tipo == "Puerta" then
 		-- El prompt mide en 3D desde la cadera: con el mando a esa altura, subiendo la escalera del sótano sale un
@@ -134,6 +138,7 @@ local function preparar(el: Model, tipo: string)
 			local llave = el:GetAttribute("Llave")
 			if type(llave) == "string" and gastarLlave and gastarLlave(jugador, llave) then
 				e.bloqueada = false
+				puertasSinLlave = nil
 				Defensa.puerta(e, ahora(), cfg)
 				publicar(el)
 				Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Unlocked."))
@@ -224,15 +229,19 @@ function Casa.abrirPuerta(el: Model): boolean
 	return true
 end
 
--- Puertas que se pueden abrir (sin llave), para que el bicho las abra a su paso.
+-- Puertas que se pueden abrir (sin llave), para que el bicho las abra a su paso. La misma lista cada vez (congelada:
+-- no se puede tocar; quien quiera cambiarla, que haga una copia).
 function Casa.puertas(): { Model }
-	local lista = {}
-	for el, e in estados do
-		if e.tipo == "Puerta" and not e.bloqueada then
-			table.insert(lista, el)
+	if not puertasSinLlave then
+		local lista = {}
+		for el, e in estados do
+			if e.tipo == "Puerta" and not e.bloqueada then
+				table.insert(lista, el)
+			end
 		end
+		puertasSinLlave = table.freeze(lista)
 	end
-	return lista
+	return puertasSinLlave :: { Model }
 end
 
 -- Llaves: cómo se gasta la llave de una puerta cerrada (true si el jugador la llevaba).
@@ -298,6 +307,7 @@ function Casa.importar(t)
 		estados[el] = e
 		publicar(el)
 	end
+	puertasSinLlave = nil -- han podido cambiar las cerradas con llave
 end
 
 -- Clavar un tablón (llevándolo en las manos, R): deja la persiana y el cristal, o la puerta, como nuevos. Se clava por
@@ -412,6 +422,7 @@ function Casa.start()
 				for el, e in estados do
 					if e.bloqueada then
 						e.bloqueada = false
+						puertasSinLlave = nil
 						publicar(el)
 					end
 				end

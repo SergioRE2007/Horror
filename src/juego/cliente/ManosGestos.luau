@@ -20,6 +20,9 @@
 --   Apoyarse (pedido por el usuario: "manos que se apoyan en la pared al pegarte a ella"): pegado a una pared, las
 --     manos libres se apoyan en ella; asomado, la de ese lado se agarra al borde de la esquina o del marco; agachado,
 --     se apoyan encima de lo bajo (una mesa, un mostrador). Es la capa más baja: cualquier otra cosa manda en la mano.
+--   Correr (14.8, pedido por el usuario: "todo animado e inmersivo"; las cuentas en ManosCorrer): las manos libres
+--     bracean al ritmo de los pasos (menos si la otra lleva algo; lo que lleva va y viene y tiembla: Manos); agotado,
+--     asoman abajo y suben y bajan con la respiración; al tropezar, se adelantan para frenar la caída y vuelven.
 -- Las herramientas (hacha, sierra, martillo, llave) las agarra TrabajoVista con su propia capa.
 local CollectionService = game:GetService("CollectionService")
 local PhysicsService = game:GetService("PhysicsService")
@@ -30,7 +33,9 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local CorrerVista = require(script.Parent.CorrerVista)
 local Manos = require(script.Parent.Manos)
+local ManosCorrer = require(script.Parent.ManosCorrer)
 local Sonido = require(script.Parent.Sonido)
 
 local ManosGestos = {}
@@ -1441,6 +1446,72 @@ local function capaPared(): Manos.Pose?
 		meneoDer = meneoDer, meneoIzq = meneoIzq }
 end
 
+-- ===== Correr (14.8) =====
+-- Corriendo, las manos libres bracean (capa "Correr", por debajo de apoyarse y del aire: contra una pared o en el aire
+-- mandan ellas); agotado y ya sin correr, asoman abajo con la respiración. Al tropezar, se adelantan para frenar la
+-- caída (capa "Tropiezo", por encima de la pared y del aire pero no de lo que llevas). Con Rendimiento, sin braceo ni
+-- jadeo (los brazos, como al andar); el tropiezo sí. Escondidas (muerto, escondido, cinemática…), nada: lo mira Manos.
+local CORRER = {
+	prioridad = 3, -- la más baja de todas (debajo de apoyarse, 4)
+	tropiezo = 6, -- encima del aire (5), debajo de la linterna (10)
+	velocidad = 26, -- el muelle del braceo: deprisa, que siga al paso
+	velJadeo = 9, -- agotado, despacio
+	velTropiezo = 24,
+	jadeoSube = 2, -- por segundo: lo deprisa que asoman las manos al agotarte (en ~0,5 s)...
+	jadeoBaja = 1.5, -- ...y que se van
+}
+local jadeo = 0 -- de 0 a 1, lo que asoman las manos libres agotado
+
+local function capaCorrer(dt: number): Manos.Pose?
+	local ritmo = CorrerVista.ritmo()
+	local agotado = CorrerVista.agotado() and not CorrerVista.corriendo()
+	if jugador:GetAttribute("Rendimiento") == true then
+		ritmo, agotado = 0, false
+	end
+	jadeo = if agotado then math.min(1, jadeo + dt * CORRER.jadeoSube) else math.max(0, jadeo - dt * CORRER.jadeoBaja)
+	if ritmo < 0.02 and jadeo <= 0.01 then
+		return nil
+	end
+	local cf = camara.CFrame
+	local fase, respiro, cansancio = Manos.fasePaso(), Manos.respiro(), CorrerVista.cansancio()
+	local pose: Manos.Pose = {
+		velocidad = if ritmo > 0.3 then CORRER.velocidad else CORRER.velJadeo,
+		meneoDer = 0, -- el braceo ya es el meneo
+		meneoIzq = 0,
+	}
+	for _, lado in LADOS do
+		local otro = if lado == "der" then "izq" else "der"
+		local menos = if (Manos.ocupadaPor(otro) or 0) >= 10 then 1 else 0 -- la otra lleva algo (la linterna o más)
+		local pos, dedos, dorso, codo = ManosCorrer.manoLibre(SIGNO[lado], fase, ritmo, jadeo, respiro, cansancio, menos)
+		local mano = Manos.palma(cf * pos, cf:VectorToWorldSpace(dedos), cf:VectorToWorldSpace(dorso))
+		if lado == "der" then
+			pose.der, pose.codoDer = mano, cf:VectorToWorldSpace(codo)
+		else
+			pose.izq, pose.codoIzq = mano, cf:VectorToWorldSpace(codo)
+		end
+	end
+	return pose
+end
+
+local function capaTropiezo(): Manos.Pose?
+	local t = CorrerVista.tropiezo()
+	if not t or ManosCorrer.tropiezo(t) <= 0 then
+		return nil
+	end
+	local cf = camara.CFrame
+	local pose: Manos.Pose = { velocidad = CORRER.velTropiezo, meneoDer = 0, meneoIzq = 0 }
+	for _, lado in LADOS do
+		local pos, dedos, dorso, codo = ManosCorrer.frenar(SIGNO[lado], t)
+		local mano = Manos.palma(cf * pos, cf:VectorToWorldSpace(dedos), cf:VectorToWorldSpace(dorso))
+		if lado == "der" then
+			pose.der, pose.codoDer = mano, cf:VectorToWorldSpace(codo)
+		else
+			pose.izq, pose.codoIzq = mano, cf:VectorToWorldSpace(codo)
+		end
+	end
+	return pose
+end
+
 -- ===== Lo que piden otros módulos =====
 
 -- La foto (EquipoVista, al pedirla): sube la cámara a la cara con las dos manos, da el disparo y la baja.
@@ -1537,6 +1608,8 @@ function ManosGestos.start()
 	Manos.capa("Trepar", 35, capaTrepar)
 	Manos.capa("Aire", 5, capaAire)
 	Manos.capa("Pared", APOYO.prioridad, capaPared)
+	Manos.capa("Correr", CORRER.prioridad, capaCorrer)
+	Manos.capa("Tropiezo", CORRER.tropiezo, capaTropiezo)
 	local escondido = jugador:GetAttribute("Escondido") ~= nil
 	jugador:GetAttributeChangedSignal("Escondido"):Connect(function()
 		local ahora = jugador:GetAttribute("Escondido") ~= nil

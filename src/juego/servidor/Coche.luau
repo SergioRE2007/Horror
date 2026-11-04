@@ -219,11 +219,26 @@ local function huir(jugador: Player)
 		alHuir()
 	end
 	Recompensas.final(C.Cinematica)
+	-- Los escondidos, fuera del escondite antes de anclarlos: si no, su latido y su respiración sonaban encima de la
+	-- escena y con E (o espacio, o B) salían y se desanclaban en mitad de ella. Muerte.sacar es lo mismo que salir;
+	-- con pcall, para que nada deje la huida a medias. Y nadie se vuelve a esconder hasta que acaba (Muerte.escena).
+	Muerte.escena(true)
 	for _, j in Players:GetPlayers() do
-		Cargar.soltar(j)
-		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if raiz then
-			raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena
+		local ok, fallo = pcall(function()
+			if Muerte.escondite(j) then
+				Muerte.sacar(j)
+			end
+			Cargar.soltar(j)
+			-- La mochila, cerrada (como Incendio.terminar): abierta, su desenfoque y la mochila 3D salían en la escena.
+			j:SetAttribute("MochilaAbierta", nil)
+			Cargar.ajustarVelocidad(j)
+			local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if raiz then
+				raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena
+			end
+		end)
+		if not ok then
+			warn("[Coche] preparar la escena: " .. tostring(fallo))
 		end
 	end
 	Remotes.Huida:FireAllClients(C.Cinematica)
@@ -235,6 +250,7 @@ local function huir(jugador: Player)
 			raiz.Anchored = false
 		end
 	end
+	Muerte.escena(false) -- después de desanclar: mientras se espera el viaje, quietos y sin esconderse
 end
 
 local function porton(jugador: Player)

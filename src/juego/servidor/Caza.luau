@@ -11,6 +11,8 @@
 --   su olor de cada uno (`olor`) y, cuando le huele (o le vio meterse), va al borde del mueble (Caza.borde) y gatea a
 --   por él (Caza.aPorDebajo; la Bestia también). Mientras gatea, atributos Gatea (dónde está él) y GateaHora en el
 --   modelo, para el cliente.
+--   Correr hace ruido (14.8, pedido por el usuario: riesgo y premio): con el atributo Corriendo del jugador le oyen
+--   desde Config.Correr.Oido (PosturaReglas.alcanceOido). Lo usan todos los que eligen presa aquí, la Bestia también.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
@@ -87,18 +89,31 @@ local carpeta: Folder?
 -- Un Path por bicho: ComputeAsync espera, y con uno compartido un bicho leía con GetWaypoints el camino que acababa
 -- de calcular otro (con dos ataques a la vez iban a tirones o se atascaban).
 local caminos: { [any]: Path } = setmetatable({}, { __mode = "k" }) :: any
+
+-- El último camino calculado de cada Path: se sigue por sus puntos y solo se rehace si el destino se aleja, pasa
+-- RUTA_VIDA, se acaba o se tapa (Blocked). Antes se calculaba en cada paso (cada 0,25 s, cada 0,15 s el Acechador): con
+-- tres bichos salían 12-20 ComputeAsync por segundo aunque el destino no se moviera.
+type Ruta = { destino: Vector3, hora: number, puntos: { Vector3 }, i: number }
+local rutas: { [Path]: Ruta } = setmetatable({}, { __mode = "k" }) :: any
+local RUTA_VIDA = 1 -- s que vale un camino calculado
+local RUTA_MOVIDO = 3 -- studs que se puede mover el destino sin rehacerlo (o la quinta parte de lo que falta, si es más)
+
 local function caminoDe(bicho: any, alto: number): Path
 	local c = caminos[bicho]
 	if not c then
-		c = PathfindingService:CreatePath({
+		local nuevo = PathfindingService:CreatePath({
 			AgentRadius = 1.6,
 			AgentHeight = alto,
 			AgentCanJump = false,
 			WaypointSpacing = 4,
 		})
-		caminos[bicho] = c
+		nuevo.Blocked:Connect(function()
+			rutas[nuevo] = nil
+		end)
+		caminos[bicho] = nuevo
+		c = nuevo
 	end
-	return c
+	return c :: Path
 end
 
 local filtroVista = RaycastParams.new()
@@ -253,14 +268,28 @@ function Caza.carpeta(): Folder
 end
 
 -- Lo que no estorba en los rayos de por dónde cabe y de si alcanza a alguien: los bichos y todos los personajes.
+-- Devuelve siempre la misma tabla (FilterDescendantsInstances la copia al ponerla): úsala enseguida, no la guardes.
+local ignorarTodos: { Instance } = {}
 local function sinPersonajes(): { Instance }
-	local ignorar: { Instance } = { Caza.carpeta() }
+	table.clear(ignorarTodos)
+	table.insert(ignorarTodos, Caza.carpeta())
 	for _, otro in Players:GetPlayers() do
 		if otro.Character then
-			table.insert(ignorar, otro.Character)
+			table.insert(ignorarTodos, otro.Character)
 		end
 	end
-	return ignorar
+	return ignorarTodos
+end
+
+-- Los bichos y, si se da, un personaje: también la misma tabla siempre, como sinPersonajes.
+local ignorarUno: { Instance } = {}
+local function sinBichos(personaje: Instance?): { Instance }
+	table.clear(ignorarUno)
+	table.insert(ignorarUno, Caza.carpeta())
+	if personaje then
+		table.insert(ignorarUno, personaje)
+	end
+	return ignorarUno
 end
 
 -- ¿Cabe el bicho en `borde` y está del lado de quien está debajo? Por debajo del tablero (lo que choca de los muebles
@@ -329,6 +358,11 @@ end
 
 function Caza.quitar(self: Bicho)
 	vivos[self] = nil
+	local camino = caminos[self]
+	if camino then
+		caminos[self] = nil
+		camino:Destroy() -- y con él su conexión de Blocked
+	end
 	if self.modelo then
 		self.modelo:Destroy()
 		self.modelo = nil
@@ -380,21 +414,40 @@ function Caza.pasoHacia(self: Bicho, destino: Vector3)
 	abrirPuertasCerca(self)
 	local suelo = self:suelo()
 	local altura = Vector3.new(0, self.o.Altura, 0)
-	if math.abs(destino.Y - suelo.Y) < 3 and libre(self.raiz.Position, destino + altura, { Caza.carpeta() }) then
+	local camino = caminoDe(self, self.o.AltoCamino or 8)
+	if math.abs(destino.Y - suelo.Y) < 3 and libre(self.raiz.Position, destino + altura, sinBichos()) then
+		rutas[camino] = nil -- al volver a ir por camino, uno nuevo desde donde esté
 		self.humanoide:MoveTo(destino)
 		return
 	end
-	local camino = caminoDe(self, self.o.AltoCamino or 8)
-	local ok = pcall(function()
-		camino:ComputeAsync(suelo, destino)
-	end)
-	if ok and camino.Status == Enum.PathStatus.Success then
-		for i, punto in camino:GetWaypoints() do
-			if i > 1 and (punto.Position - suelo).Magnitude > 3 then
-				self.humanoide:MoveTo(punto.Position)
-				return
+	local ahora = os.clock()
+	local ruta = rutas[camino]
+	local movido = math.max(RUTA_MOVIDO, plano(destino - suelo).Magnitude / 5)
+	if not ruta or ahora - ruta.hora > RUTA_VIDA or (ruta.destino - destino).Magnitude > movido then
+		ruta = nil
+		rutas[camino] = nil
+		local ok = pcall(function()
+			camino:ComputeAsync(suelo, destino)
+		end)
+		if ok and camino.Status == Enum.PathStatus.Success then
+			local puntos = {}
+			for _, punto in camino:GetWaypoints() do
+				table.insert(puntos, punto.Position)
 			end
+			ruta = { destino = destino, hora = ahora, puntos = puntos, i = 2 }
+			rutas[camino] = ruta
 		end
+	end
+	if ruta then
+		-- Al siguiente punto que no haya alcanzado ya (a más de 3 studs).
+		while ruta.i <= #ruta.puntos and (ruta.puntos[ruta.i] - suelo).Magnitude <= 3 do
+			ruta.i += 1
+		end
+		if ruta.i <= #ruta.puntos then
+			self.humanoide:MoveTo(ruta.puntos[ruta.i])
+			return
+		end
+		rutas[camino] = nil -- acabado: el próximo paso calcula otro
 	end
 	self.humanoide:MoveTo(destino)
 end
@@ -446,7 +499,7 @@ local function debajoDe(self: Bicho, jugador: Player, p: Vector3): Debajo?
 			table.insert(evitar, otro.gateaEn)
 		end
 	end
-	local function libre(b: Vector3, f: Vector3): boolean
+	local function libreBorde(b: Vector3, f: Vector3): boolean
 		for _, e in evitar do
 			if (b - e).Magnitude < 2 then
 				return false
@@ -455,11 +508,11 @@ local function debajoDe(self: Bicho, jugador: Player, p: Vector3): Debajo?
 		return sitioLibre(zona, b, f)
 	end
 	local fuera = self.o.Fuera or FUERA
-	local borde, cara = Caza.borde(zona.CFrame, zona.Size, p, self.raiz.Position, fuera, libre)
+	local borde, cara = Caza.borde(zona.CFrame, zona.Size, p, self.raiz.Position, fuera, libreBorde)
 	if not borde and fuera > FUERA then
 		-- Los que se paran más lejos (Fuera propio): si así no cabe por ningún lado (una pared cerca), a la de todos,
 		-- aunque de pie meta algo el brazo en el tablero. Si no, ni se acercaba.
-		borde, cara = Caza.borde(zona.CFrame, zona.Size, p, self.raiz.Position, FUERA, libre)
+		borde, cara = Caza.borde(zona.CFrame, zona.Size, p, self.raiz.Position, FUERA, libreBorde)
 	end
 	if c then
 		c.zona, c.punto, c.hora, c.borde, c.cara = zona, p, ahora, borde, cara
@@ -480,7 +533,10 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 	local mejor, destino, mejorDistancia, mejorDebajo = nil, nil, math.huge, nil
 	local ojos = self:cabeza()
 	local suelo = self:suelo()
-	for _, jugador in Muerte.vivos() do
+	for _, jugador in Players:GetPlayers() do -- Muerte.vivo y no Muerte.vivos(): sin hacer otra lista en cada vuelta
+		if not Muerte.vivo(jugador) then
+			continue
+		end
 		local sitio, hora = Muerte.escondite(jugador)
 		local suCabeza = cabezaDe(jugador)
 		if sitio then
@@ -501,8 +557,9 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 			local alAlcance = not cubierto or (suRaiz ~= nil and mismoSitio(suelo, suRaiz.Position))
 			local d = (suCabeza.Position - ojos).Magnitude
 			local loVe = alAlcance and d < PosturaReglas.alcanceVista(self.o.Vista, agachado, cubierto)
-				and libre(ojos, suCabeza.Position, { Caza.carpeta(), jugador.Character :: Model })
-			local nota = loVe or (alAlcance and d < PosturaReglas.alcanceOido(OIDO, agachado, cubierto))
+				and libre(ojos, suCabeza.Position, sinBichos(jugador.Character))
+			local corriendo = jugador:GetAttribute("Corriendo") == true -- corriendo hace ruido (14.8)
+			local nota = loVe or (alAlcance and d < PosturaReglas.alcanceOido(OIDO, agachado, cubierto, corriendo))
 			local visto = self.vistoEn[jugador]
 			if nota then
 				self.vistoEn[jugador] = ahora
@@ -568,7 +625,8 @@ end
 -- pillarte debajo de sitios"). Parado en el borde y de cara a él, con los atributos Gatea (dónde está él) y GateaHora
 -- (hora del servidor al empezar) en el modelo, que el cliente anima. Cada poco mira si sigue ahí (sigueAhi); a los
 -- Config.Postura.Gatear s le pilla, con la cara del susto baja, en la boca del hueco. Lo deja antes si se escapa (y
--- vuelve a olerle desde cero), si le aturden, si amanece o si se quita. Los atributos vuelven a nil siempre.
+-- vuelve a olerle desde cero), si le aturden, si amanece, si se quita o si él muere de otra cosa (sin vida, o Muerto:
+-- se va sin rugir y sigue con lo suyo). Los atributos vuelven a nil siempre.
 -- Mientras, no hace nada más. true si le ha pillado.
 function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 	local modelo, suRaiz = self.modelo, raizDe(presa)
@@ -590,8 +648,8 @@ function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 		local fin = os.clock() + Config.Postura.Gatear
 		repeat
 			task.wait(0.1)
-			if not self.modelo or self.prisa or self:quieto() then
-				return false
+			if not self.modelo or self.prisa or self:quieto() or not Muerte.vivo(presa) then
+				return false -- muerto de otra cosa: su olor ya lo ha borrado Muerte.alMorir (no se vuelve a poner)
 			elseif not sigueAhi(presa, zona, borde, cara) then
 				if presa.Parent then
 					self.olor[presa] = 0 -- se le ha escapado: vuelve a olerle desde cero
@@ -609,10 +667,7 @@ function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 		local afuera = plano(borde - cara)
 		local susto = cara + Vector3.new(0, math.min(1.5, zona.Size.Y * 0.6), 0)
 			+ (if afuera.Magnitude > 0.01 then afuera.Unit * 0.4 else Vector3.zero)
-		Muerte.matar(presa, susto)
-		self.olor[presa] = nil
-		self.debajo[presa] = nil
-		return true
+		return Muerte.matar(presa, susto, modelo) -- false si acaba de morir de otra cosa: nada que esperar
 	end)
 	self.gateaEn = nil
 	if modelo.Parent then -- quitado (Destroy), se van con él
@@ -700,11 +755,11 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			-- nace dentro de una pieza no la ve). Las hojas de las puertas abiertas no tapan (CanQuery, Casa.publicar).
 			local alcanza = if escondido or not suCabeza then self:cerca(destino, 5)
 				else (suCabeza.Position - self.raiz.Position).Magnitude < self.o.Pillar
-					and libre(self.raiz.Position, suCabeza.Position, { Caza.carpeta(), presa.Character :: Model })
+					and libre(self.raiz.Position, suCabeza.Position, sinBichos(presa.Character))
 			if alcanza then
 				self.humanoide:MoveTo(self.raiz.Position)
 				self:mirarA(if suCabeza then suCabeza.Position else destino) -- de cara a su víctima: el susto le ve la cara
-				Muerte.matar(presa, self:cabeza())
+				Muerte.matar(presa, self:cabeza(), self.modelo)
 				task.wait(2.5)
 				ultimoVisto = nil
 			else
@@ -729,12 +784,18 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 	end
 end
 
-Players.PlayerRemoving:Connect(function(jugador)
+-- Lo que sabe cada bicho de un jugador: al irse y al morir. Al morir y no al revivir: muerto no está en elegirPresa
+-- (solo mira a los vivos) y nada se lo vuelve a poner, así que da igual para el olor; pero así vale para todas las
+-- formas de revivir (amanecer, Revivir pagando) sin engancharse a cada una, y al revivir debajo del mismo mueble no
+-- le huelen de golpe con lo de antes (ni cuenta que le vieron meterse: vistoEn).
+local function olvidar(jugador: Player)
 	for b in vivos do
 		b.vistoEn[jugador] = nil
 		b.olor[jugador] = nil
 		b.debajo[jugador] = nil
 	end
-end)
+end
+Players.PlayerRemoving:Connect(olvidar)
+Muerte.alMorir(olvidar)
 
 return Caza

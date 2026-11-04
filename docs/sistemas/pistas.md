@@ -27,5 +27,4 @@ Textos aprobados por el usuario en `docs/historia.md` (no cambiarlos sin él). E
 
 ## Pendiente
 
-- Sonido de papel al leer (ElevenLabs, lo elige Sergio).
-- Sitio final de la 9 cuando el sótano esté amueblado.
+- Elegir la versión del sonido `Papel` al leer (ya suena la que recomendó Claude; `docs/sistemas/miedo.md`).

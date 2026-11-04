@@ -38,6 +38,35 @@ local function conTecla(): boolean
 	return UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled
 end
 
+-- El botón de un compañero: el nombre (que se corta si es largo) y el precio aparte, para que siempre se vea. En el
+-- móvil, estrecho y en dos líneas (el nombre arriba, el precio abajo): tres botones (16 + 3 · 144 + 2 · 8 = 464) acaban
+-- antes del cartel de pila y fotos (EquipoVista) y de la cuenta de bengalas, que van en la misma altura en el centro.
+local function nuevoBoton(): TextButton
+	local tactil = Ui.tactil()
+	local b = Ui.boton("", { Size = UDim2.fromOffset(if tactil then 144 else 300, Ui.alto(40)) })
+	local nombre = Ui.texto("", {
+		Name = "Nombre",
+		Position = UDim2.new(0, 8, 0, if tactil then 8 else 0),
+		Size = if tactil then UDim2.new(1, -16, 0.5, -8) else UDim2.new(1, -80, 1, 0),
+		TextSize = if tactil then 16 else 17,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		TextXAlignment = if tactil then Enum.TextXAlignment.Center else Enum.TextXAlignment.Left,
+		TextStrokeTransparency = 1,
+	})
+	nombre.Parent = b
+	local cuanto = Ui.texto(precio(), {
+		Name = "Precio",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -8, 1, if tactil then -8 else 0),
+		Size = if tactil then UDim2.new(1, -16, 0.5, -8) else UDim2.new(0, 64, 1, 0),
+		TextSize = if tactil then 20 else 17,
+		TextXAlignment = if tactil then Enum.TextXAlignment.Center else Enum.TextXAlignment.Right,
+		TextStrokeTransparency = 1,
+	})
+	cuanto.Parent = b
+	return b
+end
+
 local function pintar()
 	-- Sin producto creado no hay nada que comprar (salvo probando en Studio).
 	local hay = Config.Compras.Revivir.Id > 0 or Prueba.activa()
@@ -48,11 +77,7 @@ local function pintar()
 		local se = hay and yoVivo and otro ~= jugador and otro:GetAttribute("Revivible") == true
 		local b = botones[otro]
 		if se and not b then
-			b = Ui.boton("", {
-				Size = UDim2.fromOffset(if Ui.tactil() then 240 else 300, Ui.alto(40)),
-				TextSize = 17,
-				TextTruncate = Enum.TextTruncate.AtEnd,
-			})
+			b = nuevoBoton()
 			b.Activated:Connect(function()
 				pedir(otro)
 			end)
@@ -65,10 +90,11 @@ local function pintar()
 		end
 		if b then
 			-- En el orden de Players: el de arriba es el de la V (ver start), que la lleva delante del texto porque un
-			-- nombre largo se corta por el final.
+			-- nombre largo se corta por el final (solo el nombre: el precio va aparte y siempre se ve).
 			b.LayoutOrder = orden
-			local texto = Ui.mayusculas(Lang.t(nil, "Revive {nombre}", { nombre = otro.DisplayName }) .. `  {precio()}`)
-			b.Text = if primero and conTecla() then "[V] " .. texto else texto
+			local texto = Ui.mayusculas(Lang.t(nil, "Revive {nombre}", { nombre = otro.DisplayName }))
+			local nombre = b:FindFirstChild("Nombre") :: TextLabel
+			nombre.Text = if primero and conTecla() then "[V] " .. texto else texto
 			primero = false
 		end
 	end
@@ -87,7 +113,7 @@ end
 
 function RevivirUi.start()
 	local hud = Ui.hud()
-	propio = Ui.boton(Lang.t(nil, "Revive") .. `  {precio()}`, {
+	propio = Ui.boton(Lang.t(nil, "Revive  {price}", { price = precio() }), {
 		Name = "Revivir",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.fromScale(0.5, 0.89),

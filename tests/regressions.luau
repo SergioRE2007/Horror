@@ -204,13 +204,14 @@ end
 -- Lang: inglés por defecto, español con huecos y las mismas llaves en las dos tablas.
 do
 	local espanol = { GetAttribute = function() return "es" end }
+	local antes = Lang.es["Night {n}"]
 	Lang.es["Night {n}"] = "Noche {n}"
 	igual(Lang.t(nil, "Night {n}", { n = 3 }), "Night 3", "sin jugador: inglés")
 	igual(Lang.t(espanol, "Night {n}", { n = 3 }), "Noche 3", "jugador en español")
 	igual(Lang.t(espanol, "Not translated"), "Not translated", "sin traducción: inglés")
 	igual(Lang.deLocale("es-mx"), "es", "es-mx es español")
 	igual(Lang.deLocale("pt-br"), "en", "pt-br va en inglés")
-	Lang.es["Night {n}"] = nil
+	Lang.es["Night {n}"] = antes -- la de verdad, que la usa Ambiente
 	local function huecos(texto: string)
 		local lista = {}
 		for hueco in string.gmatch(texto, "{(%w+)}") do table.insert(lista, hueco) end
@@ -219,6 +220,80 @@ do
 	end
 	for ingles, traducido in Lang.es do
 		igual(huecos(traducido), huecos(ingles), `LangEs "{ingles}": mismos huecos`)
+	end
+end
+
+-- Lang: todo texto del jugador escrito en el código tiene su español. Lee cada .luau y saca los literales de
+-- Lang.t(x, "…") (también con if … then "…" else "…"), los ActionText de los prompts (los traduce comun/cliente/Controles),
+-- el último texto de cada nuevoPrompt(…, "…") y las tablas de textos que llegan a Lang.t por variable.
+do
+	local function conEspanol(texto: string, donde: string)
+		if texto ~= "" then
+			assert(Lang.es[texto], `sin español en {donde}: "{texto}"`)
+			comprobaciones += 1
+		end
+	end
+	local function recorrer(carpeta: string)
+		for _, nombre in fs.readDir(carpeta) do
+			local ruta = carpeta .. "/" .. nombre
+			if fs.isDir(ruta) then
+				recorrer(ruta)
+			elseif string.match(nombre, "%.luau$") then
+				local f = fs.readFile(ruta)
+				for t in string.gmatch(f, "Lang%.t%(%s*[%w_%.]+%s*,%s*\"([^\"\n]*)\"") do conEspanol(t, ruta) end
+				for a, b in string.gmatch(f, "Lang%.t%(%s*[%w_%.]+%s*,%s*if%s[^\n]-%sthen%s*\"([^\"\n]*)\"%s*else%s*\"([^\"\n]*)\"") do
+					conEspanol(a, ruta)
+					conEspanol(b, ruta)
+				end
+				for linea in string.gmatch(f, "[^\n]+") do
+					if string.find(linea, "ActionText%s*=[^=]") then
+						-- Sin las comparaciones (if forma == "Foto" then …): solo los textos que se ponen.
+						local sinComparar = string.gsub(linea, "[=~]=%s*\"[^\"]*\"", "")
+						for t in string.gmatch(sinComparar, "\"([^\"]*)\"") do conEspanol(t, ruta) end
+					end
+				end
+				-- Los avisos que pasan por un ayudante que llama a Lang.t (acabar, Viaje.volver, avisar…). El avisar de
+				-- Candado es para la consola, no para el jugador.
+				local ayudantes = { "%f[%w_%.]acabar%(%s*", "Viaje%.volver%([^,\n]+,%s*" }
+				if not string.find(ruta, "Candado") then
+					table.insert(ayudantes, "%f[%w_%.]avisar%w*%(%s*")
+					table.insert(ayudantes, "%f[%w_%.]avisar%w*%(%s*[%w_%.]+%s*,%s*")
+				end
+				for _, ayudante in ayudantes do
+					for t in string.gmatch(f, ayudante .. "\"([^\"\n]*)\"") do conEspanol(t, ruta) end
+					for a, b in string.gmatch(f, ayudante .. "if%s[^\n]-%sthen%s*\"([^\"\n]*)\"%s*else%s*\"([^\"\n]*)\"") do
+						conEspanol(a, ruta)
+						conEspanol(b, ruta)
+					end
+				end
+				for args in string.gmatch(f, "nuevoPrompt(%b())") do
+					local t = string.match(args, "\"([^\"]*)\"%s*%)$")
+					if t then conEspanol(t, ruta) end
+				end
+			end
+		end
+	end
+	for _, carpeta in { "src/juego", "src/lobby", "src/comun" } do
+		recorrer(carpeta)
+	end
+	-- Tablas de textos de prompts y carteles que no pasan por un literal de Lang.t.
+	local yaHay = string.match(fs.readFile("src/juego/servidor/Pistas.luau"), "local YA_HAY = (%b{})") :: string
+	for t in string.gmatch(yaHay, "\"([^\"]*)\"") do conEspanol(t, "Pistas YA_HAY") end
+	local usos = string.match(fs.readFile("src/juego/cliente/CargarVista.luau"), "local USOS[^\n]*\n(.-)\n}") :: string
+	for textos in string.gmatch(usos, "textos = (%b{})") do
+		for t in string.gmatch(textos, "\"([^\"]*)\"") do conEspanol(t, "CargarVista USOS") end
+	end
+	for t in string.gmatch(usos, "texto = \"([^\"]*)\"") do conEspanol(t, "CargarVista USOS") end
+	for _, clase in Config.Clases do
+		conEspanol(clase.Nombre, "Config.Clases")
+		conEspanol(clase.Texto, "Config.Clases")
+	end
+	for _, pase in Config.Compras.Pases do
+		conEspanol(pase.Nombre, "Config.Compras.Pases")
+		conEspanol(pase.Texto, "Config.Compras.Pases")
+	end
+	for _, cosa in Config.Cosmeticos do
+		conEspanol(cosa.Nombre, "Config.Cosmeticos")
 	end
 end
 
@@ -976,6 +1051,23 @@ do
 	igual(e.paso, "Mochila", "tutorial: primero la mochila")
 	PT.avanzar(e, vista({ mochila = true }))
 	igual(e.paso, "Hacha", "tutorial: luego el hacha")
+	PT.avanzar(e, vista({ hacha = true }))
+	igual(e.paso, "Correr", "tutorial: con el hacha, correr al bosque (14.8)")
+	PT.avanzar(e, vista({ cargando = "Tronco" }))
+	igual(e.paso, "Serrar", "tutorial: con un tronco en las manos no se pide correr (cargando no se puede)")
+	local corre = PT.nuevo()
+	PT.avanzar(corre, vista({ mochila = true, hacha = true }))
+	igual(corre.paso, "Correr", "tutorial: paso de correr")
+	PT.avanzar(corre, vista({ corrido = true }))
+	igual(corre.paso, "Tronco", "tutorial: corriendo un momento se pasa a talar")
+	local yaCorrio = PT.nuevo()
+	PT.avanzar(yaCorrio, vista({ corrido = true }))
+	igual(yaCorrio.paso, "Mochila", "tutorial: haber corrido no salta los pasos de antes")
+	PT.avanzar(yaCorrio, vista({ mochila = true, hacha = true }))
+	igual(yaCorrio.paso, "Tronco", "tutorial: si ya corrió antes, no se le pide")
+	local sinCorrer = PT.nuevo()
+	PT.avanzar(sinCorrer, vista({ mochila = true, hacha = true, quedan = 10 }))
+	igual(sinCorrer.paso, "Cortinas", "tutorial: sin haber corrido, al anochecer igual a las cortinas")
 	PT.avanzar(e, vista({ hacha = true, cargando = "Tablon" }))
 	igual(e.paso, "Generador", "tutorial: con un tablón en las manos se salta talar y serrar")
 	PT.avanzar(e, vista({ generador = true }))
@@ -1007,7 +1099,9 @@ do
 	PT.avanzar(tarde, vista({ fase = "Noche", noche = 4, cortinas = 0 }))
 	igual(tarde.paso, "Amanecer", "tutorial: entrar de noche con todo cerrado")
 	igual(PT.avanzar(tarde, vista({ fase = "Dia", noche = 5, quedan = 5 })), true, "tutorial: amanecer visto ya de tarde")
-	igual(PT.numero("Cortinas"), 7, "tutorial: número del paso")
+	igual(PT.numero("Cortinas"), 8, "tutorial: número del paso")
+	igual(PT.numero("Correr"), 3, "tutorial: correr va tras el hacha")
+	igual(#PT.LISTA, #PT.DIA + 3, "tutorial: los del día y los tres de la noche")
 	igual(PT.numero("Nada"), 0, "tutorial: paso que no existe")
 end
 
@@ -1115,27 +1209,33 @@ do
 	igual(PR.oler(0.1, 1, CP.Olfato + 1), 0, "esconderse: el olor no baja de 0")
 	igual(PR.oler(CP.Huele - 0.1, 1, 0), CP.Huele, "esconderse: el olor no pasa de Huele")
 	igual(PR.huele(PR.oler(CP.Huele - 0.1, 1, 0)), true, "esconderse: a Huele s ya te ha olido")
-	-- Quién te ha pillado (escena de muerte): el que gateaba a por ti aunque otro tenga la cabeza más cerca (antes
-	-- ganaba siempre el Golpeador si había uno cerca); si nadie gatea a por ti, el de la cabeza más cerca.
-	igual(PR.quienPilla({}), nil, "pillar: sin bichos cerca, nadie")
-	igual(PR.quienPilla({ { distancia = 1 }, { distancia = 4, gatea = 2 } }), 2, "pillar: gana el que gateaba a por ti")
-	igual(PR.quienPilla({ { distancia = 5 }, { distancia = 1.5 }, { distancia = 3 } }), 2, "pillar: si no, el más cerca")
-	igual(PR.quienPilla({ { distancia = 1, gatea = 30 }, { distancia = 2 } }), 1,
-		"pillar: gatear a por otro (lejos) no cuenta, va por distancia")
-	igual(PR.quienPilla({ { distancia = 3, gatea = 30 }, { distancia = 2 } }), 2, "pillar: gatear a por otro no gana")
-	igual(PR.quienPilla({ { distancia = 3, gatea = 1 }, { distancia = 2, gatea = 2 } }), 2,
-		"pillar: dos gateando a por ti, el más cerca")
-	igual(PR.quienPilla({ { distancia = 0 / 0 }, { distancia = 6 } }), 2, "pillar: una distancia rota no gana")
+	-- Quién te ha pillado (escena de muerte): ya no se adivina en el cliente (PosturaReglas.quienPilla): el servidor manda
+	-- el modelo del bicho con el remote Muerte y MuerteVista ruge con ese (banco tests/bancos/muerte.luau).
+	igual(PR.quienPilla, nil, "pillar: sin quienPilla en PosturaReglas")
 	local muerteVista = fs.readFile("src/juego/cliente/MuerteVista.luau")
+	igual(string.find(muerteVista, "PosturaReglas", 1, true), nil, "pillar: MuerteVista no adivina con PosturaReglas")
+	igual(string.find(muerteVista, ".candidatos(", 1, true), nil, "pillar: MuerteVista no pide candidatos a las Vistas")
 	igual(string.find(muerteVista, "Vista.rugir(cabeza) or", 1, true), nil, "pillar: la escena no elige por orden fijo")
 	for _, bicho in { "Golpeador", "Raspador", "Trepador", "Imitador", "Acechador", "Bestia" } do
 		local vista = fs.readFile(`src/juego/cliente/{bicho}Vista.luau`)
-		igual(string.find(vista, `function {bicho}Vista.candidatos(`, 1, true) ~= nil, true, `pillar: {bicho}Vista.candidatos`)
 		igual(string.find(vista, `function {bicho}Vista.rugir(punto: Vector3, modelo: Model?)`, 1, true) ~= nil, true,
 			`pillar: {bicho}Vista.rugir del elegido`)
 		local mira = string.find(muerteVista, `{bicho}Vista,`, 1, true) or string.find(muerteVista, `{bicho}Vista }`, 1, true)
 		igual(mira ~= nil, true, `pillar: MuerteVista mira a {bicho}Vista`)
 	end
+	-- Todos los que matan dicen quién: Muerte.matar(jugador, cabeza, modelo) con los tres (una coma fuera de paréntesis
+	-- de más cuenta como otro argumento).
+	local matan = 0
+	for _, nombre in fs.readDir("src/juego/servidor") do
+		local texto = if string.match(nombre, "%.luau$") then fs.readFile(`src/juego/servidor/{nombre}`) else ""
+		for args in string.gmatch(texto, "Muerte%.matar(%b())") do
+			local dentro = string.gsub(string.sub(args, 2, -2), "%b()", "")
+			local _, comas = string.gsub(dentro, ",", "")
+			igual(comas, 2, `pillar: {nombre} pasa el modelo a Muerte.matar{args}`)
+			matan += 1
+		end
+	end
+	igual(matan >= 4, true, "pillar: se encuentran los Muerte.matar (Caza, Acechador, Bestia)")
 	igual(CP.Alto > 1.5 and CP.Alto < 3.2, true, "esconderse: agachado cabe bajo una mesa y no atraviesa nada")
 	igual(CP.VerCubierto < CP.OirAgachado and CP.OirAgachado < CP.Oido and CP.Olfato > CP.VerCubierto, true,
 		"esconderse: cubierto se nota menos que agachado, y agachado menos que de pie")
@@ -1215,6 +1315,166 @@ do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y
 		"mueble: el tablero entero, hasta el borde que se ve")
 	igual(MR.rayo(V3.new(-25.5 - 3, 1.4, -15), V3.new(0, 4.5, 0), {} :: any, cajas), nil, "mueble: fuera del tablero, nada")
 	igual(#MR.cajas(V3.new(30, 1, 30), 5), 0, "mueble: lejos, ninguna caja")
+end
+
+-- Correr y aguante (14.8): solo sí/no; lo pedido se guarda aunque ahora no se pueda; corriendo gasta, sin correr
+-- vuelve tras Espera (más deprisa quieto o agachado); agotado no corre hasta Volver y frena.
+do
+	local CR = cargar("src/shared/CorrerReglas")
+	local C = Config.Correr
+	local function quien(cambios)
+		local j = { vivo = true, escondido = false, cargando = false, mochila = false, agachado = false, asomado = false }
+		for clave, valor in cambios or {} do
+			j[clave] = valor
+		end
+		return j
+	end
+	local function cerca(a, b, etiqueta)
+		assert(math.abs(a - b) < 1e-6, `{etiqueta}: esperado {b}, recibido {a}`)
+		comprobaciones += 1
+	end
+	-- Corre `segundos` a pasos de 1/60 (devuelve el estado y cuántas veces se agotó).
+	local function correr(e, segundos, velocidad, delante, j, ahora)
+		local agota, t = 0, ahora or 100
+		for _ = 1, math.floor(segundos * 60 + 0.5) do
+			local ev
+			t += 1 / 60
+			e, ev = CR.paso(e, 1 / 60, t, velocidad, delante, j or quien())
+			if ev == "Agota" then
+				agota += 1
+			end
+		end
+		return e, agota, t
+	end
+	-- Lo que llega del cliente puede ser cualquier cosa.
+	for _, raro in { 1, 0, "true", {}, 0 / 0 } do
+		igual((CR.pedir(CR.nuevo(), raro, 10)), false, `correr: {tostring(raro)} no es una petición`)
+	end
+	igual((CR.pedir(CR.nuevo(), nil, 10)), false, "correr: nada no es una petición")
+	igual((CR.pedir(CR.nuevo(), false, 10)), false, "correr: pedir lo que ya está no cambia")
+	local cambia, e = CR.pedir(CR.nuevo(), true, 10)
+	igual(cambia and e.quiere, true, "correr: pedirlo")
+	igual(CR.nuevo().quiere, false, "correr: el estado de antes no se toca")
+	-- Muy seguido no se pierde: espera y cuenta al pasar Cada.
+	local _, rapido = CR.pedir(e, false, 10 + C.Cada / 2)
+	igual(rapido.quiere, true, "correr: muy seguido aún no cuenta")
+	igual(rapido.pendiente, false, "correr: pero se guarda")
+	local tarde = CR.paso(rapido, 1 / 60, 10 + C.Cada + 0.01, 16, 1, quien())
+	igual(tarde.quiere == false and tarde.pendiente == nil, true, "correr: lo guardado cuenta al pasar Cada")
+	local _, vuelta = CR.pedir(rapido, true, 10 + C.Cada / 2)
+	igual(vuelta.quiere == true and vuelta.pendiente == nil, true, "correr: volver a lo de antes quita lo guardado")
+	-- Corre solo si se mueve hacia delante y puede.
+	igual(CR.seMueve(16, 1), true, "correr: andando recto, sí")
+	igual(CR.seMueve(C.Moverse / 2, 1), false, "correr: quieto, no")
+	igual(CR.seMueve(16, 0), false, "correr: de lado, no")
+	igual(CR.seMueve(16, -1), false, "correr: hacia atrás, no")
+	local corre = CR.paso(e, 1 / 60, 20, 16, 1, quien())
+	igual(corre.corriendo, true, "correr: lo pide, puede y se mueve")
+	igual(corre.aguante < 1, true, "correr: gasta aguante")
+	igual(CR.paso(e, 1 / 60, 20, 0, 1, quien()).corriendo, false, "correr: quieto no corre")
+	for _, cambio in { { vivo = false }, { escondido = true }, { cargando = true }, { mochila = true },
+		{ agachado = true }, { asomado = true }, { vistazo = true }, { cine = true } } do
+		local clave = next(cambio)
+		local parado = CR.paso(e, 1 / 60, 20, 16, 1, quien(cambio))
+		igual(parado.corriendo, false, `correr: con {clave}, no`)
+		igual(parado.quiere, true, `correr: con {clave} se guarda lo pedido`)
+	end
+	igual(CR.paso(e, 0 / 0, 20, 16, 1, quien()).corriendo, false, "correr: dt NaN no corre")
+	igual(CR.paso(e, -1, 20, 16, 1, quien()).aguante, 1, "correr: dt negativo no gasta")
+	igual(CR.paso(e, 1 / 60, 20, 0 / 0, 0 / 0, quien()).corriendo, false, "correr: velocidad NaN, quieto")
+	-- Lleno dura Dura s y se agota una vez.
+	local casi, agota = correr(e, C.Dura - 0.1, 16, 1)
+	igual(agota, 0, "correr: antes de Dura no se agota")
+	igual(casi.corriendo and casi.aguante > 0, true, "correr: sigue corriendo")
+	local _, agota2 = correr(casi, 0.2, 16, 1)
+	igual(agota2, 1, "correr: a los Dura s se agota (una vez)")
+	-- Justo al agotarse (el paso que avisa).
+	local agotado, t = casi, 100
+	for _ = 1, 60 do
+		local ev
+		t += 1 / 60
+		agotado, ev = CR.paso(agotado, 1 / 60, t, 16, 1, quien())
+		if ev then
+			break
+		end
+	end
+	igual(agotado.agotado and not agotado.corriendo and agotado.aguante == 0, true, "correr: agotado, a cero y sin correr")
+	cerca(agotado.frena, C.Frena, "correr: frena al agotarse")
+	-- Agotado: no corre aunque lo pida hasta tener Volver; la espera primero.
+	local espera = correr(agotado, C.Espera - 0.05, 16, 1, nil, t)
+	cerca(espera.aguante, 0, "correr: durante la espera no vuelve")
+	igual(correr(agotado, C.Frena + 0.05, 16, 1, nil, t).frena, 0, "correr: el frenazo pasa")
+	local andando = correr(agotado, C.Espera + 1, 16, 1, nil, t)
+	igual(andando.aguante > 0 and andando.agotado and not andando.corriendo, true, "correr: agotado vuelve sin correr")
+	cerca(andando.aguante, C.Andando, "correr: andando vuelve a su ritmo")
+	local quieto = correr(agotado, C.Espera + 1, 0, 1, nil, t)
+	cerca(quieto.aguante, C.Quieto, "correr: quieto vuelve más deprisa")
+	local agachado = correr(agotado, C.Espera + 1, 8, 1, quien({ agachado = true }), t)
+	cerca(agachado.aguante, C.Quieto, "correr: agachado también")
+	igual(C.Quieto > C.Andando, true, "correr: quieto más deprisa que andando")
+	local listo = correr(agotado, C.Espera + C.Volver / C.Quieto + 0.05, 0, 1, nil, t)
+	igual(listo.agotado, false, "correr: con Volver deja de estar agotado")
+	igual(CR.paso(listo, 1 / 60, t + 10, 16, 1, quien()).corriendo, true, "correr: y vuelve a correr")
+	local _, sinPedir = CR.pedir(agotado, false, t + 1)
+	local lleno = correr(sinPedir, 60, 16, 1, nil, t + 1)
+	igual(lleno.aguante, 1, "correr: no pasa de lleno")
+	-- Dejar de correr a medias: no se agota y vuelve desde ahí.
+	local medio = correr(e, C.Dura / 2, 16, 1)
+	local _, suelta = CR.pedir(medio, false, 200)
+	local descansa = correr(suelta, C.Espera + 1, 16, 1)
+	igual(descansa.agotado, false, "correr: soltar a medias no agota")
+	cerca(descansa.aguante, medio.aguante + C.Andando, "correr: y vuelve desde lo que quedaba")
+	-- Velocidad y cansancio.
+	igual(CR.velocidad(16, true), 16 * C.Factor, "correr: velocidad corriendo")
+	igual(CR.velocidad(16, false), 16, "correr: andando, la de andar")
+	igual(CR.velocidad(16 * 1.2, true), 16 * 1.2 * C.Factor, "correr: la clase Corredor también corre más")
+	igual(CR.cansancio(agotado), 1, "correr: agotado, cansado del todo")
+	igual(CR.cansancio(CR.nuevo()), 0, "correr: descansado")
+	local re = CR.reaparecer(agotado)
+	igual(re.aguante == 1 and not re.agotado and not re.quiere and re.ultimo == agotado.ultimo, true, "correr: al reaparecer")
+	-- Los bichos te oyen desde más lejos corriendo que de pie (y agachado o debajo de algo no se corre).
+	igual(C.Oido > Config.Postura.Oido, true, "correr: hace ruido")
+	local PR = cargar("src/shared/PosturaReglas")
+	local oido = Config.Postura.Oido
+	igual(PR.alcanceOido(oido, false, false, true), C.Oido, "correr: te oyen a Config.Correr.Oido")
+	igual(PR.alcanceOido(oido, false, false), oido, "correr: andando, como siempre")
+	igual(PR.alcanceOido(oido, false, true, true), math.min(oido, Config.Postura.VerCubierto), "correr: cubierto manda")
+end
+
+-- Bancos (tests/bancos, 14.8): módulos del cliente con un Roblox de mentira (tests/bancos/_roblox.luau) y cuentas,
+-- cada uno en su propio proceso de Lune (no se pisan lo que tocan), todos a la vez (process.exec cede): el del gateo
+-- (~30 s, sus cinco bichos a la vez) marca el paso. Los que empiezan por "_" son ayudas, no bancos.
+do
+	local process = require("@lune/process")
+	local task = require("@lune/task")
+	if fs.isDir("tests/bancos") then
+		local nombres = {}
+		for _, nombre in fs.readDir("tests/bancos") do
+			if string.match(nombre, "%.luau$") and not string.match(nombre, "^_") then
+				table.insert(nombres, nombre)
+			end
+		end
+		table.sort(nombres)
+		local salidas = {}
+		local quedan = #nombres
+		for i, nombre in nombres do
+			task.spawn(function()
+				-- Sin las variables de depuración del gateo (si se quedan puestas en la consola, ni para ni mira nada).
+				local ok, r = pcall(process.exec, "lune", { "run", "tests/bancos/" .. nombre },
+					{ env = { GATEO_VER = "", GATEO_SOLO = "" } })
+				salidas[i] = if ok then r else { ok = false, stdout = "", stderr = tostring(r) }
+				quedan -= 1
+			end)
+		end
+		while quedan > 0 do
+			task.wait(0.05)
+		end
+		for i, nombre in nombres do
+			local r = salidas[i]
+			assert(r.ok, `banco {nombre}:\n{r.stdout}{r.stderr}`)
+			comprobaciones += 1
+		end
+	end
 end
 
 print(`Todo bien: {comprobaciones} comprobaciones.`)

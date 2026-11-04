@@ -8,12 +8,23 @@
 --   tiembla un poco, los bordes se cierran y el latido sube. Cuando se aleja (a más de SOLTAR) o a los AGUANTE s (no
 --   se aguanta más: los últimos, tiembla y se cierra más), Exhalar, temblando, y jadeas un rato. Si sales o te
 --   pillan a medias, se corta todo sin sonar.
+--   Escondido justo después de correr (14.8, pedido por el usuario: "todo animado e inmersivo"): llegas sofocado
+--   (CorrerVista.cansancio, si hace poco que corriste: CorrerVista.recien). En vez del leve respirar, jadeas (más
+--   fuerte, más deprisa, la cámara se mece más y el corazón aporrea) y se va apagando a medida que recuperas el
+--   aguante. Contener el aire dura menos cuanto más sofocado (AGUANTE * (1 - AGUANTE_CANSADO * sofoco), como poco
+--   AGUANTE_MIN) y, muy sofocado con un bicho cerca, a veces se te escapa un jadeo: pierdes el aire, la vista da un
+--   respingo y el latido se dispara. Solo para ti: el servidor no sabe nada de esto (los bichos no lo oyen).
 --   Debajo de un mueble (atributo Cubierto, lo pone el servidor en Postura; pedido por el usuario: "agacharte también
 --   debería servir para esconderte, por ejemplo debajo de mesas"): lo mismo con un bicho cerca (coges aire y lo
 --   aguantas solo, el latido, los bordes que se cierran), pero la cámara sigue siendo tuya: aquí no se mece ni tiembla.
 --   Y unos bordes oscuros flojos (VINETA_CUBIERTO) que te dicen que estás escondido sin tapar la vista ni decir nada.
---   Te pillan (remote Muerte): la cámara mira a la cara del bicho, temblor, destello rojo, grito y sangre en la
---   pantalla; luego negro y a mirar a los vivos (clic o toque para cambiar, en tercera persona) hasta el amanecer.
+--   Te pillan (remote Muerte, con el modelo del bicho que te pilla): la cámara mira a la cara de ese bicho (que ruge y,
+--   si gateaba, se queda en la pose de agarrarte), temblor, destello rojo, grito y sangre en la pantalla; luego negro y
+--   a mirar a los vivos (clic o toque para cambiar, en tercera persona) hasta el amanecer.
+--   En la escena de un final (atributo EscenaFinal del jugador, solo en este cliente: lo ponen HuidaVista e
+--   IncendioVista mientras llevan la cámara) aquí no se toca la cámara y el aliento y el latido se cortan en seco. No
+--   vale Final de workspace: en el incendio se pone ~17 s antes de la escena (mientras corre el fuego), y si el fuego se
+--   cancela se quita sin que haya escena; hasta que empieza, el escondite sigue siendo el de siempre.
 --   A otro: un charco de sangre donde ha muerto.
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -25,7 +36,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
-local PosturaReglas = require(ReplicatedStorage.Shared.PosturaReglas)
+local CorrerVista = require(script.Parent.CorrerVista)
 local GolpeadorVista = require(script.Parent.GolpeadorVista)
 local RaspadorVista = require(script.Parent.RaspadorVista)
 local TrepadorVista = require(script.Parent.TrepadorVista)
@@ -54,6 +65,23 @@ local CIERRA = 0.85 -- lo oscuros que se ponen los bordes de más conteniendo (d
 local LATIDO_MAS = 0.3 -- volumen de más del latido conteniendo (el doble al final)
 local LATIDO_PRISA = 0.12 -- tono de más del latido conteniendo (y otro tanto al final)
 local VINETA_CUBIERTO = 0.55 -- lo transparentes que quedan los bordes oscuros debajo de un mueble (escondido, 0,05)
+-- Escondido sofocado, justo después de correr (14.8). Números a ojo (para mirarlos en Studio).
+local SOFOCO_RECIEN = 2 -- s desde que corriste por última vez: hasta aquí cuenta todo tu cansancio...
+local SOFOCO_HASTA = 8 -- ...y desde aquí, nada (en medio, una parte)
+local SOFOCO_BAJA = 0.2 -- por segundo, lo más deprisa que se apaga (el cansancio de CorrerVista da saltos)
+local AGUANTE_CANSADO = 0.6 -- contener dura AGUANTE * (1 - esto * sofoco)...
+local AGUANTE_MIN = 4 -- ...y como poco esto
+local JADEA_DESDE = 0.15 -- con menos sofoco ya no jadeas
+local JADEA_CADA = { 0.7, 2.2 } -- s entre jadeos: muy sofocado, casi recuperado
+local JADEA_FUERZA = { 0.7, 0.2 } -- y lo fuertes que son
+local ESCAPA_DESDE = 0.5 -- sofoco desde el que, conteniendo con un bicho cerca, se te puede escapar un jadeo
+local ESCAPA_CADA = 1.5 -- s entre una tirada y otra (la primera, al segundo de coger aire)
+local ESCAPA_PROB = 0.3 -- de cada tirada, cuántas se escapa, del todo sofocado (con ESCAPA_DESDE, ninguna)
+local RESPINGO = 0.06 -- radianes que se va la vista hacia arriba al escapársete...
+local RESPINGO_S = 0.7 -- ...y s en volver
+local LATIDO_SUSTO = 0.6 -- volumen de más del latido al escapársete (y tono de más, la mitad)...
+local LATIDO_SUSTO_S = 4 -- ...y s en bajar
+local LATIDO_SOFOCO = 0.35 -- volumen de más del latido del todo sofocado (aporrea aunque no haya bichos)
 
 local jugador = Players.LocalPlayer
 local camara = workspace.CurrentCamera
@@ -68,6 +96,11 @@ local mirando: TextLabel
 local latido: Sound?
 local susto = false -- durante el susto nadie más toca la cámara
 local mirado = 0 -- índice del vivo al que miras de muerto
+
+-- ¿Lleva la cámara la escena de un final (la huida, el incendio)?
+local function enEscena(): boolean
+	return jugador:GetAttribute("EscenaFinal") == true
+end
 
 -- La respiración escondido.
 local ahogoLados: ImageLabel -- bordes de más (a los lados y arriba y abajo) que se cierran conteniendo
@@ -84,6 +117,13 @@ local voz: Sound? -- el último Contener o Exhalar, para cortarlo si sales a med
 local cubiertoDesde: number? = nil -- cuándo te metiste debajo de un mueble (os.clock), mientras lo estás
 local cubiertoVisto = -math.huge -- la última vez que se vio Cubierto (os.clock)
 local SALIR_CUBIERTO = 0.5 -- s sin Cubierto antes de dejar el aliento (rozando el borde de la zona, va y viene)
+-- Sofocado de correr (14.8).
+local sofoco = 0 -- de 0 a 1: lo sofocado que estás escondido (se apaga a medida que recuperas el aguante)
+local sofocoPeso: number? = nil -- cuánto de tu cansancio cuenta en este escondite (nil: aún sin mirar)
+local aguanteEste = AGUANTE -- lo que puedes contener esta vez (se mira al coger aire)
+local proximoJadeo = 0 -- cuándo toca el siguiente jadeo (os.clock)
+local proximaTirada = 0 -- cuándo toca la siguiente tirada de que se escape uno
+local escapadoEn = -math.huge -- cuándo se te escapó el último
 
 local function personajeVisible(visible: boolean)
 	local personaje = jugador.Character
@@ -132,6 +172,7 @@ local function cortarAliento(todo: boolean)
 	conteniendo = false
 	soltado = -math.huge
 	ahogo = 0
+	sofoco, sofocoPeso, escapadoEn = 0, nil, -math.huge
 	if respiracion then
 		respiracion:Destroy()
 		respiracion = nil
@@ -152,44 +193,105 @@ local ENTRAR = 0.5
 -- metes no: el bicho que te ha visto ya está encima, y primero hay que llegar dentro.
 local function respirar(t: number, dt: number, acecha: number, entrando: boolean)
 	if conteniendo then
-		if acecha > SOLTAR or t - cogido >= AGUANTE then
+		if acecha > SOLTAR or t - cogido >= aguanteEste then
 			conteniendo = false
 			soltado = t
+			proximoJadeo = math.max(proximoJadeo, t + 0.6) -- que no pise al Exhalar
 			decir("Exhalar")
 		end
 	elseif not entrando and acecha < CONTENER and t - soltado >= RECUPERAR then
 		conteniendo = true
 		cogido = t
+		aguanteEste = math.max(AGUANTE_MIN, AGUANTE * (1 - AGUANTE_CANSADO * sofoco)) -- sofocado, menos
+		proximaTirada = t + 1
 		decir("Contener")
 	end
 	ahogo = if conteniendo then math.min(1, ahogo + dt / COGER_S) else math.max(0, ahogo - dt / SOLTAR_S)
 end
 
+local function mezcla(par: { number }, k: number): number
+	return par[1] + (par[2] - par[1]) * math.clamp(k, 0, 1)
+end
+
+-- Lo sofocado que estás (14.8): al meterte, cuánto hace que corriste dice cuánto de tu cansancio cuenta; luego sigue
+-- a tu cansancio (CorrerVista lo va recuperando, quieto) sin bajar de golpe. Jadeas mientras no contengas el aire.
+local function sofocar(t: number, dt: number)
+	if not sofocoPeso then
+		local recien = CorrerVista.recien()
+		sofocoPeso = math.clamp(1 - (recien - SOFOCO_RECIEN) / (SOFOCO_HASTA - SOFOCO_RECIEN), 0, 1)
+		proximoJadeo = t + 0.3
+	end
+	local meta = (sofocoPeso :: number) * CorrerVista.cansancio()
+	sofoco = if meta >= sofoco then meta else math.max(meta, sofoco - dt * SOFOCO_BAJA)
+	if conteniendo or sofoco < JADEA_DESDE or t < proximoJadeo then
+		return
+	end
+	-- Solo para ti (sin posición): un sonido del cliente no lo oye nadie más.
+	local k = 1 - (sofoco - JADEA_DESDE) / (1 - JADEA_DESDE) -- 0 muy sofocado, 1 casi recuperado
+	CorrerVista.jadear(nil, mezcla(JADEA_FUERZA, k))
+	proximoJadeo = t + mezcla(JADEA_CADA, k) * azar:NextNumber(0.85, 1.15)
+end
+
+-- Conteniendo el aire muy sofocado con un bicho cerca (`acecha`, studs), a veces se te escapa un jadeo: se te va el
+-- aire (sin Exhalar: ya suena el jadeo) y vuelves a jadear; el respingo y el latido los pintan los de abajo.
+local function escaparse(t: number, acecha: number)
+	if not conteniendo or sofoco < ESCAPA_DESDE or acecha >= CONTENER or t < proximaTirada then
+		return
+	end
+	proximaTirada = t + ESCAPA_CADA
+	if azar:NextNumber() >= ESCAPA_PROB * (sofoco - ESCAPA_DESDE) / (1 - ESCAPA_DESDE) then
+		return
+	end
+	escapadoEn = t
+	conteniendo = false
+	soltado = t
+	if voz then
+		voz:Destroy()
+		voz = nil
+	end
+	CorrerVista.jadear(nil, 1)
+	proximoJadeo = t + 0.9
+end
+
 -- Los últimos segundos del aguante (no puedes más), lo que dura el jadeo y el temblor al soltar el aire: de 1 a 0.
 local function tramos(t: number): (number, number, number)
-	local aprieta = if conteniendo then math.clamp((t - cogido - (AGUANTE - APRIETA)) / APRIETA, 0, 1) else 0
+	local aprieta = 0
+	if conteniendo then
+		local final = math.min(APRIETA, aguanteEste * 0.5)
+		aprieta = math.clamp((t - cogido - (aguanteEste - final)) / final, 0, 1)
+	end
 	local jadeo = math.clamp(1 - (t - soltado) / RECUPERAR, 0, 1)
 	local suelta = math.clamp(1 - (t - soltado) / SUELTA_S, 0, 1)
 	return aprieta, jadeo, suelta
 end
 
+-- El respingo de la vista y el latido disparado tras escapársete un jadeo: de 1 a 0.
+local function sobresalto(t: number): (number, number)
+	return math.clamp(1 - (t - escapadoEn) / RESPINGO_S, 0, 1), math.clamp(1 - (t - escapadoEn) / LATIDO_SUSTO_S, 0, 1)
+end
+
 -- Lo que se oye y se ve del aliento, escondido o debajo de un mueble: conteniendo se cierran los bordes, calla la
 -- respiración y el latido sube; jadeando, la respiración sube. `cerca`: studs del bicho más cercano; `base`: el
 -- volumen del latido sin bichos cerca.
+-- Sofocado (14.8), la respiración va más fuerte y deprisa y el corazón aporrea; si se te escapa un jadeo, los bordes
+-- se cierran de golpe y el latido se dispara.
 local function notarAliento(cerca: number, base: number, aprieta: number, jadeo: number)
-	local cierre = ahogo * (0.7 + 0.3 * aprieta)
+	local respingo, disparado = sobresalto(os.clock())
+	local cierre = math.min(1, ahogo * (0.7 + 0.3 * aprieta) + 0.6 * respingo)
 	if math.abs(cierre - cierreVisto) > 0.004 or (cierre == 0 and cierreVisto ~= 0) then
 		cierreVisto = cierre
 		ahogoLados.ImageTransparency = 1 - cierre * CIERRA
 		ahogoArriba.ImageTransparency = 1 - cierre * CIERRA
 	end
 	if respiracion then
-		respiracion.Volume = respiracionVolumen * (1 - ahogo) * (1 + 0.6 * jadeo)
-		respiracion.PlaybackSpeed = 1 + 0.15 * jadeo
+		respiracion.Volume = respiracionVolumen * (1 - ahogo) * (1 + 0.6 * jadeo + 0.8 * sofoco)
+		respiracion.PlaybackSpeed = 1 + 0.15 * jadeo + 0.3 * sofoco
 	end
 	if latido then
 		latido.Volume = base + 1.2 * math.clamp(1 - cerca / 45, 0, 1) + LATIDO_MAS * ahogo * (1 + aprieta)
+			+ LATIDO_SOFOCO * sofoco + LATIDO_SUSTO * disparado
 		latido.PlaybackSpeed = 1 + 0.5 * math.clamp(1 - cerca / 30, 0, 1) + LATIDO_PRISA * (ahogo + aprieta)
+			+ 0.25 * sofoco + LATIDO_SUSTO * 0.5 * disparado
 	end
 end
 
@@ -210,11 +312,12 @@ local function debajoDeMueble(dt: number): boolean
 	if jugador:GetAttribute("Cubierto") == true then
 		cubiertoVisto = t
 	end
+	local final = enEscena()
 	if (not cubiertoDesde and t ~= cubiertoVisto) or t - cubiertoVisto >= SALIR_CUBIERTO or susto
-		or jugador:GetAttribute("Muerto") then
+		or jugador:GetAttribute("Muerto") or final then
 		if cubiertoDesde then
 			cubiertoDesde = nil
-			cortarAliento(false) -- si sales a medias, sin soltar el aire (como del escondite)
+			cortarAliento(final) -- si sales a medias, sin soltar el aire (como del escondite); en un final, en seco
 			if latido then
 				latido:Destroy()
 				latido = nil
@@ -228,7 +331,9 @@ local function debajoDeMueble(dt: number): boolean
 		respirarEnBucle()
 	end
 	local cerca, acecha = bichoMasCerca(camara.CFrame.Position)
+	sofocar(t, dt)
 	respirar(t, dt, acecha, t - (cubiertoDesde :: number) < ENTRAR) -- recién metido, aún no
+	escaparse(t, acecha)
 	local aprieta, jadeo = tramos(t)
 	notarAliento(cerca, 0, aprieta, jadeo)
 	return true
@@ -236,13 +341,20 @@ end
 
 local function enEscondite(dt: number)
 	local vista = jugador:GetAttribute("Escondido")
-	if typeof(vista) ~= "CFrame" or susto then
+	-- En la escena de un final la cámara es suya (y el servidor te saca del escondite: Muerte.sacar): ni se toca, y el
+	-- aliento y el latido se cortan en seco.
+	local final = enEscena()
+	if typeof(vista) ~= "CFrame" or susto or final then
 		metiendose = nil
 		if debajoDeMueble(dt) then
 			return
 		end
-		if conteniendo or ahogo > 0 or soltado > -math.huge or respiracion then
-			cortarAliento(susto)
+		if conteniendo or ahogo > 0 or soltado > -math.huge or respiracion or sofocoPeso or (final and voz) then
+			cortarAliento(susto or final)
+		end
+		if final and latido then
+			latido:Destroy()
+			latido = nil
 		end
 		return
 	end
@@ -253,16 +365,23 @@ local function enEscondite(dt: number)
 	camara.CameraType = Enum.CameraType.Scriptable
 	local e = metiendose
 	local cerca, acecha = bichoMasCerca(vista.Position)
+	sofocar(t, dt)
 	respirar(t, dt, acecha, e ~= nil and t - e.inicio < ENTRAR)
+	escaparse(t, acecha)
 	local aprieta, jadeo, suelta = tramos(t)
-	-- El leve respirar: más deprisa y más hondo jadeando; conteniendo, quieta, con el pecho lleno (un poco más
-	-- arriba) y temblando un poco (más al final). Al soltar el aire, tiembla y baja un momento.
-	fase += dt * (1 + 0.8 * jadeo)
-	local mece = (1 - ahogo) * (1 + 0.8 * jadeo)
+	local respingo = sobresalto(t)
+	-- El leve respirar: más deprisa y más hondo jadeando o sofocado de correr; conteniendo, quieta, con el pecho lleno
+	-- (un poco más arriba) y temblando un poco (más al final). Al soltar el aire, tiembla y baja un momento. Si se te
+	-- escapa un jadeo, la vista da un respingo hacia arriba y vuelve.
+	local sofocoMece = if jugador:GetAttribute("Rendimiento") == true then 0 else sofoco -- Rendimiento: no se mece más
+	fase += dt * (1 + 0.8 * jadeo + 1.4 * sofocoMece)
+	local mece = (1 - ahogo) * (1 + 0.8 * jadeo + 1.2 * sofocoMece)
+	local salto = respingo * respingo
 	local alto = math.sin(fase * 1.6) * 0.04 * mece + SUBE * ahogo - 2 * SUBE * math.sin(suelta * math.pi)
+		+ 2 * SUBE * salto
 	local destino = vista * CFrame.new(0, alto, 0)
-		* CFrame.Angles(math.sin(fase * 0.8) * 0.01 * mece, math.sin(fase * 0.5) * 0.02 * mece, 0)
-	local tiembla = ahogo * (TIEMBLA + TIEMBLA_FIN * aprieta) + TIEMBLA_SUELTA * suelta
+		* CFrame.Angles(math.sin(fase * 0.8) * 0.01 * mece + RESPINGO * salto, math.sin(fase * 0.5) * 0.02 * mece, 0)
+	local tiembla = ahogo * (TIEMBLA + TIEMBLA_FIN * aprieta) + TIEMBLA_SUELTA * math.max(suelta, respingo)
 	if tiembla > 0 then
 		destino *= CFrame.Angles(math.noise(t * 11, 1.7) * tiembla, math.noise(t * 11, 5.3) * tiembla,
 			math.noise(t * 7, 9.1) * tiembla * 0.5)
@@ -307,7 +426,7 @@ local function cambiarEscondido()
 			latido = nil
 		end
 		cortarAliento(susto) -- si sales a medias, sin soltar el aire
-		if not susto then
+		if not susto and not enEscena() then -- en la escena de un final, la cámara es suya
 			camara.CameraType = Enum.CameraType.Custom
 		end
 	end
@@ -326,7 +445,7 @@ end
 
 -- De muerto: la cámara sigue a uno de los vivos.
 local function mirarVivos(siguiente: boolean)
-	if not jugador:GetAttribute("Muerto") or susto then
+	if not jugador:GetAttribute("Muerto") or susto or enEscena() then -- en la escena de un final, la cámara es suya
 		mirando.Visible = false
 		return
 	end
@@ -427,25 +546,44 @@ local function quitarSangre(capaSangre: Frame, despues: number)
 	end)
 end
 
--- El bicho que te ha pillado (el remote solo dice dónde tiene la cara), rugiendo. Antes se quedaba con el primero de
--- una lista fija que estuviese cerca: con un Golpeador al lado, la escena enfocaba al Golpeador y el Raspador que te
--- sacaba de debajo de la mesa se levantaba en medio del susto. Ahora, el que gateaba a por ti o el más cerca.
+-- El bicho que te ha pillado, rugiendo. El servidor manda su modelo (Muerte.matar): cada Vista ruge solo con un modelo
+-- suyo (con otro no hace nada) y el suyo, si gateaba, se queda en la pose de agarrarte. Sin modelo (no ha llegado,
+-- ya no está o no es un bicho), el de la cabeza más cerca de `cabeza` en la carpeta Bichos.
 local VISTAS = { GolpeadorVista, RaspadorVista, TrepadorVista, ImitadorVista, AcechadorVista, BestiaVista }
-local function quienPilla(cabeza: Vector3): Model?
-	local lista: { PosturaReglas.Candidato } = {}
-	local de: { { vista: typeof(GolpeadorVista), modelo: Model } } = {}
-	for _, vista in VISTAS do
-		for _, c in vista.candidatos(cabeza) do
-			table.insert(lista, { distancia = c.distancia, gatea = if c.gatea then (c.gatea - cabeza).Magnitude else nil })
-			table.insert(de, { vista = vista :: any, modelo = c.modelo })
+local CERCA_SUSTO = 16 -- studs de `cabeza` a los que se busca al bicho sin modelo (la cabeza del Acechador va muy alta)
+
+local function cabezaMasCerca(cabeza: Vector3): Model?
+	local carpeta = workspace:FindFirstChild("Bichos")
+	local mejor, distancia = nil, CERCA_SUSTO
+	for _, bicho in if carpeta then carpeta:GetChildren() else {} do
+		local cara = bicho:FindFirstChild("Cabeza") or bicho:FindFirstChild("HumanoidRootPart")
+		if bicho:IsA("Model") and cara and cara:IsA("BasePart") then
+			local d = (cara.Position - cabeza).Magnitude
+			if d < distancia then
+				mejor, distancia = bicho, d
+			end
 		end
 	end
-	local i = PosturaReglas.quienPilla(lista)
-	return if i then de[i].vista.rugir(cabeza, de[i].modelo) else nil
+	return mejor
 end
 
-local function meHanPillado(cabeza: Vector3)
-	susto = true
+local function quienPilla(cabeza: Vector3, modelo: Model?): Model?
+	local bicho = if typeof(modelo) == "Instance" and modelo:IsA("Model") and modelo.Parent then modelo
+		else cabezaMasCerca(cabeza)
+	if not bicho then
+		return nil
+	end
+	for _, vista in VISTAS do
+		if vista.rugir(cabeza, bicho) then
+			break
+		end
+	end
+	return bicho -- aunque no lo anime ninguna Vista, se le mira a la cara
+end
+
+-- La escena del susto. Lo que hay que quitar al acabar (la luz, la sangre) se deja en `quitar`, para que meHanPillado
+-- lo quite aunque falle a medias.
+local function escenaPillado(cabeza: Vector3, modelo: Model?, quitar: { luz: Attachment?, capaSangre: Frame? })
 	cortarAliento(true) -- conteniendo o soltándolo: se corta en seco
 	ContextActionService:UnbindAction("SalirEscondite")
 	salir.Visible = false
@@ -454,12 +592,24 @@ local function meHanPillado(cabeza: Vector3)
 	local desde = if mia then mia.Position else camara.CFrame.Position
 	local hacia = (desde - cabeza)
 	hacia = if hacia.Magnitude > 0.1 then hacia.Unit else Vector3.zAxis
+	-- Antes que buscar al bicho (que llama a las vistas de todos): si una falla, la cámara ya está en el susto y se
+	-- mira desde donde estabas.
+	personajeVisible(false)
+	camara.CameraType = Enum.CameraType.Scriptable
+	camara.FieldOfView = 60
+	Sonido.tocar("Susto")
+	rojo.BackgroundTransparency = 0.35
+	TweenService:Create(rojo, TweenInfo.new(1.4), { BackgroundTransparency = 1 }):Play()
+	quitar.capaSangre = sangre()
 	-- La cara del bicho de frente, con la boca abierta, echándose encima; una luz para que se le vea en lo oscuro.
-	local bicho = quienPilla(cabeza)
+	local okBicho, bicho = pcall(quienPilla, cabeza, modelo)
+	if not okBicho then
+		warn("[MuerteVista] no se encuentra al bicho del susto:", bicho)
+		bicho = nil
+	end
 	local cara = bicho and bicho:FindFirstChild("Cabeza") :: BasePart?
-	local luz: Attachment? = nil
 	if cara then
-		luz = Instance.new("Attachment") -- delante de la cara: dentro de la cabeza no la alumbraría
+		local luz = Instance.new("Attachment") -- delante de la cara: dentro de la cabeza no la alumbraría
 		luz.Position = Vector3.new(0, -0.3, -1.6)
 		local foco = Instance.new("PointLight")
 		foco.Color = Color3.fromRGB(255, 215, 195)
@@ -467,17 +617,11 @@ local function meHanPillado(cabeza: Vector3)
 		foco.Range = 6
 		foco.Parent = luz
 		luz.Parent = cara
+		quitar.luz = luz
 	end
-	personajeVisible(false)
 	local filtroSusto = RaycastParams.new()
 	filtroSusto.FilterType = Enum.RaycastFilterType.Exclude
 	filtroSusto.FilterDescendantsInstances = { workspace:FindFirstChild("Bichos") :: Instance, personaje :: Instance }
-	camara.CameraType = Enum.CameraType.Scriptable
-	camara.FieldOfView = 60
-	Sonido.tocar("Susto")
-	rojo.BackgroundTransparency = 0.35
-	TweenService:Create(rojo, TweenInfo.new(1.4), { BackgroundTransparency = 1 }):Play()
-	local capaSangre = sangre()
 	local t0 = os.clock()
 	while os.clock() - t0 < 1.8 do
 		local t = os.clock() - t0
@@ -499,19 +643,36 @@ local function meHanPillado(cabeza: Vector3)
 			* CFrame.Angles(0, 0, azar:NextNumber(-fuerza, fuerza) * 0.5)
 		RunService.RenderStepped:Wait()
 	end
-	if luz then
-		luz:Destroy()
+end
+
+-- El susto y, pase lo que pase en él, la vuelta: si fallaba a medias se quedaban la cámara congelada en Scriptable y
+-- `susto` puesto para toda la partida (al esconderte otra vez la cámara ya no entraba al armario).
+local function meHanPillado(cabeza: Vector3, modelo: Model?)
+	susto = true
+	local quitar: { luz: Attachment?, capaSangre: Frame? } = {}
+	local ok, fallo = pcall(escenaPillado, cabeza, modelo, quitar)
+	if not ok then
+		warn("[MuerteVista] el susto ha fallado:", fallo)
+	end
+	if quitar.luz then
+		quitar.luz:Destroy()
 	end
 	TweenService:Create(negro, TweenInfo.new(0.6), { BackgroundTransparency = 0 }):Play()
 	task.wait(1.2)
 	-- El de Roblox, fijo: el que había al morir podía ser el de la mochila abierta (más cerrado) y se quedaba así.
 	camara.FieldOfView = 70
-	Ui.aviso(Lang.t(nil, "It got you. You'll wake up at dawn."), 5)
+	pcall(function()
+		Ui.aviso(Lang.t(nil, "It got you. You'll wake up at dawn."), 5)
+	end)
 	susto = false
-	camara.CameraType = Enum.CameraType.Custom
-	mirarVivos(false)
+	if not enEscena() then -- si entretanto ha empezado la escena de un final, la cámara es suya
+		camara.CameraType = Enum.CameraType.Custom
+	end
+	pcall(mirarVivos, false)
 	TweenService:Create(negro, TweenInfo.new(1.5), { BackgroundTransparency = 1 }):Play()
-	quitarSangre(capaSangre, 3) -- se queda goteando un poco sobre lo que ves de muerto
+	if quitar.capaSangre then
+		quitarSangre(quitar.capaSangre, 3) -- se queda goteando un poco sobre lo que ves de muerto
+	end
 end
 
 local function charco(posicion: Vector3)
@@ -654,12 +815,16 @@ function MuerteVista.start()
 		end
 	end)
 	jugador.CharacterAdded:Connect(function(personaje)
-		camara.CameraType = Enum.CameraType.Custom
+		-- Reaparecer en medio de un final (al amanecer reviven los muertos) no le quita la cámara a la escena (HuidaVista,
+		-- IncendioVista): ella la devuelve al acabar. Si no hay escena, la de siempre.
+		if not enEscena() then
+			camara.CameraType = Enum.CameraType.Custom
+		end
 		camara.CameraSubject = personaje:WaitForChild("Humanoid")
 	end)
-	Remotes.Muerte.OnClientEvent:Connect(function(quien: Player, cabeza: Vector3)
+	Remotes.Muerte.OnClientEvent:Connect(function(quien: Player, cabeza: Vector3, modelo: Model?)
 		if quien == jugador then
-			task.spawn(meHanPillado, cabeza)
+			task.spawn(meHanPillado, cabeza, modelo)
 		else
 			local raiz = quien.Character and quien.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if raiz then

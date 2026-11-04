@@ -258,7 +258,7 @@ local function usoReja(): Cargar.Uso
 			montada, caida = true, false
 			colocarReja()
 			publicar()
-			avisar(jugador, "The gate is ready. The lever is outside, by the hatch.")
+			avisar(jugador, "The gate is ready. Pull the lever by the hatch.")
 		end,
 	}
 end

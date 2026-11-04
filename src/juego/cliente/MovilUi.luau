@@ -5,6 +5,7 @@
 --   hacia donde miras): la casa, el cobertizo, el caballete, el camino (piezas con la etiqueta "EnMapa"), los árboles
 --   que se pueden talar y tus amigos (punto rojo con el nombre; los que quedan lejos, pegados al borde).
 local CollectionService = game:GetService("CollectionService")
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -21,11 +22,13 @@ local MovilUi = {}
 local ANCHO, ALTO = 290, 460
 local PANTALLA = Vector2.new(ANCHO - 24, ALTO - 44 - 76) -- el mapa en píxeles (debajo, el botón de adorno)
 local ESCALA = (PANTALLA.X / 2) / Config.Movil.Radio -- píxeles por stud
--- Dónde queda abierto: en el ordenador, abajo a la derecha. En el móvil, algo más pequeño y encima de los botones del
--- equipo (EquipoVista: 170 de alto pegados al 97 % de abajo), para no tapar MÓVIL, LINTERNA ni FLASH.
+-- Dónde queda abierto: en el ordenador, abajo a la derecha. En el móvil, más pequeño (UIScale de 0,75 como mucho) y
+-- encima de la rejilla del equipo (EquipoVista: 168 de alto pegados al 97 % de abajo y por encima de la zona segura,
+-- Ui.zonaSegura), para no tapar sus botones; si no cabe bajo la barra de Roblox, encoge más (abiertoEn).
 local TACTIL = UserInputService.TouchEnabled
 local X = 0.68
-local ABIERTO = if TACTIL then UDim2.new(X, 0, 0.97, -180) else UDim2.new(X, 0, 1, -16)
+local SOBRE_REJILLA = 2 * 80 + 8 + 12 -- la rejilla de EquipoVista (dos filas de 80 y 8 entre ellas) y 12 de hueco
+local MENOR = 0.75 -- el teléfono en el móvil: a 640 × 360 su borde derecho acaba antes de los botones de acción
 local CERRADO = UDim2.new(X, 0, 1, ALTO + 40)
 
 local jugador = Players.LocalPlayer
@@ -37,6 +40,7 @@ local flecha: TextLabel
 local bateria: Frame
 local apagada: Frame
 local abierto = false
+local menor: UIScale? -- solo en el móvil
 local lugares: { [Instance]: Frame } = {}
 local puntos: { [Player]: Frame } = {}
 local refresco = 0
@@ -171,6 +175,20 @@ local function pintarBateria()
 	apagada.Visible = b <= 0
 end
 
+-- Dónde queda abierto ahora (en el móvil la zona segura cambia al girar el teléfono). Pone también lo que encoge.
+local function abiertoEn(): UDim2
+	if not TACTIL then
+		return UDim2.new(X, 0, 1, -16)
+	end
+	local abajo = SOBRE_REJILLA + Ui.zonaSegura()
+	if menor then
+		local barra = GuiService.TopbarInset.Max.Y / Ui.escala()
+		local cabe = (0.97 * Ui.lienzo().Y - abajo - barra - 8) / ALTO
+		menor.Scale = math.clamp(cabe, 0.5, MENOR)
+	end
+	return UDim2.new(X, 0, 0.97, -abajo)
+end
+
 local function mostrar(si: boolean)
 	abierto = si
 	if si then
@@ -179,7 +197,7 @@ local function mostrar(si: boolean)
 		telefono.Visible = true
 	end
 	local tween = TweenService:Create(telefono, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = if si then ABIERTO else CERRADO,
+		Position = if si then abiertoEn() else CERRADO,
 	})
 	tween:Play()
 	if not si then
@@ -191,11 +209,18 @@ local function mostrar(si: boolean)
 	end
 end
 
+-- La escena de un final (la huida, el incendio) lleva la cámara: atributo EscenaFinal, lo ponen HuidaVista e
+-- IncendioVista. Escondido o mirando por la mirilla o la ventana la cámara también es Scriptable, pero ahí sí se saca
+-- (escondido se puede mirar, Movil; MirarVista deja de mirar al abrirlo).
+local function enEscena(): boolean
+	return jugador:GetAttribute("EscenaFinal") == true
+end
+
 local function alternar()
 	if jugador:GetAttribute("MovilAbierto") then
 		Remotes.Movil:FireServer(false)
 		mostrar(false)
-	else
+	elseif not enEscena() then -- como la mochila: el móvil no sale en la escena final
 		Remotes.Movil:FireServer(true)
 	end
 end
@@ -212,9 +237,16 @@ local function crear()
 	})
 	esquina(telefono, 26)
 	if TACTIL then
-		local menor = Instance.new("UIScale")
-		menor.Scale = 0.75 -- a 640 × 360 cabe entre la barra de Roblox y los botones del equipo
-		menor.Parent = telefono
+		local m = Instance.new("UIScale")
+		m.Scale = MENOR -- abiertoEn lo baja si no cabe entre la barra de Roblox y los botones del equipo
+		m.Parent = telefono
+		menor = m
+		-- Al girar el teléfono cambian la zona segura y el alto: abierto, se recoloca (sin animar).
+		Ui.hud():GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			if abierto then
+				telefono.Position = abiertoEn()
+			end
+		end)
 	end
 	local borde = Instance.new("UIStroke")
 	borde.Color = Color3.fromRGB(50, 50, 54)
@@ -300,9 +332,19 @@ end
 function MovilUi.start()
 	crear()
 	jugador:GetAttributeChangedSignal("MovilAbierto"):Connect(function()
+		if jugador:GetAttribute("MovilAbierto") and enEscena() then
+			alternar() -- el servidor dijo que sí cuando ya había empezado la escena
+			return
+		end
 		mostrar(jugador:GetAttribute("MovilAbierto") == true)
 	end)
 	jugador:GetAttributeChangedSignal("Bateria"):Connect(pintarBateria)
+	-- Empieza la escena de un final con el móvil en la mano: se guarda (como la mochila, MochilaUi).
+	jugador:GetAttributeChangedSignal("EscenaFinal"):Connect(function()
+		if jugador:GetAttribute("MovilAbierto") and enEscena() then
+			alternar()
+		end
+	end)
 	UserInputService.InputBegan:Connect(function(entrada, procesado)
 		if not procesado and (entrada.KeyCode == Enum.KeyCode.M or entrada.KeyCode == Enum.KeyCode.DPadDown) then
 			alternar()
