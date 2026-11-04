@@ -598,7 +598,9 @@ else
 	local quedan = #BICHOS
 	for i, bicho in BICHOS do
 		task.spawn(function()
-			salidas[i] = process.exec("lune", { "run", este, bicho })
+			-- Con pcall: si no se puede lanzar, que cuente como fallo y no se quede esperando para siempre.
+			local ok, r = pcall(process.exec, "lune", { "run", este, bicho })
+			salidas[i] = if ok then r else { ok = false, stdout = "", stderr = tostring(r) }
 			quedan -= 1
 		end)
 	end
@@ -617,5 +619,6 @@ else
 		end
 	end
 	assert(#mal == 0, `gateo: fallan {table.concat(mal, ", ")}`)
+	assert(total > 0, "gateo: no ha mirado ningún caso (¿GATEO_SOLO puesto?)")
 	print(`gateo: {total} comprobaciones bien`)
 end

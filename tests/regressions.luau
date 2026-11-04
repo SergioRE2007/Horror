@@ -1459,7 +1459,9 @@ do
 		local quedan = #nombres
 		for i, nombre in nombres do
 			task.spawn(function()
-				local ok, r = pcall(process.exec, "lune", { "run", "tests/bancos/" .. nombre })
+				-- Sin las variables de depuración del gateo (si se quedan puestas en la consola, ni para ni mira nada).
+				local ok, r = pcall(process.exec, "lune", { "run", "tests/bancos/" .. nombre },
+					{ env = { GATEO_VER = "", GATEO_SOLO = "" } })
 				salidas[i] = if ok then r else { ok = false, stdout = "", stderr = tostring(r) }
 				quedan -= 1
 			end)
