@@ -66,13 +66,13 @@ export type Bicho = typeof(setmetatable({} :: {
 	sinSalida: Vector3?, -- el último borde al que no llegó (no lo vuelve a elegir)
 }, Caza))
 
--- Debajo de los muebles. Números a ojo.
-local OIDO = 8 -- studs a los que oye a quien va de pie (agachado o debajo de algo, menos: PosturaReglas)
-local FUERA = 2.5 -- studs fuera del mueble donde se para a gatear: cabe la raíz (3 × 1,5) y el camino llega
-local CERCA_BORDE = 3 -- studs del borde a los que empieza a gatear
-local SE_ESCAPA = 6 -- studs del borde: fuera del mueble y más lejos, ya no le alcanza
-local ATASCO = 4 -- segundos sin acercarse al borde (no hay camino) para dejarle
-local MAX_DT = 0.5 -- segundos de olor como mucho de una vez (si lleva rato sin mirar, golpeando una puerta)
+-- Debajo de los muebles (Config.Postura, a ojo).
+local OIDO = Config.Postura.Oido
+local FUERA = Config.Postura.Fuera
+local CERCA_BORDE = Config.Postura.CercaBorde
+local SE_ESCAPA = Config.Postura.SeEscapa
+local ATASCO = Config.Postura.Atasco
+local MAX_DT = Config.Postura.MaxOlor
 
 local azar = Random.new()
 local vivos: { [Bicho]: boolean } = {}
@@ -254,7 +254,7 @@ end
 --   - A los dos lados, de la boca a pasado el borde, tampoco: cabe de ancho (no se cuela entre dos sillas).
 --   - En el borde hay suelo a su altura y nada encima (otra mesa, una silla).
 -- Los personajes y los bichos no cuentan: van en filtroChoque, que pone debajoDe una vez para todos los sitios.
-local ANCHO = 1.3 -- media anchura libre que necesita a los lados (su raíz mide 3)
+local ANCHO = Config.Postura.Ancho -- media anchura libre que necesita a los lados
 local function sitioLibre(zona: BasePart, borde: Vector3, cara: Vector3): boolean
 	local afuera = plano(borde - cara)
 	if afuera.Magnitude < 0.01 then

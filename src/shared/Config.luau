@@ -431,6 +431,15 @@ Config.Postura = {
 	Olfato = 14, -- studs a los que un bicho te huele debajo de algo
 	Huele = 5, -- segundos oliéndote hasta saber dónde estás (lejos, se le olvida a la mitad de deprisa)
 	Gatear = 2, -- segundos que tarda en meterse a por ti debajo del mueble (si sales y te alejas antes, lo deja)
+	-- Los bichos (Caza y Bestia) con quien está debajo de un mueble. A ojo.
+	Oido = 8, -- studs a los que te oye un bicho de pie (agachado o debajo de algo, menos: OirAgachado, VerCubierto)
+	Fuera = 2.5, -- studs fuera del mueble donde se para a gatear: cabe su raíz (3 × 1,5) y el camino llega
+	FueraBestia = 3, -- lo mismo para la Bestia, que es enorme
+	CercaBorde = 3, -- studs del borde a los que empieza a gatear
+	SeEscapa = 6, -- studs del borde: si sales del mueble y te alejas más, ya no te alcanza
+	Atasco = 4, -- segundos sin acercarse al borde (no hay camino) para dejarte y probar otro lado
+	MaxOlor = 0.5, -- segundos de olor como mucho de una vez (si lleva rato sin mirar, golpeando una puerta)
+	Ancho = 1.3, -- media anchura libre que necesita a los lados del borde para meterse (su raíz mide 3)
 }
 
 Config.Movil = {
