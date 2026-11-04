@@ -69,7 +69,7 @@ local function leerMochila()
 		botonMovil.Visible = p
 	end
 	if cuenta then
-		cuenta.Text = Ui.mayusculas(Lang.t(nil, "{n} flares", { n = n }))
+		cuenta.Text = Ui.mayusculas(Lang.t(nil, if n == 1 then "1 flare" else "{n} flares", { n = n }))
 	end
 end
 
