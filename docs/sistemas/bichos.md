@@ -165,6 +165,10 @@ Lo de la 14.9 (igual, en Play y tras `Prueba:Fire("Noche")`; `y` es la altura de
    `Config.Postura.Gatear` s de que el Raspador tenga `Gatea`, la escena le enfoca a él en la pose de agarrar. Con un
    bicho gateando, `Character.Humanoid.Health = 0` en Server: en <0,2 s `Gatea`/`GateaHora` a nil y sigue su ronda.
    Morir debajo oliéndote y revivir: vuelve a tardar `Config.Postura.Huele` s en olerte.
+   Cómo montarlo (04-11-2026): el `PivotTo` no vale, el bicho de `Ataque` vuelve a su ventana. Lo que funciona: agachado
+   (C) en (-31.5, 2.85, -15), `Romper` y `Ataque` en (-25.5, 1, -15) y, desde el cliente, `PivotTo` a (-26.1, 2.85,
+   -15) cuando el bicho esté a ~20 studs (más cerca, el servidor aún te ve fuera y te pilla sin gatear). Gatea a los
+   ~10 s. Probado así con un jugador (bien); "sigue su ronda" y revivir piden dos (con uno, morir reinicia el día).
 7. Gateo a mano (paso 2) con Golpeador, Raspador, Imitador y Bestia (raíz en (-33, y, -15)), en el comedor y en la
    cocina: el brazo de la Bestia que barre no pasa por las patas. Imitador con `Gatea` en (-27.9, 3, -15), fuera de
    la zona bajo el voladizo: mano y cara no entran en el tablero. Luz: `workspace.Bichos.Bestia.Cabeza:FindFirstChild(
