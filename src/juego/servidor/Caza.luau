@@ -549,6 +549,15 @@ local function sigueAhi(presa: Player, zona: BasePart, borde: Vector3, cara: Vec
 	return plano(p - borde).Magnitude <= SE_ESCAPA and despejado(borde + Vector3.new(0, 1.5, 0), p, sinPersonajes())
 end
 
+-- Apunta un borde al que no llega (o desde el que no le alcanza): en SIN_SALIDA s no lo vuelve a elegir. Los más viejos
+-- se olvidan: no crece sin límite.
+local function apuntarSinSalida(self: Bicho, borde: Vector3)
+	table.insert(self.sinSalida, { punto = borde, hasta = os.clock() + SIN_SALIDA })
+	if #self.sinSalida > MAX_SIN_SALIDA then
+		table.remove(self.sinSalida, 1)
+	end
+end
+
 -- Gatea a por quien está debajo de un mueble (pedido por el usuario: "que el monstruo pueda gatear si te huele… para
 -- pillarte debajo de sitios"). Parado en el borde y de cara a él, con los atributos Gatea (dónde está él) y GateaHora
 -- (hora del servidor al empezar) en el modelo, que el cliente anima. Cada poco mira si sigue ahí (sigueAhi); a los
@@ -580,6 +589,13 @@ function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 			elseif not sigueAhi(presa, zona, borde, cara) then
 				if presa.Parent then
 					self.olor[presa] = 0 -- se le ha escapado: vuelve a olerle desde cero
+					-- Sigue debajo pero desde aquí no le alcanza (algo que choca en medio): por otro lado. Si no, muy
+					-- cerca le volvía a notar al momento y gateaba y lo dejaba en el mismo borde sin parar.
+					local r = raizDe(presa)
+					if r and not presa:GetAttribute("Muerto") and enZona(zona, r.Position, 0.5) then
+						apuntarSinSalida(self, borde)
+						bajo.hora = -math.huge
+					end
 				end
 				return false
 			end
@@ -632,11 +648,7 @@ function Caza.aPorDebajo(self: Bicho, presa: Player, bajo: Debajo, paso: ((Bicho
 		self.rumbo, self.rumboMejor, self.rumboDesde = borde, d, ahora
 	elseif ahora - self.rumboDesde > ATASCO then
 		self.rumbo = nil
-		-- La próxima vez, por otro sitio (los más viejos se olvidan: no crece sin límite).
-		table.insert(self.sinSalida, { punto = borde, hasta = ahora + SIN_SALIDA })
-		if #self.sinSalida > MAX_SIN_SALIDA then
-			table.remove(self.sinSalida, 1)
-		end
+		apuntarSinSalida(self, borde) -- la próxima vez, por otro sitio
 		bajo.hora = -math.huge
 		self.olor[presa] = 0
 		return "Deja"
