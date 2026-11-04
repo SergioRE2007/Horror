@@ -221,16 +221,18 @@ local function huir(jugador: Player)
 	Recompensas.final(C.Cinematica)
 	-- Los escondidos, fuera del escondite antes de anclarlos: si no, su latido y su respiración sonaban encima de la
 	-- escena y con E (o espacio, o B) salían y se desanclaban en mitad de ella. Muerte.sacar es lo mismo que salir;
-	-- con pcall y solo si existe, para que nada deje la huida a medias.
-	local sacar = (Muerte :: any).sacar
+	-- con pcall, para que nada deje la huida a medias.
 	for _, j in Players:GetPlayers() do
-		if sacar and Muerte.escondite(j) then
-			local ok, fallo = pcall(sacar, j)
+		if Muerte.escondite(j) then
+			local ok, fallo = pcall(Muerte.sacar, j)
 			if not ok then
 				warn("[Coche] sacar: " .. tostring(fallo))
 			end
 		end
 		Cargar.soltar(j)
+		-- La mochila, cerrada (como Incendio.terminar): abierta, su desenfoque y la mochila 3D salían en la escena.
+		j:SetAttribute("MochilaAbierta", nil)
+		Cargar.ajustarVelocidad(j)
 		local raiz = j.Character and j.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz then
 			raiz.Anchored = true -- quietos (y a salvo) mientras dura la escena

@@ -27,6 +27,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Recompensas = require(ServerScriptService:WaitForChild("Comun").Recompensas)
 local Viaje = require(ServerScriptService:WaitForChild("Comun").Viaje)
 local Cargar = require(script.Parent.Cargar)
+local Ciclo = require(script.Parent.Ciclo)
 local Golpeador = require(script.Parent.Golpeador)
 local Mochila = require(script.Parent.Mochila)
 local Muerte = require(script.Parent.Muerte)
@@ -79,6 +80,14 @@ local function terminar()
 	end
 	Recompensas.finalBestia(B.Cinematica)
 	for _, j in Players:GetPlayers() do
+		-- Los escondidos, fuera del escondite antes de anclarlos (como Coche.huir): si no, su latido sonaba encima de la
+		-- escena y al salir se desanclaban en mitad de ella. Con pcall: que nada deje el final a medias.
+		if Muerte.escondite(j) then
+			local ok, fallo = pcall(Muerte.sacar, j)
+			if not ok then
+				warn("[Incendio] sacar: " .. tostring(fallo))
+			end
+		end
 		Cargar.soltar(j)
 		-- La mochila, cerrada: abierta, su desenfoque y la mochila 3D salían delante de la cámara de la escena.
 		j:SetAttribute("MochilaAbierta", nil)
@@ -139,6 +148,11 @@ local function prender(jugador: Player?, forzado: boolean?)
 		-- Que los clientes lo apaguen y que quien entre después no lo vea prender otra vez.
 		mensaje = nil
 		Remotes.Incendio:FireAllClients("Apagar")
+		-- Si ha amanecido mientras corría, el Director no revivió a nadie (había Final): se revive ahora, o los muertos
+		-- se pasaban el día entero sin personaje. De noche, nada: reviven al amanecer (o al volver a empezar el día).
+		if Ciclo.fase() == "Dia" then
+			Muerte.revivirTodos()
+		end
 		return -- no hay nada que devolver: la cerilla no se ha gastado
 	end
 	-- Ahora sí se gasta (si se ha ido o la ha soltado, nada: la partida acaba igual con este final).
