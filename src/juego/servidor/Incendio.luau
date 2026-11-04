@@ -41,7 +41,7 @@ local SOTANO = Vector3.new(0, -8, 56)
 -- el fuego aún se está comiendo el tejado y las ventanas de lejos (IncendioVista).
 local ARDE = B.ArdeCasa
 
--- Bestia y Preparativos se cargan en start(): así no hay require en círculo si ellos usan Incendio.ardiendo().
+-- Bestia y Preparativos se cargan en start(): así no hay require en círculo si algún día piden algo a Incendio.
 local Bestia: any
 local Preparativos: any
 local ardiendo = false
@@ -153,10 +153,6 @@ end
 -- Partida: qué hacer al terminar así (dar la partida por terminada con final = "Bestia" y guardarla).
 function Incendio.alTerminar(fn: () -> ())
 	alTerminar = fn
-end
-
-function Incendio.ardiendo(): boolean
-	return ardiendo
 end
 
 function Incendio.start()
