@@ -208,7 +208,7 @@ local function ataque(a: Ataque)
 			if not b:quieto() and (rr.Position - b.raiz.Position).Magnitude < A.Pillar + 2 then
 				b.humanoide:MoveTo(b.raiz.Position)
 				b:mirarA(rr.Position)
-				Muerte.matar(presa, b:cabeza())
+				Muerte.matar(presa, b:cabeza(), b.modelo)
 				task.wait(2.5)
 				break
 			end
