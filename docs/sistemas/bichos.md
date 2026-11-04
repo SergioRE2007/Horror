@@ -132,9 +132,9 @@ Cliente (cada `<Bicho>Vista`, solo lo visual):
 - Pasa con los cinco bichos y sin márgenes propios. Aceptado (no falla, sale con `GATEO_VER`): la Bestia mete
   en el suelo las garras de los dos brazos (`Bestia.luau`, `CFrame.new(i * 0.4, -3.7, -0.9) * Angles(1.1, 0, 0)`):
   0,12-0,19 ya en la pose de reposo y ~0,35 con el temblor, la respiración y las crispaciones. Cargar el peso (`PESO`,
-  `PESO_LADEA`) no lo empeora: sube el brazo libre y el que carga se queda donde estaba (el comentario junto a
-  `PARA_VIDA` en el banco, "el brazo que carga", se podría matizar); al llegar andando a 0,8 ya trae el BrazoD 1,16 en el
-  tablero (es de andar), y el Trepador de pie baja la cabeza ~0,6. La mesa de la cocina del banco tiene un `Tam` a ojo.
+  `PESO_LADEA`) no lo empeora: sube el brazo libre y el que carga se queda donde estaba; al llegar andando a 0,8 ya
+  trae el BrazoD 1,16 en el tablero (es de andar), y el Trepador de pie baja la cabeza ~0,6. La mesa de la cocina del
+  banco tiene un `Tam` a ojo.
 
 ## Probar en Studio (esconderse agachado y vida de espera)
 

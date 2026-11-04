@@ -62,7 +62,7 @@ local ANDA = 2 -- ...durante estos s...
 local PARA = 1 -- ...y luego parada estos s
 local TRAS_SUSTO = 2 -- s más que se mira si te pilla (se queda en el suelo el susto, y sale después)
 -- En la vida de andar (abajo), parada más rato: parada carga el peso de un brazo al otro cada 2,5-5 s y a azar (PESO en
--- BestiaVista), y el brazo que carga mete sus adornos ~0,2-0,3 en el suelo; con 1 s solo se vería un lado.
+-- BestiaVista); con 1 s solo se vería un lado. Las garras ya rozan el suelo ~0,12-0,35 también sin cargar (bichos.md).
 local PARA_VIDA = 10
 local Y = 1 -- el suelo de la planta baja (ABAJO en Mapa)
 local BICHOS = { "Golpeador", "Raspador", "Trepador", "Imitador", "Bestia" }
