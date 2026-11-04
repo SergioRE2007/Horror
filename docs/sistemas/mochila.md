@@ -24,6 +24,9 @@ Con bloques grises y animaciones sencillas. Números a ojo, todos en `Config` (`
 - `CargarVista`: con algo en las manos, "[E] SOLTAR" abajo (en el móvil, botón SOLTAR donde el de acción); la vista baja un poco y se balancea al andar.
 - `Controles`: con las manos ocupadas o la mochila abierta no salen los carteles de coger o abrir.
 - `Ui.mayusculas`: mayúsculas con tildes (string.upper dejaba "CáMARA").
+- Por la mirilla o entre las cortinas se puede abrir (pedido antes por el usuario, recuperado en la 14.9): `MirarVista`
+  deja de mirar con `MochilaAbierta`. Solo se cierra y no se abre en la escena de un final (`EscenaFinal`, ver
+  `partida.md`). Banco `tests/bancos/escenas.luau`.
 
 ## Probado en Studio (21-10-2026)
 
@@ -35,3 +38,5 @@ Con bloques grises y animaciones sencillas. Números a ojo, todos en `Config` (`
 
 - Sin probar: dos jugadores de verdad con el motor, botones del móvil, la mochila con mando (abre y cierra, pero no se mueve por la rejilla).
 - Sin sonidos de coger, tirar ni abrir (llegan con ElevenLabs).
+- Probar en Studio (14.9): mirar por la mirilla de la puerta o entre las cortinas y pulsar B: se abre la mochila y
+  `MirarVista` deja de mirar. En la escena final, B no la abre, y si estaba abierta se cierra al empezar.

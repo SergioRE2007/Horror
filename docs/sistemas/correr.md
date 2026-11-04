@@ -52,7 +52,8 @@ comprobado con Lune (reglas, cuentas y bancos que cargan los módulos de verdad)
 - API para los demás módulos: `corriendo`, `ritmo` (0..1 suavizado), `aguante`, `agotado`, `cansancio`, `tropiezo`
   (s desde tu último tropiezo, 1,6 s), `recien`, `jadear(padre, fuerza)`, `alAgotarse(fn)`.
 - Sonidos: al agotarte, un jadeo fuerte solo para ti y luego resoplidos más flojos y espaciados hasta recuperar tres
-  cuartos (escondido, debajo de un mueble o muerto, no). De los demás a menos de 60 studs, un jadeo 3D al agotarse.
+  cuartos (escondido, debajo de un mueble, muerto o en la escena de un final, no). De los demás a menos de 60 studs,
+  un jadeo 3D al agotarse.
   `Config.Sonidos.Jadeo` tiene Id 0: mientras, el provisional `Config.Correr.Jadeo` (VientoTiro a tono 1,6).
 
 ## La barra (`CorrerBarra`)
@@ -164,6 +165,8 @@ Antes: en Edit, que Rojo ha sincronizado (`game.ServerScriptService:FindFirstChi
    "tap RUN"; con mando, "press L3". Que quepa en español.
 11. **Rendimiento** (Ajustes): corriendo, campo de visión 70, sin balanceo, braceo ni temblor de más; el tropiezo sí.
 12. **Morir corriendo y reaparecer**: `Aguante` 1 y sin `Corriendo`, `Agotado` ni `Frena`; la barra no sale.
+13. **Escena final** (14.9): correr hasta agotarse (oír los resoplidos) y arrancar el coche enseguida: en la escena
+   de la huida ya no suenan (`EscenaFinal`, ver `partida.md`).
 
 ## Números a ojo para mirar en Studio
 

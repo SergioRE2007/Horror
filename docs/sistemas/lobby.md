@@ -23,7 +23,7 @@ al principio de cada módulo; los que puede querer tocar Sergio, en `Config.Lobb
 | cliente | `GasolineraVista` | La vida: luces que fallan, puerta automática, faros y limpias, polillas y la sombra entre los árboles |
 | cliente | `SalidaVista` | La cinemática del coche que se va |
 | cliente | `LlegadaVista` | El coche que llega a la plaza tras un viaje (14.9.3) |
-| cliente | `CocheCopia` | Librería de las dos: la copia del coche, su camino de la plaza al carril (`plaza`, `enPlaza`, `curva`), `mover` (un solo BulkMoveTo) y `tapar`/`destapar` del de verdad (lo pueden pedir varios a la vez; escondido tampoco choca) |
+| cliente | `CocheCopia` | Librería de las dos: la copia del coche, su camino de la plaza al carril (`plaza`, `enPlaza`, `curva`), `mover` (un solo BulkMoveTo), `tapar`/`destapar` del de verdad (lo pueden pedir varios a la vez; escondido tampoco choca) y `apartar` |
 
 ## Plano
 
@@ -86,6 +86,10 @@ Etiquetas (CollectionService) y atributos dentro de `workspace.Mapa`:
   por detrás o por delante), cuando el asiento ya te ha soltado. Sin eso caías en el suelo del coche, entre las
   puertas que chocan, con la cabeza por el techo (visto en Studio). Lo hace el cliente: desde el servidor el personaje
   volvía dentro y arrastraba el asiento aún soldado.
+- Si la salida no sigue (`Viaje` falla, el dueño se baja; en Studio siempre), al destapar el de verdad
+  `CocheCopia.apartar(modelo, plaza)` pone a un lado al jugador local si está de pie dentro de su caja (el coche vuelve
+  a chocar). No hace nada si otro lo sigue tapando o si el jugador va sentado. La llegada lo llama igual al acabar.
+  Banco `lobby-coche`, los dos casos.
 - Si se han ido de verdad, el coche ya tiene `Llegada` al quitarse `Salida`: la copia sigue hasta la niebla y el de verdad
   sigue escondido hasta que acaba la llegada (sin que se vea ni un fotograma).
 
@@ -99,11 +103,13 @@ Pedido por el usuario: el coche de verdad reaparecía de golpe en su plaza al qu
   final de la curva, entra marcha atrás por el camino de salida al revés (sin darle a los de delante y detrás), avanza
   lo que el que sale da de marcha atrás, 1,2 s al ralentí, apaga y vuelve el de verdad en el mismo sitio.
 - Todo según la hora del servidor (quien entra a medias lo ve donde toca). Lo devuelve siempre: a la hora, si `Llegada`
-  cambia o vuelve a nil y si algo falla (`warn` de `[LlegadaVista]`). Si al acabar estás de pie en la plaza, te aparta.
+  cambia o vuelve a nil y si algo falla (`warn` de `[LlegadaVista]`). Si al acabar estás de pie en la plaza, te aparta
+  (`CocheCopia.apartar`).
 - Carril de uno en uno (`Coches`): delante de las plazas no van dos a la vez. Una `Salida` que pisaría una llegada se
   retrasa (la cuenta atrás dura más y SalidaVista no arranca hasta entonces) y una `Llegada` espera a la anterior (el
   que sale ocupa el carril sus primeros 6 s; entre dos, 0,5 s).
-- El motor, `Config.SonidosLobby.MotorCoche` en bucle con el tono según la velocidad (falta el sonido).
+- El motor: el bucle `Config.SonidosLobby.MotorCoche`, con el tono según la velocidad, solo si tiene Id > 0
+  (`Sonido.hay`). Si no, suena el `Arranque` una vez a `CERCA` s de la hora. Con los dos en Id 0 (hoy) no suena nada.
 
 ## Interfaz (CochesUi y TiendaUi)
 
@@ -128,7 +134,8 @@ sin animaciones.
 - Ya existen y se usan: Viento, Zumbido, Parpadeo, Nevera, NeveraClac, Buho, Lobo, Rama, Ramita.
 - **Faltan** (`Config.SonidosLobby`, para ElevenLabs): Lluvia (bucle), LluviaChapa (bucle en la chapa de la
   marquesina), Trueno (dos o tres), Radio (radio vieja con interferencias, bucle), Campanilla (puerta de la tienda),
-  Arranque (el coche arrancando y saliendo), MotorCoche (motor viejo al ralentí, bucle: el coche que llega).
+  Arranque (el coche arrancando y saliendo; también el coche que llega si no hay MotorCoche), MotorCoche (motor viejo al
+  ralentí, bucle: el coche que llega).
 
 ## Rendimiento
 
@@ -163,3 +170,29 @@ sin animaciones.
   ```
 - Carril ocupado: durante una llegada, arrancar otro coche: su cuenta atrás es más larga y no sale hasta que el otro
   para. `workspace.CochesSaliendo` vacía al acabar. Sentado en un coche no sale su "Get in"; al bajarte, sí.
+- Antes (en Edit, con el lobby servido en el puerto 34873): que Rojo ha sincronizado,
+  `string.find(<LlegadaVista>.Source, 'Sonido.hay("MotorCoche")')` no da nil.
+- Sonido de la llegada con `MotorCoche` y `Arranque` en Id 0 (hoy): `Coche2` con `Llegada` = ahora + 22 (en Server);
+  en el cliente no hay ningún Attachment `MotorLlegada` en `workspace.Terrain` mientras llega y no sale ningún warn.
+  Para oír el respaldo, en una partida de prueba (sin subirlo) poner en el cliente, antes de que cargue, un Id real a
+  `Config.SonidosLobby.Arranque` con `MotorCoche` en 0: a 16 s de la hora suena el Arranque una vez desde la copia. Con
+  un Id real en `MotorCoche`, suena el bucle y cambia de tono con la velocidad.
+- Salida que no sigue (te aparta): en Server `workspace.Coches.Coche3:SetAttribute("Salida",
+  workspace:GetServerTimeNow() + 7)`; a los 2-3 s, en Client, ponerse de pie en la plaza vacía
+  (`Character:PivotTo(CFrame.new(Carroceria.Position.X, 3, Carroceria.Position.Z))`); antes de la hora, en Server,
+  `SetAttribute("Salida", nil)`. El coche de verdad vuelve a verse y chocar y el personaje queda de pie a un lado (~1,5
+  studs del borde), sin salir lanzado: `Carroceria.CFrame:PointToObjectSpace(raiz.Position)` con |X| mayor que medio
+  ancho del coche. Lo mismo de verdad: subirse como dueño, arrancar y bajarse en la cuenta atrás con otro jugador (Test
+  → Clients 2) de pie en la plaza (en Studio `Viaje.ir` da 'studio': la salida no sigue). Y la llegada (`Llegada` =
+  ahora + 22, de pie en la plaza): a la hora queda a un lado, como antes.
+
+## Números a ojo
+
+- Llegada: 22 s (`Coches.LLEGADA` = `LlegadaVista.DURA`), los últimos 16 delante de las plazas (`CERCA`), 30 studs/s.
+- Carril: el que sale lo ocupa sus primeros 6 s; entre dos, 0,5 s.
+
+## Ideas no hechas
+
+- Repartir el carril por zonas (ahora delante de las plazas va uno a la vez).
+- Luz de marcha atrás y ruido de ruedas mojadas en el coche que llega.
+- Que la copia del coche esquive a quien se le ponga delante (ahora lo atraviesa: no choca).

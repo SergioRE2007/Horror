@@ -48,7 +48,7 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 19 | `Config.SonidosLobby.Radio` (0,5) | Radio vieja de la tienda con interferencias | 15 | bucle | 3 | nada |
 | 20 | `Config.SonidosLobby.Campanilla` (0,6) | Campanilla al abrirse la puerta de la tienda | 2 | suelto | 3 | nada |
 | 21 | `Config.SonidosLobby.Sello` (0,6), **clave nueva** | Sello al estamparse ELEGIDA / EN USO / TUYO en la tienda | 0,6 | suelto | 3 | nada (solo `Papel` al cambiar de separador y al cerrar) |
-| 22 | `Config.SonidosLobby.MotorCoche` (0,8) | Motor de coche viejo al ralentí: el que llega al lobby tras un viaje (22 s) | 10 | bucle | 3 | nada: la llegada va muda |
+| 22 | `Config.SonidosLobby.MotorCoche` (0,8) | Motor de coche viejo al ralentí: el que llega al lobby tras un viaje (22 s) | 10 | bucle | 3 | el Arranque una vez al acercarse (hoy también Id 0: nada) |
 | 23 | `Config.SonidosLobby.Arranque` (1) | El coche arranca y se va (cinemática de 7 s) | 7 | suelto | 3 | nada |
 | 24 | `Config.Sonidos.Mirilla` (0,5) | La tapita de latón de la mirilla | 0,6 | suelto | 3 | nada |
 | 25 | `Config.Sonidos.Papel` (0,75) | Papel de las pistas (y de la tienda y los coches) | — | — | — | ya hecho: 3 versiones que puso Claude |
@@ -67,7 +67,8 @@ Notas por fila:
 - **19 Radio**: pedida suave y apagada; si satura, de YouTube sin derechos (como la bombilla).
 - **22 MotorCoche**: va antes que Arranque porque cada salida trae una llegada y dura el triple. `LlegadaVista` lo toca
   en bucle en la copia y le sube el tono con la velocidad (`PlaybackSpeed` 0,8 + 0,012 × studs/s: 0,8 parado, ~1,16 a
-  30); al apagar el coche, volumen 0. Pedirlo a velocidad constante, sin arranque ni acelerones.
+  30); al apagar el coche, volumen 0. Pedirlo a velocidad constante, sin arranque ni acelerones. Sin él (Id 0), la llegada
+  usa el Arranque una vez a 16 s de la hora (`Sonido.hay`).
 - **25 Papel**: no generar más. Falta que Sergio elija en `sonidos-terror\miedo\escuchar.html`; si no le gusta ninguno,
   se pide otro.
 

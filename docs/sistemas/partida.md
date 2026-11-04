@@ -36,19 +36,43 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
   incendio fracasa y quita `Final` ya de día, `Incendio` revive a todos.
 - Antes de anclar a todos en los dos finales (`Coche`, `Incendio`), a cada uno: `Muerte.sacar` si está escondido (con
   pcall), suelta lo que carga, mochila cerrada (`MochilaAbierta` a nil) y `Cargar.ajustarVelocidad`.
-- `MuerteVista`: el susto va en pcall y la vuelta (negro, cámara Custom, mirar a los vivos) se hace siempre. En un final
-  no toca la cámara (tampoco al reaparecer) y corta en seco el aliento y el latido.
+- `MuerteVista`: el susto va en pcall y la vuelta (negro, cámara Custom, mirar a los vivos) se hace siempre. En la
+  escena de un final no toca la cámara (tampoco al reaparecer) y corta en seco el aliento y el latido.
+- Atributo `EscenaFinal` del jugador, solo en el cliente local (no se replica): lo ponen `HuidaVista` e `IncendioVista`
+  justo al tomar la cámara (Scriptable) y lo quitan siempre en su `alAcabar`, después de devolverla a Custom, aunque la
+  escena falle. Es la señal de que hay una escena que lleva la cámara; lo miran `MuerteVista` (escondite, susto, mirar
+  a los vivos, reaparecer), `MovilUi`, `MochilaUi` y `CorrerVista` (resoplidos). No vale `workspace.Final`: en el
+  incendio se pone ~17 s antes de la escena (`Incendio.prender`) y se quita sin escena si el fuego se cancela. Tampoco
+  `CameraType == Scriptable`, que también lo es escondido, por la mirilla o las cortinas y en el susto.
+- `Muerte.esconder` rechaza mientras `workspace.Final` está puesto (la huida, o el incendio ya prendido), también la
+  orden `Esconder` del modo de pruebas. Con `Final` y sin escena (el fuego corriendo), `MuerteVista` mantiene el
+  escondite de siempre y al salir devuelve la cámara a Custom. La escena empieza sacando a todos (`Muerte.sacar`).
 - Remote `Muerte` (quien, cabeza, modelo): trae el bicho que pilla y la escena lo enfoca a él (ver `bichos.md`).
 - API nueva de `Muerte`: `vivo(jugador)` (como mirar en `vivos()`, sin hacer la lista), `sacar(jugador)` (fuera del
   escondite, lo mismo que salir) y `alMorir(fn)` (`fn(jugador)` una vez por muerte, muera como muera; Caza olvida su olor).
-- Cinemáticas (la huida, el incendio): mochila y móvil se cierran al empezar y no se abren en ella; puntero del ratón
-  escondido; la linterna de los demás se apaga con la cámara Scriptable (salvo mirilla o escondido); la flecha y el
-  contorno del tutorial se apagan con el Hud apagado o en cinemáticas; el tirón de los sustos (`Util.tiron`) se deshace
-  antes de la cámara de Roblox y no toca la Scriptable.
-- Probar en Studio (sin probar):
-  - `Prueba:Fire("Quemar")` con un escondido (`Prueba:Fire("Esconder", <punto junto a un armario>)`) y la mochila
-    abierta: en la escena no hay puntero, el escondido ha salido (sin latido; E no hace nada), todos `Anchored` y la
-    mochila cerrada; al acabar vuelven el puntero y la cámara. Igual con la huida (Escape).
+- Cinemáticas (la huida, el incendio): mochila y móvil se guardan o cierran al empezar la escena (`EscenaFinal`) y no
+  se abren en ella, pero escondido o por la mirilla sí (ver `movil.md` y `mochila.md`); puntero del ratón escondido; la
+  linterna de los demás se apaga con la cámara Scriptable (salvo mirilla o escondido); la flecha y el contorno del
+  tutorial se apagan con el Hud apagado o en cinemáticas; el tirón de los sustos (`Util.tiron`) se deshace antes de la
+  cámara de Roblox y no toca la Scriptable.
+- Bancos de Lune: `tests/bancos/muerte.luau` (Final sin escena, escena con el susto y, en el servidor, que no se
+  esconde con Final) y `tests/bancos/escenas.luau` (MovilUi y MochilaUi de verdad, con EscenaFinal, escondite y Vistazo).
+- Probar en Studio (sin probar). Antes, en Edit: que Rojo ha sincronizado (`string.find(<script>.Source, "EscenaFinal")`
+  no da nil en `MuerteVista`, `HuidaVista`, `IncendioVista`, `MovilUi`, `MochilaUi` y `CorrerVista`). Al acabar cada
+  escena: `LocalPlayer:GetAttribute("EscenaFinal")` vuelve a nil y `CameraType` es Custom; errores con
+  `LogService:GetLogHistory()`.
+  - Fuego y escondite (Test → Clients and Servers, 2): A en un armario con E; B prende el porche con las cerillas.
+    Mientras corre el fuego (~17 s), A pulsa E: la cámara vuelve a Custom y anda libre; luego la escena es suya. En el
+    cliente de A, `EscenaFinal` nil durante el fuego y true en la escena.
+  - Fuego cancelado: A escondido y B prende; antes de la escena, quitar el fuego en Server (que amanezca, o
+    `workspace:SetAttribute("Final", nil)` y `Remotes.Incendio:FireAllClients("Apagar")`). A sigue en el escondite que
+    respira y al pulsar E vuelve a Custom. Nada congelado.
+  - Huida (y fuego del incendio): con `Final` puesto, E junto a un armario no te mete (`Escondido` nil, `Ocupado` 0).
+  - Susto antes de la escena: con `Final` del incendio, que te pille un bicho ~2 s antes de que acabe el fuego. Si la
+    escena empieza durante el susto, al acabarlo la cámara sigue en la escena (Scriptable), no en Custom.
+  - `Prueba:Fire("Quemar")` con un escondido (`Prueba:Fire("Esconder", <punto junto a un armario>)` antes de prender)
+    y la mochila abierta: en la escena no hay puntero, el escondido ha salido (sin latido; E no hace nada), todos
+    `Anchored` y la mochila cerrada; al acabar vuelven el puntero y la cámara. Igual con la huida (Escape).
   - Con un muerto, `Prueba:Fire("Dia")` mientras corre el fuego: no revive (`Muerto` sigue, `Final` puesto); al
     fracasar el fuego de día, revive. Con `workspace:SetAttribute("Final", true)` no sale el botón de revivir.
   - Dos jugadores: que muera uno, huida con el otro y `Prueba:Fire("Dia")`: el revivido no aparece en mitad de la escena.
@@ -69,3 +93,9 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 - Sin probar en Studio: volver al amanecer al morir todos (usa el mismo `aplicar` que Cargar), dos jugadores en el coche (el que no es dueño).
 - La cinemática de llegada a la casa (la de salida del lobby está hecha: `lobby.md`) y volver a una partida tras un corte (el dueño no puede volver a entrar a un servidor reservado: haría falta que el lobby lo mande de vuelta).
 - Para probar el lobby en el mismo Studio: `rojo serve lobby.project.json --port 34872` y Rojo → Connect (el lugar se genera entero por código).
+- Opcional (pedido por agentes en la 14.9, no hecho): `Muerte.vivo(jugador)` en vez de `table.find(Muerte.vivos(),
+  jugador)` en Postura, Movil, Taller, Bengalas, Recursos, Generador, Mochila, Coche, Incendio y Preparativos, y en la
+  búsqueda de presa de `Bestia.luau`; un `Muerte.prepararEscena(j)` común para `Coche.huir` e `Incendio.terminar`.
+- `AmbienteMiedo`, `TutorialVista`, `EquipoVista`, `PosturaVista`, `Manos` y `BestiaVista` deciden "cinemática" por
+  `CameraType` Scriptable con excepciones de `Escondido` o `Vistazo`. Si alguno debe distinguir la escena final de
+  verdad, que mire `LocalPlayer:GetAttribute("EscenaFinal")`.
