@@ -291,8 +291,8 @@ Retoques a ojo:
 
 ### 15.3 El mapa
 - Pedido por el usuario: "el mapa sigue siendo un poco kk para que mentir".
-- Qué: rehacerlo más realista y con más detalle, como se hizo con la casa por dentro (por zonas, aprobando cada una).
-  Antes, mirar con Sergio qué zonas le parecen peor.
+- Qué: el mundo de fuera (bosque, alrededores de la casa y pueblo): rehacerlo más realista y con más detalle, como se hizo
+  con la casa por dentro (por zonas, aprobando cada una). Antes, mirar con Sergio qué zonas le parecen peor.
 - **Estado:** pendiente
 
 ### 15.4 Interacciones que hay que aguantar (estilo FNAF)
@@ -302,6 +302,16 @@ Retoques a ojo:
   fuera; si sueltas antes de que se vaya, se abre. Mientras la sujetas no puedes hacer otra cosa (otro tiene que vigilar la
   otra ventana). Lo mismo con otras interacciones que pidan tensión (sujetar una puerta, el armario…): proponer cuáles.
   Cambia el bucle de defensa (Defensa.luau, corazon.md): rehacer los números con cuidado y el tutorial.
+- **Estado:** pendiente
+
+### 15.5 Que todo se entienda sin explicarlo
+- Pedido por el usuario: "imagínate qué poco intuitivo es el juego ahora mismo que ni sabía que eso existía" (el móvil con
+  el mapa, M).
+- Qué: repasar todo lo que se puede hacer (móvil, linterna, flash, cámara, mochila, esconderse, agacharse, correr,
+  mirilla, cortinas, reparar, coche…) y que cada cosa se descubra sola: aviso de una línea la primera vez que la tienes
+  ("M: móvil"), tecla o botón visible junto a lo que tienes en la mano, y el tutorial enseñando lo importante. En PC, móvil
+  y mando. Sin llenar la pantalla (poca información, pedido por el usuario). Luego, una partida desde cero con alguien que
+  no lo conozca.
 - **Estado:** pendiente
 
 ### Ideas de Claude, por decidir (05-11-2026)
