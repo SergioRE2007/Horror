@@ -9,8 +9,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 1. 14.2 (que Sergio apruebe el tutorial) y 14.5 Partida entera de prueba, con la propuesta a ojo de
    `docs/sistemas/economia.md`.
 2. Sonidos e imágenes que faltan (`docs/sistemas/sonidos-pendientes.md`), cuando vuelva a haber créditos.
-3. 14.10 Golpeador: mejor susto y sucesos al azar (pedido por el usuario).
-4. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
+3. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
 ## Hechas
 
@@ -264,4 +263,9 @@ Retoques a ojo:
   6. **Garras por la pared:** al pasar por un pasillo, arrastra las garras por la pared o la puerta de tu cuarto.
   7. **Se queda quieto en lo oscuro:** si lo descubres con la linterna al fondo del pasillo, no se mueve unos segundos
      (solo la cabeza se ladea crujiendo) y luego viene a por ti.
-- **Estado:** pendiente (pensar con Sergio cuáles primero; números a ojo).
+- **Estado:** hecho, todo (pedido por el usuario: "haz todos"), con números a ojo. Mandíbula de verdad (hueso Jaw,
+  `bichos-3d.md`), susto nuevo (`Config.Golpeador.Susto`; MuerteVista y GolpeadorVista) y los siete sucesos
+  (`golpeador-sucesos.md`). Probado en Studio el 05-11-2026: el susto de pie, a cámara lenta (cara de frente con la boca
+  abierta del todo y las garras por los lados; la cámara iba bajo la barbilla mirando al cielo: arreglado), Cara y
+  Armario. Falta: el susto gateando, Garras, Quieto, Finge, Llama, Rendimiento y los 5 sonidos (sonidos-pendientes.md,
+  26-30: mientras suenan provisionales). Los brazos de la malla a veces salen como hojas planas estiradas: mirarlo.

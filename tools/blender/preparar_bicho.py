@@ -3,8 +3,11 @@
 # lo escala a su altura en studs, baja los brazos de la postura en T, pasa las texturas a 1024 px
 # (color, normal, rugosidad y metal por separado, como las pide SurfaceAppearance) y exporta un .fbx.
 # Uso: blender -b --factory-startup --python tools/blender/preparar_bicho.py -- <bicho.glb> <Nombre> <altura> <carpeta>
-#        [--brazos <grados que bajan los brazos>]
-# Deja <Nombre>.fbx, <Nombre>_color.png, _normal.png, _rugosidad.png, _metal.png y vistas <Nombre>1-3.png.
+#        [--brazos <grados que bajan los brazos>] [--mandibula Y Z CORTE GARGANTA --cierra <grados> --abre <grados>]
+# Con --mandibula le pone un hueso Jaw (hijo de Head) con la mandíbula de abajo pesada a él y, con --cierra, la cierra
+# algo en el reposo. Golpeador: --mandibula -0.40 7.85 30 95 --cierra 25 (altura 9).
+# Deja <Nombre>.glb, .fbx, <Nombre>_color.png, _normal.png, _rugosidad.png, _metal.png, vistas <Nombre>1-3.png y, con
+# mandíbula, <Nombre>_boca_<cerrada|reposo|abierta>_<frente|lado>.png.
 import argparse
 import math
 import os
@@ -24,6 +27,12 @@ ap.add_argument("nombre")
 ap.add_argument("altura", type=float)
 ap.add_argument("carpeta")
 ap.add_argument("--brazos", type=float, default=70.0)
+# Mandíbula (en studs, ya escalado; la cara mira a -Y): bisagra Y Z en el centro, ángulo del corte entre los dientes y
+# ángulo hacia la garganta donde se acaba (grados desde la bisagra, 0 delante, 90 abajo). Sin esto, no se le pone.
+ap.add_argument("--mandibula", type=float, nargs=4, metavar=("Y", "Z", "CORTE", "GARGANTA"))
+ap.add_argument("--mandibula-largo", type=float, default=1.8)
+ap.add_argument("--cierra", type=float, default=0.0)
+ap.add_argument("--abre", type=float, default=60.0)
 args = ap.parse_args(sys.argv[sys.argv.index("--") + 1 :])
 os.makedirs(args.carpeta, exist_ok=True)
 
@@ -115,6 +124,79 @@ for g in cuerpo.vertex_groups:
     g.name = g.name.replace("mixamorig:", "")
 
 
+def suave(t):
+    t = min(1.0, max(0.0, t))
+    return t * t * (3 - 2 * t)
+
+
+def girar_mandibula(grados):
+    # Gira el hueso Jaw (en postura) `grados` alrededor de su bisagra: positivo abre (la barbilla baja)
+    pb = arm.pose.bones["Jaw"]
+    pb.matrix_basis = Matrix.Identity(4)
+    bpy.context.view_layer.update()
+    c = pb.head.copy()
+    pb.matrix = Matrix.Translation(c) @ Matrix.Rotation(math.radians(grados), 4, "X") @ Matrix.Translation(-c) @ pb.matrix
+    bpy.context.view_layer.update()
+
+
+# Mandíbula: Tripo no pone hueso para ella. Un hueso Jaw hijo de Head con la bisagra detrás de la comisura y, con él,
+# lo que la cabeza tenga por debajo de la línea entre los dientes de arriba y los de abajo (vista de lado: los ángulos
+# se miden desde la bisagra, 0 hacia delante y 90 hacia abajo). Hacia la garganta y en la comisura el peso pasa poco a
+# poco de la cabeza a la mandíbula (sin arrastrar el cráneo ni el cuello: solo se reparte lo que ya era de Head).
+if args.mandibula:
+    by, bz, corte, garganta = args.mandibula
+    bisagra = Vector((0, by, bz))
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = arm.data.edit_bones.new("Jaw")
+    eb.head = bisagra
+    medio = math.radians((corte + garganta) / 2)
+    eb.tail = bisagra + Vector((0, -math.cos(medio), -math.sin(medio))) * 0.8
+    eb.roll = 0
+    eb.parent = arm.data.edit_bones["Head"]
+    eb.use_connect = False
+    eb.use_deform = True
+    bpy.ops.object.mode_set(mode="OBJECT")
+    cabeza = cuerpo.vertex_groups["Head"]
+    jaw = cuerpo.vertex_groups.new(name="Jaw")
+    pasados = 0
+    for v in cuerpo.data.vertices:
+        hw = next((g.weight for g in v.groups if g.group == cabeza.index), 0.0)
+        if hw <= 0:
+            continue
+        d = v.co - bisagra
+        delante, abajo = -d.y, -d.z
+        r = math.hypot(delante, abajo)
+        ang = math.degrees(math.atan2(abajo, delante))
+        # Transición más ancha cerca de la bisagra (la comisura y la mejilla se estiran en vez de romperse)
+        ancho = 4 + 22 * max(0.0, 1 - r / 0.7)
+        w = suave((ang - corte) / (2 * ancho) + 0.5)
+        w *= 1 - suave((ang - garganta) / 40 + 0.5)
+        w *= 1 - suave((r - args.mandibula_largo) / 0.4 + 0.5)
+        w *= 1 - suave((abs(d.x) - 0.6) / 0.3 + 0.5)
+        w *= hw
+        if w > 0.002:
+            jaw.add([v.index], w, "REPLACE")
+            cabeza.add([v.index], hw - w, "REPLACE")
+            pasados += 1
+    print("MANDIBULA: %d vértices" % pasados)
+    # Tripo la deja muy abierta: se cierra algo y eso queda como reposo, para que al abrirla en el juego se note
+    if args.cierra:
+        bpy.context.view_layer.objects.active = arm
+        bpy.ops.object.mode_set(mode="POSE")
+        girar_mandibula(-args.cierra)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        mod = next(m for m in cuerpo.modifiers if m.type == "ARMATURE")
+        bpy.context.view_layer.objects.active = cuerpo
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+        bpy.context.view_layer.objects.active = arm
+        bpy.ops.object.mode_set(mode="POSE")
+        bpy.ops.pose.armature_apply(selected=False)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        nuevo = cuerpo.modifiers.new("Armature", "ARMATURE")
+        nuevo.object = arm
+
+
 # Texturas a 1024: SurfaceAppearance quiere rugosidad y metal en imágenes aparte
 def guardar(pixeles, nombre):
     img = bpy.data.images.new(nombre, TEXTURA, TEXTURA, alpha=False)
@@ -202,3 +284,20 @@ for k, (objetivo, desde) in enumerate([
     cam.rotation_euler = (objetivo - cam.location).to_track_quat("-Z", "Y").to_euler()
     escena.render.filepath = os.path.join(args.carpeta, "%s%d.png" % (args.nombre, k + 1))
     bpy.ops.render.render(write_still=True)
+
+# La boca de cerca, de frente y de lado: cerrada (el reposo del hueso: la mandíbula de bloques sin abrir), como suele
+# estar en el juego (entreabierta, ~0,25 rad) y abierta del todo (`--abre`)
+if args.mandibula:
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.mode_set(mode="POSE")
+    by, bz = args.mandibula[0], args.mandibula[1]
+    objetivo = Vector((0, by - 0.7, bz - 0.3))
+    for postura, grados in (("cerrada", 0), ("reposo", 14), ("abierta", args.abre)):
+        girar_mandibula(grados)
+        for lado, desde in (("frente", Vector((0.35, -1, 0.1))), ("lado", Vector((1, -0.15, 0.05)))):
+            cam.location = objetivo + desde.normalized() * 4
+            cam.rotation_euler = (objetivo - cam.location).to_track_quat("-Z", "Y").to_euler()
+            escena.render.filepath = os.path.join(args.carpeta, "%s_boca_%s_%s.png" % (args.nombre, postura, lado))
+            bpy.ops.render.render(write_still=True)
+    girar_mandibula(0)
+    bpy.ops.object.mode_set(mode="OBJECT")

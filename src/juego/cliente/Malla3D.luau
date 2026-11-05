@@ -11,6 +11,12 @@
 -- de poner los Transform de sus motores.
 local Malla3D = {}
 
+-- La mandíbula de la malla (hueso Jaw, hijo de Head, que pone tools/blender/preparar_bicho.py con --mandibula) sigue al
+-- motor Mandibula de los bloques aunque el mapa no la nombre: gira en la raíz lo mismo que el bloque de la mandíbula
+-- (el giro de la cabeza y el de abrir, sobre el eje de lado), así que abrir la de bloques baja la barbilla de la malla
+-- sin cambiar ejes. En reposo (Transform 0) la malla tiene la boca casi cerrada; ~1 radián la abre del todo.
+local MANDIBULA = { hueso = "Jaw", bloque = "Mandibula" }
+
 -- Cómo sigue un hueso a los bloques: gira como `a` (o a medio camino de `a` a `b`, `t`), solo `f` de ese giro; con
 -- `desplaza`, además se mueve lo que se mueva la junta de `a` (la cadera). `estira`: su sitio en el padre, más lejos.
 export type Sigue = { a: string?, b: string?, t: number?, f: number?, desplaza: boolean?, estira: number? }
@@ -122,6 +128,11 @@ function Malla3D.preparar(modelo: Model, motores: { [string]: Motor6D }, o: Opci
 		huesos = {}, mundo = {}, dobla = {}, alinear = 0, piernas = {}, cuello = nil, cuelloBloque = nil, cara = nil,
 		caraEn = CFrame.identity, caraHueso = nil,
 	}
+	local mapa = o.mapa
+	if not mapa[MANDIBULA.hueso] and motores[MANDIBULA.bloque] then
+		mapa = table.clone(mapa)
+		mapa[MANDIBULA.hueso] = { a = MANDIBULA.bloque }
+	end
 	-- Los huesos que se mueven (y todos sus antepasados), de padres a hijos.
 	local indice: { [string]: number } = {}
 	local function meter(bone: Bone): number
@@ -131,7 +142,7 @@ function Malla3D.preparar(modelo: Model, motores: { [string]: Motor6D }, o: Opci
 		end
 		local arriba = bone.Parent
 		local padre = if arriba and arriba:IsA("Bone") then meter(arriba) else nil
-		local sigue = o.mapa[bone.Name]
+		local sigue = mapa[bone.Name]
 		local sitio = bone.CFrame
 		if sigue and sigue.estira then
 			sitio = CFrame.new(sitio.Position * sigue.estira) * sitio.Rotation
@@ -144,7 +155,7 @@ function Malla3D.preparar(modelo: Model, motores: { [string]: Motor6D }, o: Opci
 		return #rig.huesos
 	end
 	for _, d in malla:GetDescendants() do
-		if d:IsA("Bone") and o.mapa[d.Name] then
+		if d:IsA("Bone") and mapa[d.Name] then
 			meter(d)
 		end
 	end
@@ -259,7 +270,8 @@ function Malla3D.mover(rig: Rig)
 				d = d:Lerp(delta(s.b), s.t or 0.5)
 			end
 			if s.f and s.f ~= 1 then
-				d = CFrame.identity:Lerp(d, s.f)
+				local quieto: CFrame = CFrame.identity -- en una variable: Selene no sabe que CFrame.identity tiene Lerp
+				d = quieto:Lerp(d, s.f)
 			end
 			-- Doblado a mano (el codo, que en los bloques no existe): un giro (eje por ángulo) en los ejes de su bloque.
 			local doblado = rig.dobla[h.bone.Name]
