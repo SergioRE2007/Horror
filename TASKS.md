@@ -322,6 +322,17 @@ Retoques a ojo:
   decirle cómo entrar. Lo que le chirríe, aunque sea en frases sueltas, se apunta aquí y se arregla por orden.
 - **Estado:** pendiente
 
+### 15.7 Recuperar los commits aplastados en el historial de main
+- Pedido por el usuario: "a mí me mola ver un montón de commits". Hasta el 05-11-2026 las ramas se juntaban aplastadas
+  (squash) y main solo tiene un commit por rama; desde entonces se juntan con --no-ff (CLAUDE.md).
+- Los commits de las 30 PR siguen en GitHub (efs/pull/N/head, ~270 commits) y los dos últimos en el reflog de este PC
+  (dc5981, 206e22). 	ools/git/rehacer-historial.ps1 rehace main cambiando cada commit aplastado por un merge de
+  verdad de su rama, sin cambiar el código (mismos árboles). Antes: git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*".
+- Copia de seguridad ya hecha: etiqueta espaldo/main-aplastado (en GitHub). Al acabar: comprobar que el árbol de la
+  punta nueva es igual al de main, git push --force-with-lease origin main y avisar de volver a bajar el proyecto en
+  otros ordenadores. Se paró a medias por falta de tiempo (pedido por el usuario); main no se llegó a tocar.
+- **Estado:** pendiente
+
 ### Ideas de Claude, por decidir (05-11-2026)
 Sin aprobar todavía; el usuario decide cuáles entran: sucesos al azar en los demás bichos (como la 14.10); noches
 distintas (tormenta, niebla, luna llena, silencio); llaves y pistas en sitios distintos en cada partida; sonido que dice
