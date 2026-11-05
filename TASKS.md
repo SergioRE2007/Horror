@@ -9,7 +9,7 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 1. 14.2 (que Sergio apruebe el tutorial) y 14.5 Partida entera de prueba, con la propuesta a ojo de
    `docs/sistemas/economia.md`.
 2. Sonidos e imágenes que faltan (`docs/sistemas/sonidos-pendientes.md`), cuando vuelva a haber créditos.
-3. 14.10 Golpeador: mejor susto y sucesos al azar (pedido por el usuario); antes de publicar, confirmar la licencia de Tripo.
+3. 14.10 Golpeador: mejor susto y sucesos al azar (pedido por el usuario).
 4. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
 ## Hechas
