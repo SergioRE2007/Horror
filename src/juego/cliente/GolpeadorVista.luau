@@ -11,6 +11,9 @@
 --   parado algo más cerca (comprobado con Lune). Esperando el siguiente se va preparando, temblando de rabia.
 --   De noche y fuera de la casa echa vaho por la boca al soltar el aire (sin él con Rendimiento).
 -- Aturdido por el flash (atributo Aturdido del modelo, Caza.aturdir): se echa atrás tapándose la cara y tiembla.
+-- El susto al pillarte (rugir, 14.10: ver SUSTO) y los sucesos al azar por atributos del modelo (ver SUCESO): Armario,
+-- Olfatea, Llama (remote Golpeador "Toque"), Cara, Aparta, Finge, Garras y Quieto. Sin atravesar sus paredes ni el
+-- suelo (comprobado con Lune: tests/bancos/sucesos-golpeador.luau).
 -- Con el modelo 3D (Bichos3D.vestir), los bloques son invisibles y la malla copia su postura cada fotograma (Malla3D).
 -- Un solo bucle (Stepped) que solo corre mientras hay alguno; la vida, solo cerca de la cámara. Si el modelo se va
 -- (StreamOut o lo quita el servidor) se olvida, y si vuelve se prepara otra vez.
@@ -18,6 +21,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -143,7 +147,6 @@ local GATEO = {
 	Bajo = 1.95, -- studs del suelo al centro de la cara: más arriba no entra debajo del tablero
 	-- Los tirones, en segundos de un gateo de 2 s: {empieza, acaba, hasta dónde ha metido la cabeza (0..1)}.
 	Tirones = { { 0.5, 0.68, 0.4 }, { 1, 1.18, 0.72 }, { 1.5, 1.75, 1 } },
-	Susto = 2.2, -- segundos que se queda en el suelo si te pilla (MuerteVista mira su cara)
 }
 -- Cuándo suena cada ruido del gateo (en segundos de un gateo de 2 s): al echarse y al empezar cada tirón.
 local EVENTOS = { GATEO.Cae, GATEO.Tirones[1][1], GATEO.Tirones[2][1], GATEO.Tirones[3][1] }
@@ -177,11 +180,69 @@ local BORDE_HOLGURA = 0.2 -- studs: se toma el borde del tablero un poco antes d
 -- De pie, la punta de las garras al menos a esto del suelo (studs; su caja baja ~0,03 más), adelantando el brazo como
 -- mucho estos radianes (garrasSobreSuelo).
 local GARRAS_SUELO, GARRAS_ADELANTA = 0.06, 0.6
+-- El codo de la malla (rig.dobla, en el eje X del brazo: hacia delante, como dobla de verdad): para llevar la punta de
+-- las garras a un sitio (alcanzar). Los dedos no están en MALLA: de la muñeca a la punta del dedo corazón, ~1,75
+-- (medido en el modelo de Tripo). Como mucho CODO_MAX radianes.
+local DEDOS, CODO_MAX = 1.75, 2.5
+-- El susto al pillarte (14.10, pedido por el usuario: "hay que mejorar el screamer"). Los tiempos, en
+-- Config.Golpeador.Susto (los lee también MuerteVista, que lleva la cámara): si te pilló gateando, primero Arrastra (te
+-- saca de debajo del mueble con el brazo que metía); luego Mira (quieto, mirándote), Salta (se abalanza: torso y
+-- cabeza adelante, brazos abriéndose), Encima (boca abierta del todo, la cabeza a tirones y las garras entrando por
+-- los lados de la pantalla) y Tiron (el último empujón). Se queda así hasta Espera y luego vuelve a lo suyo. A ojo.
+local SUSTO = {
+	Entra = 0.12, -- s en ponerse en la pose (de pie)
+	Sale = 0.5, -- s en volver a lo suyo al acabar (de pie)
+	Antes = 0.3, -- gateando, deja el suelo esto antes de Espera (ya en el fundido a negro): el banco del gateo le mira
+	-- levantarse 5 s después de pillarte
+	Boca = { Arrastra = 0.6, Mira = 0.4, Salta = 1, Encima = 1.25 }, -- radianes (Malla3D: ~1 son unos 60°)
+	Tirones = { 0.06, 0.12 }, -- s entre dos tirones de la cabeza, encima de ti
+	Tiron = Vector3.new(0.14, 0.42, 0.55), -- lo que da cada tirón como mucho (cabeceo, giro, ladeo)
+	-- La punta de las garras en la cara (Cara3D: X a su derecha, -Z hacia delante; la cámara va a 2,6 en su -Z): de
+	-- dónde entran, a dónde llegan (los lados de la pantalla) y a dónde se cierran en el tirón. X va por lados.
+	GarrasDesde = Vector3.new(3.2, -0.8, 0.4),
+	Garras = Vector3.new(1.05, -0.5, -1.6),
+	GarrasTiron = Vector3.new(0.7, -0.35, -1.85),
+	GarrasEntran = 0.2, -- s que tardan en entrar
+	Levanta = 0.9, -- gateando, studs que levanta la cabeza del suelo tras sacarte
+	Giro = 1.2, -- gateando, radianes que gira la cara como mucho hacia ti (fuera del mueble)
+}
+local FASES = { "Mira", "Salta", "Encima", "Tiron" }
+-- Sucesos al azar (14.10, pedido por el usuario: "que no sea siempre igual"). Los decide el servidor (Caza) y los pone
+-- en el modelo: Suceso (nombre), SucesoHora, SucesoDura, SucesoMira (Vector3) y SucesoLado (Garras). Cada uno es una
+-- pose encima de la de siempre, que entra y sale suave (Sale y Entra: por segundo). Números a ojo.
+local SUCESO = {
+	Entra = 2.5,
+	Sale = 1.8,
+	Rapido = 14, -- Aparta: de golpe
+	Despacio = 1.1, -- Finge: gira la cabeza despacio
+	-- Agachado (Armario y Cara): la cadera baja hasta esto (en la raíz) y el torso cuelga del cuello.
+	Cadera = -2.2,
+	-- Armario: la cara a `Frente` studs de las rendijas, la cabeza ladeada `Ladeo`; respira cada `Respira` s; las manos
+	-- en la pared a los lados del armario (`Manos`: a un lado y arriba de las rendijas).
+	Armario = { Frente = 0.4, Ladeo = 0.55, Respira = 3.4, Manos = Vector2.new(2.3, 1.4) },
+	-- Olfatea: golpes de nariz cada `Cada` s, en tandas de `Tanda`, con `Pausa` s entre tandas.
+	Olfatea = { Cada = 0.34, Tanda = 3, Pausa = { 0.7, 1.1 }, Alza = 0.3 },
+	-- Llama: SucesoMira es el centro de la ventana o puerta; el dedo toca `Alto` por encima, `Aparte` studs fuera del
+	-- cristal entre toques. El toque i llega a (i - 0,5) · CadaToque s de SucesoHora (Caza): el dedo se acerca `Acerca`
+	-- s antes y se retira en `Retira` s.
+	Llama = { Alto = 0.6, Aparte = 0.45, Acerca = 0.3, Retira = 0.4 },
+	-- Cara: la cara a `Alto` por encima del centro del cristal y a `Frente` de él; las manos a los lados (`Manos`).
+	Cara = { Alto = 0.7, Frente = 0.3, Manos = Vector2.new(2.6, 0.9) },
+	-- Garras: la punta de las garras a `Pared` de la pared (rayo), arrastrándose `Atras` por detrás del hombro y `Bajo`
+	-- por debajo; rayos cada `Cada` s (con Rendimiento, `CadaPoco`), hasta `Largo` studs.
+	Garras = { Pared = 0.12, Atras = 1.5, Bajo = 0.9, Cada = 0, CadaPoco = 0.15, Largo = 6 },
+	-- Quieto: la cabeza se ladea a tirones de `Paso` radianes cada `Cada` s, crujiendo flojo (`Volumen`).
+	Quieto = { Paso = 0.14, Cada = { 0.6, 1.2 }, Max = 1.15, Volumen = 0.3 },
+}
+-- Lo que sobresale la cara de la malla (Cara3D) del centro de la cabeza de bloques, en ella (sin malla, su frente).
+local FRENTE_CARA = Vector3.new(0, 0.1, -0.75)
 
 local jugador = Players.LocalPlayer
 local azar = Random.new()
 local filtroGateo = RaycastParams.new()
 filtroGateo.FilterType = Enum.RaycastFilterType.Exclude
+local filtroSuceso = RaycastParams.new()
+filtroSuceso.FilterType = Enum.RaycastFilterType.Exclude
 
 -- Las patas del mueble debajo del que está el escondido (sus cajas de choque: centro y mitad de su tamaño), para que
 -- los brazos no las atraviesen.
@@ -202,7 +263,49 @@ type Gateo = {
 	fondo: number, -- studs (por el suelo, desde la raíz) hasta la primera pata o travesaño delante de la cabeza
 	barre: number, -- 0..1, suave: cuánto ha girado el brazo que mete hacia ti
 	rumbo: { [number]: number }, -- por brazo (-1, 1): hacia dónde va de verdad (radianes por el suelo, 0 hacia ti)
+	levanta: number, -- 0..1: si te ha pillado, cuánto ha levantado la cabeza tras sacarte (y baja suave al acabar)
+	mirada: Vector3?, -- ...y hacia dónde mira entonces (en el marco del gateo)
 }
+
+-- El susto al pillarte (rugir), mientras dura.
+type Susto = {
+	t0: number, -- os.clock de rugir
+	gatea: boolean, -- te pilló gateando: primero te arrastra fuera y lo demás lo hace en el suelo
+	mirar: Vector3, -- a dónde mira en Arrastra y Mira (la cámara: tu cabeza)
+	dir: Vector3?, -- desde Salta, hacia dónde mira (en la raíz): fijo (la cámara va delante de su cara)
+	fase: string, -- "Arrastra", "Mira", "Salta", "Encima", "Tiron" o "Fin"
+	u: number, -- 0..1 dentro de la fase
+	tir: Vector3, -- el tirón de la cabeza ahora (cabeceo, giro, ladeo)...
+	meta: Vector3, -- ...y a dónde va
+	proximo: number, -- os.clock del próximo tirón
+	w: number, -- 0..1: cuánto manda la pose del susto (de pie)
+}
+
+-- Un suceso al azar (atributos del modelo), mientras entra, dura y sale.
+type Suceso = {
+	nombre: string,
+	hora: number, -- SucesoHora (hora del servidor)
+	mira: Vector3, -- SucesoMira
+	lado: number, -- SucesoLado (Garras), o el brazo que usa (Llama)
+	w: number, -- 0..1: cuánto manda (sin suavizar)
+	activo: boolean, -- si el atributo Suceso sigue siendo este
+	manos: { [number]: Vector3 }, -- Armario y Cara: dónde apoya cada mano (en el mundo, ya en la pared)
+	proximo: number, -- Olfatea y Quieto: os.clock del próximo golpe de nariz o tirón
+	golpe: number, -- Olfatea: os.clock del último golpe de nariz; Llama: del último toque (remote)
+	tanda: number, -- Olfatea: golpes que quedan en la tanda
+	ladeo: number, -- Quieto: el ladeo ahora...
+	ladeoMeta: number, -- ...y a dónde va el tirón
+	normal: Vector3?, -- Garras: la normal de la pared (mundo), hacia él
+	punta: Vector3?, -- Garras: un punto de la pared (mundo, ya con su holgura), si hay pared y nada se cruza
+	contacto: number, -- Garras: 0..1, suave: tocando la pared
+	rayo: number, -- Garras: os.clock del último rayo
+	sonido: Sound?, -- Garras: el arañazo en bucle
+	punto: Attachment?, -- ...y dónde suena
+}
+
+-- Para alcanzar con la malla: el hueso del hombro y, en los ejes del bloque del brazo, del hombro al codo (A) y del codo a
+-- la punta de los dedos (B).
+type Codo = { hueso: number, A: Vector3, B: Vector3 }
 
 type Bicho = {
 	modelo: Model,
@@ -231,7 +334,13 @@ type Bicho = {
 	proximaSacudida: number,
 	gateo: number, -- 0..1, suave: echado al suelo a por alguien debajo de un mueble
 	gatea: Gateo?,
-	agarra: number, -- os.clock de rugir: el susto al morir le deja en el suelo
+	susto: Susto?, -- el susto al pillarte, mientras dura
+	sucesos: { [string]: Suceso }, -- los sucesos que entran, duran o salen
+	planos: { { p: Vector3, n: Vector3 } }, -- las paredes de los sucesos de este fotograma (en la raíz): noAtravesar
+	agacha: number, -- 0..1: cuánto está agachado por un suceso (la malla se alinea como al gatear)
+	offCara: Vector3, -- dónde cae la cara de la malla en la cabeza de bloques (lo mide cada fotograma, suave)
+	codos: { [number]: Codo }?, -- para alcanzar con la malla (por brazo, -1 izquierdo, 1 derecho)
+	codo: { [number]: number }, -- radianes del codo este fotograma (por brazo)
 	mesa: { cf: CFrame, tam: Vector3 }?, -- el tablero con hueco más cercano (mesaCerca)
 	mesaHasta: number, -- os.clock en que se vuelve a buscar
 	aparta: { number }, -- radianes, suave: lo que se echa atrás cada brazo para no atravesarlo (1 izquierdo, 2 derecho)...
@@ -800,7 +909,7 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 			g = {
 				hora = hora, punto = punto, borde = borde, t = t, sonados = sonados,
 				brazo = brazo, cara0 = b.cabeza.Position, sale = 0, espera = 0,
-				patas = patas, fondo = fondo, barre = 0, rumbo = {},
+				patas = patas, fondo = fondo, barre = 0, rumbo = {}, levanta = 0, mirada = nil,
 			}
 			b.gatea = g
 		end
@@ -814,7 +923,9 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 		return
 	end
 	-- Gateando (o mientras dura el susto si te ha pillado) se echa; al acabar, saca la cabeza y luego se levanta.
-	if activo or ahora - b.agarra < GATEO.Susto then
+	local s = b.susto
+	local pillado = s ~= nil and s.gatea
+	if activo or pillado then
 		b.gateo = math.min(1, b.gateo + dt / GATEO.Cae)
 	else
 		g.sale = math.min(1, g.sale + dt / GATEO.Sale)
@@ -840,6 +951,20 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 	a *= queda
 	local husmea = if poco then 0 else olfatea * queda
 	empuje *= queda
+	-- Si te ha pillado (el susto): en Arrastra el brazo que metía tira de ti hacia él (vuelve a su lado) y la cabeza sale
+	-- de debajo; luego la levanta un poco del suelo y la gira hacia ti (ya fuera del mueble) para lo demás del susto.
+	local tirones = Vector3.zero
+	if pillado and s then
+		local c = Config.Golpeador.Susto
+		local t = ahora - s.t0
+		a *= 1 - suave(math.clamp(t / c.Arrastra, 0, 1))
+		husmea, empuje = 0, 0
+		g.levanta = suave(math.clamp((t - c.Arrastra) / 0.3, 0, 1))
+		tirones = s.tir
+	else
+		g.levanta = math.max(0, g.levanta - dt / 0.35) -- al acabar baja suave (sin saltos)
+	end
+	local levanta = g.levanta
 
 	-- El marco: en el suelo bajo la raíz, mirando hacia el escondido. Todo lo de abajo va en él.
 	local enRaiz = b.raiz.CFrame:PointToObjectSpace(g.punto)
@@ -851,7 +976,7 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 	-- La cara: baja (pesado: cada vez más deprisa) por fuera del borde; abajo entra a tirones hasta quedarse a
 	-- GATEO.Hasta de ti, sin pasar de GATEO.Dentro por debajo del tablero.
 	local cara0 = (b.raiz.CFrame * marco):PointToObjectSpace(g.cara0)
-	local alto = cara0.Y + (GATEO.Cara - cara0.Y) * w * w + husmea * 0.05 * math.sin(ahora * 26)
+	local alto = cara0.Y + (GATEO.Cara - cara0.Y) * w * w + husmea * 0.05 * math.sin(ahora * 26) + SUSTO.Levanta * levanta
 	-- (Con tope: con una pata justo delante salía menos que el de `fuera` y math.clamp daba error.)
 	local final = math.max(-0.5, math.min(lejos - GATEO.Hasta, g.borde + GATEO.Dentro, g.fondo - CABEZA_FONDO.Delante))
 	-- (Echándose y levantándose, la cara más lejos del borde: de lado, la mandíbula rozaba el tablero al subir.)
@@ -859,8 +984,26 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 	local hasta = fuera + (final - fuera) * a * math.clamp((GATEO.Bajo - alto) / 0.6, 0, 1)
 	local hz = suave(math.min(1, w * 2.5))
 	local centro = Vector3.new(cara0.X * (1 - hz), alto, cara0.Z + (-hasta - cara0.Z) * hz)
-	local giroCara = mirarCara(Vector3.new(0, tuAlto, -lejos) - centro,
-		(g.brazo * GATEO.Ladeo + husmea * 0.12 * math.sin(ahora * 11)) * suave(w))
+	local haciaCara = Vector3.new(0, tuAlto, -lejos) - centro
+	if levanta > 0 then
+		-- Pillado: hacia la cámara (fuera del mueble; desde Salta, fija), sin torcer el cuello más de SUSTO.Giro. Al
+		-- acabar el susto, la última, mientras baja la cabeza.
+		local suya = g.mirada
+		if s then
+			local dir = if s.dir then marco:VectorToObjectSpace(s.dir)
+				else (b.raiz.CFrame * marco):PointToObjectSpace(s.mirar) - centro
+			local angulo = math.clamp(math.atan2(-dir.X, -dir.Z), -SUSTO.Giro, SUSTO.Giro)
+			local alza = math.clamp(math.atan2(dir.Y, math.sqrt(dir.X * dir.X + dir.Z * dir.Z)), -0.6, 0.7)
+			suya = Vector3.new(-math.sin(angulo) * math.cos(alza), math.sin(alza), -math.cos(angulo) * math.cos(alza))
+			g.mirada = suya
+		end
+		if suya then
+			haciaCara = haciaCara.Unit:Lerp(suya, levanta)
+		end
+	end
+	local giroCara = mirarCara(haciaCara,
+		(g.brazo * GATEO.Ladeo * (1 - 0.75 * levanta) + husmea * 0.12 * math.sin(ahora * 11) + tirones.Z) * suave(w))
+		* CFrame.Angles(tirones.X, tirones.Y, 0)
 	local cuello = centro - giroCara * CABEZA_CENTRO
 
 	-- El torso, doblándose desde la cadera: de un poco echado hacia delante a la cadera arriba y los hombros abajo.
@@ -985,6 +1128,737 @@ local function gatear(b: Bicho, dt: number, ahora: number, poco: boolean, bocaBa
 	end
 end
 
+------------------------------------------------------------------------------------------------------------------------
+-- Poses de encima (susto y sucesos): herramientas.
+
+-- El torso con lo que tiene este fotograma, en la raíz.
+local function torsoEnRaiz(m: { [string]: Motor6D }): CFrame
+	return m.Torso.C0 * m.Torso.Transform * m.Torso.C1:Inverse()
+end
+
+-- La parte de `v` perpendicular a `n` (unitario), o una cualquiera si no tiene.
+local function perpendicular(v: Vector3, n: Vector3): Vector3
+	local p = v - n * v:Dot(n)
+	if p.Magnitude < 1e-3 then
+		local otro = if math.abs(n.Y) < 0.9 then Vector3.yAxis else Vector3.xAxis
+		p = otro - n * otro:Dot(n)
+	end
+	return p.Unit
+end
+
+-- Por el suelo, de `punto` (en la raíz) hacia la raíz: hacia él desde la ventana, la puerta o la pared.
+local function haciaRaiz(punto: Vector3): Vector3
+	local n = Vector3.new(-punto.X, 0, -punto.Z)
+	return if n.Magnitude > 1e-3 then n.Unit else Vector3.zAxis
+end
+
+-- Una dirección (en la raíz) sin torcer el cuello más de `giro` radianes a cada lado ni mirar más arriba o abajo.
+local function sinTorcer(dir: Vector3, giro: number): Vector3
+	local plano = math.sqrt(dir.X * dir.X + dir.Z * dir.Z)
+	local a = math.clamp(math.atan2(-dir.X, -dir.Z), -giro, giro)
+	local alza = math.clamp(math.atan2(dir.Y, plano), -0.9, 0.7)
+	return Vector3.new(-math.sin(a) * math.cos(alza), math.sin(alza), -math.cos(a) * math.cos(alza))
+end
+
+-- El Transform de la cabeza para que mire en `dir` (en la raíz), ladeada `ladeo` y con `extra` encima, sobre el torso
+-- de este fotograma.
+local function cabezaHacia(m: { [string]: Motor6D }, dir: Vector3, ladeo: number, extra: CFrame?): CFrame
+	local giro = mirarCara(if dir.Magnitude > 1e-3 then dir else -Vector3.zAxis, ladeo)
+	if extra then
+		giro *= extra
+	end
+	return (torsoEnRaiz(m) * m.Cabeza.C0).Rotation:Inverse() * giro
+end
+
+-- Con la malla: el hombro, el codo y la punta de los dedos de cada brazo en reposo, en los ejes de su bloque (los huesos
+-- giran como él: Malla3D). Así alcanzar sabe dónde acaba la mano de verdad (el codo en reposo ya va algo doblado).
+local function prepararCodos(rig: Malla3D.Rig?): { [number]: Codo }?
+	if not rig then
+		return nil
+	end
+	local indice: { [string]: number } = {}
+	for i, h in rig.huesos do
+		indice[h.bone.Name] = i
+	end
+	local codos: { [number]: Codo } = {}
+	for _, lado in LADOS do
+		local pre = if lado < 0 then "Left" else "Right"
+		local ia, ic, im = indice[pre .. "Arm"], indice[pre .. "ForeArm"], indice[pre .. "Hand"]
+		local bloque = rig.reposo[if lado < 0 then "BrazoI" else "BrazoD"]
+		if ia and ic and im and bloque then
+			local hombro, codo, mano = rig.mundo[ia].Position, rig.mundo[ic].Position, rig.mundo[im].Position
+			local ante = mano - codo
+			if ante.Magnitude > 0.1 and (codo - hombro).Magnitude > 0.1 then
+				codos[lado] = {
+					hueso = ia,
+					A = bloque:VectorToObjectSpace(codo - hombro),
+					B = bloque:VectorToObjectSpace(ante + ante.Unit * DEDOS),
+				}
+			end
+		end
+	end
+	return if next(codos) then codos else nil
+end
+
+-- Lleva la punta de las garras del brazo `lado` a `punto` (en la raíz), con el codo hacia `codoHacia`, mezclando `w`.
+-- Con la malla dobla el codo (b.codo, que acaba en rig.dobla) lo justo para llegar. Sin ella (bloques, sin codo) el
+-- brazo va recto: con `plano` (un punto y su normal hacia él, en la raíz) la punta se queda en el plano, por donde
+-- quede más cerca de `punto` (más allá si no llega tan cerca: así no atraviesa la pared); sin él, apunta a `punto`.
+local function alcanzar(b: Bicho, lado: number, punto: Vector3, codoHacia: Vector3, w: number, plano: { p: Vector3, n: Vector3 }?)
+	if w <= 1e-3 then
+		return
+	end
+	local m = b.motores
+	local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
+	local torso = torsoEnRaiz(m)
+	local junta = (torso * motor.C0).Position
+	local ik = b.codos and b.codos[lado]
+	local rig = b.rig
+	local desde, A, B = junta, Vector3.zero, GARRAS
+	if ik and rig then
+		desde, A, B = rig.mundo[ik.hueso].Position, ik.A, ik.B -- el hombro de la malla (del fotograma anterior)
+	elseif plano then
+		local largo = GARRAS.Magnitude
+		local d = (desde - plano.p):Dot(plano.n)
+		if d > 0 and d < largo then
+			local pie = desde - plano.n * d
+			punto = pie + perpendicular(punto - pie, plano.n) * math.sqrt(largo * largo - d * d)
+		end
+	end
+	local hacia = punto - desde
+	local largo = hacia.Magnitude
+	if largo < 0.3 then
+		return
+	end
+	local codo = 0
+	if ik then
+		local function mide(k: number): number
+			return (A + CFrame.Angles(k, 0, 0) * B).Magnitude
+		end
+		if largo < mide(0) then
+			local lo, hi = 0, CODO_MAX
+			if largo <= mide(hi) then
+				lo = hi
+			else
+				for _ = 1, 10 do
+					local medio = (lo + hi) / 2
+					if mide(medio) > largo then
+						lo = medio
+					else
+						hi = medio
+					end
+				end
+			end
+			codo = lo
+		end
+	end
+	-- El giro del brazo: lleva el hombro-punta (con ese codo) hacia `punto` y el codo hacia `codoHacia`.
+	local v = (A + CFrame.Angles(codo, 0, 0) * B).Unit
+	local a = perpendicular(if ik then A else Vector3.zAxis, v)
+	local t = hacia / largo
+	local e = perpendicular(codoHacia, t)
+	local giro = CFrame.fromMatrix(Vector3.zero, t, e, t:Cross(e)) * CFrame.fromMatrix(Vector3.zero, v, a, v:Cross(a)):Inverse()
+	local parte = CFrame.new(junta) * giro * CFrame.new(-motor.C1.Position)
+	motor.Transform = motor.Transform:Lerp(motor.C0:Inverse() * torso:Inverse() * parte * motor.C1, w)
+	b.codo[lado] += (codo - b.codo[lado]) * w
+end
+
+-- El giro más corto de la dirección `a` a la `b` (unitarias).
+local function girar(a: Vector3, b: Vector3): CFrame
+	local eje = a:Cross(b)
+	local seno = eje.Magnitude
+	if seno < 1e-6 then
+		return CFrame.identity
+	end
+	return CFrame.fromAxisAngle(eje / seno, math.atan2(seno, a:Dot(b)))
+end
+
+-- `dir` (unitaria, desde un punto a `d` del plano de normal `n`) inclinada lo justo para que a `largo` quede a `holgura`
+-- del plano, o nil si ya lo está.
+local function sinPasar(dir: Vector3, n: Vector3, d: number, largo: number, holgura: number): Vector3?
+	local maximo = math.clamp((d - holgura) / largo, -1, 1) -- lo más que puede ir hacia el plano (coseno con -n)
+	if -dir:Dot(n) <= maximo then
+		return nil
+	end
+	return -n * maximo + perpendicular(dir, n) * math.sqrt(1 - maximo * maximo)
+end
+
+-- Lo que se mira de cada brazo contra la pared y el suelo: { largo desde el hombro, holgura en la pared, en el suelo }.
+-- Bloques: el final del brazo (6,2; medio grueso ~0,33) y la punta de las garras (que se abren ~0,25 a los lados).
+-- Malla: el codo (lo gordo del brazo) y la punta de los dedos (su largo, el de cada fotograma: con el codo doblado).
+local PASAR_BLOQUES = { { 6.2, 0.33, 0.33 }, { GARRAS.Magnitude, 0.3, 0.2 } }
+local PASAR_MALLA = { codo = { 0.25, 0.25 }, punta = { 0.12, 0.12 } }
+local SUELO_PLANO = { p = Vector3.new(0, -ALTURA, 0), n = Vector3.yAxis }
+
+-- Con los brazos ya puestos este fotograma: si alguno pasa de alguno de los `planos` (un punto y su normal hacia él, en
+-- la raíz) o del suelo, lo gira desde el hombro lo justo para que no (tres vueltas: lo que le saca de una pared puede
+-- meterle en el suelo). Al entrar y salir de un suceso los brazos van de colgar a la pared mezclando (Lerp) y, tan
+-- largos, a medio camino la atravesaban; agachado, colgando se metían en el suelo (comprobado con Lune).
+local function noAtravesar(b: Bicho, planos: { { p: Vector3, n: Vector3 } })
+	local m = b.motores
+	local torso = torsoEnRaiz(m)
+	for _, lado in LADOS do
+		local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
+		local junta = (torso * motor.C0).Position
+		local parte = torso * motor.C0 * motor.Transform * motor.C1:Inverse()
+		local ik = b.codos and b.codos[lado]
+		local malla = ik ~= nil and b.rig ~= nil
+		local hombro = if ik and b.rig then b.rig.mundo[ik.hueso].Position else junta
+		local tramos = if ik and malla
+			then { { ik.A, PASAR_MALLA.codo[1], PASAR_MALLA.codo[2] },
+				{ ik.A + CFrame.Angles(b.codo[lado], 0, 0) * ik.B, PASAR_MALLA.punta[1], PASAR_MALLA.punta[2] } }
+			else nil
+		local giro = CFrame.identity
+		for vuelta = 1, 3 do
+			for i = 0, #planos do
+				local plano = if i == 0 then SUELO_PLANO else planos[i]
+				if i == 0 and vuelta == 1 then
+					continue -- el suelo, después de la primera pared
+				end
+				local n = plano.n
+				local d = (hombro - plano.p):Dot(n)
+				if d <= 0 then
+					continue
+				end
+				for k = 1, 2 do
+					local v, largo, holgura
+					if tramos then
+						local t = tramos[k]
+						v = giro:VectorToWorldSpace(parte:VectorToWorldSpace(t[1]))
+						largo, holgura = v.Magnitude, if i == 0 then t[3] else t[2]
+						v /= largo
+					else
+						local t = PASAR_BLOQUES[k]
+						v = giro:VectorToWorldSpace(parte:VectorToWorldSpace(GARRAS.Unit))
+						largo, holgura = t[1], if i == 0 then t[3] else t[2]
+					end
+					local nuevo = sinPasar(v, n, d, largo, holgura)
+					if nuevo then
+						giro = girar(v, nuevo) * giro
+					end
+				end
+			end
+		end
+		if giro ~= CFrame.identity then
+			parte = CFrame.new(junta) * giro * CFrame.new(-junta) * parte
+			motor.Transform = motor.C0:Inverse() * torso:Inverse() * parte * motor.C1
+		end
+	end
+end
+
+-- Agachado con la cara (la de la malla, o el frente de la cabeza) en `cara` (en la raíz) mirando en `dir`, ladeada: el
+-- torso cuelga del cuello como al gatear (la cadera, como mucho hasta SUCESO.Cadera; si hace falta, echada atrás) y las
+-- piernas van al suelo bajo ella, por delante. Devuelve el marco del suelo, mirando hacia `dir`.
+local function agachar(b: Bicho, cara: Vector3, dir: Vector3, ladeo: number, w: number): CFrame
+	local m = b.motores
+	-- Al entrar y salir, la cara va en línea recta desde donde la tiene ahora (de pie) y casi sin mezclar: mezclando el
+	-- torso y la cabeza, a medio camino la cabeza se iba hacia delante y se metía en la puerta (comprobado con Lune).
+	local ahora = torsoEnRaiz(m) * m.Cabeza.C0 * m.Cabeza.Transform * m.Cabeza.C1:Inverse()
+	cara = (ahora * b.offCara):Lerp(cara, w)
+	dir = ahora.LookVector:Lerp(dir.Unit, w)
+	ladeo *= w
+	w = math.min(1, w * 4)
+	local giroCara = mirarCara(dir, ladeo)
+	local cuello = cara - giroCara * b.offCara - giroCara * CABEZA_CENTRO
+	local plano = Vector3.new(dir.X, 0, dir.Z)
+	local rumbo = CFrame.Angles(0, if plano.Magnitude > 1e-3 then math.atan2(-plano.X, -plano.Z) else 0, 0)
+	local fi = math.acos(math.clamp((cuello.Y - SUCESO.Cadera) / 3.8, -0.2, math.cos(0.4)))
+	local giroT = rumbo * CFrame.fromMatrix(Vector3.zero, Vector3.xAxis, Vector3.new(0, math.cos(fi), -math.sin(fi)))
+	local torsoC = CFrame.new(cuello - giroT * m.Cabeza.C0.Position) * giroT
+	m.Torso.Transform = m.Torso.Transform:Lerp(m.Torso.C0:Inverse() * torsoC * m.Torso.C1, w)
+	m.Cabeza.Transform = m.Cabeza.Transform:Lerp((torsoC * m.Cabeza.C0):Inverse() * (CFrame.new(cuello) * giroCara), w)
+	local marco = CFrame.new(0, -ALTURA, 0) * rumbo
+	local torso = marco:Inverse() * torsoEnRaiz(m)
+	local cadera = torso * m.Torso.C1.Position
+	for _, lado in LADOS do
+		local motor = m[if lado < 0 then "PiernaI" else "PiernaD"]
+		local junta = cadera + torso.XVector * motor.C0.Position.X - Vector3.new(0, 0.1, 0)
+		-- Abiertas a los lados (como una araña; hacia delante, de pie el pie iba 1,5 adelante y se metía en la puerta).
+		local cae = math.clamp((junta.Y - 0.3) / PIERNA, 0, 1)
+		local hacia = Vector3.new(lado * 0.9, 0, -0.3).Unit * math.sqrt(1 - cae * cae) - Vector3.yAxis * cae
+		local parte = CFrame.new(junta) * orientar(hacia, -Vector3.zAxis) * CFrame.new(-motor.C1.Position)
+		-- (Más deprisa que el resto: mezclando a medias, a medio camino el pie se metía ~0,2 en el suelo.)
+		motor.Transform = motor.Transform:Lerp(motor.C0:Inverse() * (marco * parte) * motor.C1, math.min(1, w * 3))
+	end
+	return marco
+end
+
+-- Los cuerpos que no cuentan para los rayos de los sucesos: los bichos y los jugadores.
+local function filtrarSucesos()
+	local fuera: { Instance } = {}
+	local carpeta = workspace:FindFirstChild("Bichos")
+	if carpeta then
+		table.insert(fuera, carpeta)
+	end
+	for _, otro in Players:GetPlayers() do
+		if otro.Character then
+			table.insert(fuera, otro.Character)
+		end
+	end
+	filtroSuceso.FilterDescendantsInstances = fuera
+end
+
+-- `punto` (en el mundo) llevado a la superficie que tenga delante, a lo largo de `n` (hacia él): la pared de al lado de
+-- la ventana o del armario, que puede no estar justo en el plano del cristal o de la puerta.
+local function enLaPared(punto: Vector3, n: Vector3): Vector3
+	local choque = workspace:Raycast(punto + n * 1.5, -n * 3, filtroSuceso)
+	return if choque then choque.Position + n * 0.06 else punto
+end
+
+-- Lo que suena flojo mientras no esté el sonido de verdad (Id 0): `nombre`, con su tono y volumen, cortado a los `dura` s.
+local function provisional(nombre: string, donde: Vector3, tono: number, volumen: number, dura: number): Sound
+	local s = Sonido.en(nombre, donde, tono)
+	s.Volume *= volumen
+	task.delay(dura * 0.6, function()
+		if s.Parent then
+			TweenService:Create(s, TweenInfo.new(dura * 0.4), { Volume = 0 }):Play()
+		end
+	end)
+	task.delay(dura, function()
+		if s.Parent then
+			s:Stop()
+		end
+	end)
+	return s
+end
+
+-- La boca de la malla (o de la cabeza de bloques) en el mundo.
+local function bocaDe(b: Bicho): Vector3
+	return ((if b.rig and b.rig.cara then b.rig.cara else b.cabeza).CFrame * BOCA).Position
+end
+
+------------------------------------------------------------------------------------------------------------------------
+-- Sucesos al azar: una pose por suceso (b, el suceso, su peso ya suave, dt, ahora, fino: con los detalles pequeños).
+type Pose = (Bicho, Suceso, number, number, number, boolean) -> ()
+
+-- Las manos apoyadas a los lados de `mira` (Armario y Cara): en la pared y, con la malla, con el codo doblado hacia fuera.
+local function manosEnPared(b: Bicho, r: Suceso, w: number, mira: Vector3, n: Vector3, manos: Vector2)
+	local raiz = b.raiz.CFrame
+	local derecha = (-n):Cross(Vector3.yAxis)
+	for _, lado in LADOS do
+		local mano = r.manos[lado]
+		if not mano then
+			mano = enLaPared(raiz * (mira + derecha * lado * manos.X + Vector3.new(0, manos.Y, 0)), raiz:VectorToWorldSpace(n))
+			r.manos[lado] = mano
+		end
+		local p = raiz:PointToObjectSpace(mano)
+		alcanzar(b, lado, p, derecha * lado * 0.7 + n * 0.5 - Vector3.yAxis * 0.3, w, { p = p, n = n })
+	end
+	table.insert(b.planos, { p = mira, n = n }) -- (noAtravesar, en animar: después de todo lo que mueve los brazos)
+end
+
+local POSES: { [string]: Pose } = {}
+
+-- Armario: pegado a las rendijas (no sabe que estás), la cabeza ladeada mirando dentro, respirando fuerte y lento (la
+-- respiración, en animar), con las manos en la pared a los lados del armario.
+POSES.Armario = function(b, r, w, _dt, ahora, fino)
+	local A = SUCESO.Armario
+	local mira = b.raiz.CFrame:PointToObjectSpace(r.mira)
+	local n = haciaRaiz(mira)
+	local derecha = (-n):Cross(Vector3.yAxis)
+	local aire = math.sin(b.respira)
+	local mece = if fino then math.sin(ahora * 0.35) else 0
+	local cara = mira + n * (A.Frente + 0.06 * aire) + derecha * 0.12 * mece
+	local dir = -n + Vector3.new(0, -0.08, 0) + derecha * (if fino then 0.1 * math.sin(ahora * 0.27) else 0)
+	agachar(b, cara, dir, A.Ladeo + 0.15 * mece, w)
+	b.agacha = math.max(b.agacha, w)
+	manosEnPared(b, r, w, mira, n, A.Manos)
+	local m = b.motores
+	m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-(0.3 + 0.15 * math.max(0, -aire)), 0, 0), w)
+end
+
+-- Olfatea: levanta la cabeza hacia ti y da golpes de nariz cortos, en tandas.
+POSES.Olfatea = function(b, r, w, _dt, ahora)
+	local O = SUCESO.Olfatea
+	if r.activo and ahora >= r.proximo then
+		if r.tanda <= 0 then
+			r.tanda = O.Tanda
+		end
+		r.tanda -= 1
+		r.golpe = ahora
+		r.proximo = ahora + (if r.tanda > 0 then O.Cada else rango(O.Pausa))
+		if w > 0.5 then
+			local nariz = bocaDe(b)
+			if Sonido.hay("Olfateo") then
+				Sonido.en("Olfateo", nariz)
+			else
+				provisional("Rafaga", nariz, 1.7, 0.35, 0.16) -- un soplo corto y agudo, como de nariz
+			end
+		end
+	end
+	local tg = ahora - r.golpe
+	local golpe = if tg < 0.05 then tg / 0.05 elseif tg < 0.2 then 1 - (tg - 0.05) / 0.15 else 0
+	local m = b.motores
+	m.Torso.Transform = m.Torso.Transform:Lerp(CFrame.new(0, 0.06 * golpe, 0) * CFrame.Angles(0.12 + 0.02 * golpe, 0, 0), w)
+	local raiz = b.raiz.CFrame
+	local dir = sinTorcer(raiz:PointToObjectSpace(r.mira) - raiz:PointToObjectSpace(b.cabeza.Position), 1.3)
+	dir = (dir + Vector3.new(0, O.Alza, 0)).Unit
+	local nariz = CFrame.new(0, 0, -0.08 * golpe) * CFrame.Angles(0.12 * golpe, 0, 0)
+	m.Cabeza.Transform = m.Cabeza.Transform:Lerp(cabezaHacia(m, dir, 0.15, nariz), w)
+	m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-(0.22 - 0.12 * golpe), 0, 0), w)
+end
+
+-- Llama: un dedo contra el cristal, tres toques lentos (a la hora que dice Caza; el remote "Toque" lo hace sonar).
+POSES.Llama = function(b, r, w, _dt, ahora, fino)
+	local L = SUCESO.Llama
+	local reglas = Config.Golpeador.Sucesos.Llama
+	local mira = b.raiz.CFrame:PointToObjectSpace(r.mira)
+	local n = haciaRaiz(mira)
+	local derecha = (-n):Cross(Vector3.yAxis)
+	if r.lado == 0 then
+		r.lado = if mira:Dot(Vector3.xAxis) >= 0 then 1 else -1 -- el brazo del lado de la ventana
+	end
+	local tt = workspace:GetServerTimeNow() - r.hora
+	local cerca = 0
+	for i = 1, reglas.Toques do
+		local d = tt - (i - 0.5) * reglas.CadaToque
+		if d > -L.Acerca and d < L.Retira then
+			cerca = math.max(cerca, if d < 0 then suave(1 + d / L.Acerca) else 1 - suave(d / L.Retira))
+		end
+	end
+	local tr = ahora - r.golpe -- por si el reloj no cuadra: el remote también lo pone en el cristal
+	if tr < L.Retira then
+		cerca = math.max(cerca, 1 - suave(tr / L.Retira))
+	end
+	local punto = mira + Vector3.new(0, L.Alto, 0) + derecha * r.lado * 0.35 + n * (0.05 + L.Aparte * (1 - cerca))
+	local m = b.motores
+	m.Torso.Transform = m.Torso.Transform:Lerp(CFrame.Angles(0.06 + 0.03 * math.sin(ahora * 0.8), 0, 0), w)
+	local raiz = b.raiz.CFrame
+	local dir = sinTorcer(punto - raiz:PointToObjectSpace(b.cabeza.Position), 1.2)
+	m.Cabeza.Transform = m.Cabeza.Transform:Lerp(cabezaHacia(m, dir, 0.4 + (if fino then 0.06 * math.sin(ahora * 0.7) else 0)), w)
+	alcanzar(b, r.lado, punto, derecha * r.lado * 0.6 - Vector3.yAxis * 0.7, w, { p = mira + n * 0.05, n = n })
+	table.insert(b.planos, { p = mira, n = n }) -- (noAtravesar, en animar: después de todo lo que mueve los brazos)
+	m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-0.35, 0, 0), w)
+end
+
+-- Cara: la cara pegada al cristal mirando dentro, agachado hasta él, con las manos apoyadas a los lados.
+POSES.Cara = function(b, r, w, _dt, ahora, fino)
+	local C = SUCESO.Cara
+	local mira = b.raiz.CFrame:PointToObjectSpace(r.mira)
+	local n = haciaRaiz(mira)
+	local derecha = (-n):Cross(Vector3.yAxis)
+	local mece = if fino then math.sin(ahora * 0.6) else 0
+	local cara = mira + Vector3.new(0, C.Alto, 0) + n * C.Frente + derecha * 0.08 * mece
+	agachar(b, cara, -n + Vector3.new(0, -0.1, 0), 0.2 + 0.12 * mece, w)
+	b.agacha = math.max(b.agacha, w)
+	manosEnPared(b, r, w, mira, n, C.Manos)
+	local m = b.motores
+	m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-(0.45 + 0.12 * mece), 0, 0), w)
+end
+
+-- Aparta: se echa atrás de golpe, con la cabeza apartada y los brazos subiendo.
+POSES.Aparta = function(b, _r, w)
+	local m = b.motores
+	m.Torso.Transform = m.Torso.Transform:Lerp(CFrame.new(0, 0.25, 0.9) * CFrame.Angles(0.45, 0, 0), w)
+	m.Cabeza.Transform = m.Cabeza.Transform:Lerp(CFrame.fromEulerAnglesYXZ(0.35, 0.45, -0.3), w)
+	for _, lado in LADOS do
+		local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
+		motor.Transform = motor.Transform:Lerp(CFrame.Angles(0.6, 0, lado * 0.9), w)
+	end
+	m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-0.9, 0, 0), w)
+end
+
+-- Todo quieto (Finge y Quieto): el torso algo echado adelante (y girado `giro`), los brazos colgando, las piernas rectas.
+local function quieto(b: Bicho, w: number, giro: number)
+	local m = b.motores
+	m.Torso.Transform = m.Torso.Transform:Lerp(CFrame.Angles(-0.08, giro, 0), w)
+	for _, lado in LADOS do
+		local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
+		motor.Transform = motor.Transform:Lerp(CFrame.Angles(0.04, 0, lado * 0.1), w)
+	end
+	m.PiernaI.Transform = m.PiernaI.Transform:Lerp(CFrame.identity, w)
+	m.PiernaD.Transform = m.PiernaD.Transform:Lerp(CFrame.identity, w)
+	m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-0.28, 0, 0), w)
+end
+
+-- Finge: parado, mira atrás por encima del hombro hacia la casa, despacio (SUCESO.Despacio) y quieto.
+POSES.Finge = function(b, r, w)
+	local raiz = b.raiz.CFrame
+	local mira = raiz:PointToObjectSpace(r.mira)
+	local angulo = math.atan2(-mira.X, -mira.Z)
+	quieto(b, w, math.clamp(angulo * 0.3, -0.55, 0.55))
+	local m = b.motores
+	local dir = sinTorcer(mira - raiz:PointToObjectSpace(b.cabeza.Position), 2.1)
+	m.Cabeza.Transform = m.Cabeza.Transform:Lerp(cabezaHacia(m, dir, 0.2), w)
+end
+
+-- Quieto: alumbrado al fondo, no se mueve; solo la cabeza se ladea despacio, a tirones, crujiendo flojo.
+POSES.Quieto = function(b, r, w, dt, ahora)
+	local Q = SUCESO.Quieto
+	if r.activo and ahora >= r.proximo and r.ladeoMeta < Q.Max then
+		r.proximo = ahora + rango(Q.Cada)
+		r.ladeoMeta = math.min(Q.Max, r.ladeoMeta + Q.Paso)
+		if w > 0.5 then
+			Sonido.en("Crujido", b.cabeza.Position, 1.15).Volume *= Q.Volumen
+		end
+	end
+	r.ladeo = acercar(r.ladeo, r.ladeoMeta, dt, 18)
+	quieto(b, w, 0)
+	local raiz = b.raiz.CFrame
+	local m = b.motores
+	local dir = sinTorcer(raiz:PointToObjectSpace(r.mira) - raiz:PointToObjectSpace(b.cabeza.Position), 1)
+	m.Cabeza.Transform = m.Cabeza.Transform:Lerp(cabezaHacia(m, dir, r.ladeo), w)
+end
+
+-- Garras: andando junto a una pared, el brazo de SucesoLado estirado hacia ella arrastrando las garras por detrás del
+-- hombro. La pared se busca con un rayo desde el hombro (la punta se queda SUCESO.Garras.Pared antes de ella) y otro
+-- del hombro a la punta: si algo se cruza (el marco de una puerta, una esquina) o no hay pared, el brazo se recoge.
+POSES.Garras = function(b, r, w, dt, ahora, fino)
+	local G = SUCESO.Garras
+	local lado = if r.lado < 0 then -1 else 1
+	local m = b.motores
+	local raiz = b.raiz.CFrame
+	local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
+	local ik = b.codos and b.codos[lado]
+	local hombro = if ik and b.rig then b.rig.mundo[ik.hueso].Position else (torsoEnRaiz(m) * motor.C0).Position
+	local hombroM = raiz * hombro
+	if r.activo and ahora - r.rayo >= (if fino then G.Cada else G.CadaPoco) then
+		r.rayo = ahora
+		local hacia = r.normal and -r.normal or Vector3.new(r.mira.X - hombroM.X, 0, r.mira.Z - hombroM.Z)
+		if hacia.Magnitude < 1e-3 then
+			hacia = raiz.RightVector * lado
+		end
+		r.punta = nil
+		local choque = workspace:Raycast(hombroM, hacia.Unit * G.Largo, filtroSuceso)
+		local nn = choque and Vector3.new(choque.Normal.X, 0, choque.Normal.Z)
+		if choque and nn and nn.Magnitude > 0.5 then
+			nn = nn.Unit
+			r.normal = nn
+			local d = (hombroM - choque.Position):Dot(nn)
+			local atras = perpendicular(-raiz.LookVector, nn)
+			local punta = hombroM - nn * (d - G.Pared) + atras * G.Atras - Vector3.yAxis * G.Bajo
+			if not workspace:Raycast(hombroM, punta - hombroM, filtroSuceso) then
+				r.punta = choque.Position + nn * G.Pared -- (un punto del plano de la pared, ya con su holgura)
+			end
+		end
+	end
+	local toca = r.activo and r.punta ~= nil and r.normal ~= nil
+	r.contacto = acercar(r.contacto, if toca then 1 else 0, dt, 8)
+	local normal, enPlano = r.normal, r.punta
+	if normal and enPlano and r.contacto > 1e-3 then
+		-- La punta, cada fotograma desde el hombro de ahora (sigue andando): en el plano, detrás y abajo.
+		local d = (hombroM - enPlano):Dot(normal)
+		local atras = perpendicular(-raiz.LookVector, normal)
+		local punta = hombroM - normal * d + atras * G.Atras - Vector3.yAxis * G.Bajo
+		local n = raiz:VectorToObjectSpace(normal)
+		alcanzar(b, lado, raiz:PointToObjectSpace(punta), n * 0.7 + Vector3.yAxis * 0.3 + Vector3.zAxis * 0.4, w * r.contacto,
+			{ p = raiz:PointToObjectSpace(enPlano), n = n })
+		-- El arañazo, en bucle donde están las garras: más fuerte andando.
+		if not r.punto then
+			local nombre = if Sonido.hay("UnasPared") then "UnasPared" else "Raspado"
+			local punto = Instance.new("Attachment")
+			punto.Name = "GarrasGolpeador"
+			punto.Parent = workspace.Terrain
+			local s = Sonido.bucle(nombre, punto)
+			s.RollOffMode = Enum.RollOffMode.InverseTapered
+			s.RollOffMinDistance = 6
+			s.RollOffMaxDistance = Config.Sonidos[nombre].Alcance or 45
+			s:SetAttribute("Base", s.Volume * (if nombre == "Raspado" then 0.35 else 1)) -- el Raspado, bajito
+			s.Volume = 0
+			r.punto, r.sonido = punto, s
+		end
+		local v = b.raiz.AssemblyLinearVelocity
+		local s = r.sonido :: Sound
+		;(r.punto :: Attachment).WorldPosition = punta
+		s.Volume = (s:GetAttribute("Base") or 0.5) * r.contacto * math.clamp(Vector3.new(v.X, 0, v.Z).Magnitude / 4, 0.35, 1)
+	elseif r.sonido then
+		r.sonido.Volume = 0
+	end
+	if normal and enPlano then
+		table.insert(b.planos, { p = raiz:PointToObjectSpace(enPlano - normal * G.Pared), n = raiz:VectorToObjectSpace(normal) })
+	end
+end
+
+-- El orden en que se ponen (Aparta, la última: sale de la Cara y manda sobre ella).
+local ORDEN = { "Armario", "Olfatea", "Llama", "Cara", "Finge", "Garras", "Quieto", "Aparta" }
+
+local function acabarSuceso(r: Suceso)
+	if r.punto then
+		r.punto:Destroy()
+		r.punto, r.sonido = nil, nil
+	end
+end
+
+local function olvidarSucesos(b: Bicho)
+	for _, r in b.sucesos do
+		acabarSuceso(r)
+	end
+	table.clear(b.sucesos)
+	b.agacha = 0
+end
+
+-- Los sucesos del modelo, encima de la pose de siempre (que ya está en las juntas este fotograma).
+local function sucesos(b: Bicho, dt: number, ahora: number, fino: boolean)
+	local modelo = b.modelo
+	local nombre = modelo:GetAttribute("Suceso")
+	local lista = b.sucesos
+	if typeof(nombre) ~= "string" or not POSES[nombre] then
+		nombre = nil
+	end
+	b.agacha = 0
+	table.clear(b.planos)
+	if nombre == nil and next(lista) == nil then
+		return
+	end
+	if nombre then
+		local hora = modelo:GetAttribute("SucesoHora")
+		hora = if typeof(hora) == "number" then hora else 0
+		local r = lista[nombre]
+		if not r or r.hora ~= hora then
+			local lado = modelo:GetAttribute("SucesoLado")
+			local nuevo: Suceso = {
+				nombre = nombre, hora = hora, mira = b.cabeza.Position, lado = if typeof(lado) == "number" then lado else 0,
+				w = if r then r.w else 0, activo = true, manos = {}, proximo = ahora + 0.3, golpe = -math.huge, tanda = 0,
+				ladeo = LADEO, ladeoMeta = LADEO, normal = nil, punta = nil, contacto = 0, rayo = -math.huge,
+				sonido = nil, punto = nil,
+			}
+			if r then
+				acabarSuceso(r)
+			end
+			lista[nombre] = nuevo
+			filtrarSucesos()
+		end
+		local mira = modelo:GetAttribute("SucesoMira")
+		if typeof(mira) == "Vector3" then
+			lista[nombre].mira = mira
+		end
+	end
+	for _, n in ORDEN do
+		local r = lista[n]
+		if not r then
+			continue
+		end
+		r.activo = n == nombre
+		local rapidez = if n == "Aparta" then SUCESO.Rapido
+			elseif not r.activo then SUCESO.Sale
+			elseif n == "Finge" then SUCESO.Despacio
+			else SUCESO.Entra
+		r.w = if r.activo then math.min(1, r.w + dt * rapidez) else math.max(0, r.w - dt * rapidez)
+		if r.w <= 0 and not r.activo then
+			acabarSuceso(r)
+			lista[n] = nil
+			continue
+		end
+		POSES[n](b, r, suave(r.w), dt, ahora, fino)
+	end
+end
+
+------------------------------------------------------------------------------------------------------------------------
+-- El susto al pillarte (rugir).
+
+-- Por dónde va: la fase, el tirón de la cabeza y a dónde mira. Antes de gatear (que lo usa si te pilló gateando).
+local function pasoSusto(b: Bicho, dt: number, ahora: number)
+	local s = b.susto
+	if not s then
+		return
+	end
+	local c = Config.Golpeador.Susto
+	local t = ahora - s.t0
+	local fin = if s.gatea then c.Espera - SUSTO.Antes else c.Espera
+	if t >= fin + (if s.gatea then 0 else SUSTO.Sale) then
+		b.susto = nil
+		return
+	end
+	s.w = if t < fin then math.min(1, t / SUSTO.Entra) else 1 - (t - fin) / SUSTO.Sale
+	local antes = s.fase
+	local fase, u = "Fin", 1
+	local resto = t
+	if s.gatea then
+		if resto < c.Arrastra then
+			fase, u = "Arrastra", resto / c.Arrastra
+		end
+		resto -= c.Arrastra
+	end
+	if fase == "Fin" and resto >= 0 then
+		for _, f in FASES do
+			local dura = (c :: any)[f]
+			if resto < dura then
+				fase, u = f, resto / dura
+				break
+			end
+			resto -= dura
+		end
+	end
+	s.fase, s.u = fase, u
+	if fase == "Arrastra" or fase == "Mira" then
+		s.mirar = workspace.CurrentCamera.CFrame.Position -- tu cabeza (la cámara la lleva MuerteVista)
+	elseif not s.dir then
+		s.dir = b.raiz.CFrame:VectorToObjectSpace(s.mirar - b.cabeza.Position)
+	end
+	if fase == "Salta" and antes ~= "Salta" then
+		Sonido.en("Paso", b.raiz.Position - Vector3.new(0, ALTURA, 0), 0.5) -- el pisotón al abalanzarse
+	end
+	if fase == "Encima" then
+		if ahora >= s.proximo then
+			s.proximo = ahora + rango(SUSTO.Tirones)
+			local k = SUSTO.Tiron
+			s.meta = Vector3.new(azar:NextNumber(-k.X, k.X), azar:NextNumber(-k.Y, k.Y), azar:NextNumber(-k.Z, k.Z))
+		end
+	else
+		s.meta = Vector3.zero
+	end
+	s.tir = s.tir:Lerp(s.meta, math.min(1, dt * 30))
+end
+
+-- Cuánto abre la boca en cada fase del susto (radianes).
+local function bocaSusto(s: Susto, ahora: number): number
+	local B = SUSTO.Boca
+	if s.fase == "Arrastra" then
+		return B.Arrastra + 0.08 * math.sin(ahora * 21)
+	elseif s.fase == "Mira" then
+		return B.Mira + 0.04 * math.sin(ahora * 5)
+	elseif s.fase == "Salta" then
+		return B.Mira + (B.Salta - B.Mira) * suave(s.u)
+	end
+	return B.Encima + 0.07 * math.sin(ahora * 37)
+end
+
+-- La pose del susto, encima de todo: de pie, el cuerpo entero; gateando (lo hace gatear), solo las garras.
+local function asustar(b: Bicho, ahora: number, fino: boolean)
+	local s = b.susto
+	if not s then
+		return
+	end
+	local m = b.motores
+	local f, u = s.fase, s.u
+	local k = if f == "Mira" or f == "Arrastra" then 0 elseif f == "Salta" then 1 - (1 - u) * (1 - u) else 1
+	local kt = if f == "Tiron" then suave(u) elseif f == "Fin" then 1 else 0
+	local w = if s.gatea then 1 else suave(math.clamp(s.w, 0, 1))
+	if not s.gatea then
+		local tiembla = if f == "Encima" then 0.025 * math.sin(ahora * 43) else 0
+		m.Torso.Transform = m.Torso.Transform:Lerp(CFrame.new(0, -0.25 * k - 0.1 * kt, -0.7 * k - 0.5 * kt)
+			* CFrame.Angles(-0.12 - 0.45 * k - 0.2 * kt + tiembla, 0, tiembla * 0.6), w)
+		local dir = s.dir or b.raiz.CFrame:VectorToObjectSpace(s.mirar - b.cabeza.Position)
+		m.Cabeza.Transform = m.Cabeza.Transform:Lerp(
+			cabezaHacia(m, dir, 0.3 - 0.15 * k + s.tir.Z, CFrame.Angles(s.tir.X, s.tir.Y, 0)), w)
+		m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-bocaSusto(s, ahora), 0, 0), w)
+		for _, lado in LADOS do
+			local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
+			motor.Transform = motor.Transform:Lerp(CFrame.Angles(0.15 + 0.75 * k + 0.3 * kt, 0, lado * (0.12 + 1.3 * k - 0.3 * kt)), w)
+		end
+		m.PiernaI.Transform = m.PiernaI.Transform:Lerp(CFrame.Angles(-0.2 * k, 0, 0), w)
+		m.PiernaD.Transform = m.PiernaD.Transform:Lerp(CFrame.Angles(0.3 * k, 0, 0), w)
+		garrasSobreSuelo(b) -- (echado adelante, colgando, las garras rozaban el suelo)
+	end
+	-- Las garras entrando por los lados de la pantalla: solo con la malla (los bloques no tienen codo: rectos, cruzarían
+	-- la cámara). Van en la cara de la malla (donde va la cámara), así siguen a los tirones de la cabeza.
+	local cara = b.rig and b.rig.cara
+	if b.codos and cara and (f == "Encima" or f == "Tiron" or f == "Fin") then
+		local entra = if f == "Encima" then suave(math.min(1, u * Config.Golpeador.Susto.Encima / SUSTO.GarrasEntran)) else 1
+		-- El marco: en la cara y con -Z hacia la cámara (el -Z de Cara3D apunta hacia abajo con él encorvado: las
+		-- garras salían bajo la barbilla, fuera de la pantalla; probado en Studio).
+		local ojoCam = workspace.CurrentCamera.CFrame.Position
+		local marco = if (ojoCam - cara.Position).Magnitude > 0.3 then CFrame.lookAt(cara.Position, ojoCam) else cara.CFrame
+		local enCara = b.raiz.CFrame:ToObjectSpace(marco)
+		for _, lado in LADOS do
+			local en = SUSTO.GarrasDesde:Lerp(SUSTO.Garras, entra):Lerp(SUSTO.GarrasTiron, kt)
+			local zarpa = if fino then 0.06 * math.sin(ahora * 29 + lado * 2) else 0
+			local punto = enCara * Vector3.new(lado * en.X, en.Y + zarpa, en.Z)
+			alcanzar(b, lado, punto, enCara:VectorToWorldSpace(Vector3.new(lado, -0.4, 0.5)), w)
+		end
+	end
+end
+
 local function animar(dt: number)
 	if next(bichos) == nil then
 		apagar()
@@ -999,14 +1873,20 @@ local function animar(dt: number)
 	local mirilla = jugador:GetAttribute("Mirilla") == true
 	for modelo, b in bichos do
 		if not modelo.Parent or not b.raiz.Parent then
+			olvidarSucesos(b) -- (el arañazo de Garras, si sonaba)
 			bichos[modelo] = nil
 			continue
 		end
 		local distancia = (b.raiz.Position - ojo).Magnitude
 		if distancia > lejos then
+			if next(b.sucesos) then
+				olvidarSucesos(b)
+			end
 			continue
 		end
 		local m = b.motores
+		b.codo[-1], b.codo[1] = 0, 0
+		local fino = not poco and distancia < vidaLejos -- los detalles pequeños de los sucesos y del susto
 		local v = b.raiz.AssemblyLinearVelocity
 		local rapidez = Vector3.new(v.X, 0, v.Z).Magnitude
 		local paso = math.min(1, rapidez / 9)
@@ -1034,10 +1914,20 @@ local function animar(dt: number)
 		end
 
 		-- Respira fuerte: jadea justo después de cada golpe y se va calmando.
+		-- Mirando por las rendijas del armario, fuerte y lento, y se le oye soltar el aire.
 		local calma = math.clamp((tg - 1) / 4, 0, 1)
-		b.respira += dt * 2 * math.pi / (RESPIRA[1] + (RESPIRA[2] - RESPIRA[1]) * calma)
+		local armario = b.sucesos.Armario
+		local lento = armario ~= nil and armario.activo and armario.w > 0.5
+		b.respira += dt * 2 * math.pi / (if lento then SUCESO.Armario.Respira else RESPIRA[1] + (RESPIRA[2] - RESPIRA[1]) * calma)
 		local aire = math.sin(b.respira) -- más: coge aire; menos: lo suelta
 		local soltando = math.cos(b.respira) < 0
+		if lento and soltando and not b.exhala then
+			if Sonido.hay("RespiraBicho") then
+				Sonido.en("RespiraBicho", bocaDe(b))
+			else
+				provisional("Rugido", bocaDe(b), 0.5, 0.2, 1.4) -- mientras falta: el rugido muy grave, flojo y cortado
+			end
+		end
 		if soltando and not b.exhala and noche and not poco and vida > 0.5 and distancia < VAHO_LEJOS then
 			local boca = (if b.rig and b.rig.cara then b.rig.cara else b.cabeza).CFrame * BOCA
 			if not dentroDeCasa(boca.Position) then
@@ -1127,16 +2017,13 @@ local function animar(dt: number)
 			+ vida * (0.12 * math.max(0, -aire) + (if teMira then 0.25 else 0))
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
 
+		-- Los sucesos al azar (Armario, Olfatea, Llama...), encima.
+		sucesos(b, dt, ahora, fino)
+
 		-- Aturdido por el flash: se echa atrás tapándose la cara con los brazos, temblando.
 		local hasta = modelo:GetAttribute("Aturdido")
 		local aturdido = typeof(hasta) == "number" and workspace:GetServerTimeNow() < hasta
 		b.aturde = acercar(b.aturde, if aturdido then 1 else 0, dt, if aturdido then 7 else 2)
-		local rig = b.rig
-		if rig then
-			for nombre, lado in CODOS do
-				rig.dobla[nombre] = Vector3.new(0, 0, -lado * ATURDE.Codo * suave(b.aturde))
-			end
-		end
 		if b.aturde > 0.001 then
 			local k = suave(b.aturde)
 			local tiembla = ATURDE.Tiembla * math.sin(ahora * ATURDE.Rapido)
@@ -1159,16 +2046,34 @@ local function animar(dt: number)
 			mesaCerca(b, ahora)
 			apartarBrazos(b, dt, b.aparta)
 		end
+		-- Sin atravesar la pared de un suceso (la ventana, la puerta del armario, la del pasillo) ni el suelo.
+		if b.planos[1] then
+			noAtravesar(b, b.planos)
+		end
 
-		-- Debajo de un mueble: se echa al suelo y gatea a por ti, encima de todo lo anterior.
-		gatear(b, dt, ahora, poco, abre)
+		-- Debajo de un mueble: se echa al suelo y gatea a por ti, encima de todo lo anterior (si te ha pillado gateando,
+		-- en el suelo hace también el susto, con su boca).
+		pasoSusto(b, dt, ahora)
+		local susto = b.susto
+		gatear(b, dt, ahora, poco, if susto and susto.gatea then bocaSusto(susto, ahora) - 0.2 else abre)
 		if b.gatea then
 			apartarBrazos(b, dt, b.aparta2)
 		end
+		-- El susto al pillarte, encima de todo.
+		asustar(b, ahora, fino)
 
-		if b.rig then
-			b.rig.alinear = suave(b.gateo)
-			Malla3D.mover(b.rig)
+		local rig = b.rig
+		if rig then
+			-- Los codos de la malla: tapándose la cara (aturdido) y lo que doblen las poses de encima (alcanzar).
+			for nombre, lado in CODOS do
+				rig.dobla[nombre] = Vector3.new(b.codo[lado], 0, -lado * ATURDE.Codo * suave(b.aturde))
+			end
+			-- Dónde cae su cara en la cabeza de bloques (para agachar), del fotograma anterior.
+			if rig.cara then
+				b.offCara = b.offCara:Lerp(b.cabeza.CFrame:PointToObjectSpace(rig.cara.Position), math.min(1, dt * 4))
+			end
+			rig.alinear = math.max(suave(b.gateo), suave(b.agacha))
+			Malla3D.mover(rig)
 		end
 
 		-- Una pisada cada vez que el seno cambia de signo.
@@ -1221,7 +2126,9 @@ local function preparar(modelo: Instance)
 		cab = Vector3.new(-0.05, 0, LADEO), meta = Vector3.new(-0.05, 0, LADEO), mira = nil, tiron = ahora + 1, teVe = nil,
 		crispa = { -math.huge, -math.huge }, proximaCrispa = ahora + rango(CRISPA),
 		sacudida = -math.huge, proximaSacudida = ahora + rango(SACUDIDA),
-		gateo = 0, gatea = nil, agarra = -math.huge, mesa = nil, mesaHasta = 0, aparta = { 0, 0 }, aparta2 = { 0, 0 },
+		gateo = 0, gatea = nil, susto = nil, sucesos = {}, agacha = 0, offCara = FRENTE_CARA, codos = prepararCodos(rig),
+		planos = {},
+		codo = { [-1] = 0, [1] = 0 }, mesa = nil, mesaHasta = 0, aparta = { 0, 0 }, aparta2 = { 0, 0 },
 		aturde = 0, rig = rig,
 	}
 	encender()
@@ -1238,19 +2145,63 @@ local function cercano(punto: Vector3, maximo: number?): Bicho?
 	return mejor
 end
 
--- Abre la boca del todo unos segundos (el susto al morir; si gateaba, en el suelo). Devuelve el Golpeador cerca de
--- `punto`, si hay.
+-- El susto al morir (ver SUSTO; si te pilló gateando, te arrastra y lo hace en el suelo). Devuelve el Golpeador cerca
+-- de `punto` (tu cabeza), si hay.
 -- `modelo`: el que te pilla (lo trae el remote Muerte; si no es un Golpeador, nada); sin él, el más cerca de `punto`.
 function GolpeadorVista.rugir(punto: Vector3, modelo: Model?): Model?
 	local b = if modelo then bichos[modelo] else cercano(punto, 12)
 	if b then
-		b.rugido = os.clock()
-		if b.gatea then
-			b.agarra = os.clock() -- te ha pillado gateando: se queda en el suelo mientras dura el susto
-		end
+		local ahora = os.clock()
+		b.rugido = ahora
+		olvidarSucesos(b) -- (en un suceso no mata, pero por si acaso)
+		b.susto = {
+			t0 = ahora, gatea = b.modelo:GetAttribute("Gatea") ~= nil or (b.gatea ~= nil and b.gateo > 0.5),
+			mirar = punto, dir = nil, fase = "Mira", u = 0, tir = Vector3.zero, meta = Vector3.zero, proximo = ahora, w = 0,
+		}
 		return b.modelo
 	end
 	return nil
+end
+
+-- Un toque del dedo en el cristal (Llama; remote Golpeador "Toque", justo cuando toca): en el bicho que llama a `el`
+-- (la ventana o la puerta), el dedo se pega al cristal y suena el toque.
+local function toque(el: Instance?)
+	local donde = nil
+	if typeof(el) == "Instance" then
+		local centro = el:GetAttribute("Centro")
+		if typeof(centro) == "CFrame" then
+			donde = centro.Position
+		elseif el:IsA("BasePart") then
+			donde = el.Position
+		elseif el:IsA("Model") then
+			donde = el:GetPivot().Position
+		end
+	end
+	local suyo, distancia = nil, 15
+	for _, b in bichos do
+		local r = b.sucesos.Llama
+		if r and r.activo then
+			local d = if donde then (r.mira - donde).Magnitude else 0
+			if d < distancia then
+				suyo, distancia = r, d
+			end
+		end
+	end
+	local punto = if suyo then suyo.mira + Vector3.new(0, SUCESO.Llama.Alto, 0) else donde
+	if suyo then
+		suyo.golpe = os.clock()
+	end
+	if not punto then
+		return
+	end
+	if Sonido.hay("ToqueDedo") then
+		Sonido.en("ToqueDedo", punto)
+	else
+		-- Mientras falta: el tic del reloj, más grave y fuerte, suena a una uña contra el cristal.
+		local s = Sonido.en("Tic", punto, 0.8)
+		s.Volume *= 2
+		s.RollOffMaxDistance = Config.Sonidos.ToqueDedo.Alcance or 60
+	end
 end
 
 function GolpeadorVista.start()
@@ -1260,6 +2211,10 @@ function GolpeadorVista.start()
 		task.spawn(preparar, modelo)
 	end
 	Remotes.Golpeador.OnClientEvent:Connect(function(tipo: string, el: Model)
+		if tipo == "Toque" then
+			toque(el)
+			return
+		end
 		local centro = el and el:GetAttribute("Centro")
 		if typeof(centro) ~= "CFrame" then
 			return

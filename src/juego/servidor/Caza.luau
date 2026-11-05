@@ -36,6 +36,7 @@ export type Opciones = {
 	VioEsconderse: number,
 	AltoCamino: number?, -- alto con el que calcula los caminos (8 si no); la Bestia, agachada, para caber al sótano
 	Fuera: number?, -- studs fuera del mueble donde se para a gatear (FUERA si no); más si el bicho es más grande
+	Espera: number?, -- s quieto tras pillar a alguien (ESPERA si no); el Golpeador, lo que dura su susto (14.10)
 }
 
 -- Alguien debajo de un mueble, visto por un bicho: por dónde se mete a por él.
@@ -57,6 +58,12 @@ export type Bicho = typeof(setmetatable({} :: {
 	iluminado: number, -- os.clock de la última vez que le dio una linterna
 	ventana: Model?, -- la ventana a la que está pegado (la persiana bajada le tapa de la luz)
 	alFlash: ((Player) -> ())?,
+	-- Sucesos propios del bicho (14.10, el Golpeador: GolpeadorSucesos) sin cambiar a los demás. Caza.cazar lo llama
+	-- con (bicho, momento, presa, destino): "Ronda" en cada paso de ronda (destino = la sala a la que va), "Sala" al
+	-- llegar a una sala de ronda y "Presa" al ir a por alguien que ve (no escondido ni debajo de un mueble). Si hace
+	-- algo, lo hace entero dentro (mientras, Caza no pilla a nadie) y devuelve algo: true, o con "Presa" un Vector3 (a
+	-- dónde ir luego). nil o false: no ha hecho nada.
+	alCazar: ((any, string, Player?, Vector3?) -> any)?,
 	vistoEn: { [Player]: number },
 	olor: { [Player]: number }, -- lo que lleva oliendo a cada uno (PosturaReglas.oler); sin entrada = nada
 	olido: number, -- os.clock de la última vez que olió (para el dt)
@@ -81,6 +88,7 @@ local ATASCO = Config.Postura.Atasco
 local MAX_DT = Config.Postura.MaxOlor
 local SIN_SALIDA = Config.Postura.SinSalida
 local MAX_SIN_SALIDA = 3 -- bordes a los que no llegó que recuerda a la vez
+local ESPERA = 2.5 -- s quieto tras pillar a alguien (Opciones.Espera si la tiene)
 
 local azar = Random.new()
 local vivos: { [Bicho]: boolean } = {}
@@ -333,6 +341,7 @@ function Caza.nuevo(modelo: Model, humanoide: Humanoid, o: Opciones): Bicho
 		iluminado = -math.huge,
 		ventana = nil,
 		alFlash = nil,
+		alCazar = nil,
 		vistoEn = {},
 		olor = {},
 		olido = os.clock(),
@@ -744,7 +753,7 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			self.humanoide.WalkSpeed = self.o.Correr
 			local que = self:aPorDebajo(presa, bajo)
 			if que == "Pilla" then
-				task.wait(2.5)
+				task.wait(self.o.Espera or ESPERA)
 			end
 			if que then
 				ultimoVisto = nil
@@ -752,22 +761,31 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 		elseif presa and destino then
 			ultimoVisto = destino
 			self.humanoide.WalkSpeed = self.o.Correr
-			local escondido = Muerte.escondite(presa) ~= nil
-			local suCabeza = cabezaDe(presa)
-			-- Sin nada en medio: si no, pillaba a través de las paredes (de 1 stud) a quien oye al otro lado. El rayo sale
-			-- de la raíz y no de la cabeza, que va por delante y se mete en la pared cuando la tiene de frente (un rayo que
-			-- nace dentro de una pieza no la ve). Las hojas de las puertas abiertas no tapan (CanQuery, Casa.publicar).
-			local alcanza = if escondido or not suCabeza then self:cerca(destino, 5)
-				else (suCabeza.Position - self.raiz.Position).Magnitude < self.o.Pillar
-					and libre(self.raiz.Position, suCabeza.Position, sinBichos(presa.Character))
-			if alcanza then
-				self.humanoide:MoveTo(self.raiz.Position)
-				self:mirarA(if suCabeza then suCabeza.Position else destino) -- de cara a su víctima: el susto le ve la cara
-				Muerte.matar(presa, self:cabeza(), self.modelo)
-				task.wait(2.5)
-				ultimoVisto = nil
+			-- Un suceso propio al verle (el Golpeador: Quieto), entero antes de seguir: mientras, no le pilla.
+			local tras = if self.alCazar then self.alCazar(self, "Presa", presa, destino) else nil
+			if tras then
+				if typeof(tras) == "Vector3" then
+					ultimoVisto = tras
+				end
 			else
-				self:pasoHacia(destino)
+				local escondido = Muerte.escondite(presa) ~= nil
+				local suCabeza = cabezaDe(presa)
+				-- Sin nada en medio: si no, pillaba a través de las paredes (de 1 stud) a quien oye al otro lado. El rayo
+				-- sale de la raíz y no de la cabeza, que va por delante y se mete en la pared cuando la tiene de frente (un
+				-- rayo que nace dentro de una pieza no la ve). Las hojas de las puertas abiertas no tapan (CanQuery,
+				-- Casa.publicar).
+				local alcanza = if escondido or not suCabeza then self:cerca(destino, 5)
+					else (suCabeza.Position - self.raiz.Position).Magnitude < self.o.Pillar
+						and libre(self.raiz.Position, suCabeza.Position, sinBichos(presa.Character))
+				if alcanza then
+					self.humanoide:MoveTo(self.raiz.Position)
+					self:mirarA(if suCabeza then suCabeza.Position else destino) -- de cara a su víctima: el susto le ve la cara
+					Muerte.matar(presa, self:cabeza(), self.modelo)
+					task.wait(self.o.Espera or ESPERA)
+					ultimoVisto = nil
+				else
+					self:pasoHacia(destino)
+				end
 			end
 		elseif ultimoVisto then
 			self.humanoide.WalkSpeed = self.o.Correr
@@ -779,10 +797,20 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			return -- en el bosque, si no ve a nadie, se olvida
 		else
 			self.humanoide.WalkSpeed = self.o.Andar
-			if not ronda or self:cerca(ronda, 4) then
+			if ronda and self:cerca(ronda, 4) then
+				local llegada = ronda
+				ronda = nil
+				if self.alCazar then
+					self.alCazar(self, "Sala", nil, llegada) -- un suceso propio al llegar (el Golpeador: Olfatea)
+				end
+			end
+			if not ronda then
 				ronda = Mapa.salas[azar:NextInteger(1, #Mapa.salas)]
 			end
-			self:pasoHacia(ronda :: Vector3)
+			-- Un suceso propio de ronda (el Golpeador: Armario, Garras); si lo hace, este paso ya está.
+			if not (self.alCazar and self.alCazar(self, "Ronda", nil, ronda)) then
+				self:pasoHacia(ronda :: Vector3)
+			end
 		end
 		task.wait(0.25)
 	end

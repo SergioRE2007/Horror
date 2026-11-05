@@ -230,10 +230,13 @@ function Director.start()
 		end)
 		-- Desde el MCP de Studio ya no se puede llamar a Fire (nov. 2026: pide la capacidad Network), pero sí poner
 		-- atributos: `Prueba:SetAttribute("Punto", v)` (si hace falta; con "Dar", el tipo) y luego `Prueba:SetAttribute("Orden", "Ataque")`
-		-- la lanza (para repetir la misma, ponerla antes a nil).
+		-- la lanza (y vuelve a nil sola: para repetirla, ponerla otra vez).
 		orden:GetAttributeChangedSignal("Orden"):Connect(function()
 			local que = orden:GetAttribute("Orden")
 			if typeof(que) == "string" then
+				-- Se borra al lanzarla: con las señales en diferido, ponerla a nil y luego a "Ataque" avisaba dos veces y las
+				-- dos leían "Ataque" (salían dos Golpeadores iguales: visto por el usuario, 05-11-2026).
+				orden:SetAttribute("Orden", nil)
 				orden:Fire(que, orden:GetAttribute("Punto")) -- el punto, o lo que pida la orden (el tipo de "Dar")
 			end
 		end)

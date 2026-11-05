@@ -96,6 +96,27 @@ Config.Golpeador = {
 	Pillar = 4.5, -- distancia a la que te pilla
 	Vista = 70, -- hasta dónde ve
 	VioEsconderse = 1.5, -- si te vio hasta este tiempo antes de esconderte, sabe dónde estás
+	-- El susto al pillarte (14.10, pedido por el usuario: "hay que mejorar el screamer"), en segundos. Lo leen
+	-- MuerteVista (la cámara) y GolpeadorVista (su cuerpo). Números a ojo.
+	Susto = {
+		Arrastra = 0.8, -- si te pilla debajo de un mueble: la mano te agarra y te saca a rastras (antes de lo demás)
+		Mira = 0.45, -- quieto a su distancia real, mirándote
+		Salta = 0.28, -- se abalanza
+		Encima = 1.1, -- encima: garras por los lados de la pantalla y tirones de la cabeza
+		Tiron = 0.12, -- tirón final hacia él; luego un fotograma negro con el chillido
+		Espera = 3.4, -- el servidor no se mueve hasta pasado esto (Caza.cazar)
+	},
+	-- Sucesos al azar (14.10, pedido por el usuario: "que no sea siempre igual"). Nunca injustos: mirarte no te mata.
+	-- Cada uno, como mucho una vez por noche (entre todos los Golpeadores). Probabilidad = de cada ocasión. A ojo.
+	Sucesos = {
+		Armario = { Probabilidad = 0.6, Cerca = 14, Dura = { 4, 6 } }, -- te mira por las rendijas sin saber que estás
+		Olfatea = { Probabilidad = 0.25, Dura = { 2.2, 3 } }, -- se para en una sala y huele hacia ti (cada sala nueva)
+		Llama = { Probabilidad = 0.35, Toques = 3, CadaToque = 1.6, Espera = { 3, 4 } }, -- tres toques lentos y espera
+		Cara = { Probabilidad = 0.4, Dura = { 5, 8 }, Mirado = 1.5, Distancia = 25 }, -- la cara pegada al cristal
+		Finge = { Probabilidad = 0.5, Mira = { 1.4, 2 }, MasPaciencia = 0.5 }, -- se va, se para, mira atrás y vuelve
+		Garras = { Probabilidad = 0.3, Pared = 3, Dura = { 1.8, 2.6 } }, -- arrastra las garras por la pared al pasar
+		Quieto = { Probabilidad = 0.5, Lejos = 18, Dura = { 2.5, 3.5 } }, -- alumbrado al fondo: no se mueve y luego viene
+	},
 }
 
 -- El Raspador (juego/servidor/Raspador): se pega a una ventana y raspa despacio. La persiana no le para: hay que
@@ -592,6 +613,12 @@ Config.Sonidos = {
 	Resoplido = { Id = 0, Volumen = 0.8, Alcance = 40 }, -- la Bestia al soltar el aire (mientras, el Rugido muy grave y cortado)
 	-- Correr (14.8): FALTA, para hacer con ElevenLabs. Mientras, el provisional de Config.Correr.Jadeo.
 	Jadeo = { Id = 0, Volumen = 0.7, Alcance = 30 }, -- jadeo al agotarte corriendo (lo oyen los de cerca)
+	-- Golpeador (14.10): FALTAN, para hacer con ElevenLabs (sonidos-pendientes.md). Mientras, el código usa otro.
+	GritoGolpeador = { Id = 0, Volumen = 2 }, -- el chillido final del susto del Golpeador (mientras, Susto)
+	Olfateo = { Id = 0, Volumen = 0.9, Alcance = 35 }, -- golpes de nariz cortos de un bicho grande
+	UnasPared = { Id = 0, Volumen = 1, Alcance = 45 }, -- garras arrastradas por una pared de madera y yeso
+	ToqueDedo = { Id = 0, Volumen = 1, Alcance = 60 }, -- un toque lento con una uña contra un cristal
+	RespiraBicho = { Id = 0, Volumen = 0.8, Alcance = 20 }, -- respiración húmeda y lenta de un bicho, muy de cerca
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.
@@ -888,7 +915,7 @@ Config.SonidosLobby = {
 -- Modelos 3D de los bichos (IA de imagen a 3D, preparados con tools/blender/preparar_bicho.py y subidos como modelo
 -- del grupo): id del modelo con malla con esqueleto y sus cuatro texturas. Ver docs/sistemas/bichos-3d.md.
 Config.Bichos3D = {
-	Golpeador = 133305786628996,
+	Golpeador = 86798537714395,
 }
 
 return Config
