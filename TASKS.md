@@ -314,6 +314,14 @@ Retoques a ojo:
   no lo conozca.
 - **Estado:** pendiente
 
+### 15.6 Partida de prueba de Sergio en su casa
+- Pedido por el usuario: "mejor lo juego yo, me preparas una build del juego normal y ya lo pruebo en mi casa" (para
+  después de la 15.1-15.5). Una partida entera de Claude con capturas gasta demasiado; jugando, Sergio ve lo que Claude
+  no ve (el móvil, la mochila).
+- Qué: dejar el juego normal listo para jugar en su casa (sin modo de pruebas, con un guardado que no estropee nada) y
+  decirle cómo entrar. Lo que le chirríe, aunque sea en frases sueltas, se apunta aquí y se arregla por orden.
+- **Estado:** pendiente
+
 ### Ideas de Claude, por decidir (05-11-2026)
 Sin aprobar todavía; el usuario decide cuáles entran: sucesos al azar en los demás bichos (como la 14.10); noches
 distintas (tormenta, niebla, luna llena, silencio); llaves y pistas en sitios distintos en cada partida; sonido que dice
