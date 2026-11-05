@@ -15,7 +15,7 @@ Primer juego hecho juntos: `Documents\Roblox\a Sword Breaker` (repo `SergioRE200
 ## Git
 
 - Este juego lo hace Sergio solo, pero con GitHub igual que el primero. Al empezar: `git switch main` y `git pull`. Una rama por funcionalidad, nunca commits directos en `main`.
-- Al terminar y haber probado: commit, `git push`, `gh pr create --fill` y `gh pr merge --squash --delete-branch`, preguntando antes de juntar con `main`.
+- Al terminar y haber probado: commit, `git push`, `gh pr create --fill` y `gh pr merge --merge --delete-branch` (sin `gh`: `git merge --no-ff`), preguntando antes de juntar con `main`. Nunca squash: se guardan todos los commits de la rama (pedido por el usuario: "a mí me mola ver un montón de commits").
 - Comentarios del código en español. El `.rbxl` no se sube. No subir valores de `Config` bajados temporalmente para probar.
 
 ## Calidad y flujo de tareas
