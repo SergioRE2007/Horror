@@ -174,7 +174,8 @@ function Director.start()
 		end
 	end)
 	-- Modo de pruebas: ServerStorage.Prueba:Fire(orden, punto). Órdenes: "Noche", "Dia", "Ataque" o "Raspador" (a la
-	-- ventana o puerta más cerca del punto), "Romper" (la rompe) y "Esconder" (el primer jugador, en el escondite más cerca del punto).
+	-- ventana o puerta más cerca del punto), "Romper" (la rompe), "Golpe" (solo la animación del golpe en ella) y
+	-- "Esconder" (el primer jugador, en el escondite más cerca del punto).
 	-- Bichos nuevos: "Trepador", "Imitador" (con apagón), "Acechador" (a por el primer jugador, que debe estar en el
 	-- bosque) y "Fuego" (echa un tronco a la chimenea). Final: "Bestia" (la suelta ya: llega a los Config.Bestia.Espera s) y
 	-- "Bengala" (la hiere como una bengala: cojea Config.Bestia.Cojea s).
@@ -201,6 +202,11 @@ function Director.start()
 				if el then
 					(if que == "Raspador" then Raspador else Golpeador).atacar(el, select(2, Ciclo.fase()))
 				end
+			elseif que == "Golpe" then -- solo la animación del golpe en la ventana más cerca (para mirarla con calma)
+				local el = masCerca(punto, false)
+				if el then
+					Remotes.Golpeador:FireAllClients("Golpe", el)
+				end
 			elseif que == "Trepador" then
 				Trepador.atacar(select(2, Ciclo.fase()))
 			elseif que == "Imitador" then
@@ -220,6 +226,15 @@ function Director.start()
 				Ciclo.forzar(que)
 			elseif que == "Saltar" then -- acaba la fase de ahora (de noche, un amanecer que paga)
 				Ciclo.saltar()
+			end
+		end)
+		-- Desde el MCP de Studio ya no se puede llamar a Fire (nov. 2026: pide la capacidad Network), pero sí poner
+		-- atributos: `Prueba:SetAttribute("Punto", v)` (si hace falta; con "Dar", el tipo) y luego `Prueba:SetAttribute("Orden", "Ataque")`
+		-- la lanza (para repetir la misma, ponerla antes a nil).
+		orden:GetAttributeChangedSignal("Orden"):Connect(function()
+			local que = orden:GetAttribute("Orden")
+			if typeof(que) == "string" then
+				orden:Fire(que, orden:GetAttribute("Punto")) -- el punto, o lo que pida la orden (el tipo de "Dar")
 			end
 		end)
 		orden.Parent = game:GetService("ServerStorage")

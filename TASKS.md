@@ -9,7 +9,8 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 1. 14.2 (que Sergio apruebe el tutorial) y 14.5 Partida entera de prueba, con la propuesta a ojo de
    `docs/sistemas/economia.md`.
 2. Sonidos e imágenes que faltan (`docs/sistemas/sonidos-pendientes.md`), cuando vuelva a haber créditos.
-3. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
+3. 14.10 Golpeador: mejor susto y sucesos al azar (pedido por el usuario); antes de publicar, confirmar la licencia de Tripo.
+4. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
 ## Hechas
 
@@ -236,3 +237,31 @@ Retoques a ojo:
 ### 14.5 Partida entera de prueba
 - Una partida de principio a fin sin órdenes de prueba: ritmo de días y noches, monedas y precios (skill `roblox-economy-balancing`), fallos que salgan.
 - **Estado:** pendiente
+
+### 14.10 Golpeador en 3D: mejor susto y sucesos al azar (pedido por el usuario, 05-11-2026)
+- **Hecho:** el Golpeador sale en la partida con el modelo 3D (`docs/sistemas/bichos-3d.md`).
+- **Susto (screamer), pedido por el usuario: "hay que mejorar el screamer".** Ahora es la cámara fija 1,8 s en su cara
+  con temblor y rojo. Propuesta:
+  1. Mandíbula de verdad: añadir un hueso `Jaw` en `tools/blender/preparar_bicho.py` (la mandíbula de abajo pesada a
+     él) y volver a subir el modelo, para que la boca se abra del todo al pillarte (ahora no se mueve).
+  2. Que se te tire encima: empieza a su distancia real, quieto un instante mirándote, y de golpe se abalanza; las
+     garras entran por los lados de la pantalla y la cabeza da tirones rápidos a un lado y a otro.
+  3. Al final, un tirón hacia él y corte a negro de un fotograma con un chillido propio (sonido nuevo de ElevenLabs,
+     `GritoGolpeador`), en vez del susto común.
+  4. Si te pilla gateando: la mano te agarra desde debajo del mueble y te arrastra fuera antes de la cara.
+- **Sucesos al azar del bicho (pedido por el usuario).** Que no sea siempre igual; el servidor decide (Caza, con
+  probabilidades en `Config`), el cliente lo anima por atributos. Nunca injusto: mirarte no te mata. Cada suceso, como
+  mucho una vez por noche y bicho. Ideas, de más a menos importante:
+  1. **Te mira en el armario** (pedido por el usuario): si pasa cerca del armario donde estás escondido sin saberlo, se
+     para delante, gira la cabeza hacia las rendijas y te mira fijo unos segundos respirando (vaho si hace frío);
+     luego se va. Contener la respiración ahí debe dar miedo de verdad.
+  2. **Olfatea:** en una sala se para, levanta la cabeza y huele hacia donde estás (sonido de olfateo), y sigue.
+  3. **Llama despacio:** en vez de aporrear la ventana, tres golpes lentos con un dedo y espera (es "The Knocker");
+     si alguien abre o se asoma, entra.
+  4. **La cara en el cristal:** fuera, pegado a una ventana sin persiana mirando dentro; si le das con la linterna o le
+     miras un rato, se aparta de golpe.
+  5. **Finge que se va:** se aleja hacia el bosque, se para a medio camino, gira la cabeza y vuelve corriendo.
+  6. **Garras por la pared:** al pasar por un pasillo, arrastra las garras por la pared o la puerta de tu cuarto.
+  7. **Se queda quieto en lo oscuro:** si lo descubres con la linterna al fondo del pasillo, no se mueve unos segundos
+     (solo la cabeza se ladea crujiendo) y luego viene a por ti.
+- **Estado:** pendiente (pensar con Sergio cuáles primero; números a ojo).

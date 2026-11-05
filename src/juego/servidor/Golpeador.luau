@@ -6,10 +6,13 @@
 --   Fuera, de noche, persigue a quien vea en el bosque. El flash le aturde un momento.
 -- Puede haber varios a la vez (tabla de dificultad). Es un Humanoid del servidor (se mueve suave en los clientes); el
 -- cliente le anima las piernas y brazos (GolpeadorVista) y oye los golpes con el remote Golpeador.
+-- Lleva encima el modelo 3D (Bichos3D.vestir: los bloques quedan invisibles para la lógica y la malla copia su postura
+-- en el cliente, Malla3D); si no carga, se queda con los bloques.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Bichos3D = require(script.Parent.Bichos3D)
 local Casa = require(script.Parent.Casa)
 local Caza = require(script.Parent.Caza)
 local Cuerpo = require(script.Parent.Cuerpo)
@@ -86,6 +89,8 @@ local function crear(cf: CFrame): Caza.Bicho
 		miembro(if lado < 0 then "PiernaI" else "PiernaD", Vector3.new(0.7, 4.2, 0.7), raiz, CFrame.new(lado * 0.6, -0.9, 0), CFrame.new(0, 2.0, 0), OSCURA)
 	end
 
+	-- El modelo 3D encima, con los bloques invisibles debajo (sin modelo, se queda con los bloques).
+	Bichos3D.vestir(m, "Golpeador", raiz.CFrame * CFrame.new(0, -ALTURA, 0), (raiz.CFrame * CFrame.new(0, -0.8, 0)).Position)
 	local humanoide = Cuerpo.terminar(m, Caza.carpeta(), ALTURA, G.Andar)
 	return Caza.nuevo(m, humanoide, {
 		Altura = ALTURA,
