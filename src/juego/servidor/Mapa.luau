@@ -12,6 +12,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Piezas = require(ReplicatedStorage.Shared.Piezas)
 local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
+local Bichos3D = require(script.Parent.Bichos3D)
 local Fachada = require(script.Parent.Fachada)
 local Lugares = require(script.Parent.Lugares)
 
@@ -3436,7 +3437,11 @@ local function porPartes(mapa: Folder)
 	for _, m in (if pueblo then pueblo:GetChildren() else {}) do
 		for _, patron in SILUETA do
 			if m:IsA("Model") and string.find(m.Name, patron) then
-				m.LevelOfDetail = Enum.ModelLevelOfDetail.StreamingMesh
+				-- Con pcall: desde nov. 2026 Roblox no deja a los scripts tocar LevelOfDetail (pide permiso de plugin) y el
+				-- error paraba el arranque entero del servidor. Sin él, el pueblo lejano se ve igual, solo cuesta algo más.
+				pcall(function()
+					m.LevelOfDetail = Enum.ModelLevelOfDetail.StreamingMesh
+				end)
 				break
 			end
 		end
@@ -3504,6 +3509,16 @@ function Mapa.start()
 	aparicion.Neutral = true
 	aparicion.Duration = 0
 	aparicion.Parent = mapa
+
+	-- Muestra del modelo 3D del Golpeador en la hierba delante del porche, mirando a la casa: solo en modo edición
+	-- (VER MAPA del plugin), para verlo y moverlo a mano (pedido por el usuario). En la partida no sale.
+	if not game:GetService("RunService"):IsRunning() then
+		local muestra = Bichos3D.copia("Golpeador", CFrame.lookAt(Vector3.new(6, 0, -50), Vector3.new(6, 0, 0)))
+		if muestra then
+			muestra.Name = "MuestraGolpeador"
+			muestra.Parent = mapa
+		end
+	end
 end
 
 return Mapa

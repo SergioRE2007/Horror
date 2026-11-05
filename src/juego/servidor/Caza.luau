@@ -385,6 +385,10 @@ end
 function Caza.aturdir(self: Bicho, segundos: number)
 	self.aturdido = math.max(self.aturdido, os.clock() + segundos)
 	self.humanoide:MoveTo(self.raiz.Position)
+	-- Para que el cliente lo enseñe (GolpeadorVista: se tapa la cara): hasta cuándo, en la hora del servidor.
+	if self.modelo then
+		self.modelo:SetAttribute("Aturdido", workspace:GetServerTimeNow() + (self.aturdido - os.clock()))
+	end
 end
 
 function Caza.mirarA(self: Bicho, punto: Vector3)

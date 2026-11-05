@@ -10,6 +10,8 @@
 --   delante, atravesarían el cristal). Las garras se hunden un poco en la pared sin asomar por dentro, también si se ha
 --   parado algo más cerca (comprobado con Lune). Esperando el siguiente se va preparando, temblando de rabia.
 --   De noche y fuera de la casa echa vaho por la boca al soltar el aire (sin él con Rendimiento).
+-- Aturdido por el flash (atributo Aturdido del modelo, Caza.aturdir): se echa atrás tapándose la cara y tiembla.
+-- Con el modelo 3D (Bichos3D.vestir), los bloques son invisibles y la malla copia su postura cada fotograma (Malla3D).
 -- Un solo bucle (Stepped) que solo corre mientras hay alguno; la vida, solo cerca de la cámara. Si el modelo se va
 -- (StreamOut o lo quita el servidor) se olvida, y si vuelve se prepara otra vez.
 local CollectionService = game:GetService("CollectionService")
@@ -19,6 +21,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Malla3D = require(script.Parent.Malla3D)
 local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
 
@@ -61,6 +64,58 @@ local CLAVES = { { 0, 0.1 }, { 0, 0.9 }, { 0, 2 }, { 0.3, 2.9 }, { -0.2, 2.85 } 
 local FUERA, ALCANCE = 4, 6.5
 local MOTORES = { "Torso", "PiernaI", "PiernaD", "BrazoI", "BrazoD", "Cabeza", "Mandibula" }
 local LADOS = { -1, 1 }
+-- Qué bloque sigue cada hueso de la malla 3D (Malla3D): la columna se dobla poco a poco con el torso, el cuello a medio
+-- camino de la cabeza, la clavícula algo con el brazo y el pie casi plano. Los brazos de la malla, estirados (codo y
+-- muñeca más lejos): sin estirar llegaban ~1,5 studs menos que los de bloques y el golpe no tocaba la pared; con 1,35
+-- las puntas de los dedos casi asomaban por dentro (medido en Studio con la orden de prueba "Golpe").
+local BRAZO_LARGO = 1.28
+local MALLA: { [string]: Malla3D.Sigue } = {
+	Hips = { a = "Torso", f = 0, desplaza = true },
+	Spine = { a = "Torso", f = 0.4 },
+	Spine1 = { a = "Torso", f = 0.7 },
+	Spine2 = { a = "Torso" },
+	Neck = { a = "Torso", b = "Cabeza", t = 0.5 },
+	Head = { a = "Cabeza" },
+	LeftShoulder = { a = "Torso", b = "BrazoI", t = 0.3 },
+	LeftArm = { a = "BrazoI" },
+	LeftForeArm = { a = "BrazoI", estira = BRAZO_LARGO },
+	LeftHand = { a = "BrazoI", estira = BRAZO_LARGO },
+	RightShoulder = { a = "Torso", b = "BrazoD", t = 0.3 },
+	RightArm = { a = "BrazoD" },
+	RightForeArm = { a = "BrazoD", estira = BRAZO_LARGO },
+	RightHand = { a = "BrazoD", estira = BRAZO_LARGO },
+	LeftUpLeg = { a = "PiernaI" },
+	LeftLeg = { a = "PiernaI" },
+	LeftFoot = { a = "PiernaI", f = 0.3 },
+	RightUpLeg = { a = "PiernaD" },
+	RightLeg = { a = "PiernaD" },
+	RightFoot = { a = "PiernaD", f = 0.3 },
+}
+-- El centro de la cara de la malla en el hueso Head (su Y va hacia el hocico y su Z hacia arriba), medido en Studio.
+local CARA: Malla3D.Cara = { bloque = "Cabeza", hueso = "Head", centro = Vector3.new(0, 0.8, -0.3) }
+-- Las piernas de la malla (más largas que las de bloques) van con IK a la planta del pie de su bloque (4,2 de largo,
+-- con la junta a 2 del centro: la planta a 2,1 por debajo).
+local PIERNAS: { Malla3D.Pierna } = {
+	{ muslo = "LeftUpLeg", rodilla = "LeftLeg", pie = "LeftFoot", bloque = "PiernaI", planta = Vector3.new(0, -2.1, 0) },
+	{ muslo = "RightUpLeg", rodilla = "RightLeg", pie = "RightFoot", bloque = "PiernaD", planta = Vector3.new(0, -2.1, 0) },
+}
+-- Al gatear, la malla se mueve para que su cuello caiga en el de los bloques (torso más corto: si no, la cabeza se
+-- quedaba a ~4 studs del suelo).
+local CUELLO: Malla3D.Cuello = { hueso = "Neck", bloque = "Cabeza" }
+-- Aturdido por el flash: cuánto se echa atrás el torso, la cabeza (cabeceo, giro, ladeo: apartándola de la luz), los
+-- brazos (hacia delante, hacia dentro) con los codos doblados (solo la malla: los bloques no tienen codo) tapándose la
+-- cara y la boca; tiembla `Tiembla` radianes, `Rapido` radianes por segundo.
+local ATURDE = {
+	Torso = 0.3,
+	Cabeza = Vector3.new(-0.45, 0.7, 0.35),
+	Brazo = { 1.3, 0.2 },
+	Codo = 1.9, -- el antebrazo, hacia dentro por delante de la cara (giro sobre el eje Z del brazo)
+	Boca = 0.9,
+	Tiembla = 0.05,
+	Rapido = 47,
+}
+-- Los huesos que se doblan con el codo y su lado (-1 izquierdo, 1 derecho).
+local CODOS = { LeftForeArm = -1, LeftHand = -1, RightForeArm = 1, RightHand = 1 }
 -- Gatear a por alguien escondido debajo de un mueble (pedido por el usuario: "que el monstruo pueda gatear si te huele
 -- con una animación guapa para pillarte debajo de sitios"). El servidor (Caza) le para en el borde, de cara a ti, y pone
 -- en su modelo Gatea (dónde estás) y GateaHora (workspace:GetServerTimeNow() al empezar) durante Config.Postura.Gatear s.
@@ -181,6 +236,8 @@ type Bicho = {
 	mesaHasta: number, -- os.clock en que se vuelve a buscar
 	aparta: { number }, -- radianes, suave: lo que se echa atrás cada brazo para no atravesarlo (1 izquierdo, 2 derecho)...
 	aparta2: { number }, -- ...de pie y, encima, gateando
+	aturde: number, -- 0..1, suave: aturdido por el flash
+	rig: Malla3D.Rig?, -- la malla 3D, si la tiene
 }
 local bichos: { [Model]: Bicho } = {}
 local conexion: RBXScriptConnection? = nil
@@ -982,7 +1039,7 @@ local function animar(dt: number)
 		local aire = math.sin(b.respira) -- más: coge aire; menos: lo suelta
 		local soltando = math.cos(b.respira) < 0
 		if soltando and not b.exhala and noche and not poco and vida > 0.5 and distancia < VAHO_LEJOS then
-			local boca = b.cabeza.CFrame * BOCA
+			local boca = (if b.rig and b.rig.cara then b.rig.cara else b.cabeza).CFrame * BOCA
 			if not dentroDeCasa(boca.Position) then
 				echarVaho(boca)
 			end
@@ -1070,6 +1127,29 @@ local function animar(dt: number)
 			+ vida * (0.12 * math.max(0, -aire) + (if teMira then 0.25 else 0))
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
 
+		-- Aturdido por el flash: se echa atrás tapándose la cara con los brazos, temblando.
+		local hasta = modelo:GetAttribute("Aturdido")
+		local aturdido = typeof(hasta) == "number" and workspace:GetServerTimeNow() < hasta
+		b.aturde = acercar(b.aturde, if aturdido then 1 else 0, dt, if aturdido then 7 else 2)
+		local rig = b.rig
+		if rig then
+			for nombre, lado in CODOS do
+				rig.dobla[nombre] = Vector3.new(0, 0, -lado * ATURDE.Codo * suave(b.aturde))
+			end
+		end
+		if b.aturde > 0.001 then
+			local k = suave(b.aturde)
+			local tiembla = ATURDE.Tiembla * math.sin(ahora * ATURDE.Rapido)
+			m.Torso.Transform = m.Torso.Transform:Lerp(CFrame.new(0, -0.2, 0.3) * CFrame.Angles(ATURDE.Torso + tiembla, 0, 0), k)
+			local c = ATURDE.Cabeza
+			m.Cabeza.Transform = m.Cabeza.Transform:Lerp(CFrame.fromEulerAnglesYXZ(c.X + tiembla, c.Y, c.Z), k)
+			for _, lado in LADOS do
+				local motor = m[if lado < 0 then "BrazoI" else "BrazoD"]
+				motor.Transform = motor.Transform:Lerp(CFrame.Angles(ATURDE.Brazo[1] + tiembla * 2 * lado, 0, -lado * ATURDE.Brazo[2]), k)
+			end
+			m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-ATURDE.Boca, 0, 0), k)
+		end
+
 		garrasSobreSuelo(b)
 
 		-- Sin atravesar el tablero de la mesa de al lado: la postura de pie (de la que sale y a la que vuelve al gatear) y,
@@ -1084,6 +1164,11 @@ local function animar(dt: number)
 		gatear(b, dt, ahora, poco, abre)
 		if b.gatea then
 			apartarBrazos(b, dt, b.aparta2)
+		end
+
+		if b.rig then
+			b.rig.alinear = suave(b.gateo)
+			Malla3D.mover(b.rig)
 		end
 
 		-- Una pisada cada vez que el seno cambia de signo.
@@ -1120,9 +1205,14 @@ local function preparar(modelo: Instance)
 		end
 		motores[nombre] = motor
 	end
-	if not modelo.Parent then
-		return
+	-- Con modelo 3D (lo dice el servidor): se espera a su malla; si no llega, se queda con los bloques.
+	if modelo:GetAttribute("Malla3D") then
+		modelo:WaitForChild("Malla3D", 5)
 	end
+	if not modelo.Parent or bichos[modelo] then
+		return -- ido, o ya preparado (ChildAdded y el arranque pueden llegar a la vez)
+	end
+	local rig = Malla3D.preparar(modelo, motores, { mapa = MALLA, cara = CARA, piernas = PIERNAS, cuello = CUELLO })
 	local ahora = os.clock()
 	bichos[modelo] = {
 		modelo = modelo, raiz = raiz, cabeza = cabeza, motores = motores, fase = 0, pisada = 1,
@@ -1132,6 +1222,7 @@ local function preparar(modelo: Instance)
 		crispa = { -math.huge, -math.huge }, proximaCrispa = ahora + rango(CRISPA),
 		sacudida = -math.huge, proximaSacudida = ahora + rango(SACUDIDA),
 		gateo = 0, gatea = nil, agarra = -math.huge, mesa = nil, mesaHasta = 0, aparta = { 0, 0 }, aparta2 = { 0, 0 },
+		aturde = 0, rig = rig,
 	}
 	encender()
 end

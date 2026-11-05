@@ -885,4 +885,10 @@ Config.SonidosLobby = {
 	-- un viaje (LlegadaVista, 14.9.3), que le cambia el tono con la velocidad. Mientras tenga Id 0, Arranque una vez.
 }
 
+-- Modelos 3D de los bichos (IA de imagen a 3D, preparados con tools/blender/preparar_bicho.py y subidos como modelo
+-- del grupo): id del modelo con malla con esqueleto y sus cuatro texturas. Ver docs/sistemas/bichos-3d.md.
+Config.Bichos3D = {
+	Golpeador = 133305786628996,
+}
+
 return Config

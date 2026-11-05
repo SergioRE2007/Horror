@@ -139,6 +139,10 @@ Cliente (cada `<Bicho>Vista`, solo lo visual):
 ## Probar en Studio (esconderse agachado y vida de espera)
 
 Todo en Play. En el datamodel Server, antes de nada: `game.ServerStorage.Prueba:Fire("Noche")`.
+Desde noviembre de 2026 el MCP de Studio no puede llamar a `Fire` (ni hacer `require` de módulos del juego): las
+órdenes se lanzan con atributos, `Prueba:SetAttribute("Punto", v)` y `Prueba:SetAttribute("Orden", "Ataque")` (para
+repetir la misma, antes `Orden` a nil). `("Golpe", punto)` solo anima el golpe en esa ventana. Para mirar un bicho
+quieto: clonarlo en Server, anclar la raíz del clon y quitar el de verdad (el clon no tiene lógica, la Vista lo anima).
 1. Vida de espera: `Prueba:Fire("Ataque", Vector3.new(25, 0, -40))` (Golpeador en el ventanal del salón),
    `("Raspador", Vector3.new(25, 0, -40))`, `("Trepador")`, `("Imitador")` (mirilla con L justo tras una llamada),
    `("Acechador")` (con el jugador en el bosque) y `("Bestia")` (para verla parada:

@@ -607,7 +607,8 @@ local function escenaPillado(cabeza: Vector3, modelo: Model?, quitar: { luz: Att
 		warn("[MuerteVista] no se encuentra al bicho del susto:", bicho)
 		bicho = nil
 	end
-	local cara = bicho and bicho:FindFirstChild("Cabeza") :: BasePart?
+	-- Con modelo 3D, su cara (Malla3D: la cabeza de bloque, invisible, no está donde la de la malla).
+	local cara = bicho and (bicho:FindFirstChild("Cara3D") or bicho:FindFirstChild("Cabeza")) :: BasePart?
 	if cara then
 		local luz = Instance.new("Attachment") -- delante de la cara: dentro de la cabeza no la alumbraría
 		luz.Position = Vector3.new(0, -0.3, -1.6)

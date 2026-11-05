@@ -1,4 +1,4 @@
-// Sube un .fbx a Roblox como modelo del grupo (Open Cloud, API de recursos) y escribe su id.
+// Sube un .fbx o .glb a Roblox como modelo del grupo (Open Cloud, API de recursos) y escribe su id.
 // Uso: node tools/blender/subir_modelo.mjs <archivo.fbx> <archivo con la clave de API> [grupo]
 // Luego, en Studio (modo Edit): game:GetObjects("rbxassetid://<id>") trae el modelo con sus MeshParts ya subidas.
 import fs from "node:fs";
@@ -11,11 +11,11 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const form = new FormData();
 form.append("request", JSON.stringify({
 	assetType: "Model",
-	displayName: path.basename(file, ".fbx"),
+	displayName: path.basename(file, path.extname(file)),
 	description: "Modelo del juego",
 	creationContext: { creator: { groupId: group } },
 }));
-form.append("fileContent", new Blob([fs.readFileSync(file)], { type: "model/fbx" }), path.basename(file));
+form.append("fileContent", new Blob([fs.readFileSync(file)], { type: file.endsWith(".glb") ? "model/gltf-binary" : "model/fbx" }), path.basename(file));
 const response = await fetch("https://apis.roblox.com/assets/v1/assets", { method: "POST", headers: { "x-api-key": key }, body: form });
 if (!response.ok) {
 	console.log(`FALLO: ${response.status} ${(await response.text()).slice(0, 500)}`);

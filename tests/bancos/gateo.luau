@@ -69,7 +69,8 @@ local BICHOS = { "Golpeador", "Raspador", "Trepador", "Imitador", "Bestia" }
 
 -- Los huecos de Mapa (HUECOS es local): la tabla tal cual, sacada del texto.
 local HUECOS = (function()
-	local texto = fs.readFile("src/juego/servidor/Mapa.luau")
+	-- Sin \r: con autocrlf de Git en Windows el archivo llega con CRLF y no se encontraba el final de la tabla
+	local texto = string.gsub(fs.readFile("src/juego/servidor/Mapa.luau"), "\r\n", "\n")
 	local a = string.find(texto, "\nlocal HUECOS", 1, true)
 	assert(a, "Mapa: no encuentro HUECOS")
 	local abre = string.find(texto, "{\n", a, true)
@@ -171,7 +172,7 @@ end
 local TROZOS: { [string]: string } = {}
 local ALTURAS: { [string]: number } = {} -- de los pies al centro de la raíz (ALTURA de cada uno)
 for _, nombre in BICHOS do
-	local texto = fs.readFile("src/juego/servidor/" .. nombre .. ".luau")
+	local texto = string.gsub(fs.readFile("src/juego/servidor/" .. nombre .. ".luau"), "\r\n", "\n") -- sin \r (CRLF)
 	local c = string.find(texto, "\nlocal function crear(", 1, true)
 	assert(c, `{nombre}: no encuentro crear`)
 	local _, b = string.find(texto, "\nend\n", c, true)
@@ -190,6 +191,7 @@ local function cuerpo(m, nombre: string, cf)
 	local env = table.clone(g)
 	env.Config = m.cargar("src/shared/Config")
 	env.Cuerpo = m.cargar("src/juego/servidor/Cuerpo")
+	env.Bichos3D = nada -- sin modelo 3D: el banco mide los bloques (que siguen ahí, invisibles, con el modelo)
 	env.Caza = setmetatable({
 		plano = function(v)
 			return g.Vector3.new(v.X, 0, v.Z)
