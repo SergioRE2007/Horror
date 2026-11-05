@@ -9,7 +9,8 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 1. 14.2 (que Sergio apruebe el tutorial) y 14.5 Partida entera de prueba, con la propuesta a ojo de
    `docs/sistemas/economia.md`.
 2. Sonidos e imágenes que faltan (`docs/sistemas/sonidos-pendientes.md`), cuando vuelva a haber créditos.
-3. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
+3. **15. Mejoras pedidas por el usuario** (abajo): inventario, objetos con forma, mapa e interacciones.
+4. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
 ## Hechas
 
@@ -269,3 +270,61 @@ Retoques a ojo:
   abierta del todo y las garras por los lados; la cámara iba bajo la barbilla mirando al cielo: arreglado), Cara y
   Armario. Falta: el susto gateando, Garras, Quieto, Finge, Llama, Rendimiento y los 5 sonidos (sonidos-pendientes.md,
   26-30: mientras suenan provisionales). Los brazos de la malla a veces salen como hojas planas estiradas: mirarlo.
+
+## 15. Mejoras pedidas por el usuario (05-11-2026: "a mi parecer hay muchas cosas que mejorar aun")
+
+### 15.1 Inventario (mochila) de nuevo
+- Pedido por el usuario: "hay que mejorar MUCHO el inventario, no tiene imágenes, se controla raro, en vez de arrastrar
+  es darle un click, es antiintuitivo".
+- Qué: cada objeto con su imagen (el modelo 3D en un ViewportFrame, como las armas del primer juego); coger y soltar
+  **arrastrando** (ratón, dedo y mando), con la casilla de destino marcada en verde o rojo; girar con R o un botón; tirar
+  arrastrando fuera de la rejilla. Al estilo oscuro (papel viejo, letras desgastadas). Skills oblox-ui-designer y
+  oblox-ui-engineer. Sin cambiar el guardado de la mochila (mochila.md).
+- **Estado:** pendiente
+
+### 15.2 Objetos con forma
+- Pedido por el usuario: "los objetos no tienen ni forma, no se entienden".
+- Qué: todos los objetos que se cogen (linterna, pilas, cámara, carrete, móvil, llaves, piezas del coche, bidón,
+  cerillas, bengalas, tablones…) con un modelo de verdad (Poly Haven o Blender por script, como los muebles de la 11.8),
+  que se reconozca a la primera en el suelo, en la mano y en la mochila (15.1 usa los mismos).
+- **Estado:** pendiente
+
+### 15.3 El mapa
+- Pedido por el usuario: "el mapa sigue siendo un poco kk para que mentir".
+- Qué: el mundo de fuera (bosque, alrededores de la casa y pueblo): rehacerlo más realista y con más detalle, como se hizo
+  con la casa por dentro (por zonas, aprobando cada una). Antes, mirar con Sergio qué zonas le parecen peor.
+- **Estado:** pendiente
+
+### 15.4 Interacciones que hay que aguantar (estilo FNAF)
+- Pedido por el usuario: "yo no quiero que las persianas las dejes cerradas, tienes que llegar y por ejemplo mantener el
+  click para cerrarla y hasta que se vaya no lo puedes soltar (estilo FNAF)".
+- Qué: la cortina o persiana no se queda cerrada sola: hay que **mantener pulsado** para sujetarla mientras el bicho está
+  fuera; si sueltas antes de que se vaya, se abre. Mientras la sujetas no puedes hacer otra cosa (otro tiene que vigilar la
+  otra ventana). Lo mismo con otras interacciones que pidan tensión (sujetar una puerta, el armario…): proponer cuáles.
+  Cambia el bucle de defensa (Defensa.luau, corazon.md): rehacer los números con cuidado y el tutorial.
+- **Estado:** pendiente
+
+### 15.5 Que todo se entienda sin explicarlo
+- Pedido por el usuario: "imagínate qué poco intuitivo es el juego ahora mismo que ni sabía que eso existía" (el móvil con
+  el mapa, M).
+- Qué: repasar todo lo que se puede hacer (móvil, linterna, flash, cámara, mochila, esconderse, agacharse, correr,
+  mirilla, cortinas, reparar, coche…) y que cada cosa se descubra sola: aviso de una línea la primera vez que la tienes
+  ("M: móvil"), tecla o botón visible junto a lo que tienes en la mano, y el tutorial enseñando lo importante. En PC, móvil
+  y mando. Sin llenar la pantalla (poca información, pedido por el usuario). Luego, una partida desde cero con alguien que
+  no lo conozca.
+- **Estado:** pendiente
+
+### 15.6 Partida de prueba de Sergio en su casa
+- Pedido por el usuario: "mejor lo juego yo, me preparas una build del juego normal y ya lo pruebo en mi casa" (para
+  después de la 15.1-15.5). Una partida entera de Claude con capturas gasta demasiado; jugando, Sergio ve lo que Claude
+  no ve (el móvil, la mochila).
+- Qué: dejar el juego normal listo para jugar en su casa (sin modo de pruebas, con un guardado que no estropee nada) y
+  decirle cómo entrar. Lo que le chirríe, aunque sea en frases sueltas, se apunta aquí y se arregla por orden.
+- **Estado:** pendiente
+
+### Ideas de Claude, por decidir (05-11-2026)
+Sin aprobar todavía; el usuario decide cuáles entran: sucesos al azar en los demás bichos (como la 14.10); noches
+distintas (tormenta, niebla, luna llena, silencio); llaves y pistas en sitios distintos en cada partida; sonido que dice
+dónde está el bicho y música solo al perseguirte; sustos de una sola vez; miedo que crece a oscuras (ruidos y cosas que
+no están); llevar a cuestas al compañero caído; walkie-talkie; misiones del día; varios finales; mapa por partes
+(StreamingEnabled) para móviles flojos.
