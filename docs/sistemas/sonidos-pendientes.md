@@ -52,6 +52,11 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 23 | `Config.SonidosLobby.Arranque` (1) | El coche arranca y se va (cinemática de 7 s) | 7 | suelto | 3 | nada |
 | 24 | `Config.Sonidos.Mirilla` (0,5) | La tapita de latón de la mirilla | 0,6 | suelto | 3 | nada |
 | 25 | `Config.Sonidos.Papel` (0,75) | Papel de las pistas (y de la tienda y los coches) | — | — | — | ya hecho: 3 versiones que puso Claude |
+| 26 | `Config.Sonidos.GritoGolpeador` (2) | Chillido final del susto del Golpeador (14.10) | 1,5 | suelto | 4 | Susto otra vez |
+| 27 | `Config.Sonidos.RespiraBicho` (0,8) | El Golpeador respirando pegado a tu armario | 5 | suelto | 3 | otro provisional |
+| 28 | `Config.Sonidos.Olfateo` (0,9) | El Golpeador olfateando | 2 | suelto | 3 | otro provisional |
+| 29 | `Config.Sonidos.UnasPared` (1) | Garras por la pared al pasar | 2,5 | suelto | 3 | otro provisional |
+| 30 | `Config.Sonidos.ToqueDedo` (1) | Toque lento de uña en el cristal | 0,5 | suelto | 4 | otro provisional |
 
 Notas por fila:
 
@@ -101,7 +106,12 @@ Notas por fila:
 	{ "name": "Arranque", "seconds": 7, "versions": 3, "label": "Coche viejo que arranca y se va bajo la lluvia", "text": "Old car engine cranking, starting with a cough and rumbling to life, then revving and driving away on a wet road in the rain, tires on wet asphalt, fading into the distance, no music" },
 	{ "name": "Mirilla", "seconds": 0.6, "versions": 3, "label": "La tapita de latón de la mirilla al apartarla", "text": "Small brass peephole cover on a wooden front door being slid aside, tiny metallic scrape and a soft click, very short, close, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "lluviatrozo", "seconds": 5, "versions": 2, "label": "Pieza (plan B de Lluvia): chaparrón cercano", "text": "Close burst of heavy rain on leaves and wet ground, dense clear raindrops, clean, no hiss, no thunder, no music" },
-	{ "name": "goterones", "seconds": 3, "versions": 2, "label": "Pieza (plan B de Lluvia): goterones en un charco", "text": "Big water drops falling from a roof edge into a puddle, a few distinct clear plops and splashes, clean, no music" }
+	{ "name": "goterones", "seconds": 3, "versions": 2, "label": "Pieza (plan B de Lluvia): goterones en un charco", "text": "Big water drops falling from a roof edge into a puddle, a few distinct clear plops and splashes, clean, no music" },
+	{ "name": "GritoGolpeador", "seconds": 1.5, "versions": 4, "label": "Chillido final del susto del Golpeador", "text": "Sudden piercing monstrous shriek right in the face, a gaunt humanoid creature screaming with its jaw wide open, raw wet throat, harsh and terrifying, starts instantly at full loudness, short, horror jumpscare sound effect, no music" },
+	{ "name": "Olfateo", "seconds": 2, "versions": 3, "label": "Golpes de nariz de un bicho grande", "text": "Large creature sniffing the air in short sharp bursts through its nose, four or five quick wet sniffs, close, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "UnasPared", "seconds": 2.5, "versions": 3, "label": "Garras arrastradas por una pared al pasar", "text": "Long sharp claws slowly dragged along a wooden and plaster wall while walking, a continuous scraping screech of nails on wallpaper and wood, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "ToqueDedo", "seconds": 0.5, "versions": 4, "label": "Un toque lento de uña en el cristal", "text": "Single slow tap of a long fingernail against a window pane, one hard click on glass with a faint ring, very short, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "RespiraBicho", "seconds": 5, "versions": 3, "label": "Respiración del bicho pegado al armario", "text": "Slow heavy wet breathing of a large creature right outside a wooden closet door, deep rattling inhales and long exhales, very close, no voice, no growl, horror game sound effect, realistic, dry, no reverb, no music" }
 ]
 ```
 

@@ -8,6 +8,8 @@
 -- cliente le anima las piernas y brazos (GolpeadorVista) y oye los golpes con el remote Golpeador.
 -- Lleva encima el modelo 3D (Bichos3D.vestir: los bloques quedan invisibles para la lógica y la malla copia su postura
 -- en el cliente, Malla3D); si no carga, se queda con los bloques.
+-- Sucesos al azar (14.10, GolpeadorSucesos): a veces pega la cara al cristal o llama con un dedo antes de aporrear,
+-- finge irse al cansarse, y dentro te mira en el armario, olfatea, arrastra las garras o se queda quieto.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -16,6 +18,7 @@ local Bichos3D = require(script.Parent.Bichos3D)
 local Casa = require(script.Parent.Casa)
 local Caza = require(script.Parent.Caza)
 local Cuerpo = require(script.Parent.Cuerpo)
+local Sucesos = require(script.Parent.GolpeadorSucesos)
 
 local Golpeador = {}
 
@@ -99,7 +102,43 @@ local function crear(cf: CFrame): Caza.Bicho
 		Pillar = G.Pillar,
 		Vista = G.Vista,
 		VioEsconderse = G.VioEsconderse,
+		Espera = G.Susto.Espera, -- no se mueve hasta que acaba su susto
 	})
+end
+
+-- Se planta delante de `el` y golpea `duracion` s o hasta entrar (true si entra). `primera`: la primera vez de este
+-- ataque, cuando antes de aporrear a veces pega la cara al cristal o llama con un dedo (si le abren mientras llama,
+-- entra en el primer golpe, como siempre que le abren mientras golpea).
+local function golpear(a: Ataque, b: Caza.Bicho, el: Model, noche: number, duracion: number, primera: boolean): boolean
+	local centro = el:GetAttribute("Centro") :: CFrame
+	a.objetivo = el
+	Casa.empezarAtaque(el)
+	b.humanoide.AutoRotate = false
+	b:mirarA(centro.Position)
+	local function golpe(): boolean
+		Remotes.Golpeador:FireAllClients("Golpe", el)
+		task.wait(0.35) -- el brazo baja: el golpe suena al llegar
+		return Casa.golpe(el, rango(G.Dano)) == "Entra"
+	end
+	local entra = false
+	if primera and not b.prisa and not Sucesos.cara(b, el, noche) and Sucesos.llama(b, el, noche) and not b.prisa then
+		entra = golpe()
+	end
+	local fin = os.clock() + duracion -- lo de antes no le gasta la paciencia
+	while not entra and os.clock() < fin and not b.prisa do
+		task.wait(rango(G.CadaGolpe))
+		if b.prisa then
+			break
+		end
+		if b:quieto() then
+			continue -- aturdido por un flash: deja de golpear un momento
+		end
+		entra = golpe()
+	end
+	Casa.terminarAtaque(el)
+	a.objetivo = nil
+	b.humanoide.AutoRotate = true
+	return entra
 end
 
 local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
@@ -111,6 +150,7 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 	local inicio = fuera + normal * 75 + lado * azar:NextNumber(-25, 25)
 	local lejos = fuera + normal * 110 + lado * azar:NextNumber(-40, 40)
 	local b = crear(CFrame.lookAt(inicio + Vector3.new(0, ALTURA, 0), fuera + Vector3.new(0, ALTURA, 0)))
+	Sucesos.enganchar(b, noche) -- los sucesos de dentro de la casa (Armario, Olfatea, Garras, Quieto)
 	a.bicho = b
 	b.prisa = a.prisa
 	local function noVeNadie()
@@ -126,30 +166,17 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 	end
 
 	-- Golpea hasta cansarse o hasta entrar.
-	a.objetivo = el
-	Casa.empezarAtaque(el)
-	b.humanoide.AutoRotate = false
-	b:mirarA(centro.Position)
-	local finPaciencia = os.clock() + (rango(G.Paciencia) + G.MasPaciencia * (noche - 1)) * paciencia
-	local entra = false
-	while os.clock() < finPaciencia and not b.prisa do
-		task.wait(rango(G.CadaGolpe))
-		if b.prisa then
-			break
-		end
-		if b:quieto() then
-			continue -- aturdido por un flash: deja de golpear un momento
-		end
-		Remotes.Golpeador:FireAllClients("Golpe", el)
-		task.wait(0.35) -- el brazo baja: el golpe suena al llegar
-		if Casa.golpe(el, rango(G.Dano)) == "Entra" then
-			entra = true
-			break
+	local aguante = (rango(G.Paciencia) + G.MasPaciencia * (noche - 1)) * paciencia
+	local entra = golpear(a, b, el, noche, aguante, true)
+	if not entra and not b.prisa then
+		-- Cansado, a veces finge irse: se para a medio camino, mira atrás y vuelve corriendo a golpear un poco más.
+		local que = Sucesos.finge(b, centro.Position, fuera, lejos, noche)
+		if que == "Vuelve" then
+			entra = golpear(a, b, el, noche, aguante * Sucesos.cfg.Finge.MasPaciencia, false)
+		elseif que == "Ve" then
+			b:cazar(G.Caza / 2, true) -- mientras se iba vio a alguien fuera
 		end
 	end
-	Casa.terminarAtaque(el)
-	a.objetivo = nil
-	b.humanoide.AutoRotate = true
 
 	if entra then
 		Casa.romper(el)
@@ -219,10 +246,12 @@ function Golpeador.quitar()
 		end
 		terminar(a)
 	end
+	Sucesos.reiniciar() -- la misma noche se repite: sus sucesos pueden volver a salir
 end
 
 function Golpeador.start()
 	Caza.carpeta()
+	Sucesos.start() -- la orden de prueba "Suceso"
 end
 
 return Golpeador

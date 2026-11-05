@@ -70,7 +70,8 @@ end
 local function pintar()
 	-- Sin producto creado no hay nada que comprar (salvo probando en Studio).
 	local hay = Config.Compras.Revivir.Id > 0 or Prueba.activa()
-	propio.Visible = hay and jugador:GetAttribute("Revivible") == true
+	-- Durante el susto (atributo local Asustado, MuerteVista) no: las escenas esconden la interfaz.
+	propio.Visible = hay and jugador:GetAttribute("Revivible") == true and jugador:GetAttribute("Asustado") ~= true
 	local yoVivo = not jugador:GetAttribute("Muerto")
 	local primero = true
 	for orden, otro in Players:GetPlayers() do
