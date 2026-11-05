@@ -37,24 +37,34 @@ function Crear([string]$c, [string[]]$padres) {
 	return (& git @args2).Trim()
 }
 
-function Mapear([string]$c) {
-	if ($mapa.ContainsKey($c)) { return $mapa[$c] }
-	$padres = @((git rev-list --parents -n 1 $c).Trim() -split ' ' | Select-Object -Skip 1)
-	$nuevos = @()
-	foreach ($q in $padres) { $nuevos += (Mapear $q) }
-	if ($cabezas.ContainsKey($c) -and $padres.Count -eq 1) {
-		$h = $cabezas[$c]
-		& git merge-base --is-ancestor $h $padres[0]
-		if ($LASTEXITCODE -ne 0) { $nuevos += (Mapear $h) }
+# Sin recursión por commit (PowerShell se queda sin profundidad): se recorre todo lo alcanzable desde
+# $objetivo con los padres antes que los hijos. Solo se anida al saltar a la rama de una PR (pocas veces).
+function MapearTodo([string]$objetivo) {
+	$lineas = git rev-list --topo-order --reverse --parents $objetivo
+	foreach ($l in $lineas) {
+		$partes = @($l.Trim() -split ' ')
+		$c = $partes[0]
+		if ($mapa.ContainsKey($c)) { continue }
+		$padres = @($partes | Select-Object -Skip 1)
+		$nuevos = @()
+		foreach ($q in $padres) { $nuevos += $mapa[$q] }
+		if ($cabezas.ContainsKey($c) -and $padres.Count -eq 1) {
+			$h = $cabezas[$c]
+			& git merge-base --is-ancestor $h $padres[0]
+			$yaDentro = $LASTEXITCODE -eq 0
+			# Rama que se siguió usando tras juntarla (la #9): ya contiene este commit; se queda aplastado.
+			& git merge-base --is-ancestor $c $h
+			if ($LASTEXITCODE -eq 0) { $yaDentro = $true }
+			if (-not $yaDentro) {
+				if (-not $mapa.ContainsKey($h)) { MapearTodo $h }
+				$nuevos += $mapa[$h]
+			}
+		}
+		$mapa[$c] = Crear $c $nuevos
 	}
-	$n = Crear $c $nuevos
-	$mapa[$c] = $n
-	return $n
 }
 
-# De la más vieja a la más nueva, para no hacer recursiones largas por main.
-$orden = @($primeros); [array]::Reverse($orden)
-foreach ($c in $orden) { [void](Mapear $c) }
+MapearTodo (Lleno "main")
 $nuevaPunta = $mapa[(Lleno "main")]
 git update-ref refs/heads/historial-completo $nuevaPunta
 "punta nueva: $nuevaPunta"
