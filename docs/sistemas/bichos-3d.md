@@ -4,7 +4,7 @@ Pedido por el usuario: los bichos se hacen con Tripo a partir de los dibujos de 
 
 ## Licencia
 
-- Tripo con cuenta gratis: no está claro que se pueda usar en un juego que da dinero (su ayuda dice que lo de los usuarios gratis es de Tripo). Con plan de pago (Pro o más), sí. Mirarlo antes de publicar.
+- Sergio tiene Tripo Pro (dicho el 05-11-2026): con plan de pago los modelos se pueden usar en un juego que da dinero. Hacer siempre los bichos con esa cuenta (con la gratis, lo de los usuarios gratis es de Tripo). Guardar una captura de las condiciones del día en que se genera cada modelo.
 
 ## Preparar y subir
 
