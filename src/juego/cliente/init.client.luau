@@ -35,6 +35,7 @@ require(Sistemas.BrazosVista).start() -- los brazos de los demás jugadores
 require(Sistemas.MuerteVista).start()
 require(Sistemas.EsconditeVista).start() -- los escondites vistos desde fuera: puertas del armario y colcha (manos.md)
 require(Sistemas.MirarVista).start() -- mirar por la mirilla y entre las cortinas (manos.md)
+require(Sistemas.PavorVista).start() -- Pavor al ver un bicho: vértigo, manos que tiemblan y latido (pavor.md)
 require(Sistemas.VendedorUi).start()
 require(Sistemas.PistasUi).start()
 require(Sistemas.TallerUi).start()

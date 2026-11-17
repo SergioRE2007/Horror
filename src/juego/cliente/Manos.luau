@@ -26,12 +26,16 @@
 -- un tirón hacia abajo. El temblor va después del muelle (si no, se lo comería) y Manos.dondeCosa lo cuenta: la luz de
 -- la linterna tiembla con la mano. La zancada (Manos.fasePaso) es la de CuerpoVista y Pasos. Con Rendimiento, nada de
 -- esto (salvo el tirón al tropezar).
+-- Pavor al ver un bicho (PavorVista, pavor.md): Manos.pavor(x) hace temblar lo que llevas en la mano (las cuentas, en
+-- PavorCuentas.temblor), también con Rendimiento (PavorVista ya lo pasa flojo). Va con el temblor de correr, después
+-- del muelle: la luz de la linterna tiembla con la mano.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local CorrerVista = require(script.Parent.CorrerVista)
 local CuerpoVista = require(script.Parent.CuerpoVista)
 local ManosCorrer = require(script.Parent.ManosCorrer)
+local PavorCuentas = require(script.Parent.PavorCuentas)
 
 local Manos = {}
 
@@ -102,6 +106,7 @@ local fasePaso = 0 -- la zancada: pi por paso (como CuerpoVista y Pasos)
 local respiro = 0 -- la fase de la respiración
 local agitado = 0 -- de 0 a 1, lo que se corre (ritmo × lo deprisa que vas), para el temblor
 local cansado = 0 -- de 0 a 1, el cansancio para el temblor (0 con Rendimiento o escondidas)
+local pavor = 0 -- de 0 a 1, el pavor de haber visto un bicho (PavorVista), para el temblor
 local modelo: Model
 local piezas: { BasePart } = {}
 local sitios: { CFrame } = {}
@@ -309,11 +314,22 @@ end
 
 -- La palma de ese brazo con su temblor a los `t` s (os.clock), en la cámara.
 local function conTemblor(lado: string, b: Brazo, t: number): CFrame
-	if b.tiembla <= 0 or (agitado <= 0 and cansado <= 0) then
+	if b.tiembla <= 0 or (agitado <= 0 and cansado <= 0 and pavor <= 0) then
 		return b.rel
 	end
-	return ManosCorrer.aplicar(b.rel, Vector3.zero, ManosCorrer.temblor(t, fasePaso, agitado, cansado, SEMILLA[lado])
-		* b.tiembla)
+	local giro = ManosCorrer.temblor(t, fasePaso, agitado, cansado, SEMILLA[lado])
+	local desp = Vector3.zero
+	if pavor > 0 then
+		local gPavor, dPavor = PavorCuentas.temblor(t, pavor, SEMILLA[lado])
+		giro += gPavor
+		desp = dPavor
+	end
+	return ManosCorrer.aplicar(b.rel, desp * b.tiembla, giro * b.tiembla)
+end
+
+-- El pavor de haber visto un bicho (0..1, PavorVista): lo que tiemblan las manos y la linterna.
+function Manos.pavor(x: number)
+	pavor = if x == x then math.clamp(x, 0, 1) else 0
 end
 
 -- Dónde está ahora esa cosa respecto a la cámara (nil si no está en la mano). Para la luz de la linterna: con el

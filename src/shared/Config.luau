@@ -784,6 +784,33 @@ Config.Aire = {
 	Viento = { Rumbo = 0.7, Giro = 0.6, Lento = 0.012, Fuerza = { 0.4, 1.6 }, Rachas = 0.16 },
 }
 
+-- Pavor al ver un bicho: vértigo, manos que tiemblan y latido (juego/cliente/PavorVista, docs/sistemas/pavor.md).
+-- Solo adorno del cliente; números a ojo. Con Rendimiento, sin vértigo ni retraso: solo el latido y un temblor flojo.
+Config.Pavor = {
+	Lejos = 45, -- studs: más lejos, verlo no cuenta
+	Cerca = 8, -- studs: más cerca, del todo
+	Minimo = 0.4, -- lo fuerte que es verlo justo en el límite (Lejos)
+	Olvida = 15, -- s sin verlo para que el mismo bicho vuelva a asustar
+	Cada = 0.15, -- s entre mirada y mirada (los rayos)
+	Borde = 0.04, -- parte de la pantalla, por cada borde, que no cuenta como "a la vista"
+	-- Vértigo: el campo de visión se cierra `Campo` grados (del todo) y la cámara recula `Recula` studs, en `Cierra` s;
+	-- se queda `Queda` s y vuelve en `Vuelve` s.
+	Vertigo = { Campo = 10, Recula = 0.35, Cierra = 0.5, Queda = 0.25, Vuelve = 2.6 },
+	Sobresalto = 0.45, -- el golpe de tensión, flojo: su volumen por este número (y menos lejos)
+	SobresaltoCada = 4, -- s como poco entre dos
+	Manos = 0.5, -- el respingo de las manos (ManosGestos.sobresalto) del todo
+	Latido = { Volumen = 0.9, Dura = { 3, 6 }, Apaga = 2.5 }, -- por el suyo; s que suena entero (lejos, cerca) y apagándose
+	Dura = { 20, 30 }, -- s que dura el pavor (lejos, cerca), bajando poco a poco
+	Baja = 1.6, -- cómo baja: (1 - t / dura) ^ Baja
+	-- Las manos y la linterna tiemblan: giro (radianes) y desplazamiento (studs) con el pavor entero; vueltas por
+	-- segundo del temblor fino y del lento; con Rendimiento, por `Rendimiento`.
+	Temblor = { Giro = math.rad(1.3), Mueve = 0.012, Fino = 9, Lento = 2.3, Rendimiento = 0.4 },
+	Respira = 0.8, -- el susto de la respiración de la cámara (CuerpoVista.respiracion) con el pavor entero
+	-- Al girar rápido la vista se queda atrás: desde `Desde` rad/s, `Tiempo` s de lo girado, `Max` radianes como mucho,
+	-- y lo deprisa que sigue (por segundo).
+	Retraso = { Desde = 1.5, Tiempo = 0.025, Max = math.rad(2.2), Suave = 12 },
+}
+
 -- Cómo se mueven y suenan las latas (juego/cliente/LatasVista, 14.3). A ojo.
 Config.LatasVista = {
 	Cerca = 120, -- studs: más lejos no se anima nada
