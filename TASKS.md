@@ -205,6 +205,12 @@ Retoques a ojo:
 17. Números de correr (`correr.md`, "Números a ojo para mirar en Studio") y de la llegada al lobby (`lobby.md`,
    "Números a ojo").
 
+Inmersión, vuelta 1 (sin ver aún en Studio):
+- Aire: de noche con el generador, motas en el haz de la linterna, más en desván y sótano; haz azul bajo la ventana del vestíbulo (se apaga con cortinas); niebla y pinocha fuera. Si los haces se notan mucho, subir `Config.Aire.Haz.Transparencia`.
+- Oído: golpe tras una puerta suena sordo; escondido se apaga lo de fuera; `SoundService.AmbientReverb` cambia por zona.
+- Bichitos: ratas en sótano, desván, trastero y garaje que huyen de la linterna; polillas en bombillas; moscas en charcos (`bichitos.md`).
+- Huellas: barro tras el Golpeador, rojo tras una muerte, pisadas rojas en charcos; mirar si la punta apunta bien y si la textura se tiñe (`huellas.md`).
+
 ### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
 - **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
 - **Segunda tanda (03 y 04-11-2026):** hecho: respiración contenida en el escondite, ver esconderse a los demás, la casa que reacciona más (mecedoras, vajilla, polvo, corriente), agacharse y asomarse (botón también en el móvil), manos en la pared, mirilla y cortinas (probados en Studio el 03-11-2026), y bichos con más vida mientras esperan y esconderse agachado debajo de las mesas con los bichos que huelen y gatean (`manos.md` y `bichos.md`; sin Studio). Tropezar y frenar al correr cansado: hecho en la 14.8.
@@ -270,6 +276,13 @@ Retoques a ojo:
   abierta del todo y las garras por los lados; la cámara iba bajo la barbilla mirando al cielo: arreglado), Cara y
   Armario. Falta: el susto gateando, Garras, Quieto, Finge, Llama, Rendimiento y los 5 sonidos (sonidos-pendientes.md,
   26-30: mientras suenan provisionales). Los brazos de la malla a veces salen como hojas planas estiradas: mirarlo.
+
+### 14.11 Inmersión: bucle de mejoras (pedido por el usuario, 17-11-2026: "mejorar la inmersión, interacciones, polvo en el aire, animaciones")
+- **Estado:** hecho sin Studio, en vueltas; falta verlo en Studio
+- Vuelta 1: Aire vivo, polvo siempre en la luz, haces de luna y niebla baja — hecho sin Studio (`docs/sistemas/aire.md`)
+- Vuelta 1: Oído, sonido tapado por las paredes y eco de cada sala — hecho sin Studio (`docs/sistemas/oido.md`)
+- Vuelta 1: Bichitos, ratas que huyen de la linterna, polillas y moscas — hecho sin Studio (`docs/sistemas/bichitos.md`)
+- Vuelta 1: Huellas de barro y de sangre — hecho sin Studio (`docs/sistemas/huellas.md`)
 
 ## 15. Mejoras pedidas por el usuario (05-11-2026: "a mi parecer hay muchas cosas que mejorar aun")
 
