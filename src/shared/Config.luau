@@ -1137,4 +1137,47 @@ Config.Tormenta = {
 -- El trueno propio de la tormenta, mientras tanto con Id 0 (suena Retumbo): docs/sistemas/sonidos-pendientes.md.
 Config.Sonidos.Trueno = { Id = 0, Volumen = 1, Alcance = 400 }
 
+-- Ojos en la oscuridad: la linterna los hace brillar entre los árboles (juego/cliente/OjosVista, docs/sistemas/ojos.md).
+-- Solo del cliente y de adorno, salvo que los de los bichos son de verdad (y no se apagan al mirarlos). Colores en RGB
+-- (sin Color3, para que Lune lo cargue). Todo a ojo.
+Config.Ojos = {
+	Cada = 0.25, -- segundos entre repasos (qué bichos hay cerca, si toca sacar unos ojos falsos)
+	Noche = 0.5, -- desde esta noche (0 a 1, las rampas de Ambiente) hay ojos
+	Entre = { 18, 45 }, -- segundos entre unos ojos falsos y los siguientes (fuera, de noche y con la linterna)
+	Distancia = { 30, 70 }, -- studs de la cámara a los que salen los falsos (nunca a menos de Nunca)
+	Nunca = 20,
+	Lejos = 70, -- más allá no brillan (ni los de los bichos); con el pase Luz, hasta Alcance × 1,3 si es más
+	Cono = 0.9, -- de la mitad del ángulo de la linterna (Config.Linterna.Angulo): los falsos salen dentro de esto
+	Centro = 0.55, -- dentro de esta parte del cono brillan enteros; hacia el borde se apagan (fuera del haz, nada)
+	Doble = 0.3, -- probabilidad de que salgan dos pares
+	Persona = 0.3, -- probabilidad de que estén a altura de persona (si no, de animal)
+	Alto = { Animal = { 1.1, 2.4 }, Persona = { 4.6, 5.6 } }, -- studs sobre el suelo
+	Separacion = { Animal = { 0.35, 0.6 }, Persona = { 0.3, 0.4 } }, -- studs entre los dos ojos de un par
+	Vida = { 5, 10 }, -- segundos que se quedan los falsos si no los miras
+	Parpadeo = { 1.2, 3.5 }, -- segundos entre parpadeos de los falsos
+	ParpadeoBicho = { 3, 7 }, -- ...y de los bichos
+	Cierre = 0.12, -- segundos con los ojos cerrados en un parpadeo
+	Fijo = 6, -- grados del centro de la vista: mirarlos así de fijo...
+	Mirada = 0.6, -- ...estos segundos los apaga (a los falsos)
+	Cerca = 24, -- studs: acercarse a menos de esto también los apaga
+	Apagar = 0.2, -- segundos que tardan en apagarse al irse
+	Ramita = { Tras = 0.25, Volumen = 0.7, Otra = 0.5, Lejos = 3 }, -- al irse: retraso, volumen, otra más lejos, studs
+	BichoCerca = 12, -- studs: más cerca, los ojos del bicho ya no brillan (se le ve entero)
+	Cara = 0.15, -- los del bicho, solo si te mira de cara (el coseno entre su cara y tú)
+	Tam = { Studs = 0.07, Px = 3 }, -- tamaño de cada ojo (studs más píxeles: de lejos no se pierde)
+	Halo = 2.6, -- el halo flojo alrededor de cada ojo, tantas veces el ojo
+	Transparencia = 0.3, -- del ojo encendido del todo ("muy flojos")
+	TransparenciaHalo = 0.85,
+	Colores = { { 150, 195, 110 }, { 225, 160, 75 } }, -- verdoso y ámbar
+	-- Los bichos que tienen ojos que brillan: dónde está cada ojo en su Cabeza (los puntitos Neon de su modelo, un poco
+	-- por delante) y su color (de Colores).
+	Bichos = {
+		Acechador = { Color = 2, Ojos = { { -0.22, 0.35, -0.62 }, { 0.22, 0.35, -0.62 } } },
+		Golpeador = { Color = 2, Ojos = { { -0.32, 0.38, -0.78 }, { 0.3, 0.31, -0.78 } } },
+		Trepador = { Color = 1, Ojos = { { -0.3, 0.3, -0.78 }, { 0.3, 0.3, -0.78 } } },
+		Bestia = { Color = 2, Ojos = { { -0.6, 0.45, -1.52 }, { 0.55, 0.5, -1.52 }, { -0.25, 0.65, -1.52 },
+			{ 0.3, 0.3, -1.52 }, { -0.75, 0.15, -1.52 }, { 0.8, 0.2, -1.52 } } },
+	},
+}
+
 return Config
