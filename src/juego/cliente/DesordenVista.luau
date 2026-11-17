@@ -520,7 +520,7 @@ local function chocar(k: Cae, donde: Vector3): boolean
 		sonar("Latas", donde, azar:NextNumber(0.9, 1.1), 0.5)
 		-- Rueda un poco: un giro de lado y otro repique más flojo.
 		local raiz = k.copias[1]
-		local eje = Vector3.yAxis:Cross(c.salida)
+		local eje = Vector3.new(0, 1, 0):Cross(c.salida)
 		if eje.Magnitude > 0.1 then
 			raiz.AssemblyAngularVelocity += eje.Unit * 9
 			raiz.AssemblyLinearVelocity += c.salida * 2
@@ -596,11 +596,11 @@ local function caer(c: Cosa, semilla: number)
 	if c.clase == "Cuadro" then
 		-- Se suelta del clavo: se separa un poco de la pared y la parte de arriba se va hacia la sala.
 		raiz.AssemblyLinearVelocity = c.salida * C.entre(semilla, 500, 1, 2) + Vector3.new(0, 0.5, 0)
-		raiz.AssemblyAngularVelocity = Vector3.yAxis:Cross(c.salida) * C.entre(semilla, 501, 2, 3.5)
+		raiz.AssemblyAngularVelocity = Vector3.new(0, 1, 0):Cross(c.salida) * C.entre(semilla, 501, 2, 3.5)
 	else
 		raiz.AssemblyLinearVelocity = c.salida * C.entre(semilla, 500, D.Empuje[1], D.Empuje[2])
 			+ Vector3.new(0, C.entre(semilla, 502, 1.5, 3), 0)
-		local vuelca = Vector3.yAxis:Cross(c.salida) * C.entre(semilla, 501, 3, 7)
+		local vuelca = Vector3.new(0, 1, 0):Cross(c.salida) * C.entre(semilla, 501, 3, 7)
 		raiz.AssemblyAngularVelocity = vuelca + Vector3.new(0, C.entre(semilla, 503, -2, 2), 0)
 	end
 	table.insert(cayendo, { c = c, copias = copias, modelo = modelo, nace = os.clock(), vy = 0, choco = false, semilla = semilla })
@@ -633,7 +633,7 @@ local function volcarSilla(c: Cosa, dir: Vector3)
 	}
 	if not v.aparta then
 		local libreDir: Vector3? = nil
-		local derecha = Vector3.yAxis:Cross(dir)
+		local derecha = Vector3.new(0, 1, 0):Cross(dir)
 		for _, d in { dir, derecha, -derecha, -dir } do
 			if not tapado(c, d, c.tam.Y * 0.8, rayo) then
 				libreDir = d

@@ -541,7 +541,7 @@ local function crear(quien: Player, cabeza: Vector3?, conLinterna: boolean, colo
 	for _, p in partes do
 		p.AssemblyLinearVelocity = vel * (1 + azar:NextNumber(-CFG.Azar, CFG.Azar))
 	end
-	torso.AssemblyAngularVelocity = Vector3.yAxis:Cross(dir) * CFG.Giro * fuerza
+	torso.AssemblyAngularVelocity = Vector3.new(0, 1, 0):Cross(dir) * CFG.Giro * fuerza
 
 	if not propio then
 		sonar("GritoMuerte", "Susto", torso.Position, CFG.TonoGrito, CFG.VolumenGrito)

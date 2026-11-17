@@ -140,7 +140,7 @@ function DesordenCuentas.volcar(caja: CFrame, tam: Vector3, dir: Vector3, angulo
 	d = d.Unit
 	local bajo = caja.Position.Y - DesordenCuentas.saliente(caja.Rotation, tam, Vector3.yAxis)
 	local canto = Vector3.new(caja.Position.X, bajo, caja.Position.Z) + d * DesordenCuentas.saliente(caja.Rotation, tam, d)
-	local eje = Vector3.yAxis:Cross(d) -- girar sobre él lleva lo de arriba hacia `d`
+	local eje = Vector3.new(0, 1, 0):Cross(d) -- girar sobre él lleva lo de arriba hacia `d`
 	return CFrame.new(canto) * CFrame.fromAxisAngle(eje, angulo) * CFrame.new(-canto)
 end
 

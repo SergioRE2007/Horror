@@ -242,7 +242,7 @@ local function mirar(s: Sound, d: Seguido, camara: Vector3, ahora: number)
 		eq = nuevo
 		d.eq = nuevo
 	end
-	assert(eq)
+	assert(eq, "Oido: falta el ecualizador")
 	eq.Enabled = hace
 	if eq.LowGain ~= bajo then
 		eq.LowGain = bajo
