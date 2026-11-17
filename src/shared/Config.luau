@@ -1338,7 +1338,6 @@ Config.Ojos = {
 	},
 }
 
-return Config
 -- Ojos que se acostumbran a la oscuridad (y deslumbran) (juego/cliente/AdaptarVista, docs/sistemas/adaptar.md). Solo del
 -- cliente y de adorno. "Luz" es una suma sin unidades que pasa a 0..1 con 1 - e^(-suma) (AdaptarCuentas.juntar).
 -- Todo a ojo y flojo, para que no moleste.
@@ -1374,3 +1373,4 @@ Config.Adaptar = {
 	Ajena = { Lejos = 25, Angulo = 12, Fuerza = 0.8, Rendimiento = 0.5, Entra = 0.08, Sale = 0.25 },
 }
 
+return Config
