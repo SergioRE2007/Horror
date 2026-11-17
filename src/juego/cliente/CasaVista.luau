@@ -13,7 +13,8 @@
 -- Un portazo del bicho (atributo Portazo) también hace temblar lo de alrededor (CasaVista.alGolpe), como un golpe.
 -- Para los demás módulos: CasaVista.temblar (temblor de cámara suave, nunca en cinemáticas), CasaVista.polvo (polvo y
 -- arenilla que caen), CasaVista.vibrar (el cristal traquetea un momento) y CasaVista.alRomper (lo pone Efectos: los
--- trozos de cristal que quedan en el suelo).
+-- trozos de cristal que quedan en el suelo). CasaVista.alPuerta da cada puerta a PuertaRotaVista: la hoja que cede y
+-- revienta, colgando de una bisagra (puerta-rota.md).
 -- Animación sencilla a propósito: se mejora más adelante (pedido por el usuario).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -66,6 +67,30 @@ CasaVista.elementos = {} :: { [Model]: Elemento }
 CasaVista.alRomper = nil :: ((el: Model, centro: CFrame, ancho: number, alto: number) -> ())?
 -- Lo pone Efectos: cada golpe en una ventana o puerta hace temblar lo de alrededor (vasos, cuadros, lámparas).
 CasaVista.alGolpe = nil :: ((donde: Vector3) -> ())?
+
+-- Puertas que revientan (puerta-rota.md): lo que PuertaRotaVista necesita de cada puerta para partir la hoja en tablas
+-- y dejarla colgando. Los `rel` son desde la bisagra (como hojaRel); lo que se mete en `piezas` va con la hoja.
+export type Puerta = {
+	el: Model,
+	hoja: BasePart,
+	pomo: BasePart,
+	bisagra: CFrame,
+	hojaRel: CFrame,
+	pomoRel: CFrame,
+	giro: number, -- 1 o -1: hacia dónde gira al abrirse (hacia la sala de `Hacia`)
+	piezas: { { parte: BasePart, rel: CFrame } },
+	colgar: (cf: CFrame?) -> (), -- pone la bisagra en `cf` en vez de girarla; nil = vuelve a girar como siempre
+	normal: () -> CFrame, -- dónde estaría la bisagra girada como siempre (con el ángulo de ahora)
+}
+CasaVista.puertas = {} :: { [Model]: Puerta }
+local alPuertaFns: { (Puerta) -> () } = {}
+-- `fn` con cada puerta: las que ya hay y las que lleguen.
+function CasaVista.alPuerta(fn: (Puerta) -> ())
+	table.insert(alPuertaFns, fn)
+	for _, p in CasaVista.puertas do
+		task.spawn(fn, p)
+	end
+end
 
 local function poco(): boolean
 	return jugador:GetAttribute("Rendimiento") == true
@@ -615,11 +640,16 @@ local function puerta(el: Model)
 	local giro = if (bisagra * CFrame.Angles(0, math.rad(90), 0)).RightVector:Dot(hacia) > 0 then 1 else -1
 	local angulo = Instance.new("NumberValue")
 	local tablones: { { parte: BasePart, rel: CFrame } } = {} -- los del refuerzo, que giran con la hoja
+	local piezas: { { parte: BasePart, rel: CFrame } } = {} -- las de PuertaRotaVista (tablas de la hoja que cede)
+	local colgada: CFrame? = nil -- echada abajo: la bisagra la pone PuertaRotaVista (colgando) y el ángulo no cuenta
 	local function colocar(a: number)
-		local cf = bisagra * CFrame.Angles(0, math.rad(a), 0)
+		local cf = colgada or bisagra * CFrame.Angles(0, math.rad(a), 0)
 		hoja.CFrame = cf * hojaRel
 		pomo.CFrame = cf * pomoRel
 		for _, t in tablones do
+			t.parte.CFrame = cf * t.rel
+		end
+		for _, t in piezas do
 			t.parte.CFrame = cf * t.rel
 		end
 	end
@@ -649,6 +679,26 @@ local function puerta(el: Model)
 	colocar(angulo.Value)
 	reforzar()
 
+	-- Para PuertaRotaVista (puerta-rota.md).
+	local datos: Puerta = {
+		el = el, hoja = hoja, pomo = pomo, bisagra = bisagra, hojaRel = hojaRel, pomoRel = pomoRel, giro = giro,
+		piezas = piezas,
+		colgar = function(cf: CFrame?)
+			colgada = cf
+			colocar(angulo.Value)
+		end,
+		normal = function(): CFrame
+			return bisagra * CFrame.Angles(0, math.rad(angulo.Value), 0)
+		end,
+	}
+	CasaVista.puertas[el] = datos
+	el.Destroying:Once(function()
+		CasaVista.puertas[el] = nil
+	end)
+	for _, fn in alPuertaFns do
+		task.spawn(fn, datos)
+	end
+
 	-- Polvo del dintel, por dentro (solo las de fuera tienen Centro).
 	local centro = el:GetAttribute("Centro")
 	local function polvillo(cuanto: number)
@@ -661,6 +711,11 @@ local function puerta(el: Model)
 	el:GetAttributeChangedSignal("Abierta"):Connect(function()
 		local deGolpe = (el:GetAttribute("Portazo") or 0) ~= portazos
 		portazos = el:GetAttribute("Portazo") or 0
+		if (el:GetAttribute("Vida") or 1) <= 0 then
+			-- Echada abajo: no se abre como siempre, revienta (lo hace PuertaRotaVista, sin el ruido de abrirla).
+			angulo.Value = destino()
+			return
+		end
 		if deGolpe then
 			Sonido.en("Golpe", hoja.Position, 0.9)
 			CasaVista.temblar(hoja.Position, 0.6)

@@ -217,6 +217,10 @@ Inmersión, vuelta 2 (sin ver aún en Studio):
 - Ojos: de noche fuera con linterna, `Config.Ojos.Entre = { 1, 2 }` (sin subirlo). Puntitos junto a un tronco que se apagan al mirarlos; los de bichos de verdad no (`ojos.md`).
 - Marcas: Golpeador en la puerta deja zarpazos; Raspador, rayas en el cristal; una muerte junto a una pared salpica sangre que se seca. Mirar orientación y si el hollín se tiñe de rojo (`marcas.md`).
 
+Inmersión, vuelta 3 (sin ver aún en Studio):
+- Cadáver: con 2 jugadores, un bicho mata a uno con la linterna encendida. El muñeco sale lejos del bicho, se dobla sin articulaciones al revés y se para; sin piezas sueltas ni nombre. Charco bajo el pecho en 8 s, linterna rodando y parpadeando hasta apagarse a los 40 s. Al revivir desaparece todo menos la sangre. Con Rendimiento se para a los 1,5 s (`cadaver.md`).
+- Puerta rota: bajar `Vida` del modelo de la puerta a 45, 20 y 0 (con `Abierta` a true). Rendija con luz, otro trozo cede, hoja colgando torcida, astillas que crujen, pomo rodando y polvo. Con la vida al máximo todo vuelve. Mirar si las astillas atraviesan el suelo y la mirilla de la puerta principal (`puerta-rota.md`).
+
 ### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
 - **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
 - **Segunda tanda (03 y 04-11-2026):** hecho: respiración contenida en el escondite, ver esconderse a los demás, la casa que reacciona más (mecedoras, vajilla, polvo, corriente), agacharse y asomarse (botón también en el móvil), manos en la pared, mirilla y cortinas (probados en Studio el 03-11-2026), y bichos con más vida mientras esperan y esconderse agachado debajo de las mesas con los bichos que huelen y gatean (`manos.md` y `bichos.md`; sin Studio). Tropezar y frenar al correr cansado: hecho en la 14.8.
@@ -293,6 +297,8 @@ Inmersión, vuelta 2 (sin ver aún en Studio):
 - Vuelta 2: Pavor al ver un bicho, vértigo, manos que tiemblan y latido — hecho sin Studio (`docs/sistemas/pavor.md`)
 - Vuelta 2: Ojos en la oscuridad, la linterna los hace brillar entre los árboles — hecho sin Studio (`docs/sistemas/ojos.md`)
 - Vuelta 2: Marcas de la noche, arañazos en las puertas y sangre en las paredes — hecho sin Studio (`docs/sistemas/marcas.md`)
+- Vuelta 3: Cuerpos que caen de verdad, el compañero muerto se queda tirado — hecho sin Studio (`docs/sistemas/cadaver.md`)
+- Vuelta 3: Puertas que revientan, astillas y la hoja colgando de una bisagra — hecho sin Studio (`docs/sistemas/puerta-rota.md`)
 
 ## 15. Mejoras pedidas por el usuario (05-11-2026: "a mi parecer hay muchas cosas que mejorar aun")
 

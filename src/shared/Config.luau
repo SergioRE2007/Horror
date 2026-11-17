@@ -954,6 +954,62 @@ Config.Marcas = {
 	CadaColor = 1, -- segundos entre dos repasos del color
 }
 
+-- Cuerpos que caen de verdad: el compañero muerto se queda tirado (juego/cliente/CadaverVista,
+-- docs/sistemas/cadaver.md). Solo adorno del cliente. Segundos, studs y grados; números a ojo.
+Config.Cadaver = {
+	Anclar = 3, -- segundos como mucho que se mueve el muñeco; luego se anclan todas sus piezas
+	AnclarRendimiento = 1.5,
+	Quieto = 1.5, -- studs/s del tronco: más despacio que esto...
+	QuietoMin = 0.8, -- ...pasado este rato...
+	QuietoTiempo = 0.4, -- ...y durante esto, ya se ancla antes
+	Tope = 4, -- muñecos moviéndose a la vez; con uno más, el más viejo se ancla tal como está
+	Empuje = 20, -- studs/s en horizontal, hacia el lado contrario del bicho
+	Salto = 9, -- studs/s hacia arriba
+	Giro = 5, -- rad/s del tronco hacia atrás
+	Azar = 0.2, -- cada pieza, un poco más o menos de empuje
+	Friccion = 4, -- rozamiento de las rótulas: que no se balanceen sin fin
+	Golpe = 10, -- studs/s: frenar de golpe desde más que esto suena a cuerpo contra el suelo
+	TonoGrito = 0.8, -- el grito provisional (Susto) mientras GritoMuerte tenga Id 0
+	VolumenGrito = 0.8,
+	EsperaPropio = 1, -- tu muñeco: como poco esto tras morir, y cuando la cámara deja de ser de script
+	EsperaPropioMax = 25, -- ...o a esto, pase lo que pase
+	FuerzaPropio = 0.15, -- tu cuerpo ya ha caído durante el susto: apenas empuje
+	SinAviso = 0.3, -- muertes sin remote Muerte: tras el Died, el muñeco cae donde está
+	-- Límites de cada rótula: { cono, giro a cada lado } en grados.
+	Juntas = {
+		Cuello = { 40, 45 },
+		Cintura = { 25, 20 },
+		Hombro = { 85, 60 },
+		Codo = { 70, 10 },
+		Muneca = { 30, 15 },
+		Cadera = { 55, 25 },
+		Rodilla = { 70, 8 },
+		Tobillo = { 25, 10 },
+		Otra = { 30, 20 },
+	},
+	-- El charco de MuerteVista: escondido mientras vuela el muñeco; luego bajo su pecho, creciendo despacio.
+	Charco = {
+		Crece = 8, -- segundos de pequeño a su tamaño
+		Desde = 0.5, -- studs de diámetro al empezar
+		Tam = { 5, 7 }, -- studs de diámetro al final
+		Cerca = 4, -- studs: un charco nuevo tan cerca de donde cayó es suyo
+		Espera = 3, -- segundos tras la muerte en que se busca su charco
+	},
+	-- La linterna que se le cae, si la llevaba encendida.
+	Linterna = {
+		Dura = 40, -- segundos encendida en el suelo
+		Apaga = 6, -- los últimos segundos baja y parpadea más
+		Corte = -0.45, -- con el ruido por debajo de esto, un tirón a casi apagada (más alto, más tirones)
+		Tirones = 3, -- lo deprisa que cambia el ruido
+		Rueda = 2.5, -- segundos rodando antes de quedarse quieta
+		Brillo = 2.5, -- más flojo que en la mano (Config.Linterna.Brillo)
+		Rango = 30,
+		Angulo = 50,
+		Empuje = 7, -- studs/s con que sale de la mano
+		Cerca = 160, -- studs de la cámara: más lejos no se le toca el brillo
+	},
+}
+
 -- Cortinas, cristales y puertas cuando algo se acerca por fuera (juego/cliente/CasaVista, 14.3). A ojo.
 Config.EfectosCasa = {
 	Ondea = 0.32, -- radianes que se mecen las cortinas hacia dentro con algo pegado fuera (abajo del todo)
