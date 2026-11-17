@@ -211,6 +211,12 @@ Inmersión, vuelta 1 (sin ver aún en Studio):
 - Bichitos: ratas en sótano, desván, trastero y garaje que huyen de la linterna; polillas en bombillas; moscas en charcos (`bichitos.md`).
 - Huellas: barro tras el Golpeador, rojo tras una muerte, pisadas rojas en charcos; mirar si la punta apunta bien y si la textura se tiñe (`huellas.md`).
 
+Inmersión, vuelta 2 (sin ver aún en Studio):
+- Tormenta: de noche, `workspace:SetAttribute("TormentaPrueba", true)` y `Config.Tormenta.Cada = { 5, 8 }` (sin subirlo). Mirar fogonazo, sombra del marco, bicho negro en la ventana, trueno apagado dentro y claro fuera. Si la sombra no sale, bajar `Fogonazo.Atras` (`tormenta.md`).
+- Pavor: `game.Players.LocalPlayer:SetAttribute("PavorPrueba", 10)` en el cliente. Vista que se cierra, latido, linterna que tiembla; no repite antes de 15 s; con Rendimiento solo latido y temblor flojo (`pavor.md`).
+- Ojos: de noche fuera con linterna, `Config.Ojos.Entre = { 1, 2 }` (sin subirlo). Puntitos junto a un tronco que se apagan al mirarlos; los de bichos de verdad no (`ojos.md`).
+- Marcas: Golpeador en la puerta deja zarpazos; Raspador, rayas en el cristal; una muerte junto a una pared salpica sangre que se seca. Mirar orientación y si el hollín se tiñe de rojo (`marcas.md`).
+
 ### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
 - **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
 - **Segunda tanda (03 y 04-11-2026):** hecho: respiración contenida en el escondite, ver esconderse a los demás, la casa que reacciona más (mecedoras, vajilla, polvo, corriente), agacharse y asomarse (botón también en el móvil), manos en la pared, mirilla y cortinas (probados en Studio el 03-11-2026), y bichos con más vida mientras esperan y esconderse agachado debajo de las mesas con los bichos que huelen y gatean (`manos.md` y `bichos.md`; sin Studio). Tropezar y frenar al correr cansado: hecho en la 14.8.
@@ -283,6 +289,10 @@ Inmersión, vuelta 1 (sin ver aún en Studio):
 - Vuelta 1: Oído, sonido tapado por las paredes y eco de cada sala — hecho sin Studio (`docs/sistemas/oido.md`)
 - Vuelta 1: Bichitos, ratas que huyen de la linterna, polillas y moscas — hecho sin Studio (`docs/sistemas/bichitos.md`)
 - Vuelta 1: Huellas de barro y de sangre — hecho sin Studio (`docs/sistemas/huellas.md`)
+- Vuelta 2: Tormenta seca, relámpagos que iluminan la casa y recortan a los bichos — hecho sin Studio (`docs/sistemas/tormenta.md`)
+- Vuelta 2: Pavor al ver un bicho, vértigo, manos que tiemblan y latido — hecho sin Studio (`docs/sistemas/pavor.md`)
+- Vuelta 2: Ojos en la oscuridad, la linterna los hace brillar entre los árboles — hecho sin Studio (`docs/sistemas/ojos.md`)
+- Vuelta 2: Marcas de la noche, arañazos en las puertas y sangre en las paredes — hecho sin Studio (`docs/sistemas/marcas.md`)
 
 ## 15. Mejoras pedidas por el usuario (05-11-2026: "a mi parecer hay muchas cosas que mejorar aun")
 

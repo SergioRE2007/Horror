@@ -903,6 +903,53 @@ Config.Huellas = {
 	} :: { [string]: { Forma: string, Tam: { number }, Lado: number } },
 }
 
+-- Marcas de la noche: arañazos en las puertas y sangre salpicada en las paredes (juego/cliente/MarcasVista,
+-- docs/sistemas/marcas.md). Solo adorno del cliente, calculado por cada uno con la misma semilla. RGB sin Color3. A ojo.
+Config.Marcas = {
+	Tope = 60, -- marcas vivas como mucho (un zarpazo o una mancha con sus gotas); las más viejas se borran primero
+	TopeRendimiento = 20,
+	Cerca = 70, -- studs de la cámara: más lejos no se animan los chorretones ni se seca la sangre (se pone al día luego)
+	-- Arañazos del Golpeador (cada golpe, atributo Golpes): un zarpazo de 3-4 surcos paralelos, oscuros y con el borde
+	-- claro, y alguna astilla levantada. En la hoja, el marco o la pared de al lado, por fuera.
+	Surcos = { 3, 4 },
+	Largo = { 1.3, 2.4 }, -- studs de cada surco
+	Separa = { 0.16, 0.24 }, -- studs entre dos surcos
+	Ancho = { 0.06, 0.1 }, -- studs de cada surco
+	Inclina = 0.6, -- radianes como mucho desde la vertical (arañan hacia abajo)
+	Oscuro = 0.3, -- el color del surco: el de la madera por esto (hundido, en sombra)
+	Claro = { 182, 146, 104 }, -- madera recién arrancada: el borde levantado y las astillas
+	Astillas = { 1, 3 }, -- por zarpazo (con Rendimiento, ninguna)
+	EnHoja = 0.75, -- en una puerta, de cada zarpazo, lo que cae en la hoja (el resto, en el marco)
+	Cede = 0.4, -- con la vida por debajo de esto (de 0 a 1) la hoja cede: también arañazos por dentro
+	-- El Raspador: rayas finas y largas en el cristal, por fuera, según va raspando (atributo Raspado de 0 a 1).
+	Raspado = {
+		Cada = 0.08, -- una pasada de rayas por cada tanto de Raspado
+		Rayas = { 2, 3 },
+		Largo = { 1.4, 3 },
+		Ancho = 0.025,
+		Color = { 214, 218, 220 },
+		Transparencia = 0.4,
+		Cerca = 7, -- studs del bicho a donde se planta (Fuera de la ventana) para saber qué ventana raspa
+	},
+	-- Sangre (remote Muerte): rayos desde el pecho del muerto hacia paredes, suelo y muebles; donde dan, manchas
+	-- alargadas en la dirección del golpe, gotas alrededor y, en lo vertical, algún chorretón que escurre despacio.
+	Rayos = 26, -- (con Rendimiento, Rayos / 2)
+	Alcance = 10.5, -- studs (unos 3 m)
+	Pecho = 1.2, -- studs por encima de la raíz de donde sale
+	Mancha = { 0.5, 1.5 }, -- studs de ancho de una mancha: lejos ... cerca
+	Gotas = { 1, 3 }, -- gotas pequeñas alrededor de cada mancha
+	Gota = { 0.08, 0.22 }, -- studs de ancho de una gota
+	Chorreon = 0.4, -- de cada mancha grande en lo vertical, lo que escurre
+	Chorreones = 5, -- como mucho por muerte
+	ChorreaLargo = { 0.8, 2.6 }, -- studs que baja
+	ChorreaDura = { 5, 9 }, -- segundos que tarda en bajar del todo
+	Textura = "rbxassetid://93752217357412", -- el hollín de Mapa (HOLLIN.Hollin), teñido, sobre las manchas grandes
+	Fresca = { 112, 8, 6 }, -- roja...
+	Seca = { 52, 12, 8 }, -- ...y seca, casi negra
+	Secar = 90, -- segundos de fresca a seca
+	CadaColor = 1, -- segundos entre dos repasos del color
+}
+
 -- Cortinas, cristales y puertas cuando algo se acerca por fuera (juego/cliente/CasaVista, 14.3). A ojo.
 Config.EfectosCasa = {
 	Ondea = 0.32, -- radianes que se mecen las cortinas hacia dentro con algo pegado fuera (abajo del todo)
