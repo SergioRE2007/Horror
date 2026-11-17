@@ -932,6 +932,7 @@ local function charco(posicion: Vector3)
 	p.Size = Vector3.new(0.05, 1, 1)
 	p.CFrame = CFrame.new(resultado.Position + Vector3.new(0, 0.03, 0)) * CFrame.Angles(0, 0, math.pi / 2)
 	p.Parent = workspace.Terrain
+	p:AddTag("Charco") -- quien lo pisa deja huellas de sangre (HuellasVista)
 	local final = azar:NextNumber(5, 7)
 	TweenService:Create(p, TweenInfo.new(6, Enum.EasingStyle.Quad), { Size = Vector3.new(0.05, final, final) }):Play()
 	-- Se limpia al amanecer.

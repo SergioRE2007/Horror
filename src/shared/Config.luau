@@ -841,6 +841,41 @@ Config.Efectos = {
 	MaxVentanas = 6, -- ventanas con cristales en el suelo a la vez (las más viejas se barren)
 }
 
+-- Huellas de barro y de sangre que dicen por dónde ha ido el bicho (juego/cliente/HuellasVista, docs/sistemas/huellas.md).
+-- Solo adorno del cliente: cada uno las calcula con lo que ve. Colores en RGB (sin Color3, para que Lune lo cargue). A ojo.
+Config.Huellas = {
+	Cada = 0.1, -- segundos entre dos repasos de lo andado
+	CadaColor = 1, -- segundos entre dos repasos del color y lo aclarado
+	Cerca = 160, -- studs de la cámara: más lejos ni se cuentan pisadas ni se aclaran
+	Tope = 80, -- huellas vivas como mucho (las más viejas se borran primero)
+	TopeRendimiento = 30,
+	Textura = "rbxassetid://115119002468912", -- la de las huellas con uñas del salón (Mapa, HOLLIN.Huellas)
+	Barro = { 52, 38, 26 },
+	SangreFresca = { 150, 14, 10 }, -- roja y brillante...
+	SangreSeca = { 64, 32, 20 }, -- ...y seca, marrón
+	Secar = 60, -- segundos de fresca a seca
+	Ensangrentado = 40, -- segundos tras matar en que el bicho deja huellas de sangre
+	CercaMuerte = 16, -- studs: si el remote Muerte no dice qué bicho fue, el más cercano a esto
+	Transparencia = { 0.1, 0.7 }, -- recién pisada ... al cabo de Aclarar (y así hasta el amanecer)
+	Aclarar = 240, -- segundos (una noche)
+	-- Jugadores: zapatos.
+	Zancada = 3.6, -- studs entre dos pisadas
+	PasosSangre = { 8, 10 }, -- pisadas rojas tras pisar un charco (cada jugador siempre las mismas: por su UserId)
+	SangreUltima = 0.85, -- transparencia de la última de ellas (se apagan paso a paso)
+	PasosBarro = 4, -- al entrar en casa del bosque
+	Fuera = { "Grass", "LeafyGrass", "Ground", "Mud" }, -- suelo de fuera que manchará de barro
+	Zapato = { Ancho = 0.48, Largo = 0.78, Tacon = 0.36, Lado = 0.45 }, -- planta, tacón y separación entre pies
+	-- Bichos: forma de la huella (Garra, ManosPies o Zapato), tamaño { ancho, largo } y separación entre los dos lados.
+	Bichos = {
+		Golpeador = { Forma = "Garra", Tam = { 1.4, 2.7 }, Lado = 1.6 },
+		Raspador = { Forma = "Garra", Tam = { 1, 1.9 }, Lado = 1.1 },
+		Trepador = { Forma = "ManosPies", Tam = { 0.9, 1.7 }, Lado = 1.3 },
+		Imitador = { Forma = "Zapato", Tam = { 0.52, 1.1 }, Lado = 0.5 }, -- imita a una persona: zapatos
+		Acechador = { Forma = "Garra", Tam = { 1.5, 2.9 }, Lado = 1.8 },
+		Bestia = { Forma = "Garra", Tam = { 2.8, 5.4 }, Lado = 3.4 },
+	} :: { [string]: { Forma: string, Tam: { number }, Lado: number } },
+}
+
 -- Cortinas, cristales y puertas cuando algo se acerca por fuera (juego/cliente/CasaVista, 14.3). A ojo.
 Config.EfectosCasa = {
 	Ondea = 0.32, -- radianes que se mecen las cortinas hacia dentro con algo pegado fuera (abajo del todo)
