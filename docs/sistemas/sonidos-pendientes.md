@@ -60,6 +60,8 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 31 | `Config.Sonidos.RataChillido` (0,35) | Chillido corto de rata al huir de la linterna (bichitos.md) | 0,8 | suelto | 4 | Cruje a 0,12 de volumen y tono 1,9-2,3 |
 | 32 | `Config.Sonidos.RataPatas` (0,3) | Patitas con uñas corriendo por madera | 1,2 | suelto | 3 | nada |
 | 33 | `Config.Sonidos.Moscas` (0,25) | Zumbido de moscas sobre un charco (bucle) | 6 | bucle | 3 | nada |
+| 34 | `Config.Sonidos.Trueno` (1) | Trueno de la tormenta seca de las noches (tormenta.md); lista de 3-4. El mismo texto que el del lobby (fila 2): se puede usar el mismo audio en las dos claves | 7 | suelto, lista | 4 | Retumbo a tono 0,38-0,5 |
+| 35 | `Config.Sonidos.LluviaNoche` (0,5), **clave nueva** | Lluvia de las noches de tormenta (bucle): la misma que la del lobby (fila 1) | 20 | bucle | — | nada (la tormenta es seca) |
 
 Notas por fila:
 
@@ -77,6 +79,10 @@ Notas por fila:
   en bucle en la copia y le sube el tono con la velocidad (`PlaybackSpeed` 0,8 + 0,012 × studs/s: 0,8 parado, ~1,16 a
   30); al apagar el coche, volumen 0. Pedirlo a velocidad constante, sin arranque ni acelerones. Sin él (Id 0), la llegada
   usa el Arranque una vez a 16 s de la hora (`Sonido.hay`).
+- **34 Trueno y 35 LluviaNoche** (tormenta.md): con el Id del Trueno, `TormentaVista` lo usa solo (`Sonido.hay`) a tono
+  `Config.Tormenta.TonoTrueno` en lugar del Retumbo. La lluvia no hay que generarla aparte: cuando la del lobby exista,
+  poner su Id en una clave `LluviaNoche` de `Config.Sonidos` y sumarla en `TormentaVista` como bucle sin posición
+  mientras dure la tormenta (tapada dentro, como el viento: `Config.Oido.ApagarEscondido`). Entonces deja de ser seca.
 - **25 Papel**: no generar más. Falta que Sergio elija en `sonidos-terror\miedo\escuchar.html`; si no le gusta ninguno,
   se pide otro.
 

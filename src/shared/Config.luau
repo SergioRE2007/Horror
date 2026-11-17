@@ -1063,4 +1063,51 @@ Config.Oido = {
 	Fuera = "Forest",
 }
 
+-- Tormenta seca: relámpagos que iluminan la casa y recortan a los bichos (juego/cliente/TormentaVista,
+-- docs/sistemas/tormenta.md). Solo en el cliente; el horario sale de una semilla con Noche y FaseInicio. A ojo.
+Config.Tormenta = {
+	Desde = 2, -- noche desde la que puede haber tormenta
+	Probabilidad = 0.5, -- de las noches desde Desde, cuántas tienen tormenta
+	Primero = { 10, 30 }, -- segundos desde que empieza la noche hasta el primer relámpago
+	Cada = { 25, 70 }, -- segundos entre relámpagos
+	HastaNoche = 0.92, -- parte de la noche a partir de la que ya no cae ninguno (amanece)
+	Destellos = { 2, 3 }, -- destellos por relámpago (con Rendimiento, uno)
+	Duracion = { 0.05, 0.12 }, -- segundos que dura cada destello
+	Subida = 0.015, -- segundos hasta lo más fuerte de un destello
+	Entre = { 0.06, 0.25 }, -- segundos entre dos destellos seguidos
+	Trueno = { 1, 5 }, -- segundos del relámpago al trueno (cerca, antes)
+	Cerca3D = 0.65, -- desde esta cercanía (0 a 1) el trueno suena en 3D desde fuera; si no, lejano y sin posición
+	Lejos3D = 45, -- studs de la cámara (en planta) desde donde suena el trueno cercano
+	Alto3D = 25, -- ...y a esta altura por encima de ella
+	TonoRetumbo = { 0.38, 0.5 }, -- Retumbo muy grave y largo, mientras no haya un trueno propio (Sonidos.Trueno)
+	TonoTrueno = { 0.9, 1.05 }, -- el trueno propio, cuando lo haya
+	Volumen = { 0.6, 1.2 }, -- lo que se multiplica el volumen: de lejos a cerca
+	Dentro = { Volumen = 0.7, Agudos = -22, Medios = -8 }, -- el trueno lejano oído desde dentro de la casa
+	-- Lo que sube en lo más fuerte de un destello (se suma a la luz de Ambiente; un instante, nunca más).
+	Luz = {
+		Brillo = 2, -- Lighting.Brightness
+		Fuera = { 80, 88, 110 }, -- RGB que se suma al OutdoorAmbient (sin Color3, para que Lune lo cargue)
+		Niebla = { 130, 140, 165 }, -- RGB que se suma a la niebla: el cielo se pone blanco azulado
+		Color = 0.1, -- brillo del ColorCorrection
+		Contraste = 0.2, -- contraste del ColorCorrection: las siluetas, más negras
+		Luna = 4, -- se suma al brillo de cada luz de luna cercana (las de Mapa.luzLuna)
+	},
+	-- Fogonazo con sombras (sin Rendimiento): una luz por luna cercana, por fuera del cristal y en la misma línea que la
+	-- luna, para que los marcos, las cortinas y lo que haya fuera (un bicho) recorten su sombra en el suelo.
+	Fogonazo = {
+		Cerca = 50, -- studs de la cámara: lunas más lejos, sin fogonazo
+		Max = 3, -- como mucho, las tantas más cercanas
+		Atras = 5, -- studs por fuera de la luna, hacia atrás en su línea
+		Brillo = 7,
+		Angulo = 55,
+		Color = { 205, 215, 255 }, -- RGB
+	},
+	Ventanas = 22, -- studs: con el trueno vibran los cristales de las ventanas a menos de esto de la cámara
+	VibraSonidos = 2, -- ...y suenan las tantas más cercanas
+	Temblor = { Fuerza = 0.35, Dura = 1.4 }, -- las bombillas tiemblan con el trueno (de 0 a 1 de su brillo) tanto tiempo
+	TemblorCamara = 0.15, -- con un trueno cercano, un temblor de cámara así de flojo (CasaVista.temblar)
+}
+-- El trueno propio de la tormenta, mientras tanto con Id 0 (suena Retumbo): docs/sistemas/sonidos-pendientes.md.
+Config.Sonidos.Trueno = { Id = 0, Volumen = 1, Alcance = 400 }
+
 return Config
