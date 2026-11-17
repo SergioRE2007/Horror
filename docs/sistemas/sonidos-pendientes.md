@@ -57,6 +57,9 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 28 | `Config.Sonidos.Olfateo` (0,9) | El Golpeador olfateando | 2 | suelto | 3 | otro provisional |
 | 29 | `Config.Sonidos.UnasPared` (1) | Garras por la pared al pasar | 2,5 | suelto | 3 | otro provisional |
 | 30 | `Config.Sonidos.ToqueDedo` (1) | Toque lento de uña en el cristal | 0,5 | suelto | 4 | otro provisional |
+| 31 | `Config.Sonidos.RataChillido` (0,35) | Chillido corto de rata al huir de la linterna (bichitos.md) | 0,8 | suelto | 4 | Cruje a 0,12 de volumen y tono 1,9-2,3 |
+| 32 | `Config.Sonidos.RataPatas` (0,3) | Patitas con uñas corriendo por madera | 1,2 | suelto | 3 | nada |
+| 33 | `Config.Sonidos.Moscas` (0,25) | Zumbido de moscas sobre un charco (bucle) | 6 | bucle | 3 | nada |
 
 Notas por fila:
 
@@ -111,7 +114,10 @@ Notas por fila:
 	{ "name": "Olfateo", "seconds": 2, "versions": 3, "label": "Golpes de nariz de un bicho grande", "text": "Large creature sniffing the air in short sharp bursts through its nose, four or five quick wet sniffs, close, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "UnasPared", "seconds": 2.5, "versions": 3, "label": "Garras arrastradas por una pared al pasar", "text": "Long sharp claws slowly dragged along a wooden and plaster wall while walking, a continuous scraping screech of nails on wallpaper and wood, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "ToqueDedo", "seconds": 0.5, "versions": 4, "label": "Un toque lento de uña en el cristal", "text": "Single slow tap of a long fingernail against a window pane, one hard click on glass with a faint ring, very short, horror game sound effect, realistic, dry, no reverb, no music" },
-	{ "name": "RespiraBicho", "seconds": 5, "versions": 3, "label": "Respiración del bicho pegado al armario", "text": "Slow heavy wet breathing of a large creature right outside a wooden closet door, deep rattling inhales and long exhales, very close, no voice, no growl, horror game sound effect, realistic, dry, no reverb, no music" }
+	{ "name": "RespiraBicho", "seconds": 5, "versions": 3, "label": "Respiración del bicho pegado al armario", "text": "Slow heavy wet breathing of a large creature right outside a wooden closet door, deep rattling inhales and long exhales, very close, no voice, no growl, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "RataChillido", "seconds": 0.8, "versions": 4, "label": "Chillido corto de rata al huir", "text": "Single rat squeaking sharply as it gets startled and runs away, one or two short high-pitched squeals, close, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "RataPatas", "seconds": 1.2, "versions": 3, "label": "Patitas de rata corriendo por madera", "text": "Small rat scurrying fast across an old wooden floor, tiny claws ticking and scratching on the boards, quick light patter that fades away, close, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "Moscas", "seconds": 6, "versions": 3, "loop": true, "label": "Moscas zumbando sobre un charco (bucle)", "text": "A few flies buzzing around close to the ground over something rotten, irregular buzzing that comes and goes, quiet and close, no music, seamless loop" }
 ]
 ```
 

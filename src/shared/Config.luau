@@ -619,6 +619,10 @@ Config.Sonidos = {
 	UnasPared = { Id = 0, Volumen = 1, Alcance = 45 }, -- garras arrastradas por una pared de madera y yeso
 	ToqueDedo = { Id = 0, Volumen = 1, Alcance = 60 }, -- un toque lento con una uña contra un cristal
 	RespiraBicho = { Id = 0, Volumen = 0.8, Alcance = 20 }, -- respiración húmeda y lenta de un bicho, muy de cerca
+	-- Bichitos (bichitos.md): FALTAN, para hacer con ElevenLabs. Mientras, la rata chilla con un Cruje flojo y agudo.
+	RataChillido = { Id = 0, Volumen = 0.35, Alcance = 25 }, -- chillido corto de rata al huir
+	RataPatas = { Id = 0, Volumen = 0.3, Alcance = 18 }, -- patitas con uñas corriendo por madera
+	Moscas = { Id = 0, Volumen = 0.25, Alcance = 12 }, -- zumbido de moscas sobre un charco, en bucle
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.
@@ -847,6 +851,44 @@ Config.EfectosCasa = {
 	Empuje = 0.9, -- grados que se comba la puerta hacia dentro
 	Vaho = 0.22, -- lo opaco del vaho en el cristal (0 a 1)
 	Dientes = 10, -- picos de cristal que quedan en el marco al romperse
+}
+
+-- Bichitos: ratas que huyen de la linterna, polillas en las bombillas y moscas en la sangre (juego/cliente/BichitosVista,
+-- docs/sistemas/bichitos.md). Solo adorno del cliente; números a ojo.
+Config.Bichitos = {
+	Cerca = 25, -- studs de la cámara (en planta) a los que hay bichitos; más lejos se borran
+	Margen = 5, -- studs de más para borrar lo que ya estaba (que no salga y se borre en el borde)
+	Cada = 0.25, -- segundos entre dos repasos de qué hay cerca
+	Desnivel = 1.2, -- studs: un suelo más alto o más bajo que el de la sala (escalón, hueco) no vale para andar
+	-- Salas: rectángulos en planta por dentro de las paredes (de juego/servidor/Mapa), la altura de su suelo y lo alto
+	-- (la cámara tiene que estar entre el suelo y el techo). Ratas o Cucarachas: cuántas { mín, máx }.
+	Salas = {
+		{ Nombre = "Sotano", x1 = -12, x2 = 12, z1 = 35, z2 = 65.5, Suelo = -11, Alto = 12, Ratas = { 2, 4 } },
+		{ Nombre = "Desvan", x1 = -38.5, x2 = 38.5, z1 = -14, z2 = 14, Suelo = 27, Alto = 13, Ratas = { 2, 4 } },
+		{ Nombre = "Trastero", x1 = 12.5, x2 = 21.5, z1 = 5.5, z2 = 18.5, Suelo = 1, Alto = 12, Ratas = { 2, 3 } },
+		{ Nombre = "Garaje", x1 = -58.5, x2 = -39.5, z1 = 3.5, z2 = 32.5, Suelo = 1, Alto = 14, Ratas = { 2, 4 } },
+		{ Nombre = "Cocina", x1 = -38.5, x2 = -12.5, z1 = 3.5, z2 = 32.5, Suelo = 1, Alto = 12, Cucarachas = { 2, 4 } },
+	} :: { { Nombre: string, x1: number, x2: number, z1: number, z2: number, Suelo: number, Alto: number,
+		Ratas: { number }?, Cucarachas: { number }? } },
+	-- Studs/s andando y huyendo; Susto: studs (en planta) de ti o de otro jugador a los que huye sin luz; Luz y Angulo:
+	-- hasta dónde y a cuántos grados del centro la espanta tu linterna (sin pared en medio); segundos quieta, studs de
+	-- cada paseo y segundos escondida antes de volver; Bicho: studs de la sala a los que un bicho (workspace.Bichos) las
+	-- esconde a todas, sin un ruido, hasta que se va; Tam: tamaño.
+	Rata = {
+		Anda = 2.4, Huye = 14, Susto = 6, Luz = 30, Angulo = 20,
+		Pausa = { 1.5, 5 }, Paseo = { 1.5, 4.5 }, Vuelve = { 18, 40 }, Bicho = 22, Tam = { 0.85, 1.15 },
+		Volumen = 0.12, Tono = { 1.9, 2.3 }, -- el chillido provisional (Cruje muy flojo y agudo) mientras no haya RataChillido
+	},
+	Cucaracha = {
+		Anda = 0.8, Huye = 8, Susto = 2.5, Luz = 18, Angulo = 24,
+		Pausa = { 2, 8 }, Paseo = { 0.4, 1.5 }, Vuelve = { 12, 30 }, Bicho = 22, Tam = { 0.8, 1.2 },
+	},
+	Polillas = { 2, 3 }, -- alrededor de cada bombilla encendida (las "Lampara" del generador)
+	-- De noche y fuera de casa, con la linterna encendida: cada cuánto acude una polilla, cuánto se queda y a cuántos
+	-- studs por delante de la cámara revolotea.
+	PolillaLinterna = { Cada = { 30, 70 }, Dura = { 8, 15 }, Delante = 2.6 },
+	Moscas = { Cuantas = { 5, 8 }, Llegan = 6 }, -- por charco de sangre (etiqueta Charco) y segundos que tardan en llegar
+	Rendimiento = { Ratas = 1, Polillas = 1 }, -- con Rendimiento: esto por sala y por bombilla; ni cucarachas ni moscas
 }
 
 -- Ambiente con miedo (juego/cliente/AmbienteMiedo, 14.3): fondo de la casa, tensión con un bicho cerca y ráfagas. A ojo.
