@@ -1045,6 +1045,34 @@ Config.PuertaRota = {
 	CadaCrujido = 1.4, -- studs que hay que andar para que vuelva a crujir
 }
 
+-- La casa se desordena: lo que cae con los golpes y las sillas que vuelca el bicho (juego/cliente/DesordenVista,
+-- docs/sistemas/desorden.md). Solo adorno del cliente; números a ojo.
+Config.Desorden = {
+	Alcance = 14, -- studs en planta de un golpe en una puerta o ventana a los que se caen cosas...
+	Planta = 6, -- ...en la misma planta (studs de alto)
+	Caen = { 1, 2 }, -- cosas por golpe (con Rendimiento, una)
+	Ventana = 3, -- se elige entre los tantos más cerca del borde que quedan
+	Pisada = { Peso = 1, Celda = 8, Prob = 0.35, Alcance = 9 }, -- pisadas fuertes: peso mínimo del bicho, cada cuántos
+	-- studs cuenta una, la parte de ellas que tira algo y a cuántos studs
+	CuadroGolpes = 3, -- golpes cerca para que un cuadro ya muy torcido se descuelgue
+	Tope = 25, -- cosas caídas como mucho (adornos, cuadros y sillas)
+	Altura = 1, -- studs mínimos de la balda o la mesa al suelo (lo del suelo no se cae)
+	BaldaMax = 18, -- studs: un apoyo más grande es el suelo
+	Empuje = { 3.5, 5.5 }, -- studs/s hacia fuera del borde
+	Choque = 6, -- studs/s de caída: frenar de golpe desde más que esto es dar contra el suelo
+	Anclar = 2.5, -- segundos: lo caído y quieto se ancla (lo que aún se mueve, como mucho a AnclarMax)
+	AnclarMax = 5,
+	Trozos = { 4, 6 }, -- trozos de un plato o una botella rota (con Rendimiento no se rompen)
+	TrozosSalen = { 2, 5 }, -- studs/s
+	Cerca = 90, -- studs de la cámara: más lejos no hay física, se pone ya en el suelo (y sin sonido)
+	Roce = 2, -- studs en planta de la raíz del bicho a una silla para volcarla
+	Silla = { Segundos = 0.55, Rebote = 7 }, -- lo que tarda en caer y los grados del botecito (sin él con Rendimiento)
+	Mecedora = { Aparta = 1.4, Giro = 25, Segundos = 0.45 }, -- studs, grados y segundos
+	Pisar = 0.9, -- studs (en planta) de unos pies a un trozo para que cruja
+	CadaCrujido = 1.2, -- studs que hay que andar para que vuelva a crujir
+	CercaPisar = 30, -- studs de la cámara: más lejos ni se mira quién los pisa
+}
+
 -- Bichitos: ratas que huyen de la linterna, polillas en las bombillas y moscas en la sangre (juego/cliente/BichitosVista,
 -- docs/sistemas/bichitos.md). Solo adorno del cliente; números a ojo.
 Config.Bichitos = {
