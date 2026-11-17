@@ -952,4 +952,38 @@ Config.Bichos3D = {
 	Golpeador = 86798537714395,
 }
 
+-- Oído: sonido tapado por las paredes y eco de cada sala (juego/cliente/OidoVista, docs/sistemas/oido.md). A ojo.
+Config.Oido = {
+	Cada = 0.25, -- segundos entre dos rayos de un mismo sonido mientras suena
+	CadaRendimiento = 0.5, -- ...con Rendimiento
+	CercaRendimiento = 60, -- con Rendimiento, solo se miden los sonidos a menos de esto (studs)
+	MaxParedes = 2, -- paredes que se cuentan como mucho
+	Rayos = 6, -- rayos por sonido como mucho (capas de una misma pared, cosas pequeñas por medio)
+	Grosor = 1.6, -- golpes más juntos que esto a lo largo del rayo son la misma pared (papel, muro y papel)
+	Margen = 1.5, -- studs sin mirar junto al sonido: la ventana que golpean no tapa su propio golpe
+	Pared = 3, -- tapa lo que tenga dos lados de al menos esto (studs): un tronco o una pata no tapan
+	PorPared = { Agudos = -18, Medios = -6, Volumen = 0.7 }, -- por pared: dB menos en agudos y medios, y volumen que queda
+	Escondido = { Agudos = -14, Medios = -5, Volumen = 0.75 }, -- escondido: lo de fuera, a través de la madera
+	ApagarEscondido = { Viento = true, CasaFondo = true }, -- bucles sin posición que también se apagan escondido
+	MuebleRadio = 40, -- studs alrededor de la cámara en los que se miran los muebles (MuebleRayo)
+	MuebleCada = 2, -- segundos: las cajas de los muebles se rehacen así de a menudo...
+	MuebleMover = 8, -- ...o al moverse la cámara esto (studs)
+	-- Eco (Enum.ReverbType) según dónde esté la cámara: la primera zona que la contenga. Cajas { x1, x2, y1, y2, z1, z2 }
+	-- (las salas, en juego/servidor/Mapa) o un círculo en planta (Centro { x, z } y Radio). Si ninguna, Fuera.
+	Zonas = {
+		{ Reverb = "StoneCorridor", Cajas = { { -13, 13, -14, -1.5, 33, 67 }, { -3.5, 3.5, -14, 8, 33.5, 48 } } }, -- sótano y su escalera
+		{ Reverb = "Room", Cajas = { { -39.5, 39.5, 26.5, 50, -33.5, 33.5 } } }, -- desván
+		{ Reverb = "Bathroom", Cajas = { { 12, 22, 0, 13.5, 19, 33 } } }, -- baño
+		{ Reverb = "Hangar", Cajas = { { -59.5, -39, 0, 16, 2.5, 33.5 } } }, -- garaje
+		{ Reverb = "LivingRoom", Cajas = { -- la casa y sus anexos (Config.Casa.Anexos)
+			{ -39.5, 39.5, -2, 26.5, -33.5, 33.5 },
+			{ 30.5, 47.5, -2, 40, -41.5, -24.5 },
+			{ -43.5, -39, -2, 26.5, -17.5, -2.5 },
+			{ -26.5, -11.5, -2, 26.5, 33, 45.5 },
+		} },
+		{ Reverb = "Alley", Centro = { 28, -480 }, Radio = 88 }, -- el pueblo (Lugares, ZONAS.Pueblo)
+	},
+	Fuera = "Forest",
+}
+
 return Config

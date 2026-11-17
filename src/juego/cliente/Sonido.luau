@@ -6,11 +6,14 @@
 -- Un sonido con varias grabaciones (Id = lista) suena con una distinta cada vez, nunca la misma dos veces seguidas.
 -- Los que aún faltan (Id = 0) no se cargan: suenan mudos (un Sound vacío, para que nada falle) y Sonido.hay(nombre)
 -- dice false.
+-- Oído (OidoVista): los sonidos en 3D y los bucles colgados de algo se oyen tapados por las paredes que haya entre la
+-- cámara y ellos; los de Sonido.tocar (respiración, latido, interfaz), nunca.
 local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local OidoVista = require(script.Parent.OidoVista)
 
 local Sonido = {}
 
@@ -45,6 +48,7 @@ function Sonido.en(nombre: string, posicion: Vector3, tono: number?): Sound
 	s.PlaybackSpeed = tono or 1
 	s.Parent = punto
 	s:Play()
+	OidoVista.seguir(s)
 	s.Ended:Once(function()
 		punto:Destroy()
 	end)
@@ -74,6 +78,11 @@ function Sonido.bucle(nombre: string, padre: Instance?): Sound
 	s.Looped = true
 	s.Parent = padre or SoundService
 	s:Play()
+	-- Oído: los colgados de algo, tapados por las paredes; de los que no tienen posición, solo el fondo (viento, casa),
+	-- que se apaga escondido. La respiración y el latido no.
+	if (padre and padre ~= SoundService) or Config.Oido.ApagarEscondido[nombre] then
+		OidoVista.seguir(s)
+	end
 	return s
 end
 

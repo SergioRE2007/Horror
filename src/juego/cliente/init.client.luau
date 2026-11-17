@@ -7,6 +7,7 @@ require(Comun:WaitForChild("Avisos")).start()
 
 local Sistemas = script
 require(Sistemas.Sonido).start() -- antes que los que tocan sonidos
+require(Sistemas.OidoVista).start() -- Oído: sonido tapado por las paredes y eco de cada sala (oido.md)
 require(Sistemas.Pasos).start()
 require(Sistemas.Ambiente).start()
 require(Sistemas.CuerpoVista).start() -- la cámara como un cuerpo: pasos, respirar, caer
