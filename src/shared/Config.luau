@@ -746,6 +746,40 @@ Config.Latas = {
 	} :: { [number]: { Alto: number, Comba: number, SoloBichos: boolean } },
 }
 
+-- Aire vivo: polvo siempre en la luz, haces de luna y niebla baja (juego/cliente/AireVista, docs/sistemas/aire.md).
+-- Solo adorno del cliente; números a ojo. Con Rendimiento, motas a Rendimiento y sin haces, niebla ni pinocha.
+Config.Aire = {
+	Cada = 0.1, -- segundos entre dos repasos (cajas colocadas, emisores encendidos o apagados)
+	Rendimiento = 0.3, -- parte de las motas que quedan con Rendimiento
+	-- Motas de dentro: una caja delante de la cámara; con LightInfluence 1 solo se ven donde da la luz.
+	Motas = { Rate = 7, Caja = { 9, 5, 11 }, Delante = 6 }, -- por segundo, caja (ancho, alto, fondo) y studs por delante
+	-- Salas con más polvo (o casa también, aunque estén fuera de Config.Casa): rectángulos sacados de SALAS de Mapa.
+	-- `Motas` multiplica Motas.Rate. Lo primero que contenga a la cámara manda.
+	Salas = {
+		{ Nombre = "Desvan", x1 = -39.5, x2 = 39.5, y1 = 26.5, y2 = 42, z1 = -33.5, z2 = 33.5, Motas = 3 },
+		{ Nombre = "Sotano", x1 = -12.5, x2 = 12.5, y1 = -12, y2 = 0.5, z1 = 33.5, z2 = 66, Motas = 3 },
+		{ Nombre = "Trastero", x1 = 12, x2 = 22, y1 = 0, y2 = 13.5, z1 = 5, z2 = 19, Motas = 3 },
+		{ Nombre = "Garaje", x1 = -59, x2 = -39, y1 = 0, y2 = 14, z1 = 3, z2 = 33, Motas = 1.5 },
+		{ Nombre = "Cobertizo", x1 = -54, x2 = -44, y1 = 0, y2 = 12, z1 = 37, z2 = 45.5, Motas = 2 },
+	} :: { { Nombre: string, x1: number, x2: number, y1: number, y2: number, z1: number, z2: number, Motas: number } },
+	-- Haces de luna (las luces etiquetadas "Luna" de Mapa.luzLuna): de noche, de la ventana al suelo.
+	Haz = {
+		Cerca = 70, -- studs de la cámara: más lejos, apagado
+		Ancho = { 2.2, 7 }, -- en la ventana y en el suelo (como mucho)
+		Abre = 0.3, -- studs de ancho por stud de largo
+		Transparencia = 0.93, -- en el centro (casi transparente)
+		Motas = 3, -- por segundo dentro de cada haz
+		Ventana = 7, -- studs: la ventana (etiqueta Ventana) más cerca que esto la tapa al cerrar la persiana o tablones
+	},
+	-- Niebla baja de fuera, de noche: partículas grandes y planas alrededor de la cámara.
+	Niebla = { Radio = 40, Rate = 5, Alto = 2.2, Velocidad = { 0.5, 1.4 } },
+	-- Pinocha que cae en las rachas, con un pino a menos de `Cerca` studs (en planta).
+	Pinocha = { Cerca = 16, Rate = 12, Racha = 0.55, Alto = 14 },
+	-- Viento (no lo había en Ambiente: lo pone AireVista.viento): rumbo en radianes en el plano xz, cuánto se desvía y
+	-- cada cuánto, y fuerza (studs/s de deriva).
+	Viento = { Rumbo = 0.7, Giro = 0.6, Lento = 0.012, Fuerza = { 0.4, 1.6 }, Rachas = 0.16 },
+}
+
 -- Cómo se mueven y suenan las latas (juego/cliente/LatasVista, 14.3). A ojo.
 Config.LatasVista = {
 	Cerca = 120, -- studs: más lejos no se anima nada

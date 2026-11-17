@@ -1375,6 +1375,7 @@ local function luzLuna(desde: Vector3, hacia: Vector3, brillo: number, alcance: 
 	foco.Shadows = false
 	foco.Face = Enum.NormalId.Front
 	foco.Parent = luna
+	CollectionService:AddTag(luna, "Luna") -- su haz visible de noche (AireVista, docs/sistemas/aire.md)
 end
 
 local function vestirVestibulo()
@@ -3218,6 +3219,7 @@ local function pino(tronco: BasePart, x: number, z: number, alto: number, grueso
 	local cual = suerte:NextNumber()
 	local nombre = if cual < 0.15 then "PinoSeco" elseif cual < 0.5 then "PinoB" else "Pino"
 	local h = alto / 60
+	CollectionService:AddTag(tronco, "Pino") -- la pinocha que cae en las rachas (AireVista, docs/sistemas/aire.md)
 	local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, suerte:NextNumber(0, math.pi * 2), 0)
 	if #Piezas.poner(tronco, nombre, cf, Vector3.one * h, { Bark = Vector3.new(grueso / 2, h, grueso / 2) }) > 0 then
 		tronco.Transparency = 1
