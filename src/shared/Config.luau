@@ -623,6 +623,10 @@ Config.Sonidos = {
 	RataChillido = { Id = 0, Volumen = 0.35, Alcance = 25 }, -- chillido corto de rata al huir
 	RataPatas = { Id = 0, Volumen = 0.3, Alcance = 18 }, -- patitas con uñas corriendo por madera
 	Moscas = { Id = 0, Volumen = 0.25, Alcance = 12 }, -- zumbido de moscas sobre un charco, en bucle
+	-- Cuerpos que caen de verdad (cadaver.md): FALTAN, para hacer con ElevenLabs (sonidos-pendientes.md).
+	GritoMuerte = { Id = 0, Volumen = 1.6, Alcance = 200 }, -- grito de alguien al que pilla un bicho (mientras, Susto)
+	CuerpoCae = { Id = 0, Volumen = 0.9, Alcance = 50 }, -- cuerpo contra el suelo (mientras, Retumbo flojo y agudo)
+	LinternaCae = { Id = 0, Volumen = 0.6, Alcance = 30 }, -- linterna que cae y rueda por el suelo (mientras, nada)
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.

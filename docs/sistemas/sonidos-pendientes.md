@@ -62,6 +62,9 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 33 | `Config.Sonidos.Moscas` (0,25) | Zumbido de moscas sobre un charco (bucle) | 6 | bucle | 3 | nada |
 | 34 | `Config.Sonidos.Trueno` (1) | Trueno de la tormenta seca de las noches (tormenta.md); lista de 3-4. El mismo texto que el del lobby (fila 2): se puede usar el mismo audio en las dos claves | 7 | suelto, lista | 4 | Retumbo a tono 0,38-0,5 |
 | 35 | `Config.Sonidos.LluviaNoche` (0,5), **clave nueva** | Lluvia de las noches de tormenta (bucle): la misma que la del lobby (fila 1) | 20 | bucle | — | nada (la tormenta es seca) |
+| 36 | `Config.Sonidos.GritoMuerte` (1,6) | Grito de alguien al que pilla un bicho, oído desde lejos (cadaver.md) | 2 | suelto | 4 | Susto a tono 0,8 |
+| 37 | `Config.Sonidos.CuerpoCae` (0,9) | Cuerpo que cae contra el suelo (cadaver.md) | 1 | suelto, lista | 4 | Retumbo flojo a tono 1,3 |
+| 38 | `Config.Sonidos.LinternaCae` (0,6) | Linterna de metal que cae y rueda (cadaver.md) | 1,5 | suelto | 3 | nada |
 
 Notas por fila:
 
@@ -123,7 +126,10 @@ Notas por fila:
 	{ "name": "RespiraBicho", "seconds": 5, "versions": 3, "label": "Respiración del bicho pegado al armario", "text": "Slow heavy wet breathing of a large creature right outside a wooden closet door, deep rattling inhales and long exhales, very close, no voice, no growl, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "RataChillido", "seconds": 0.8, "versions": 4, "label": "Chillido corto de rata al huir", "text": "Single rat squeaking sharply as it gets startled and runs away, one or two short high-pitched squeals, close, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "RataPatas", "seconds": 1.2, "versions": 3, "label": "Patitas de rata corriendo por madera", "text": "Small rat scurrying fast across an old wooden floor, tiny claws ticking and scratching on the boards, quick light patter that fades away, close, horror game sound effect, realistic, dry, no reverb, no music" },
-	{ "name": "Moscas", "seconds": 6, "versions": 3, "loop": true, "label": "Moscas zumbando sobre un charco (bucle)", "text": "A few flies buzzing around close to the ground over something rotten, irregular buzzing that comes and goes, quiet and close, no music, seamless loop" }
+	{ "name": "Moscas", "seconds": 6, "versions": 3, "loop": true, "label": "Moscas zumbando sobre un charco (bucle)", "text": "A few flies buzzing around close to the ground over something rotten, irregular buzzing that comes and goes, quiet and close, no music, seamless loop" },
+	{ "name": "GritoMuerte", "seconds": 2, "versions": 4, "label": "Grito de alguien al que pilla un bicho", "text": "Young person screaming in sudden terror and pain as they are caught by a monster, one short desperate scream that cuts off abruptly, no words, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "CuerpoCae", "seconds": 1, "versions": 4, "label": "Cuerpo que cae contra el suelo", "text": "Limp human body falling and hitting a wooden floor, one heavy dull thud with a soft cloth rustle, no voice, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "LinternaCae", "seconds": 1.5, "versions": 3, "label": "Linterna de metal que cae y rueda", "text": "Small metal flashlight dropped on a wooden floor, a hard clack, a short bounce and a little rolling rattle that stops, horror game sound effect, realistic, dry, no reverb, no music" }
 ]
 ```
 

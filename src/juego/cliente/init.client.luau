@@ -50,6 +50,7 @@ require(Sistemas.BichitosVista).start() -- Bichitos: ratas que huyen de la linte
 require(Sistemas.HuellasVista).start() -- Huellas de barro y de sangre que dicen por dónde ha ido el bicho (huellas.md)
 require(Sistemas.MarcasVista).start() -- Marcas de la noche: arañazos en las puertas y sangre en las paredes (marcas.md)
 require(Sistemas.OjosVista).start() -- Ojos en la oscuridad: la linterna los hace brillar entre los árboles (ojos.md)
+require(Sistemas.CadaverVista).start() -- Cuerpos que caen de verdad: el muñeco del muerto (cadaver.md); tras MuerteVista
 require(Sistemas.AireVista).start() -- Aire vivo: polvo siempre en la luz, haces de luna y niebla baja (aire.md)
 require(Sistemas.TormentaVista).start() -- Tormenta seca: relámpagos que iluminan la casa y recortan a los bichos (tormenta.md)
 require(Sistemas.Sustos).start()

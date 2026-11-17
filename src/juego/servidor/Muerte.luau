@@ -196,6 +196,8 @@ local function alEntrar(jugador: Player)
 	jugador.CameraMode = Enum.CameraMode.LockFirstPerson -- en la partida siempre primera persona (pedido por el usuario)
 	jugador.CharacterAdded:Connect(function(personaje)
 		local humanoide = personaje:WaitForChild("Humanoid") :: Humanoid
+		-- Al morir el personaje se queda entero: cada cliente lo esconde y pone un muñeco de trapo (CadaverVista).
+		humanoide.BreakJointsOnDeath = false
 		humanoide.Died:Connect(function()
 			soltarSitio(jugador)
 			if not jugador:GetAttribute("Muerto") then
