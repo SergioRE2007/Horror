@@ -1022,6 +1022,29 @@ Config.EfectosCasa = {
 	Dientes = 10, -- picos de cristal que quedan en el marco al romperse
 }
 
+-- Puertas que revientan: astillas, la hoja colgando de una bisagra (juego/cliente/PuertaRotaVista,
+-- docs/sistemas/puerta-rota.md). Solo lo ve el cliente; números a ojo.
+Config.PuertaRota = {
+	Cede = { 0.5, 0.25 }, -- con menos vida que esto (de la máxima) se mete un tablón hacia dentro, y luego otro
+	Tablas = 0.8, -- studs de ancho de cada tabla de la hoja (la hoja se parte en tablas al ceder)
+	Metido = 0.45, -- studs que se mete hacia dentro el trozo de tabla que cede
+	Hueco = { 0.28, 0.38 }, -- alto del trozo que cede (parte del alto de la hoja)
+	Colgada = { Giro = 25, Ladeo = 7, Vuelco = 6, Bisagra = 0.15 }, -- grados hacia la sala, caída del lado de la
+	-- cerradura, la parte de arriba hacia la sala y altura de la bisagra que aguanta (parte del alto de la hoja)
+	Caida = 0.4, -- segundos que tarda la hoja en quedarse colgando (con su rebote)
+	Mecer = { Grados = 6, Segundos = 2.5, Vueltas = 3 }, -- se balancea un poco en la bisagra y se para
+	Vuelve = 0.6, -- segundos que tarda en volver a su sitio al repararla
+	Astillas = { 10, 14 }, -- astillas y trozos de tabla que saltan al reventar
+	AstillasPoco = 5, -- con Rendimiento
+	Salen = { 8, 15 }, -- studs/s hacia la sala
+	Anclar = 2, -- segundos: las que ya están quietas se anclan (las que aún se mueven, como mucho al doble)
+	Picos = { 4, 6 }, -- picos de madera que quedan en el marco del lado de la cerradura
+	Polvo = 30, -- polvo y arenilla que caen del dintel al reventar
+	Cerca = 30, -- studs de la cámara: más lejos ni se mira quién las pisa
+	Pisar = 1.1, -- studs (en planta) de unos pies a una astilla para que cruja
+	CadaCrujido = 1.4, -- studs que hay que andar para que vuelva a crujir
+}
+
 -- Bichitos: ratas que huyen de la linterna, polillas en las bombillas y moscas en la sangre (juego/cliente/BichitosVista,
 -- docs/sistemas/bichitos.md). Solo adorno del cliente; números a ojo.
 Config.Bichitos = {
