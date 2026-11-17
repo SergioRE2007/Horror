@@ -55,6 +55,7 @@ require(Sistemas.OjosVista).start() -- Ojos en la oscuridad: la linterna los hac
 require(Sistemas.AireVista).start() -- Aire vivo: polvo siempre en la luz, haces de luna y niebla baja (aire.md)
 require(Sistemas.TormentaVista).start() -- Tormenta seca: relámpagos que iluminan la casa y recortan a los bichos (tormenta.md)
 require(Sistemas.Sustos).start()
+require(Sistemas.AdaptarVista).start() -- Ojos que se acostumbran a la oscuridad (y deslumbran) (adaptar.md)
 require(Sistemas.AmbienteMiedo).start()
 require(Sistemas.ClaseVista).start()
 require(Sistemas.RevivirUi).start()

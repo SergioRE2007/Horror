@@ -1311,3 +1311,38 @@ Config.Ojos = {
 }
 
 return Config
+-- Ojos que se acostumbran a la oscuridad (y deslumbran) (juego/cliente/AdaptarVista, docs/sistemas/adaptar.md). Solo del
+-- cliente y de adorno. "Luz" es una suma sin unidades que pasa a 0..1 con 1 - e^(-suma) (AdaptarCuentas.juntar).
+-- Todo a ojo y flojo, para que no moleste.
+Config.Adaptar = {
+	Cada = 0.1, -- segundos entre medidas de la luz que te llega
+	Rayos = 6, -- luces que se miran con un rayo por medida como mucho (las que más dan)
+	Minimo = 0.02, -- una luz que da menos que esto ni se mira
+	Base = 0.03, -- lo que hay siempre (cielo, estrellas)
+	Luz = {
+		Dia = 1.6, -- de día, fuera (sin techo encima)...
+		DiaDentro = 0.5, -- ...y dentro
+		Linterna = 0.45, -- la tuya encendida...
+		Rebote = 0.55, -- ...y lo de más si el haz da contra algo cerca...
+		RebotaHasta = 10, -- ...a menos de estos studs
+		Bombilla = 0.6, -- cada luz a su alcance y sin pared: brillo × (1 - distancia/alcance)² × esto
+		Luna = 0.5, -- las de luna (etiqueta Luna), igual
+		Rayo = 1.8, -- el relámpago (Ambiente.destello) fuera...
+		RayoDentro = 0.5, -- ...y dentro
+		Escondido = 0.3, -- metido en un escondite, de todo eso solo llega esta parte
+		Techo = 60, -- studs del rayo hacia arriba para saber si estás bajo techo
+	},
+	Baja = 3.5, -- s (τ): acostumbrarse a la oscuridad (casi del todo en ~10 s)
+	Sube = 0.6, -- s (τ): acostumbrarse a la luz (el deslumbre se va en ~1 s)
+	Relativo = 0.1, -- los saltos de luz se miden en proporción: (nueva - vieja) / (vieja + esto)
+	Desde = 0.3, -- salto desde el que se nota...
+	Pleno = 1.8, -- ...y desde el que es entero
+	Claro = 0.25, -- con los ojos hechos a más luz que esto, nada de grises...
+	Oscuro = 0.06, -- ...y hechos a menos, del todo acostumbrado
+	Hundido = -0.25, -- Brightness al quedarte a oscuras de golpe
+	Acostumbrado = { Brillo = 0.06, Saturacion = -0.35, Frio = { 232, 238, 255 } }, -- a oscuras y hecho: siluetas en gris
+	Deslumbre = { Brillo = 0.3, Contraste = -0.3, Saturacion = -0.15, Calido = { 255, 238, 214 } }, -- RGB, sin Color3
+	-- La linterna de otro a la cara: a menos de Lejos studs y dentro de Angulo grados de su haz.
+	Ajena = { Lejos = 25, Angulo = 12, Fuerza = 0.8, Rendimiento = 0.5, Entra = 0.08, Sale = 0.25 },
+}
+
