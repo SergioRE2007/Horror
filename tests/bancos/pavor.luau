@@ -12,6 +12,9 @@
 --      persigue aunque no lo veas y apagándose al dejarte, golpe flojo como mucho cada Persigue.Cada s, respiración y
 --      manos; nada si persigue a otro, con el Imitador fingiendo, escondido o en una cinemática; con Rendimiento solo
 --      latido y golpe. En AmbienteMiedo, la tensión entera en ~1 s.
+--   6. Pillan a un compañero (Remotes.Muerte de otro jugador): visto a 5 y a 30 studs, el susto entero (fuerza como poco
+--      Companero.Minimo); tras una pared a 15, solo latido y golpe flojo; tras una pared a 30 y a la vista a 60, nada;
+--      escondido o si te pillan a ti, nada; con Rendimiento, sin vértigo.
 local crearMundo = require("./_roblox")
 
 local cuentas = 0
@@ -747,6 +750,143 @@ do
 	b:SetAttribute("Persigue", nil)
 	m.correr(2)
 	comprobar(bucles.Tension.Volume < 0.95 and bucles.Tension.Volume > lejos, "tensión: al dejarte baja despacio")
+end
+
+-- ===== 6. Pillan a un compañero (Remotes.Muerte) =====
+do
+	local m = crearMundo()
+	local g = m.global
+	local Vector3, CFrame = g.Vector3, g.CFrame
+	local Config = m.cargar("src/shared/Config")
+	local C = Config.Pavor
+	local K = C.Companero
+	local jugador = m.jugadorLocal
+
+	m.caja(CFrame.new(0, -0.5, 0), Vector3.new(400, 1, 400), { Name = "Suelo" })
+	m.personaje(CFrame.new(0, 3, 0))
+	m.mirar(0, 0) -- hacia -Z
+
+	local cuerpo = { campoMax = 0 }
+	local manos = { max = 0 }
+	local sobresaltos = 0
+	local golpe: any = nil
+	local latidos: { any } = {}
+	local Pavor = m.cargar("src/juego/cliente/PavorVista", {
+		CuerpoVista = { ponerPavor = function(campo: number)
+			cuerpo.campoMax = math.max(cuerpo.campoMax, campo)
+		end },
+		Manos = { pavor = function(x: number)
+			manos.max = math.max(manos.max, x)
+		end },
+		ManosGestos = { sobresalto = function() end },
+		Sonido = {
+			tocar = function(nombre: string)
+				local s = g.Instance.new("Sound")
+				s.Volume = 1
+				if nombre == "Sobresalto" then
+					sobresaltos += 1
+					golpe = s -- su Volume, lo que le deja PavorVista
+				end
+				return s
+			end,
+			bucle = function(nombre: string)
+				local s = g.Instance.new("Sound")
+				s.Name = nombre
+				s.Volume = 0.8
+				s.Parent = g.game:GetService("SoundService")
+				table.insert(latidos, s)
+				return s
+			end,
+			hay = function()
+				return true
+			end,
+		},
+	})
+	Pavor.start()
+	local function sonando(): number
+		local n = 0
+		for _, s in latidos do
+			if s.Parent ~= nil then
+				n += 1
+			end
+		end
+		return n
+	end
+	local function limpiar()
+		m.correr(40)
+		cuerpo.campoMax, manos.max = 0, 0
+		sobresaltos, golpe = 0, nil
+	end
+	m.correr(0.5)
+	local ojo = m.camara.CFrame.Position
+
+	local otro = m.jugador("Amigo")
+	-- Le pillan a `distancia` studs delante (con un bicho falso al lado).
+	local function caeDelante(distancia: number)
+		local pj = m.personaje(CFrame.new(Vector3.new(0, 3, -distancia)), otro)
+		local b = g.Instance.new("Model")
+		b.Name = "Golpeador"
+		local raiz = m.caja(CFrame.new(Vector3.new(2, 3, -distancia)), Vector3.new(2, 5, 1), { CanCollide = false })
+		raiz.Name = "HumanoidRootPart"
+		raiz.Parent = b
+		b.Parent = g.workspace
+		m.alCliente("Muerte", otro, Vector3.new(2, 6, -distancia), b)
+		m.correr(0.6)
+		b:Destroy()
+		return pj
+	end
+
+	-- Visto a 5: del todo (vértigo entero, golpe, latido y manos).
+	caeDelante(5)
+	comprobar(sobresaltos == 1 and sonando() == 1, "compañero visto a 5: golpe y latido")
+	cerca(cuerpo.campoMax, C.Vertigo.Campo, 0.6, "compañero visto a 5: vértigo entero")
+	comprobar(manos.max > 0.8, "compañero visto a 5: las manos tiemblan")
+	limpiar()
+
+	-- Visto a 30: más fuerte que un bicho a 30 (como poco Minimo).
+	caeDelante(30)
+	comprobar(sobresaltos == 1, "compañero visto a 30: golpe")
+	cerca(cuerpo.campoMax, C.Vertigo.Campo * K.Minimo, 0.6, "compañero visto a 30: vértigo como poco Minimo")
+	limpiar()
+
+	-- Tras una pared a 15: solo latido y golpe flojo; nada de vértigo ni manos.
+	local pared = m.caja(CFrame.new(ojo + Vector3.new(0, 0, -3)), Vector3.new(30, 20, 1), { Name = "Pared" })
+	caeDelante(15)
+	comprobar(sonando() == 1 and sobresaltos == 1, "compañero tras una pared a 15: latido y golpe")
+	cerca(golpe and golpe.Volume or 0, K.OidoSobresalto, 0.01, "compañero tras una pared a 15: golpe flojo")
+	comprobar(cuerpo.campoMax == 0 and manos.max == 0, "compañero tras una pared a 15: sin vértigo ni manos")
+	m.correr(10)
+	comprobar(sonando() == 0, "compañero tras una pared: el latido se apaga solo")
+	limpiar()
+	-- Tras la pared a 30: ni se ve ni se oye.
+	caeDelante(30)
+	comprobar(sobresaltos == 0 and sonando() == 0, "compañero tras una pared a 30: nada")
+	pared:Destroy()
+	limpiar()
+
+	-- A 60, a la vista: nada.
+	caeDelante(60)
+	comprobar(sobresaltos == 0 and sonando() == 0 and cuerpo.campoMax == 0, "compañero a 60: nada")
+	limpiar()
+
+	-- Escondido: nada (allí manda MuerteVista).
+	jugador:SetAttribute("Escondido", CFrame.new())
+	caeDelante(5)
+	comprobar(sobresaltos == 0 and sonando() == 0 and cuerpo.campoMax == 0, "compañero escondido: nada")
+	jugador:SetAttribute("Escondido", nil)
+	limpiar()
+
+	-- Si te pillan a ti, esto no hace nada (manda MuerteVista).
+	m.alCliente("Muerte", jugador, ojo + Vector3.new(0, 0, -3), nil)
+	m.correr(0.6)
+	comprobar(sobresaltos == 0 and sonando() == 0, "te pillan a ti: nada de PavorVista")
+	limpiar()
+
+	-- Con Rendimiento: golpe y latido, sin vértigo.
+	jugador:SetAttribute("Rendimiento", true)
+	caeDelante(5)
+	comprobar(sobresaltos == 1 and sonando() == 1 and cuerpo.campoMax == 0, "compañero con Rendimiento: sin vértigo")
+	jugador:SetAttribute("Rendimiento", nil)
 end
 
 print(`pavor: {cuentas} comprobaciones bien`)

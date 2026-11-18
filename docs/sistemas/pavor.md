@@ -28,6 +28,12 @@ o no: el latido suena entero mientras dure y al dejarte se apaga en `Latido.Apag
 la respiración va más deprisa y las manos tiemblan algo; al empezar, un golpe flojo y un respingo como mucho cada
 `Persigue.Cada` = 10 s. Mismas excepciones de abajo; con Rendimiento, solo latido y golpe.
 
+**Pillan a un compañero** (`Remotes.Muerte` de otro jugador; `Companero`, a ojo): si lo ves (su cabeza o su torso a menos
+de `Lejos` = 45 studs, en pantalla y sin paredes; su cuerpo y el bicho que le pilla no tapan), el susto de ver un bicho
+con la fuerza como poco `Minimo` = 0,8: vértigo, golpe, latido y manos con la linterna temblando. Si no lo ves pero está
+a menos de `Oido` = 22 studs (tras una pared), solo el latido (`OidoLatido`) y un golpe flojo (como mucho uno cada
+`SobresaltoCada`). Mismas excepciones; MuerteVista sigue poniendo el charco y CadaverVista el grito.
+
 Un susto nuevo durante el pavor lo sube si es más fuerte, nunca lo baja. El mismo bicho no vuelve a asustar hasta que lo
 pierdes de vista `Olvida` = 15 s.
 
@@ -51,7 +57,7 @@ pierdes de vista `Olvida` = 15 s.
   de correr.
 - Banco: `tests/bancos/pavor.luau` (cuentas, PavorVista con falsos en cada caso de arriba y CuerpoVista de verdad: campo
   60 y vuelta a 70, la pared de detrás, el retraso al girar acotado; la persecución con un bicho falso con `Persigue`, y
-  la tensión de `AmbienteMiedo`).
+  la tensión de `AmbienteMiedo`; el compañero con `Remotes.Muerte` falso).
 
 ## Probar en Studio
 
@@ -67,5 +73,7 @@ pierdes de vista `Olvida` = 15 s.
 8. Dejar que te vea un Golpeador y huir sin mirarlo: su modelo lleva `Persigue` con tu UserId, el latido suena
    seguido mientras corre detrás y se apaga al perderte; el zumbido de `AmbienteMiedo` sube en ~1 s. Escondido, solo
    el latido de MuerteVista. El Imitador fingiendo en la puerta: nada.
-9. A ojo para retocar en `Config.Pavor`: lo fuerte del vértigo (`Vertigo.Campo`, `Recula`), lo que tiembla
+9. Con 2 jugadores, que un Golpeador pille a uno delante del otro: el que mira nota la vista que se cierra, golpe,
+   latido y linterna temblando. Con una pared en medio y cerca: solo latido. Lejos: nada. Escondido: nada de esto.
+10. A ojo para retocar en `Config.Pavor`: lo fuerte del vértigo (`Vertigo.Campo`, `Recula`), lo que tiembla
    (`Temblor.Giro`) y el retraso (`Retraso.Max`).
