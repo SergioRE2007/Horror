@@ -40,7 +40,9 @@ end
 
 -- Lo que dice cada paso. Frases enteras (Lang): la de la mochila cambia con el mando o la pantalla táctil.
 local function frase(paso: string): string
-	if paso == "Mochila" then
+	if paso == "Nota" then -- la pista 1: el gancho de la historia
+		return Lang.t(nil, "Read the note on the kitchen table.")
+	elseif paso == "Mochila" then
 		if Ui.tactil() then
 			return Lang.t(nil, "Open your backpack: tap BACKPACK.")
 		elseif Ui.tipoEntrada() == "mando" then
@@ -126,7 +128,11 @@ end
 
 -- Qué señalar en ese paso (nil = nada en el mundo).
 local function objetivo(paso: string, desde: Vector3): (Instance?, Vector3?)
-	if paso == "Hacha" then
+	if paso == "Nota" then -- la nota de la mesa de la cocina (Pistas: modelo con N = 1; su pivote es el papel)
+		return masCerca(desde, etiquetados("Pista", function(pista)
+			return pista:IsA("Model") and pista:GetAttribute("N") == 1 and pista.PrimaryPart ~= nil
+		end))
+	elseif paso == "Hacha" then
 		return masCerca(desde, conTipo("Objeto", "Hacha"))
 	elseif paso == "Correr" then -- hacia el bosque: el árbol en pie más cercano
 		return masCerca(desde, etiquetados("Arbol", function(arbol)

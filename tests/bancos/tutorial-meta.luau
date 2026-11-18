@@ -2,7 +2,7 @@
 --   La gasolina del generador: en marcha con poco depósito, el paso Generador pide echarle un bidón (repostar) hasta
 --   que llega al mínimo o sube; sin bidones con gasolina no lo pide; parado y sin gasolina, primero el bidón.
 --   La siguiente meta tras el tutorial: llenar el generador si no aguanta la noche, llave del sótano, del garaje,
---   piezas del coche, su gasolina y huir.
+--   piezas del coche, su gasolina y huir. Y la del final de la Bestia: cruces, plano de la reja, reja y esperarla.
 -- Ejecutar desde la raíz: lune run tests/bancos/tutorial-meta.luau (lo corre regressions.luau).
 local PT = require("../../src/shared/PasosTutorial")
 
@@ -13,7 +13,7 @@ local function igual(actual, esperado, etiqueta: string)
 end
 
 local function vista(cambios)
-	local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, mochila = true, hacha = true, corrido = true,
+	local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, nota = true, mochila = true, hacha = true, corrido = true,
 		cargando = "Tablon", generador = false, cortinas = 3, gasolina = 0.3, gasolinaMin = 0.45, bidon = true }
 	for clave, valor in cambios do
 		v[clave] = valor
@@ -81,6 +81,21 @@ do
 	igual(PT.meta({}, 0, false, true), "Generador", "meta: poca gasolina, antes incluso que huir")
 	igual(PT.meta(todas, 5, true, false), "Sotano", "meta: con gasolina de sobra (o sin nada que echarle), como antes")
 	igual(PT.meta(todas, 5, true), "Sotano", "meta: sin el dato, como antes")
+end
+
+-- Meta del final de la Bestia (Tutorial la usa con la 12 leída y la casa ya a medio preparar) ------------------------
+do
+	local meta, n = PT.metaBestia(5, false, false)
+	igual(meta, "Cruces", "bestia: primero las cruces")
+	igual(n, 5, "bestia: cuántas cruces faltan")
+	meta, n = PT.metaBestia(1, true, true)
+	igual(meta, "Cruces", "bestia: con la reja ya montada, aún falta una cruz")
+	igual(n, 1, "bestia: la última cruz")
+	igual(PT.metaBestia(0, false, false), "Plano", "bestia: cruces hechas, falta el plano de la 9")
+	igual(PT.metaBestia(0, true, false), "Reja", "bestia: con el plano, armar y montar la reja")
+	igual(PT.metaBestia(0, false, true), "Esperar", "bestia: reja montada (aunque no se leyera la 9), a esperarla")
+	igual(PT.metaBestia(0, true, true), "Esperar", "bestia: todo listo, a esperarla")
+	igual(select(2, PT.metaBestia(0, true, true)), 0, "bestia: sin número fuera de las cruces")
 end
 
 print(`tutorial-meta: {cuentas} comprobaciones`)

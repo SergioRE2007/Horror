@@ -1,7 +1,7 @@
 -- Tutorial de los primeros minutos (14.2 / 13.1; pedido por el usuario en el primer juego: "tiene que invadir más la
 -- pantalla y que te diga más vistoso dónde clicar"). Sale una vez por cuenta: hasta que lo acaba (premio, el logro
 -- Tutorial de Config.Recompensas) o lo salta. Los pasos y cuándo se pasa de uno a otro, en shared/PasosTutorial.
---   Cada Config.Tutorial.Cada s mira lo de cada jugador con tutorial (mochila, hacha, si ha corrido, lo que carga,
+--   Cada Config.Tutorial.Cada s mira lo de cada jugador con tutorial (la nota de la cocina, mochila, hacha, si ha corrido, lo que carga,
 --   generador y su gasolina, cortinas de abajo y puerta principal abiertas) y publica el paso en atributos del Player:
 --     Tutorial = el paso ("Mochila", "Hacha"…; nil = sin tutorial), TutorialFalta = cortinas (y puerta) que quedan
 --     por cerrar, TutorialPuerta = la puerta principal está abierta (16.5), TutorialGasolina = el paso del generador
@@ -10,7 +10,9 @@
 --   activa, sin poner aún = Llegada no ha decidido: también espera). Si vuelve a haber escena, el cartel se esconde.
 -- Siguiente meta (16.5): quien ya no tiene tutorial recibe al empezar cada día (y al entrar) un aviso de una línea con
 --   la siguiente meta (PasosTutorial.meta: llenar el generador si no aguanta la noche, llaves, piezas del coche,
---   huir), y la misma frase en el atributo Meta del Player, que enseña el móvil (MovilUi).
+--   huir), y la misma frase en el atributo Meta del Player, que enseña el móvil (MovilUi). Si ya se ha abierto la caja
+--   fuerte (la 12) y se ha empezado a preparar la casa (una cruz con gasolina o la reja montada), la meta es la del
+--   final de la Bestia (PasosTutorial.metaBestia: cruces que faltan, plano, reja, esperarla); con ella suelta, ninguna.
 --   El cliente (TutorialVista) pinta el cartel y la flecha; solo puede pedir saltarlo (remote Tutorial, "Saltar").
 --   Todo lo que da premio lo mira el servidor: el cliente no puede acabarlo antes de tiempo.
 -- En Studio solo sale con Config.Test.Tutorial (los datos de prueba nunca lo tienen hecho).
@@ -27,9 +29,12 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Comun = ServerScriptService:WaitForChild("Comun")
 local Datos = require(Comun.Datos)
 local Recompensas = require(Comun.Recompensas)
+local Bestia = require(script.Parent.Bestia)
 local Casa = require(script.Parent.Casa)
 local Ciclo = require(script.Parent.Ciclo)
 local Mochila = require(script.Parent.Mochila)
+local Pistas = require(script.Parent.Pistas)
+local Preparativos = require(script.Parent.Preparativos)
 
 local Tutorial = {}
 
@@ -171,6 +176,7 @@ local function mirar()
 			noche = noche,
 			quedan = quedan,
 			aviso = Config.Ciclo.Aviso,
+			nota = jugador:GetAttribute("Leida1") == true, -- la pista 1, en la mesa de la cocina (Pistas.leer)
 			mochila = a.mochila,
 			hacha = Mochila.contar(jugador, "Hacha") > 0,
 			cargando = if type(cargando) == "string" then cargando else nil,
@@ -197,7 +203,7 @@ end
 
 -- La siguiente meta de la partida, ya en el idioma del jugador (nil = ninguna: la partida se está acabando).
 local function textoMeta(jugador: Player): string?
-	if workspace:GetAttribute("Final") then
+	if workspace:GetAttribute("Final") or Bestia.activa() then
 		return nil
 	end
 	local coche = CollectionService:GetTagged("Coche")[1]
@@ -211,6 +217,25 @@ local function textoMeta(jugador: Player): string?
 	-- El generador no aguanta la noche: de día, por debajo del mínimo del tutorial y con gasolina a mano
 	local _, nivel = generadorEncendido()
 	local poca = Ciclo.fase() == "Dia" and nivel ~= nil and nivel < Config.Tutorial.Gasolina and hayGasolina()
+	-- El final de la Bestia, si ya se ha empezado (la 12 leída y una cruz con gasolina o la reja montada). El generador
+	-- sigue antes: sin luz no se llega a la noche final.
+	if not poca and Pistas.leida(Config.Bestia.PistaCerillas) then
+		local prep = Preparativos.estado()
+		if prep.cruces > 0 or prep.montada then
+			local paso, faltan = PasosTutorial.metaBestia(prep.total - prep.cruces, Pistas.leida(Config.Bestia.Reja.Pista),
+				prep.montada)
+			if paso == "Cruces" then
+				return if faltan == 1
+					then Lang.t(jugador, "Next: pour fuel on the last red cross.")
+					else Lang.t(jugador, "Next: pour fuel on the red crosses. {n} left.", { n = faltan })
+			elseif paso == "Plano" then
+				return Lang.t(jugador, "Next: find Harlan's plan in the basement.")
+			elseif paso == "Reja" then
+				return Lang.t(jugador, "Next: build the gate at the basement bench and set it in its frame.")
+			end
+			return Lang.t(jugador, "Next: wait for her in the hall.")
+		end
+	end
 	local meta, n = PasosTutorial.meta(Casa.cerradas(), piezas, sinGasolina, poca)
 	if meta == "Generador" then
 		return Lang.t(jugador, "Next: fuel the generator before night. The farm has fuel.")

@@ -382,6 +382,18 @@ function Preparativos.listo(): boolean
 	return todos() and rastro and montada
 end
 
+-- Cómo va la preparación (Tutorial: la meta del final de la Bestia): cruces con gasolina, cuántas hay y si la reja
+-- está montada en su marco.
+function Preparativos.estado(): { cruces: number, total: number, montada: boolean }
+	local cruces = 0
+	for _, p in PUNTOS do
+		if llenos[p[1]] then
+			cruces += 1
+		end
+	end
+	return { cruces = cruces, total = #PUNTOS, montada = montada }
+end
+
 -- ¿Está este punto dentro de la sala del sótano (detrás de la reja)?
 function Preparativos.sotano(posicion: Vector3): boolean
 	local s = SOTANO
