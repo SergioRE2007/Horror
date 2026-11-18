@@ -14,6 +14,7 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local PistasUi = require(script.Parent.PistasUi)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -410,7 +411,8 @@ function BengalasVista.start()
 		if procesado then
 			return
 		end
-		if entrada.KeyCode == Enum.KeyCode.Q or entrada.KeyCode == Enum.KeyCode.ButtonR1 then
+		if entrada.KeyCode == Enum.KeyCode.Q
+			or (entrada.KeyCode == Enum.KeyCode.ButtonR1 and not PistasUi.libretaAbierta()) then -- en la libreta, RB pasa hoja
 			sacar()
 		elseif mano and (entrada.UserInputType == Enum.UserInputType.MouseButton1 or entrada.KeyCode == Enum.KeyCode.ButtonR2) then
 			disparar()

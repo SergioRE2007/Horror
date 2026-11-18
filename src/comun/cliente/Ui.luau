@@ -188,9 +188,9 @@ function Ui.mancha(padre: GuiObject): Frame
 	return mancha
 end
 
--- Aviso de una sola línea abajo en el centro que se va solo.
+-- Aviso de una sola línea abajo en el centro que se va solo. Devuelve el texto (PistasUi lo sube si tapa el papel).
 local avisoActual: TextLabel? = nil
-function Ui.aviso(texto: string, segundos: number?)
+function Ui.aviso(texto: string, segundos: number?): TextLabel
 	if avisoActual then
 		avisoActual:Destroy()
 	end
@@ -220,6 +220,7 @@ function Ui.aviso(texto: string, segundos: number?)
 			t:Destroy()
 		end
 	end)
+	return t
 end
 
 return Ui
