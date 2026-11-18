@@ -226,6 +226,42 @@ end
 
 -- Lo de las lámparas del mapa: su brillo según cuánto de noche es (k) y los parpadeos (factor). Las de luna, además,
 -- con el cielo (Ambiente.lunaVentana); el fogonazo del relámpago se les suma entero.
+-- El bosque se calla (Config.BosqueCalla, sonidos.md): ¿cuenta este hijo de workspace.Bichos? Un Model vivo; el
+-- Imitador no mientras finge ser una persona en la puerta (como en AmbienteMiedo: callarse delataría que no es amigo).
+function Ambiente.bichoCuenta(modelo: Instance): boolean
+	if not modelo:IsA("Model") then
+		return false
+	end
+	if modelo.Name == "Imitador" and not modelo:GetAttribute("Abierto") then
+		return false
+	end
+	local humanoide = modelo:FindFirstChildOfClass("Humanoid")
+	return not (humanoide and humanoide.Health <= 0)
+end
+
+-- La cuenta del silencio, pura: `posiciones` son las de los bichos que cuentan y `callaHasta` hasta cuándo dura el
+-- silencio que ya había. Con alguno a menos de Calla studs en planta de la cámara se calla y el silencio sigue
+-- `vuelve` segundos más (por defecto lo menos de Vuelve); sin ninguno, sigue callado hasta callaHasta. Devuelve si
+-- calla, el nuevo hasta y, si hay uno cerca, la posición del más cercano (para la ramita que lo delata).
+function Ambiente.bosqueCalla(posiciones: { Vector3 }, camara: Vector3, ahora: number, callaHasta: number,
+	vuelve: number?): (boolean, number, Vector3?)
+	local cfg = Config.BosqueCalla
+	local cerca: Vector3? = nil
+	local mejor = cfg.Calla
+	for _, p in posiciones do
+		local dx, dz = p.X - camara.X, p.Z - camara.Z
+		local d = math.sqrt(dx * dx + dz * dz)
+		if d < mejor then
+			mejor = d
+			cerca = p
+		end
+	end
+	if cerca then
+		return true, math.max(callaHasta, ahora + (vuelve or cfg.Vuelve[1])), cerca
+	end
+	return ahora < callaHasta, callaHasta, nil
+end
+
 local function pintarLamparas(k: number)
 	local proporcion = mezcla(DIA.Lamparas, NOCHE.Lamparas, k)
 	local temblor = Ambiente.temblor
@@ -456,6 +492,7 @@ function Ambiente.start()
 	-- (Ambiente.destello) es un fogonazo de décimas: mientras dura se pinta todo cada fotograma, y una vez más al acabar
 	-- para quitarlo. El aviso del atardecer se mira cada fotograma, aparte.
 	local desdePintar = math.huge
+	local azarRugido = Random.new()
 	local habiaParpadeo = false
 	local habiaDestello = false
 	RunService.RenderStepped:Connect(function(dt)
@@ -479,22 +516,92 @@ function Ambiente.start()
 			and fin - workspace:GetServerTimeNow() < Config.Ciclo.Aviso then
 			avisado = true
 			Ui.aviso(Lang.t(nil, "The sun is going down. Close everything."))
-			local lejano = Sonido.tocar("Rugido") -- un rugido lejano en el bosque
-			lejano.Volume *= 0.3
-			lejano.PlaybackSpeed = 0.8
+			-- Un rugido lejano desde un sitio del bosque (no en la cabeza): en 3D se sabe de dónde viene y OidoVista
+			-- lo tapa dentro de casa. Alcance largo para que llegue de lejos sin sonar encima.
+			local bc = Config.BosqueCalla
+			local angulo = azarRugido:NextNumber(0, math.pi * 2)
+			local lejos = azarRugido:NextNumber(bc.Rugido[1], bc.Rugido[2])
+			local p = workspace.CurrentCamera.CFrame.Position
+			local lejano = Sonido.en("Rugido", Vector3.new(p.X + math.cos(angulo) * lejos, 3, p.Z + math.sin(angulo) * lejos), 0.8)
+			lejano.RollOffMinDistance = bc.RugidoMin
+			lejano.RollOffMaxDistance = bc.RugidoMax
 		end
 	end)
 	-- Sonidos sueltos del bosque, al azar y cada uno desde un sitio (pedido por el usuario: el fondo es solo viento y
 	-- hojas, para que no se oiga siempre lo mismo). De noche lobos lejos, búhos en lo alto, ramas y grillos; de día,
-	-- alguna rama. Números a ojo.
+	-- alguna rama. Con un bicho cerca el bosque se calla (Ambiente.bosqueCalla, Config.BosqueCalla): no suena ninguno
+	-- hasta 25-40 s después de irse; al callarse, a veces una rama cruje hacia donde viene, y al volver la calma lo
+	-- primero es un grillo cerca. De noche en calma suenan más seguido, para que el silencio se note. Números a ojo.
 	task.spawn(function()
 		local azar = Random.new()
-		local SUELTOS_NOCHE = { { "Lobo", 2, 110, 160 }, { "Buho", 3, 40, 80 }, { "Ramita", 3, 25, 60 }, { "Grillo", 3, 15, 35 } }
+		local bc = Config.BosqueCalla
+		local SUELTOS_NOCHE = {
+			{ "Lobo", 2, 110, 160 },
+			{ "Buho", 3, 40, 80 },
+			{ "Ramita", 3, 25, 60 },
+			{ "Grillo", bc.PesoGrillo, 15, 35 },
+		}
 		local SUELTOS_DIA = { { "Ramita", 1, 25, 60 } }
+		local function entre(r: { number }): number
+			return azar:NextNumber(r[1], r[2])
+		end
+		-- `nombre` a `lejos` studs de la cámara en la dirección `angulo` (en planta).
+		local function sonar(nombre: string, angulo: number, lejos: number)
+			local alto = if nombre == "Buho" then azar:NextNumber(20, 35) else 1
+			local p = workspace.CurrentCamera.CFrame.Position
+			Sonido.en(nombre, Vector3.new(p.X + math.cos(angulo) * lejos, alto, p.Z + math.sin(angulo) * lejos),
+				azar:NextNumber(0.9, 1.08))
+		end
+		local function bichos(): { Vector3 }
+			local lista = {}
+			local carpeta = workspace:FindFirstChild("Bichos")
+			if carpeta then
+				for _, modelo in carpeta:GetChildren() do
+					if Ambiente.bichoCuenta(modelo) then
+						local raiz = (modelo:FindFirstChild("HumanoidRootPart") or (modelo :: Model).PrimaryPart) :: BasePart?
+						table.insert(lista, if raiz then raiz.Position else (modelo :: Model):GetPivot().Position)
+					end
+				end
+			end
+			return lista
+		end
+		local callado = false
+		local callaHasta = -math.huge
+		local siguiente = os.clock() + entre(bc.Espera)
 		while true do
+			task.wait(bc.Mirar)
+			local ahora = os.clock()
 			local noche = workspace:GetAttribute("Fase") == "Noche"
-			task.wait(if noche then azar:NextNumber(10, 28) else azar:NextNumber(30, 70))
-			local lista = if workspace:GetAttribute("Fase") == "Noche" then SUELTOS_NOCHE else SUELTOS_DIA
+			local camara = workspace.CurrentCamera.CFrame.Position
+			local antes = callado
+			local cerca: Vector3?
+			callado, callaHasta, cerca = Ambiente.bosqueCalla(bichos(), camara, ahora, callaHasta, entre(bc.Vuelve))
+			if callado then
+				-- Al callarse, a veces una sola rama cruje hacia donde viene (sin pasarse de él).
+				if not antes and cerca and azar:NextNumber() < bc.RamaAviso then
+					local dx, dz = cerca.X - camara.X, cerca.Z - camara.Z
+					local lejos = math.min(entre(bc.Rama), math.max(math.sqrt(dx * dx + dz * dz), 8))
+					sonar("Ramita", math.atan2(dz, dx), lejos)
+				end
+				continue
+			end
+			if antes then
+				-- Vuelve la calma: lo primero, un grillo cerca (de día no hay grillos: solo se reanuda la espera).
+				if noche then
+					sonar("Grillo", azar:NextNumber(0, math.pi * 2), entre(bc.Grillo))
+				end
+				siguiente = ahora + entre(if noche then bc.Espera else bc.Dia)
+				continue
+			end
+			-- Al anochecer, la espera larga del día no aguanta: se recorta a la de la noche.
+			if noche and siguiente - ahora > bc.Espera[2] then
+				siguiente = ahora + entre(bc.Espera)
+			end
+			if ahora < siguiente then
+				continue
+			end
+			siguiente = ahora + entre(if noche then bc.Espera else bc.Dia)
+			local lista = if noche then SUELTOS_NOCHE else SUELTOS_DIA
 			local total = 0
 			for _, s in lista do
 				total += s[2]
@@ -503,12 +610,7 @@ function Ambiente.start()
 			for _, s in lista do
 				tirada -= s[2]
 				if tirada <= 0 then
-					local angulo = azar:NextNumber(0, math.pi * 2)
-					local lejos = azar:NextNumber(s[3], s[4])
-					local alto = if s[1] == "Buho" then azar:NextNumber(20, 35) else 1
-					local p = workspace.CurrentCamera.CFrame.Position
-					Sonido.en(s[1], Vector3.new(p.X + math.cos(angulo) * lejos, alto, p.Z + math.sin(angulo) * lejos),
-						azar:NextNumber(0.9, 1.08))
+					sonar(s[1], azar:NextNumber(0, math.pi * 2), azar:NextNumber(s[3], s[4]))
 					break
 				end
 			end

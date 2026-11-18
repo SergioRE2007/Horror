@@ -1703,4 +1703,21 @@ Config.Cielo = {
 	},
 }
 
+-- El bosque se calla (Ambiente, sonidos.md): con un bicho cerca de la cámara no suena ningún suelto (lobos, búhos,
+-- ramas, grillos) hasta un rato después de irse; el silencio avisa antes de que llegue. Números a ojo.
+Config.BosqueCalla = {
+	Calla = 110, -- studs en planta de la cámara al bicho más cercano para que se calle
+	Vuelve = { 25, 40 }, -- segundos de silencio tras irse el último bicho
+	RamaAviso = 0.4, -- probabilidad de una ramita hacia el bicho al callarse
+	Rama = { 30, 45 }, -- a qué distancia cruje esa ramita (hacia el bicho)
+	Grillo = { 15, 25 }, -- el primer grillo al volver la calma, cerca
+	Espera = { 6, 16 }, -- segundos entre sueltos de noche en calma (de día, Dia)
+	Dia = { 30, 70 },
+	PesoGrillo = 5, -- peso del grillo de noche (lobo 2, búho 3, ramita 3): el que más se echa de menos
+	Mirar = 1, -- cada cuántos segundos se mira si hay bichos cerca
+	Rugido = { 140, 180 }, -- el rugido del atardecer, desde un sitio del bosque a esta distancia
+	RugidoMin = 60, -- RollOffMinDistance y RollOffMaxDistance del rugido
+	RugidoMax = 400,
+}
+
 return Config
