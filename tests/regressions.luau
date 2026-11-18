@@ -639,6 +639,29 @@ do
 	igual(Rejilla.contar(r, "LlaveRico"), 1, "la llave de la mochila se guarda")
 end
 
+-- Susto al morir de los bichos que no son el Golpeador (MuerteVista): cabe entero antes de que el bicho se mueva.
+-- Lo que se queda quieto, sacado del código del servidor: ESPERA de Caza y el task.wait tras Muerte.matar del
+-- Acechador y la Bestia.
+do
+	local S = Config.Muerte.SustoComun
+	local total = 0
+	for _, fase in { "Mira", "Salta", "Encima", "Tiron", "Despues" } do
+		assert(type(S[fase]) == "number" and S[fase] > 0, `SustoComun.{fase}`)
+		total += S[fase]
+	end
+	local quietos = { tonumber(string.match(fs.readFile("src/juego/servidor/Caza.luau"), "local ESPERA = ([%d%.]+)")) }
+	for _, bicho in { "Acechador", "Bestia" } do
+		local fuente = fs.readFile(`src/juego/servidor/{bicho}.luau`)
+		table.insert(quietos, tonumber(string.match(fuente, "Muerte%.matar%b()%s*task%.wait%(([%d%.]+)%)")))
+	end
+	table.insert(quietos, 2.5)
+	for i, quieto in quietos do
+		assert(quieto, `susto común: no se encuentra lo que espera el bicho ({i})`)
+		assert(total < quieto, `susto común: {total} s no cabe en {quieto} s quieto ({i})`)
+		comprobaciones += 1
+	end
+end
+
 -- Vendedor: tratos con objetos que existen y cantidades con sentido.
 do
 	for i, t in Config.Vendedor.Trueques do

@@ -178,18 +178,18 @@ do -- El cliente: la escena enfoca al bicho que dice el servidor.
 	suyos.Raspador[raspador] = true
 	m.jugadorLocal:SetAttribute("Muerto", true)
 	m.alCliente("Muerte", m.jugadorLocal, boca, raspador)
-	m.correr(0.4)
+	m.correr(0.25)
+	local quieta = m.camara.CFrame.Position
+	m.correr(0.65) -- ya encima de él (susto por fases: Mira, Salta y Encima, Config.Muerte.SustoComun)
 	igual(#rugidos, 1, "cliente: ruge uno solo")
 	igual(rugidos[1] and rugidos[1].modelo, raspador, "cliente: con el modelo, ruge ese aunque otro esté más cerca")
 	igual(rugidos[1] and rugidos[1].vista, "Raspador", "cliente: y lo anima su Vista")
-	-- Delante de su cara (a lo largo de su LookVector) y casi en su eje. Solo la posición: el CFrame.lookAt de Lune
-	-- 0.10.5 sale del revés (mira hacia -Z cuando tendría que mirar hacia +Z) y la dirección de la cámara no vale aquí.
+	-- En Mira, quieta donde estabas; encima, pegada a su boca (a ~2,6 studs) y no a la del otro. Solo la posición: el
+	-- CFrame.lookAt de Lune 0.10.5 sale del revés y la dirección de la cámara no vale aquí.
+	igual((m.camara.CFrame.Position - quieta).Magnitude > 3, true, "cliente: en Mira quieta y luego se abalanza")
 	local function delanteDe(modelo: any): boolean
-		local c = modelo.Cabeza.CFrame
-		local d = m.camara.CFrame.Position - c.Position
-		local fondo = d:Dot(c.LookVector)
-		local lado = (d - c.LookVector * fondo).Magnitude
-		return fondo > 2 and fondo < 7 and lado < 1
+		local d = (m.camara.CFrame.Position - (modelo.Cabeza.Position - Vector3.new(0, 0.6, 0))).Magnitude
+		return d > 1.8 and d < 3.4
 	end
 	igual(delanteDe(raspador), true, "cliente: la cámara, delante de la cara del que te pilla")
 	igual(delanteDe(golpeador), false, "cliente: y no delante del que tenía la cabeza más cerca")
