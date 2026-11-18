@@ -1,8 +1,8 @@
 -- Sustos sueltos (14.3, "más miedo"): de noche, de vez en cuando, a cada jugador le pasa algo que solo ve él (así el
 -- amigo no lo ha visto: "¿lo has visto?"). Todo en el cliente; lo que se mueve o se rompe del mapa vuelve a su sitio
 -- al amanecer. Sustos fuertes pero pocos (diseño.md): uno cada varios minutos, algo más seguidos cada noche, nunca dos
--- iguales seguidos, nunca con un bicho cerca, en cinemáticas, la huida o la noche de la Bestia, y casi siempre con el
--- jugador dentro o junto a la casa.
+-- iguales seguidos, cada uno desde su noche (los de sangre más tarde, CFG.Desde), nunca con un bicho cerca o dentro
+-- de la casa, en cinemáticas, la huida o la noche de la Bestia, y casi siempre con el jugador dentro o junto a la casa.
 --   Figuras: Silueta (tras una ventana; se aparta si la miras o la alumbras), Pasillo (al fondo; desaparece en un
 --     parpadeo de la linterna y las bombillas), Susurro (al oído; las noches altas, algo detrás al girarte).
 --   Ruidos: Pasos (cruzan el piso de arriba con polvillo del techo, o el de abajo, y se paran justo encima o debajo),
@@ -108,7 +108,8 @@ local function elegir(): boolean
 	local ctx = contexto(false)
 	local opciones, total = {}, 0
 	for nombre, susto in LISTA do
-		if nombre ~= ultimo then
+		-- Cada uno desde su noche (CFG.Desde): los suaves al principio y los de sangre más tarde, para que vaya a más.
+		if nombre ~= ultimo and ctx.noche >= (CFG.Desde[nombre] or 1) then
 			local ok, datos = pcall(susto.puede, ctx)
 			if ok and datos ~= nil then
 				local peso = (CFG.Pesos[nombre] or 1) * (if estaNoche[nombre] then CFG.RepetidoEstaNoche else 1)

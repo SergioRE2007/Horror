@@ -227,6 +227,7 @@ function Pistas.leer(jugador: Player, n: number, donde: BasePart)
 	end
 	ultimo[jugador] = ahora
 	leidas[n] = true
+	jugador:SetAttribute("Leida" .. n, true) -- lo que ha leído él (Sustos: el espejo no destapa el giro antes de tiempo)
 	Remotes.Pista:FireClient(jugador, n, cuantas())
 end
 

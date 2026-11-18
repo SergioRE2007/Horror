@@ -6,6 +6,7 @@
 --   Goteo: gotas de sangre que caen del techo justo delante, una mancha que se extiende arriba y un charco abajo.
 -- La mano y los chorretones están hechos con marcos (no hay imagen de mano aún): ver el informe de 14.3.
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -165,7 +166,9 @@ end
 
 ---------------------------------------------------------------- espejo
 
-local FRASES = { "Get out of here", "He knew", "Behind you" }
+local FRASES = { "Get out of here", "Behind you" }
+-- Esta destapa el giro (historia.md): solo si el jugador ya ha leído la pista que lo explica (atributo de Pistas).
+local FRASE_GIRO = "He knew"
 local escritos: { [Model]: boolean } = {}
 
 local function puedeEspejo(ctx): any?
@@ -199,7 +202,11 @@ local function lanzarEspejo(m: Model)
 	local texto = Instance.new("TextLabel")
 	texto.BackgroundTransparency = 1
 	texto.FontFace = Font.fromEnum(Enum.Font.Creepster)
-	texto.Text = Ui.mayusculas(Lang.t(nil, FRASES[azar:NextInteger(1, #FRASES)]))
+	local frases = table.clone(FRASES)
+	if Players.LocalPlayer:GetAttribute("Leida" .. Util.cfg.PistaGiro) then
+		table.insert(frases, FRASE_GIRO)
+	end
+	texto.Text = Ui.mayusculas(Lang.t(nil, frases[azar:NextInteger(1, #frases)]))
 	texto.TextColor3 = Color3.fromRGB(105, 6, 8)
 	texto.TextTransparency = 0.08
 	texto.TextScaled = true
