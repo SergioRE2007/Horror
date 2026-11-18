@@ -252,6 +252,12 @@ Config.Caza = {
 		Limite = 8, -- s como mucho yendo a cada punto de la búsqueda (si no llega, al siguiente)
 		Rumbo = 2, -- studs/s a los que tiene que ir para apuntar hacia dónde iba
 	},
+	-- Qué puertas abre a su paso (Caza, CazaBusqueda.cruzaPuerta; a ojo): solo las que cruza camino del punto al que
+	-- anda en ese paso.
+	Puerta = {
+		Tramo = 6, -- studs que mira por delante como mínimo (el siguiente punto del camino puede quedar antes de la hoja)
+		Margen = 0.5, -- studs de más a cada lado del ancho de la hoja para contar que la cruza
+	},
 	-- Llegar, cazar e irse sin saltos (llegarA, cazar, salir), para Golpeador, Raspador, Imitador y Trepador.
 	LlegarMas = 10, -- s que sigue andando hacia donde ataca si se atascó y alguien le ve (luego lo pone allí igual)
 	Prorroga = 8, -- s como mucho que sigue cazando, acabado su tiempo, mientras tenga presa a la vista
