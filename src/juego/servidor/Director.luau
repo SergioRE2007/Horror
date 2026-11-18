@@ -265,11 +265,18 @@ function Director.start()
 			soltar()
 			return
 		end
-		Bichos.quitarTodos()
-		Chimenea.apagar()
-		table.clear(enUso)
-		Partida.volverAlAmanecer()
-		Ciclo.reiniciarDia()
+		-- Con pcall: si algo falla al volver al amanecer (una foto rara, un fallo de código), hay que soltar igual, o el
+		-- tiempo se queda retenido para siempre y la partida parada en esa fase.
+		local ok, err = pcall(function()
+			Bichos.quitarTodos()
+			Chimenea.apagar()
+			table.clear(enUso)
+			Partida.volverAlAmanecer()
+			Ciclo.reiniciarDia()
+		end)
+		if not ok then
+			warn("Director: fallo al reiniciar el día tras morir todos:", err)
+		end
 		soltar() -- después de reiniciar: el día nuevo ya tiene su tiempo entero
 	end)
 end

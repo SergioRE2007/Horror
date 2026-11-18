@@ -735,9 +735,10 @@ end
 function CochesUi.start()
 	construir()
 	-- B del mando = BAJAR (sin Escape: abre el menú de Roblox y no debería sacarte del coche). Sin Ui.ventanaAbierta: el
-	-- lobby no tiene PosturaVista, y al bajarte el papel se va solo.
+	-- lobby no tiene PosturaVista, y al bajarte el papel se va solo. Pero si hay otra ventana abierta encima (Ajustes con
+	-- R3), la B es para cerrarla a ella: no te baja ni cancela el viaje del grupo (Ui quita VentanaAbierta en diferido).
 	Ui.cerrarConB(function()
-		return visible
+		return visible and not jugador:GetAttribute("VentanaAbierta")
 	end, bajarDelCoche)
 	if jugador.Character then
 		task.spawn(vigilarAsiento, jugador.Character)

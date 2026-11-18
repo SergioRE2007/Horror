@@ -24,7 +24,7 @@ type Datos = { Id: number | { number }, Volumen: number, Alcance: number? }
 local VIDA_MINIMA = 15
 -- Y lo que se deja de margen sobre la duración real si por fin carga y suena.
 local VIDA_MARGEN = 2
--- Un bucle que a los tantos segundos sigue sin cargar se da por roto.
+-- Si un bucle a los tantos segundos sigue sin cargar, se avisa en la Salida (no se borra: puede ser un móvil lento).
 local VIDA_BUCLE = 30
 
 local Sonido = {}
@@ -220,10 +220,12 @@ function Sonido.nuevo(lugar: string)
 		end
 		s.Parent = padre or SoundService
 		s:Play()
-		-- Un bucle dura lo que quiera el que lo pidió; solo se da por perdido si no llega a cargar nunca.
+		-- Un bucle dura lo que quiera el que lo pidió y no se borra nunca desde aquí: quien lo pide guarda la referencia y no
+		-- lo vuelve a crear, así que borrarlo por tardar en cargar (móvil lento) dejaba el ambiente mudo toda la partida.
+		-- Si tarda mucho solo se avisa; en cuanto cargue, suena solo (ya tiene Play).
 		task.delay(VIDA_BUCLE, function()
 			if s.Parent and not s.IsLoaded then
-				s:Destroy()
+				warn(`Sonido: el bucle {nombre} aún no ha cargado tras {VIDA_BUCLE} s`)
 			end
 		end)
 		return s
