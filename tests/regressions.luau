@@ -904,6 +904,17 @@ do
 	}, "partida del paso 8"), cat)
 	igual(d.casa.V1_2_3.refuerzo, true, "ventana reforzada guardada")
 	igual(d.casa.V4_5_6.refuerzo, nil, "refuerzo que no es booleano: fuera")
+	igual(d.casa.V1_2_3.cerrojo, nil, "partida de antes de los cerrojos: sin cerrojo")
+	local conCerrojo = FP.arreglar(guardable({
+		noche = 5,
+		casa = { P1_2_3 = { vida = 120, abierta = false, cerrojo = true }, P4_5_6 = { vida = 160, cerrojo = "si" },
+			P7_8_9 = { vida = 160, cerrojo = false } },
+	}, "partida con cerrojos"), cat)
+	igual(conCerrojo.casa.P1_2_3.cerrojo, true, "puerta con cerrojo guardada")
+	igual(conCerrojo.casa.P1_2_3.vida, 120, "con la vida que le quedaba")
+	igual(conCerrojo.casa.P4_5_6.cerrojo, nil, "cerrojo que no es booleano: fuera")
+	igual(conCerrojo.casa.P7_8_9.cerrojo, nil, "sin cerrojo: no se guarda nada")
+	guardable(conCerrojo, "partida con cerrojos arreglada")
 	igual(d.coche.piezas.Motor, 1, "motor montado guardado")
 	igual(d.coche.piezas.Rueda, 1, "una rueda guardada")
 	igual(d.coche.gasolina, 0.5, "gasolina del coche guardada")
