@@ -45,9 +45,16 @@ Config.Partida = {
 	Almacen = "Partidas_v1", -- DataStore de las partidas; cambiarlo borra todas, no tocar con jugadores reales
 	Viajes = "Viajes_v1", -- MemoryStore donde el lobby apunta quién va a cada servidor reservado
 	Ranuras = 3, -- partidas por jugador
-	EsperaDueno = 60, -- segundos esperando al dueño que se va (por si es un corte) antes de acabar para todos
+	-- Segundos esperando al dueño que se va (por si es un corte) antes de acabar para todos. A ojo: le da tiempo a
+	-- volver a abrir Roblox y pulsar GO BACK en el lobby (lobby/servidor/Regreso).
+	EsperaDueno = 120,
 	CaducaViaje = 86400, -- segundos que vive en MemoryStore lo apuntado de un viaje
 	Sueltos = 400, -- como mucho, cosas sueltas guardadas de cada clase (objetos y pesados)
+	-- Volver tras un corte (a ojo). La vuelta de quien se va vive VueltaCaduca s en MemoryStore y el servidor de la
+	-- partida la renueva cada VueltaCada s mientras falte y no se haya acabado (si se cae, caduca sola).
+	VueltaCaduca = 90,
+	VueltaCada = 30,
+	VueltaRelee = 30, -- el lobby la mira al cargar tus datos y otra vez a los VueltaRelee s (el juego tarda en ver un corte)
 }
 
 -- Coches del lobby (lobby/servidor/Coches): te subes con tus amigos, el primero que sube elige la partida y arranca.
@@ -667,6 +674,7 @@ Config.Limites = {
 	Taller = 0.3, -- nuevo
 	Usar = 0.25, -- nuevo: usar lo que se lleva en las manos sobre un sitio
 	Mirar = 0.2, -- nuevo: el muerto cambia a quién mira
+	Regreso = 2, -- nuevo: GO BACK del lobby (cada uno lee MemoryStore), contando los fallidos
 }
 
 -- Modo de pruebas: solo actúa en Studio (shared/Prueba). Con él no se lee ni se guarda nada.
