@@ -1660,7 +1660,7 @@ end
 -- Roblox. Los cuatro que atacan una ventana o la chimenea llegan con llegarA y se van con salir (nunca irA a pelo a
 -- `dentro`, que se teletransportaba delante del jugador), y la prórroga no corre con prisa ni en el bosque.
 do
-	for _, cfg in { "LlegarMas", "Prorroga", "SalirMax", "VerLejos" } do
+	for _, cfg in { "LlegarMas", "Prorroga", "SalirMax", "VerLejos", "Candidatos", "PerderseMax" } do
 		local v = Config.Caza[cfg]
 		igual(type(v) == "number" and v > 0, true, `Config.Caza.{cfg}`)
 	end

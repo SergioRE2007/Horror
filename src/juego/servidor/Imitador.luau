@@ -133,7 +133,9 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 	local dentro = el:GetAttribute("Dentro") :: Vector3
 	local normal = plano(centro.LookVector).Unit
 	local lado = normal:Cross(Vector3.yAxis)
-	local inicio = fuera + normal * 75 + lado * azar:NextNumber(-25, 25)
+	-- Desde donde nadie le vea aparecer (Caza.sitioSinVer): el sitio de siempre u otro más hondo o más a un lado.
+	local inicio = Caza.sitioSinVer(Caza.llegadas(fuera + normal * 75 + lado * azar:NextNumber(-25, 25), fuera, normal, lado,
+		ALTURA), ALTURA)
 	local lejos = fuera + normal * 110 + lado * azar:NextNumber(-40, 40)
 	local delante = Vector3.new(centro.X, fuera.Y, centro.Z) + normal * 2.5 -- pegado a la puerta, esperando a que le abran
 	local b = crear(CFrame.lookAt(inicio + Vector3.new(0, ALTURA, 0), fuera + Vector3.new(0, ALTURA, 0)))
@@ -149,7 +151,7 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 		if not b.prisa then
 			b:cazar(I.Caza / 2, true)
 		end
-		b:irA(lejos, I.Andar, 25)
+		b:perderse(lejos, I.Andar, 25) -- sin esfumarse a la vista (Caza.perderse)
 		return
 	end
 	b.humanoide.AutoRotate = false
@@ -215,7 +217,7 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 	elseif not b.prisa then
 		decir(centro.Position, ULTIMA, amigo)
 	end
-	b:irA(lejos, I.Andar, 25)
+	b:perderse(lejos, I.Andar, 25)
 end
 
 local function terminar(a: Ataque)

@@ -113,7 +113,9 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 	local normal = plano(centro.LookVector).Unit
 	local lado = normal:Cross(Vector3.yAxis)
 	local pegado = fuera - normal * 1.2 -- casi contra la pared, la cara en el cristal
-	local inicio = fuera + normal * 70 + lado * azar:NextNumber(-25, 25)
+	-- Desde donde nadie le vea aparecer (Caza.sitioSinVer): el sitio de siempre u otro más hondo o más a un lado.
+	local inicio = Caza.sitioSinVer(Caza.llegadas(fuera + normal * 70 + lado * azar:NextNumber(-25, 25), fuera, normal, lado,
+		ALTURA), ALTURA)
 	local lejos = fuera + normal * 110 + lado * azar:NextNumber(-40, 40)
 	local b = crear(CFrame.lookAt(inicio + Vector3.new(0, ALTURA, 0), fuera + Vector3.new(0, ALTURA, 0)))
 	a.bicho = b
@@ -135,7 +137,7 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 	end, centro.Position)
 	if not b.prisa and b:elegirPresa(true) then
 		b:cazar(R.Caza / 2, true)
-		b:irA(lejos, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25)
+		b:perderse(lejos, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25) -- sin esfumarse a la vista
 		return
 	end
 
@@ -185,7 +187,7 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		local pieFuera = fuera + Vector3.new(0, ALTURA, 0)
 		modelo:PivotTo(CFrame.lookAt(pieFuera, pieFuera + normal))
 	end
-	b:irA(lejos, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25)
+	b:perderse(lejos, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25)
 end
 
 local function terminar(a: Ataque)

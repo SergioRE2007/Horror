@@ -166,7 +166,9 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 	-- por ahí no.
 	local x = if lado > 0 then azar:NextNumber(5, 34) else azar:NextNumber(-37, -33)
 	local pie = Vector3.new(x, 0, lado * (PARED + 4))
-	local inicio = pie + fuera * 70 + Vector3.xAxis * azar:NextNumber(-25, 25)
+	-- Desde donde nadie le vea aparecer (Caza.sitioSinVer): el sitio de siempre u otro más hondo o más a un lado.
+	local inicio = Caza.sitioSinVer(Caza.llegadas(pie + fuera * 70 + Vector3.xAxis * azar:NextNumber(-25, 25), pie, fuera,
+		Vector3.xAxis, ALTURA), ALTURA)
 	local lejos = pie + fuera * 110 + Vector3.xAxis * azar:NextNumber(-40, 40)
 	local alto = Vector3.new(0, ALTURA, 0)
 	local b = crear(CFrame.lookAt(inicio + alto, pie + alto))
@@ -182,7 +184,7 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 		if not b.prisa then
 			b:cazar(T.Caza / 2, true)
 		end
-		b:irA(lejos, T.Andar, 25)
+		b:perderse(lejos, T.Andar, 25) -- sin esfumarse a la vista (Caza.perderse)
 		return
 	end
 
@@ -252,7 +254,7 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 		if b.modelo then
 			b.raiz:SetNetworkOwner(nil) -- al anclarla perdió el dueño: que la siga moviendo el servidor
 		end
-		b:irA(lejos, if quemado then T.Huir else T.Andar, 25)
+		b:perderse(lejos, if quemado then T.Huir else T.Andar, 25)
 		return
 	end
 
