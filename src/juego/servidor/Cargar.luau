@@ -111,6 +111,29 @@ function Cargar.ajustarVelocidad(jugador: Player)
 	humanoide.JumpPower = if salto then StarterPlayer.CharacterJumpPower else 0
 end
 
+-- CanQuery de la pieza y de lo que lleva soldado que tapa rayos (la llanta, los flejes; los barrotes nunca).
+local TAPAN = { Llanta = true, Fleje = true }
+local function consultable(pieza: BasePart, si: boolean)
+	pieza.CanQuery = si
+	for _, hijo in pieza:GetChildren() do
+		if hijo:IsA("BasePart") and TAPAN[hijo.Name] then
+			hijo.CanQuery = si
+		end
+	end
+end
+
+-- ¿Hay algún jugador tan cerca que, si volviera a chocar con él, lo empujaría? (al pararse lo soltado)
+local function pegadoAAlguien(pieza: BasePart): boolean
+	local radio = pieza.Size.Magnitude / 2 + 1.5
+	for _, otro in Players:GetPlayers() do
+		local r = raizDe(otro)
+		if r and (r.Position - pieza.Position).Magnitude < radio then
+			return true
+		end
+	end
+	return false
+end
+
 -- Rehace lo que comparten todos los que la llevan: quién la simula, cómo se orienta y si se puede coger.
 local function rehacer(pieza: BasePart)
 	local lista = quienes[pieza] or {}
@@ -123,6 +146,7 @@ local function rehacer(pieza: BasePart)
 	giro.MaxTorque = fuerzaPeso * (if solo then C.Giro else 40)
 	giro.Responsiveness = if solo then 40 else 15
 	pieza:SetAttribute("Lleva", if solo then lista[1].UserId else nil)
+	pieza:SetAttribute("Llevada", #lista > 0 or nil) -- para el cliente (TallerUi), como Cargar.libre
 	if #lista < 1 or #lista >= peso then
 		pieza:SetAttribute("Arrastra", nil)
 	end
@@ -147,7 +171,7 @@ local function rehacer(pieza: BasePart)
 	-- uno solo no chocaba con nada y atravesaba las paredes).
 	pieza.CollisionGroup = "Cargado"
 	pieza.CanCollide = true
-	pieza.CanQuery = #lista == 0 and not vuelan[pieza]
+	consultable(pieza, #lista == 0 and not vuelan[pieza])
 	local prompt = pieza:FindFirstChildOfClass("ProximityPrompt")
 	if prompt then
 		prompt.Enabled = #lista < peso and not pieza:GetAttribute("Trabajo")
@@ -627,10 +651,13 @@ local function seguirVuelos(dt: number)
 		end
 		local parado = vel.Magnitude < 0.6 and pieza.AssemblyAngularVelocity.Magnitude < 0.8
 		v.quieto = if parado then v.quieto + dt else 0
-		if v.quieto > 0.4 or ahora - v.hora > C.Vuelo then
+		-- Parada (o pasado Vuelo), y sin nadie pegado: si no, al volver a chocar empujaría a quien la dejó. Con alguien
+		-- encima se espera, como mucho 4 veces Vuelo.
+		local parada = v.quieto > 0.4 or ahora - v.hora > C.Vuelo
+		if parada and (not pegadoAAlguien(pieza) or ahora - v.hora > C.Vuelo * 4) then
 			vuelan[pieza] = nil
 			pieza.CollisionGroup = "Default"
-			pieza.CanQuery = true
+			consultable(pieza, true)
 			pieza:SetNetworkOwnershipAuto()
 		end
 	end
@@ -657,7 +684,15 @@ local function lanzar(jugador: Player, carga: unknown, direccion: unknown)
 		return
 	end
 	local derecha = CargarReglas.frente(raiz.CFrame):Cross(Vector3.yAxis)
-	pieza.AssemblyLinearVelocity = vel + raiz.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
+	-- Lo que vas andando se suma, recortado (la velocidad de tu raíz la pone tu cliente: no se fía de ella).
+	local andas = raiz.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
+	local tope = StarterPlayer.CharacterWalkSpeed * 1.5
+	if andas.X ~= andas.X or andas.Z ~= andas.Z then
+		andas = Vector3.zero
+	elseif andas.Magnitude > tope then
+		andas = andas.Unit * tope
+	end
+	pieza.AssemblyLinearVelocity = vel + andas
 	pieza.AssemblyAngularVelocity = derecha * -vueltas -- de punta a punta, la de delante hacia abajo
 	local v = vuelan[pieza]
 	if v then

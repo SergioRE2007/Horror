@@ -346,7 +346,10 @@ Retoques a ojo:
      y suena. La E lo deja en el suelo con cuidado, sin ruido.
   4. Ruido: lo que cae de golpe (lanzado, soltado al morir o al engancharse) y lo que se arrastra suena, y los bichos
      que rondan lo oyen y van corriendo a mirar allí (no a ti: si estás escondido no te pillan por el ruido).
-- **Estado:** pendiente
+- **Estado:** hecho sin Studio (18-11-2026, en la nube: `docs/sistemas/mochila.md`), números a ojo. Bancos de Lune
+  `cargar.luau` y `cargar-vista.luau`; revisado con cinco `reviewer` y un verificador por cada uno (nada grave; los
+  cuatro detalles menores, arreglados). Falta probarlo en Studio (lista en `mochila.md`, "Pendiente") y los 4 sonidos
+  (`sonidos-pendientes.md`, 31-34: mientras suenan provisionales).
 
 ### Ideas de Claude, por decidir (05-11-2026)
 Sin aprobar todavía; el usuario decide cuáles entran: sucesos al azar en los demás bichos (como la 14.10); noches
