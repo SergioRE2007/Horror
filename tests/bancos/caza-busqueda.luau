@@ -185,7 +185,8 @@ comprueba(string.find(caza, "planBusca(self, ultimoVisto)", 1, true), "Caza.caza
 -- En el texto: puertas y ojos.
 comprueba(not string.find(caza, "abrirPuertasCerca(self)", 1, true), "Caza: ya no abre todas las de cerca al andar")
 comprueba(string.find(caza, "abrirPuertasCerca(self, destino)", 1, true), "Caza.pasoHacia: con el destino directo")
-comprueba(string.find(caza, "abrirPuertasCerca(self, ruta.puntos[ruta.i])", 1, true), "Caza.pasoHacia: con el punto del camino")
+comprueba(string.find(caza, "abrirPuertasCerca(self, ruta.puntos[ruta.i], destino)", 1, true),
+	"Caza.pasoHacia: con el punto del camino (y a dónde va, para los cerrojos)")
 comprueba(string.find(caza, "abrirPuertasCerca(self, punto)", 1, true), "Caza.ir: con el punto de la escalera")
 comprueba(string.find(caza, "CazaBusqueda.cruzaPuerta(", 1, true), "Caza: abre con cruzaPuerta")
 comprueba(string.find(caza, "hacia = raiz + plano(hacia - raiz).Unit * PUERTA.Tramo", 1, true)
@@ -196,6 +197,13 @@ comprueba(string.find(caza, "local ojos = ojosDe(self)", 1, true), "Caza.elegirP
 comprueba(not string.find(caza, "local ojos = self:cabeza()", 1, true), "Caza.elegirPresa: ya no desde la cabeza a secas")
 comprueba(string.find(caza, "CazaBusqueda.ojos(raiz, cabeza,", 1, true), "Caza.ojosDe: con CazaBusqueda.ojos")
 comprueba(string.find(bestia, "RompePuertas = reventar", 1, true), "Bestia: revienta las de fuera que cruza")
+-- Cerrojos: los demás aporrean solo si van al otro lado; la Bestia los revienta al cruzarlos.
+comprueba(string.find(caza, "if estado.cerrojo and not self.o.RompeCerrojos then", 1, true)
+	and string.find(caza, "(-d):Dot(normal) * (meta - hoja.Position):Dot(normal) < 0", 1, true),
+	"Caza: con cerrojo, solo si a donde va queda al otro lado de la hoja")
+comprueba(string.find(caza, "self%.parado = nil%s*Casa%.abrirPuerta%(puerta%)"), "Caza: aporrear no cuenta como atasco")
+comprueba(string.find(caza, "Casa.abrirPuerta(puerta, self.o.RompeCerrojos)", 1, true), "Caza: la Bestia rompe cerrojos")
+comprueba(string.find(bestia, "RompeCerrojos = true", 1, true), "Bestia: revienta las puertas con cerrojo")
 comprueba(string.find(bestia, "reventar(b, puerta)", 1, true), "Bestia: y la principal al llegar, igual")
 
 print(`caza-busqueda: {cuentas} comprobaciones`)

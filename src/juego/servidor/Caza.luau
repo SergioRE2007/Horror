@@ -28,7 +28,9 @@
 --   Sigilo: quieto casi no se te oye, tras una pared o una puerta a la mitad, y con la linterna encendida agacharte
 --   no te esconde de la vista (Config.Postura.OirQuieto, OirPared).
 --   Puertas: solo abre la que va a cruzar en ese paso (CazaBusqueda.cruzaPuerta), y las que dan fuera (Atacable) nunca
---   desde fuera: esas las rompen los ataques, o la Bestia (Opciones.RompePuertas). Ve y oye desde los ojos (ojosDe):
+--   desde fuera: esas las rompen los ataques, o la Bestia (Opciones.RompePuertas). Las de dentro con cerrojo (Casa) no
+--   las abre de un empujón: si a donde va queda al otro lado, la aporrea pegado a ella hasta reventarla (la Bestia, de
+--   un golpe: Opciones.RompeCerrojos). Ve y oye desde los ojos (ojosDe):
 --   la cabeza, o justo antes de la pared si la cabeza se le mete en ella.
 --   Ni aparecer ni esfumarse a la vista: llegan desde el sitio que nadie ve (Caza.llegadas y Caza.sitioSinVer) y al
 --   irse al bosque se alejan hasta que nadie les vea antes de quitarse (Caza.perderse; en la casa, Caza.salir).
@@ -63,6 +65,8 @@ export type Opciones = {
 	-- Cómo revienta (bicho, puerta) una puerta de las que dan fuera (Atacable) si su camino la cruza desde fuera y está
 	-- cerrada; sin ella, desde fuera no las abre (la Bestia: sus dos golpes y Casa.romper).
 	RompePuertas: ((any, Model) -> ())?,
+	-- true: revienta de un golpe las puertas de dentro con cerrojo que cruza (la Bestia); sin él, las aporrea (Casa).
+	RompeCerrojos: boolean?,
 }
 
 -- Alguien debajo de un mueble, visto por un bicho: por dónde se mete a por él.
@@ -474,9 +478,15 @@ end
 -- (Atacable) nunca desde fuera: esas solo las rompen los ataques, o quien tenga Opciones.RompePuertas si las cruza.
 -- El recorte importa sin camino (MoveTo en recta hacia el destino, p. ej. el Trepador tras alguien de arriba): sin él
 -- abría de golpe todas las puertas cerradas de esa recta, aunque estuvieran a 30 studs.
+-- Con cerrojo (Casa, Config.Casa.Cerrojo) solo la golpea si `meta` (a donde va de verdad: la sala, el ruido, la presa;
+-- si no se da, `hacia`) queda al otro lado de la hoja y está pegado a ella (Cerrojo.Cerca): si solo pasa por el
+-- pasillo, no. Mientras la aporrea (Casa.abrirPuerta: un golpe cada Cerrojo.Cada s) no cuenta como atasco
+-- (self.parado). Con Opciones.RompeCerrojos (la Bestia), revienta al cruzarla.
 local PUERTA = Config.Caza.Puerta
-local function abrirPuertasCerca(self: Bicho, hacia: Vector3?)
+local CERROJO = Config.Casa.Cerrojo
+local function abrirPuertasCerca(self: Bicho, hacia: Vector3?, meta: Vector3?)
 	local raiz = self.raiz.Position
+	meta = meta or hacia
 	if hacia and plano(hacia - raiz).Magnitude > PUERTA.Tramo then
 		hacia = raiz + plano(hacia - raiz).Unit * PUERTA.Tramo
 	end
@@ -485,13 +495,14 @@ local function abrirPuertasCerca(self: Bicho, hacia: Vector3?)
 	for _, puerta in Casa.puertas() do
 		local hoja = puerta:FindFirstChild("Hoja") :: BasePart
 		local d = hoja.Position - raiz
-		if math.abs(d.Y) >= 7 or Casa.estado(puerta).abierta then
+		local estado = Casa.estado(puerta)
+		if math.abs(d.Y) >= 7 or estado.abierta then
 			continue
 		end
+		-- La normal de la hoja es su lado más fino (en Mapa, el Z; así vale aunque alguna se haga girada).
+		local tam = hoja.Size
+		local normal = plano(if tam.X < tam.Z then hoja.CFrame.RightVector else hoja.CFrame.LookVector)
 		if hacia then
-			-- La normal de la hoja es su lado más fino (en Mapa, el Z; así vale aunque alguna se haga girada).
-			local tam = hoja.Size
-			local normal = if tam.X < tam.Z then hoja.CFrame.RightVector else hoja.CFrame.LookVector
 			local ancho = (puerta:GetAttribute("Ancho") or math.max(tam.X, tam.Z)) :: number
 			if plano(d).Magnitude > largo + ancho / 2 + PUERTA.Margen
 				or not CazaBusqueda.cruzaPuerta(raiz, hacia, hoja.Position, normal, ancho, PUERTA.Margen, PUERTA.Tramo,
@@ -515,7 +526,17 @@ local function abrirPuertasCerca(self: Bicho, hacia: Vector3?)
 				continue
 			end
 		end
-		Casa.abrirPuerta(puerta)
+		if estado.cerrojo and not self.o.RompeCerrojos then
+			-- Del lado de la raíz y del de `meta` respecto al plano de la hoja: si es el mismo, no tiene que cruzarla.
+			local alOtroLado = meta ~= nil and (-d):Dot(normal) * (meta - hoja.Position):Dot(normal) < 0
+			if not alOtroLado or plano(d).Magnitude > CERROJO.Cerca then
+				continue
+			end
+			self.parado = nil -- pegado a la puerta, aporreándola: no está atascado
+			Casa.abrirPuerta(puerta)
+			return -- una por paso
+		end
+		Casa.abrirPuerta(puerta, self.o.RompeCerrojos)
 	end
 end
 
@@ -561,7 +582,7 @@ function Caza.pasoHacia(self: Bicho, destino: Vector3)
 			ruta.i += 1
 		end
 		if ruta.i <= #ruta.puntos then
-			abrirPuertasCerca(self, ruta.puntos[ruta.i])
+			abrirPuertasCerca(self, ruta.puntos[ruta.i], destino)
 			self.humanoide:MoveTo(ruta.puntos[ruta.i])
 			return
 		end
