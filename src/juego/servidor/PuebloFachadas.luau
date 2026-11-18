@@ -1069,19 +1069,28 @@ local PUERTA = {
 	CasetaEnterrador = { puerta = "abierta", bisagra = -1, angulo = 62, caida = 0.07 },
 }
 
-function PuebloFachadas.construir(c)
+-- Un edificio entero (cascarón y fachada) en un modelo nuevo colgado de `c.carpeta`. `c`: el ctx de Lugares (bloque,
+-- Mapa, carpeta). `e`: con la forma de PuebloPlano.Edificio. `estilo`: como los de ESTILO; `puerta`: como los de PUERTA.
+-- `semilla`: la del azar de este edificio (siempre la misma: sale idéntico en cada servidor). Lo usan el pueblo y los
+-- sitios del bosque (Lugares: granja, aserradero y torre).
+function PuebloFachadas.uno(c, e: PuebloPlano.Edificio, estilo, puerta, semilla: number): Model
 	ctx = c
+	local est = table.clone(estilo or { color = Color3.fromRGB(90, 84, 76), tejado = "dos", eje = "z", pendiente = 0.7 })
+	for k, v in puerta or {} do
+		est[k] = v
+	end
+	azar = Random.new(semilla)
+	local modelo = Instance.new("Model")
+	modelo.Name = e.nombre
+	modelo.Parent = ctx.carpeta
+	grupo = modelo
+	edificio(e, est)
+	return modelo
+end
+
+function PuebloFachadas.construir(c)
 	for i, e in PuebloPlano.edificios do
-		local est = table.clone(ESTILO[e.nombre] or { color = Color3.fromRGB(90, 84, 76), tejado = "dos", eje = "z", pendiente = 0.7 })
-		for k, v in PUERTA[e.nombre] or {} do
-			est[k] = v
-		end
-		azar = Random.new(1000 + i * 37) -- siempre igual: el pueblo sale idéntico en cada servidor
-		local modelo = Instance.new("Model")
-		modelo.Name = e.nombre
-		modelo.Parent = ctx.carpeta
-		grupo = modelo
-		edificio(e, est)
+		PuebloFachadas.uno(c, e, ESTILO[e.nombre], PUERTA[e.nombre], 1000 + i * 37)
 	end
 end
 
