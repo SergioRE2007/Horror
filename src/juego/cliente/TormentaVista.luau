@@ -9,10 +9,12 @@
 --   1-5 s después, el trueno (Retumbo muy grave y largo mientras no haya un Trueno propio): lejano y sin posición
 --   (tapado desde dentro de la casa) o, si fue cerca, en 3D desde fuera (lo tapan las paredes: OidoVista). Con el
 --   trueno vibran los cristales cercanos (CasaVista.elementos) y las bombillas tiemblan (Ambiente.temblor).
+--   Si cae cerca (Rayo.Desde), además se ve el rayo en el cielo: un trazo quebrado de Beams (TormentaVista.forma) del
+--   mismo lado del que llegará el trueno (angulo), más cerca cuanto más cerca cae, que parpadea con los destellos.
 --   Lo ven todos a la vez: el horario sale de una semilla con Noche y FaseInicio (atributos del Ciclo) y la hora del
 --   servidor. Sin servidor nuevo.
 -- Nada en cinemáticas ni en la muerte (cámara Scriptable sin el atributo Vistazo; por la mirilla, sí). Con Rendimiento,
--- un solo destello por relámpago y sin la luz con sombras.
+-- un solo destello por relámpago, sin la luz con sombras y el rayo sin ramas ni resplandor.
 -- Un solo bucle de render, y solo mientras dura un relámpago o su trueno; entre medias, una tarea que duerme hasta el
 -- siguiente. Las cuentas (si hay tormenta, el horario, la fuerza del destello) son funciones puras para el banco
 -- (tests/bancos/tormenta.luau).
@@ -121,6 +123,81 @@ function TormentaVista.duracion(r: Relampago): number
 	return d.t + d.subida + d.bajada
 end
 
+export type Forma = {
+	tronco: { Vector3 }, -- de arriba (y = Alto) al suelo (0, 0, 0), donde cae
+	ramas: { { Vector3 } }, -- cada una empieza en un punto del tronco y acaba en el aire
+	ancho: number, -- studs del tronco
+}
+
+-- La forma de un rayo, con el sitio donde cae en (0, 0, 0). La misma semilla da la misma forma en todos los clientes
+-- (la semilla sale de la hora del relámpago, sin gastar tiradas del horario).
+function TormentaVista.forma(semilla: number, cerca: number, cfg: any): Forma
+	local R = cfg.Rayo
+	local rng = Random.new(semilla)
+	local n = rng:NextInteger(R.Tramos[1], R.Tramos[2])
+	-- Tramos de largo desigual: unos largos y otros cortos, como un rayo de verdad.
+	local pesos, suma = {}, 0
+	for i = 1, n do
+		pesos[i] = rng:NextNumber(0.5, 1.5)
+		suma += pesos[i]
+	end
+	local ix = rng:NextNumber(-R.Inclina, R.Inclina) -- todo el rayo se inclina un poco hacia un lado
+	local iz = rng:NextNumber(-R.Inclina, R.Inclina)
+	local x, y, z = 0, R.Alto, 0
+	local puntos = { Vector3.new(x, y, z) }
+	for i = 1, n do
+		local paso = R.Alto * pesos[i] / suma
+		x += (rng:NextNumber(-1, 1) * R.Desvio + ix) * paso
+		z += (rng:NextNumber(-1, 1) * R.Desvio + iz) * paso
+		y = if i == n then 0 else y - paso
+		table.insert(puntos, Vector3.new(x, y, z))
+	end
+	-- Que caiga justo en (0, 0, 0).
+	local abajo = Vector3.new(x, 0, z)
+	local tronco = {}
+	for i, p in puntos do
+		tronco[i] = p - abajo
+	end
+	local ramas = {}
+	for _ = 1, rng:NextInteger(R.Ramas[1], R.Ramas[2]) do
+		local desde = tronco[rng:NextInteger(2, math.max(2, math.floor(n * 0.6)))]
+		local giro = rng:NextNumber(0, math.pi * 2)
+		local rama = { desde }
+		local p = desde
+		for _ = 1, rng:NextInteger(R.TramosRama[1], R.TramosRama[2]) do
+			local paso = R.Alto / n * rng:NextNumber(0.5, 0.9)
+			local fuera = paso * rng:NextNumber(0.6, 1.2)
+			giro += rng:NextNumber(-0.6, 0.6)
+			local siguiente = p + Vector3.new(math.cos(giro) * fuera, -paso, math.sin(giro) * fuera)
+			if siguiente.Y < R.Alto * 0.08 then
+				break -- las ramas nunca llegan al suelo
+			end
+			table.insert(rama, siguiente)
+			p = siguiente
+		end
+		if #rama >= 2 then
+			table.insert(ramas, rama)
+		end
+	end
+	local k = math.clamp(cerca, 0, 1)
+	return { tronco = tronco, ramas = ramas, ancho = R.Ancho[1] + (R.Ancho[2] - R.Ancho[1]) * k }
+end
+
+-- A cuántos studs de la cámara (en planta) cae el rayo de un relámpago, o nil si cae tan lejos que no se ve.
+function TormentaVista.distanciaRayo(cerca: number, cfg: any): number?
+	local R = cfg.Rayo
+	if cerca < R.Desde then
+		return nil
+	end
+	local k = math.clamp((cerca - R.Desde) / math.max(1e-6, 1 - R.Desde), 0, 1)
+	return R.Lejos + (R.Cerca - R.Lejos) * k
+end
+
+-- La semilla de la forma del rayo de un relámpago (igual en todos: sale de su hora).
+function TormentaVista.semillaRayo(r: Relampago): number
+	return math.floor(r.t * 1000) % 2_147_483_647
+end
+
 ---------------------------------------------------------------- estado
 
 type Activo = { r: Relampago, inicio: number, uno: boolean, fogonazos: { SpotLight }, lunas: { Light } }
@@ -130,8 +207,28 @@ local temblorInicio, temblorFuerza = 0, 0
 local carpeta: Folder? = nil
 local extras: { [BasePart]: SpotLight } = {} -- luna → su fogonazo con sombras (se hace la primera vez)
 
+-- El rayo del cielo: Beams entre Attachments de una pieza invisible en el origen (TormentaLocal). Se hacen la primera
+-- vez y se reutilizan; entre relámpagos, apagados.
+local rayo = {
+	pieza = nil :: Part?,
+	puntos = {} :: { Attachment },
+	nucleos = {} :: { Beam },
+	halos = {} :: { Beam },
+	usados = 0, -- núcleos encendidos
+	halosUsados = 0,
+	vis = 0, -- lo que se ve ahora (0 a 1)
+	reloj = 0, -- cuándo se pintó por última vez (para el resto en el ojo)
+}
+
 -- Lo que el banco puede mirar.
-TormentaVista.estado = { lista = {} :: { Relampago }, relampagos = 0, truenos = 0, ultimoTrueno = nil :: Sound? }
+TormentaVista.estado = {
+	lista = {} :: { Relampago },
+	relampagos = 0,
+	truenos = 0,
+	ultimoTrueno = nil :: Sound?,
+	rayos = 0, -- rayos dibujados en el cielo
+	rayo = nil :: { base: Vector3, forma: Forma, ramas: boolean }?, -- el que hay ahora (nil cuando se apaga)
+}
 
 local function poco(): boolean
 	return jugador:GetAttribute("Rendimiento") == true
@@ -160,17 +257,23 @@ end
 
 -- El fogonazo con sombras de una luna: una luz en su misma línea pero `Atras` studs por fuera del cristal, para que
 -- lo que haya entre ella y la sala (marcos, cortinas, un bicho) haga sombra. Apagada hasta que caiga un relámpago.
+local function carpetaLocal(): Folder
+	local c = carpeta
+	if not c or not c.Parent then
+		c = Instance.new("Folder")
+		c.Name = "TormentaLocal" -- fuera de Mapa: Ambiente no la toma por una lámpara
+		c.Parent = workspace
+		carpeta = c
+	end
+	return c :: Folder
+end
+
 local function extraDe(luna: BasePart, foco: SpotLight): SpotLight
 	local luz = extras[luna]
 	if luz and luz.Parent then
 		return luz
 	end
-	if not carpeta or not carpeta.Parent then
-		local c = Instance.new("Folder")
-		c.Name = "TormentaLocal" -- fuera de Mapa: Ambiente no la toma por una lámpara
-		c.Parent = workspace
-		carpeta = c
-	end
+	local dentroDe = carpetaLocal()
 	local f = CFG.Fogonazo
 	local pieza = Instance.new("Part")
 	pieza.Name = "Fogonazo"
@@ -191,7 +294,7 @@ local function extraDe(luna: BasePart, foco: SpotLight): SpotLight
 	luz.Brightness = 0
 	luz.Enabled = false
 	luz.Parent = pieza
-	pieza.Parent = carpeta
+	pieza.Parent = dentroDe
 	extras[luna] = luz
 	return luz
 end
@@ -222,7 +325,157 @@ local function elegirLunas(camara: Vector3, conSombras: boolean): ({ Light }, { 
 	return lunas, fogonazos
 end
 
+---------------------------------------------------------------- el rayo del cielo
+
+-- La pieza que lleva los puntos del rayo (en el origen, así cada Attachment.Position es su sitio en el mundo).
+local function piezaRayo(): Part
+	local p = rayo.pieza
+	if p and p.Parent then
+		return p
+	end
+	rayo.puntos, rayo.nucleos, rayo.halos = {}, {}, {}
+	rayo.usados, rayo.halosUsados = 0, 0
+	local nueva = Instance.new("Part")
+	nueva.Name = "Rayo"
+	nueva.Anchored = true
+	nueva.CanCollide = false
+	nueva.CanQuery = false
+	nueva.CanTouch = false
+	nueva.CastShadow = false
+	nueva.Transparency = 1
+	nueva.Size = Vector3.new(0.2, 0.2, 0.2)
+	nueva.CFrame = CFrame.new()
+	nueva.Parent = carpetaLocal()
+	rayo.pieza = nueva
+	return nueva
+end
+
+local function puntoRayo(i: number): Attachment
+	local a = rayo.puntos[i]
+	if not a then
+		a = Instance.new("Attachment")
+		a.Name = "Punto"
+		a.Parent = piezaRayo()
+		rayo.puntos[i] = a
+	end
+	return a
+end
+
+-- Un Beam del rayo (del pozo de núcleos o del de halos): blanco azulado, sin luz del mundo, siempre de cara.
+local function hazRayo(pozo: { Beam }, i: number, nombre: string): Beam
+	local b = pozo[i]
+	if not b then
+		local R = CFG.Rayo
+		b = Instance.new("Beam")
+		b.Name = nombre
+		b.FaceCamera = true
+		b.Segments = 1
+		b.Color = ColorSequence.new(Color3.fromRGB(R.Color[1], R.Color[2], R.Color[3]))
+		b.LightEmission = 1
+		b.LightInfluence = 0
+		b.Brightness = R.Brillo
+		b.Transparency = NumberSequence.new(1)
+		b.Enabled = false
+		b.Parent = piezaRayo()
+		pozo[i] = b
+	end
+	return b
+end
+
+local function esconderRayo()
+	for i = 1, rayo.usados do
+		rayo.nucleos[i].Enabled = false
+	end
+	for i = 1, rayo.halosUsados do
+		rayo.halos[i].Enabled = false
+	end
+	rayo.usados, rayo.halosUsados, rayo.vis = 0, 0, 0
+	TormentaVista.estado.rayo = nil
+end
+
+-- Dibuja (aún sin verse) el rayo de `f` cayendo en `base`; con `completo`, ramas y resplandor.
+local function dibujarRayo(f: Forma, base: Vector3, completo: boolean)
+	esconderRayo()
+	piezaRayo()
+	local R = CFG.Rayo
+	local n, nb, nh = 0, 0, 0
+	local function linea(puntos: { Vector3 }, ancho: number, afinar: boolean, halo: boolean)
+		local antes: Attachment? = nil
+		for j, p in puntos do
+			n += 1
+			local a = puntoRayo(n)
+			a.Position = base + p
+			if antes then
+				-- Las ramas se afinan hacia la punta; el tronco, igual de ancho de arriba abajo.
+				local w0 = if afinar then ancho * (1 - 0.7 * (j - 2) / #puntos) else ancho
+				local w1 = if afinar then ancho * (1 - 0.7 * (j - 1) / #puntos) else ancho
+				nb += 1
+				local b = hazRayo(rayo.nucleos, nb, "Tramo")
+				b.Attachment0, b.Attachment1 = antes, a
+				b.Width0, b.Width1 = w0, w1
+				b.Transparency = NumberSequence.new(1)
+				b.Enabled = true
+				if halo then
+					nh += 1
+					local h = hazRayo(rayo.halos, nh, "Halo")
+					h.Attachment0, h.Attachment1 = antes, a
+					h.Width0, h.Width1 = w0 * R.Halo.Ancho, w1 * R.Halo.Ancho
+					h.Transparency = NumberSequence.new(1)
+					h.Enabled = true
+				end
+			end
+			antes = a
+		end
+	end
+	linea(f.tronco, f.ancho, false, completo)
+	if completo then
+		for _, rama in f.ramas do
+			linea(rama, f.ancho * R.Rama, true, false)
+		end
+	end
+	rayo.usados, rayo.halosUsados, rayo.vis = nb, nh, 0
+	rayo.reloj = os.clock()
+	TormentaVista.estado.rayos += 1
+	TormentaVista.estado.rayo = { base = base, forma = f, ramas = completo }
+end
+
+-- Lo que se ve del rayo sigue al destello y, entre uno y otro, se apaga en Rayo.Resto (se queda un instante en el ojo).
+local function pintarRayo(d: number, reloj: number)
+	if rayo.usados == 0 then
+		return
+	end
+	local R = CFG.Rayo
+	local v = math.max(0, math.min(1, d * R.Realce), rayo.vis - (reloj - rayo.reloj) / R.Resto)
+	rayo.reloj = reloj
+	if v == rayo.vis or (v > 0 and math.abs(v - rayo.vis) < 0.01) then
+		return -- casi igual que antes: no se cambian las secuencias
+	end
+	rayo.vis = v
+	local nucleo = NumberSequence.new(1 - v)
+	local halo = NumberSequence.new(1 - v * R.Halo.Opacidad)
+	for i = 1, rayo.usados do
+		rayo.nucleos[i].Transparency = nucleo
+	end
+	for i = 1, rayo.halosUsados do
+		rayo.halos[i].Transparency = halo
+	end
+end
+
+-- Dónde toca el suelo el rayo que cae en (x, z): lo primero que haya debajo (un árbol, un tejado) o Rayo.Suelo.
+local function sueloEn(x: number, z: number, alto: number): number
+	local filtro = RaycastParams.new()
+	filtro.FilterType = Enum.RaycastFilterType.Exclude
+	local fuera: { Instance } = { carpetaLocal() }
+	if jugador.Character then
+		table.insert(fuera, jugador.Character)
+	end
+	filtro.FilterDescendantsInstances = fuera
+	local hit = workspace:Raycast(Vector3.new(x, alto, z), Vector3.new(0, -alto - 200, 0), filtro)
+	return if hit then hit.Position.Y else CFG.Rayo.Suelo
+end
+
 local function apagarDestello(a: Activo)
+	esconderRayo()
 	for _, luz in a.fogonazos do
 		luz.Enabled = false
 		luz.Brightness = 0
@@ -248,6 +501,7 @@ local function paso()
 				luz.Brightness = CFG.Fogonazo.Brillo * d
 				luz.Enabled = d > 0.01
 			end
+			pintarRayo(d, reloj)
 		end
 	end
 	Ambiente.destello = d
@@ -362,6 +616,14 @@ local function lanzar(r: Relampago, tarde: number)
 		Ambiente.lunas[luz] = 1
 	end
 	actual = { r = r, inicio = os.clock() - tarde, uno = uno, fogonazos = fogonazos, lunas = lunas }
+	-- Si cae cerca, el rayo en el cielo, del lado del que llegará el trueno.
+	local lejos = TormentaVista.distanciaRayo(r.cerca, CFG)
+	if lejos then
+		local x = camara.X + math.cos(r.angulo) * lejos
+		local z = camara.Z + math.sin(r.angulo) * lejos
+		local y = sueloEn(x, z, math.max(camara.Y, 0) + CFG.Rayo.Alto)
+		dibujarRayo(TormentaVista.forma(TormentaVista.semillaRayo(r), r.cerca, CFG), Vector3.new(x, y, z), not uno)
+	end
 	TormentaVista.estado.relampagos += 1
 	conectar()
 	task.delay(math.max(0, r.trueno - tarde), trueno, r)
