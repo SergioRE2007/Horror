@@ -51,6 +51,7 @@ local TrepadorVista = require(script.Parent.TrepadorVista)
 local ImitadorVista = require(script.Parent.ImitadorVista)
 local AcechadorVista = require(script.Parent.AcechadorVista)
 local BestiaVista = require(script.Parent.BestiaVista)
+local CasaVista = require(script.Parent.CasaVista) -- temblor de golpes y pisadas (CasaVista no requiere este)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -89,6 +90,8 @@ local RESPINGO = 0.06 -- radianes que se va la vista hacia arriba al escapárset
 local RESPINGO_S = 0.7 -- ...y s en volver
 local LATIDO_SUSTO = 0.6 -- volumen de más del latido al escapársete (y tono de más, la mitad)...
 local LATIDO_SUSTO_S = 4 -- ...y s en bajar
+-- Escondido, los golpes y las pisadas de fuera (Config.Muerte.Escondido): la cámara es fija y CasaVista no la toca.
+local ESCONDIDO = Config.Muerte.Escondido
 local LATIDO_SOFOCO = 0.35 -- volumen de más del latido del todo sofocado (aporrea aunque no haya bichos)
 -- El suceso Armario visto desde dentro (14.10). Números a ojo (para mirarlos en Studio).
 local PEGADO_CERCA = 4 -- studs de tu cámara a los que tiene que estar SucesoMira
@@ -303,15 +306,39 @@ local function sobresalto(t: number): (number, number)
 	return math.clamp(1 - (t - escapadoEn) / RESPINGO_S, 0, 1), math.clamp(1 - (t - escapadoEn) / LATIDO_SUSTO_S, 0, 1)
 end
 
+-- Escondido, un golpe fuerte cerca (el bicho revienta la puerta, aporrea la ventana, da un portazo): la vista da un
+-- respingo y el latido se dispara, con la misma curva que al escapársete un jadeo, por lo fuerte y cerca que fue.
+local golpeVisto = -math.huge -- el último CasaVista.ultimoGolpe ya mirado (su os.clock)
+local golpeEn = -math.huge -- el último que te sobresaltó
+local golpeFuerza = 0 -- de 0 a 1
+local function sacudida(t: number): (number, number)
+	local golpe = CasaVista.ultimoGolpe
+	if golpe.en > golpeVisto then
+		golpeVisto = golpe.en
+		if golpe.distancia < ESCONDIDO.Cerca then
+			golpeEn = golpe.en
+			golpeFuerza = math.clamp(golpe.fuerza * (1 - golpe.distancia / ESCONDIDO.Cerca) + 0.5, 0, 1)
+		end
+	end
+	return golpeFuerza * math.clamp(1 - (t - golpeEn) / RESPINGO_S, 0, 1),
+		golpeFuerza * math.clamp(1 - (t - golpeEn) / LATIDO_SUSTO_S, 0, 1)
+end
+
 -- Lo que se oye y se ve del aliento, escondido o debajo de un mueble: conteniendo se cierran los bordes, calla la
 -- respiración y el latido sube; jadeando, la respiración sube. `cerca`: studs del bicho más cercano; `base`: el
 -- volumen del latido sin bichos cerca.
 -- Sofocado (14.8), la respiración va más fuerte y deprisa y el corazón aporrea; si se te escapa un jadeo, los bordes
--- se cierran de golpe y el latido se dispara.
-local function notarAliento(cerca: number, base: number, aprieta: number, jadeo: number)
+-- se cierran de golpe y el latido se dispara. `golpeSalto` y `golpeLatido` (de sacudida, solo escondido): lo mismo con
+-- un golpe fuerte cerca.
+local function notarAliento(cerca: number, base: number, aprieta: number, jadeo: number, golpeSalto: number?,
+	golpeLatido: number?)
 	local respingo, disparado = sobresalto(os.clock())
+	local golpe = golpeLatido or 0
 	-- Con el bicho pegado a las rendijas (suceso Armario), los bordes casi del todo cerrados y el latido a tope.
-	local cierre = math.max(math.min(1, ahogo * (0.7 + 0.3 * aprieta) + 0.6 * respingo) * CIERRA, pegado * PEGADO_CIERRA)
+	local cierre = math.max(
+		math.min(1, ahogo * (0.7 + 0.3 * aprieta) + 0.6 * respingo + 0.5 * (golpeSalto or 0)) * CIERRA,
+		pegado * PEGADO_CIERRA
+	)
 	if math.abs(cierre - cierreVisto) > 0.004 or (cierre == 0 and cierreVisto ~= 0) then
 		cierreVisto = cierre
 		ahogoLados.ImageTransparency = 1 - cierre
@@ -323,9 +350,9 @@ local function notarAliento(cerca: number, base: number, aprieta: number, jadeo:
 	end
 	if latido then
 		latido.Volume = base + 1.2 * math.clamp(1 - cerca / 45, 0, 1) + LATIDO_MAS * ahogo * (1 + aprieta)
-			+ LATIDO_SOFOCO * sofoco + LATIDO_SUSTO * disparado + PEGADO_LATIDO * pegado
+			+ LATIDO_SOFOCO * sofoco + LATIDO_SUSTO * disparado + PEGADO_LATIDO * pegado + ESCONDIDO.LatidoGolpe * golpe
 		latido.PlaybackSpeed = 1 + 0.5 * math.clamp(1 - cerca / 30, 0, 1) + LATIDO_PRISA * (ahogo + aprieta)
-			+ 0.25 * sofoco + LATIDO_SUSTO * 0.5 * disparado + PEGADO_PRISA * pegado
+			+ 0.25 * sofoco + LATIDO_SUSTO * 0.5 * disparado + PEGADO_PRISA * pegado + ESCONDIDO.LatidoGolpe * 0.5 * golpe
 	end
 end
 
@@ -408,17 +435,28 @@ local function enEscondite(dt: number)
 	local aprieta, jadeo, suelta = tramos(t)
 	aprieta = math.max(aprieta, pegado) -- pegado a las rendijas, como al final del aguante (o más)
 	local respingo = sobresalto(t)
+	local golpeSalto, golpeLatido = sacudida(t)
 	-- El leve respirar: más deprisa y más hondo jadeando o sofocado de correr; conteniendo, quieta, con el pecho lleno
 	-- (un poco más arriba) y temblando un poco (más al final). Al soltar el aire, tiembla y baja un momento. Si se te
 	-- escapa un jadeo, la vista da un respingo hacia arriba y vuelve.
-	local sofocoMece = if jugador:GetAttribute("Rendimiento") == true then 0 else sofoco -- Rendimiento: no se mece más
+	local rendimiento = jugador:GetAttribute("Rendimiento") == true
+	local sofocoMece = if rendimiento then 0 else sofoco -- Rendimiento: no se mece más
 	fase += dt * (1 + 0.8 * jadeo + 1.4 * sofocoMece)
 	local mece = (1 - ahogo) * (1 + 0.8 * jadeo + 1.2 * sofocoMece)
 	local salto = respingo * respingo
+	local saltoGolpe = golpeSalto * golpeSalto -- un golpe fuerte cerca: el mismo respingo
 	local alto = math.sin(fase * 1.6) * 0.04 * mece + SUBE * ahogo - 2 * SUBE * math.sin(suelta * math.pi)
-		+ 2 * SUBE * salto
+		+ 2 * SUBE * math.max(salto, saltoGolpe)
 	local destino = vista * CFrame.new(0, alto, 0)
-		* CFrame.Angles(math.sin(fase * 0.8) * 0.01 * mece + RESPINGO * salto, math.sin(fase * 0.5) * 0.02 * mece, 0)
+		* CFrame.Angles(math.sin(fase * 0.8) * 0.01 * mece + RESPINGO * salto + ESCONDIDO.Respingo * saltoGolpe,
+			math.sin(fase * 0.5) * 0.02 * mece, 0)
+	-- Los golpes y las pisadas de fuera hacen temblar el armario (el temblor de CasaVista, que aquí no se pinta), más
+	-- rápido y seco que el de contener el aire. Con Rendimiento, la mitad.
+	local sacude = CasaVista.temblorAhora() * ESCONDIDO.Temblor * (if rendimiento then 0.5 else 1)
+	if sacude > 0 then
+		destino *= CFrame.Angles(math.noise(t * 23, 3.1) * sacude, math.noise(t * 23, 7.7) * sacude,
+			math.noise(t * 17, 11.3) * sacude * 0.5)
+	end
 	local tiembla = ahogo * (TIEMBLA + TIEMBLA_FIN * aprieta) + TIEMBLA_SUELTA * math.max(suelta, respingo)
 		+ PEGADO_TIEMBLA * pegado
 	if tiembla > 0 then
@@ -432,7 +470,7 @@ local function enEscondite(dt: number)
 		destino = e.desde:Lerp(destino, k) * CFrame.new(0, -agacha, 0)
 	end
 	Camara.get().CFrame = destino
-	notarAliento(cerca, 0.25, aprieta, jadeo)
+	notarAliento(cerca, 0.25, aprieta, jadeo, golpeSalto, golpeLatido)
 end
 
 -- Los bordes oscuros: cerrados escondido; flojos debajo de un mueble (que sepas que estás escondido); si no, nada.

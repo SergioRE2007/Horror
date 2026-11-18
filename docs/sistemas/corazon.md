@@ -20,6 +20,7 @@ Todo con bloques grises. Animaciones sencillas a propósito: se mejoran más ade
 - `GolpeadorVista`: balanceo de piernas y brazos, golpe con los dos brazos, cabeza ladeada, pasos.
 - `Ambiente`: luz y niebla de día y de noche, viento, aviso al atardecer con rugido lejano, "NOCHE n".
 - `MuerteVista`: cámara del escondite con latido según lo cerca que esté el bicho, susto al morir (cara del bicho, rojo, sangre en pantalla), charco de sangre, mirar a los vivos en tercera persona.
+  - Escondido en un armario la cámara es fija y `CasaVista` no pinta su temblor: `MuerteVista` lo lee (`CasaVista.temblorAhora`, `CasaVista.ultimoGolpe`) y el armario tiembla con cada golpe y pisada; un golpe fuerte cerca da un respingo de la vista, cierra los bordes y dispara el latido unos segundos (`Config.Muerte.Escondido`; con Rendimiento, el temblor a la mitad). Debajo de un mueble no cambia.
 - `Sonido`: plantillas precargadas. Los de `Config.Sonidos` son provisionales de la biblioteca de Roblox (todos cargan); se cambian por ElevenLabs.
 
 ## Probado en Studio (21-10-2026)

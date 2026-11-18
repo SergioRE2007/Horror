@@ -223,6 +223,14 @@ Config.Acechador = {
 -- Caza ESPERA, Acechador y Bestia; lo mira tests/regressions). A ojo.
 Config.Muerte = {
 	SustoComun = { Mira = 0.3, Salta = 0.25, Encima = 1.1, Tiron = 0.12, Despues = 0.3 },
+	-- Lo que se nota escondido en un armario (MuerteVista, que lee CasaVista.temblorAhora y ultimoGolpe): la cámara es
+	-- fija y el temblor de siempre no se pinta. Debajo de un mueble no, que ya tiembla. Números a ojo.
+	Escondido = {
+		Temblor = 0.06, -- radianes de temblor por cada punto del temblor de CasaVista (un golpe es 0,5; una pisada, ~0,2)
+		Respingo = 0.05, -- radianes que se va la vista hacia arriba con un golpe fuerte cerca (por su fuerza)
+		LatidoGolpe = 0.7, -- volumen de más del latido tras ese golpe (y tono de más, la mitad), que baja en unos s
+		Cerca = 14, -- studs de la cámara a los que tiene que ser el golpe para el respingo y el latido
+	},
 }
 
 -- Dificultad por número de jugadores (shared/Dificultad), pensada para 2 (pedido por el usuario). Se calcula al
