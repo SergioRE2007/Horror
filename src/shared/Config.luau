@@ -321,6 +321,7 @@ Config.Cargar = {
 	Fuerza = 0.6, -- parte del peso que levanta cada uno: con 2 que la cogen, 1,2 veces el peso del motor
 	Delante = 1.4, -- studs entre tu cuerpo y lo que llevas
 	Suelta = 9, -- si se queda más lejos (atascada), se te cae
+	Cortar = 0.15, -- segundos queriendo andar mientras trabajas para dejarlo a medias (saltar lo corta enseguida)
 }
 
 -- Talar, serrar y clavar (juego/servidor/Recursos y Casa): árbol -> troncos -> (caballete) tablones -> reparar una
