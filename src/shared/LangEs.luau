@@ -305,6 +305,10 @@ return {
 	["Next: find Harlan's plan in the basement."] = "Siguiente: busca el plano de Harlan en el sótano.",
 	["Next: build the gate at the basement bench and set it in its frame."] = "Siguiente: arma la reja en el banco del sótano y móntala en su marco.",
 	["Next: wait for her in the hall."] = "Siguiente: espérala en el vestíbulo.",
+	["Next: repair the broken window with a plank before night."] = "Siguiente: repara la ventana rota con un tablón antes de la noche.",
+	["Next: repair the broken door with a plank before night."] = "Siguiente: repara la puerta rota con un tablón antes de la noche.",
+	["Next: repair the {n} broken windows and doors with planks before night."] = "Siguiente: repara con tablones las {n} ventanas y puertas rotas antes de la noche.",
+	["Next: leave logs by the fireplace. Fire drives off what comes down the chimney."] = "Siguiente: deja troncos junto a la chimenea. El fuego echa a lo que baja por ella.",
 	["The car is ready. Get in and escape."] = "El coche está listo. Súbete y huye.",
 	-- Coche destrozado tras la noche 1 (16.8).
 	["Your car is wrecked. There's no way out now."] = "Tu coche está destrozado. Ya no hay forma de irse.",

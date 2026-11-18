@@ -167,6 +167,7 @@ Config.Chimenea = {
 	PorTronco = 50, -- segundos que arde cada tronco
 	Max = 2, -- troncos ardiendo a la vez como mucho
 	Echar = 1.2, -- segundos echándolo
+	Cerca = 12, -- studs: un tronco así de cerca del hogar cuenta como "junto a la chimenea" (la meta del día, a ojo)
 }
 
 -- El Imitador (juego/servidor/Imitador): llama a la puerta principal con la voz de un amigo. Hay que mirar en el móvil
