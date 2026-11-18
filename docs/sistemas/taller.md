@@ -8,7 +8,12 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 - Pesados: `Rueda` (cilindro con llanta; una en el garaje y otra en el aserradero) y `TablonReforzado` (con flejes). Más bidones: uno en el garaje y otro en el granero.
 - `Config.Pesados` lleva ahora `Nombre` (para el taller y Lang).
 
-## Bancos (`Taller`, cliente `TallerUi`, lógica en `shared/Recetas`)
+## Depósito de gasoil de la granja (`Recursos`)
+
+- Sin él la gasolina se acababa: 4 bidones en todo el mapa y nada los rellenaba. Depósito viejo de bloques (cilindro oxidado sobre patas, grifo con llave, charco de gasoil y una mano de sangre seca) al sur del granero (`Config.Deposito.Posicion`), hecho por `Recursos` al arrancar dentro de `Mapa/Lugares`, etiqueta `Deposito`.
+- Con un bidón en las manos, R junto al grifo ("Fill can"): el bidón se pone de pie bajo el caño, chorro (`Verter`, el de echar gasolina pero del grifo al bidón) unos segundos (`Llenar`) y cae al lado con lo que quede. Avisos: "The can is full.", "It's dry. Come back tomorrow." o "Someone is already using it." (`Llenando`).
+- Atributo `Litros` (en bidones): `Dia` = 1,5 cada amanecer, sin acumularse y sin guardarse. Números a ojo: da para una noche y media de generador o para empezar el coche/las cruces poco a poco.
+ (`Taller`, cliente `TallerUi`, lógica en `shared/Recetas`)
 
 - Dos bancos de bloques (`Mapa.banco`, etiqueta `Banco`, atributo `Banco`): el del sótano (carpintería) y el del garaje (taller del coche). Prompt "Workbench" (E).
 - Panel de papel oscuro abajo con esquina de sangre: título del banco y cada receta "LO QUE SALE: 2 × TABLÓN, 1 × CHATARRA" con HACER (apagada si no llega). Se cierra con CERRAR, al alejarte, al morir o al ponerte a trabajar.
