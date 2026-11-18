@@ -1494,4 +1494,18 @@ do
 	end
 end
 
+-- La linterna falla con un bicho cerca (EquipoVista) y el parpadeo de los sustos va después de ella.
+do
+	local CL = Config.Linterna
+	igual(CL.BichoCerca > 5 and CL.BichoCerca < CL.Alcance, true, "linterna: distancia de fallo por bicho razonable")
+	igual(CL.BichoFallo > 0 and CL.BichoFallo <= 0.6, true, "linterna: nunca a oscuras mucho rato por un bicho")
+	local function prioridad(ruta: string, patron: string): number?
+		local n = string.match(fs.readFile(ruta), patron)
+		return tonumber(n)
+	end
+	local equipo = prioridad("src/juego/cliente/EquipoVista.luau", 'BindToRenderStep%("Linterna", Enum%.RenderPriority%.Camera%.Value %+ (%d+)')
+	local sustos = prioridad("src/juego/cliente/Sustos/Util.luau", 'BindToRenderStep%(nombre, Enum%.RenderPriority%.Camera%.Value %+ (%d+), function%(%)\n\t\tlocal foco = Util%.miLinterna')
+	igual(equipo ~= nil and sustos ~= nil and sustos > equipo, true, "linterna: el parpadeo de los sustos va después de EquipoVista")
+end
+
 print(`Todo bien: {comprobaciones} comprobaciones.`)
