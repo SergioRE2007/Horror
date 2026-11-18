@@ -1488,4 +1488,30 @@ Config.Adaptar = {
 	Ajena = { Lejos = 25, Angulo = 12, Fuerza = 0.8, Rendimiento = 0.5, Entra = 0.08, Sale = 0.25 },
 }
 
+-- Cielo de la partida (juego/cliente/CieloVista, docs/sistemas/cielo.md): estrellas, luna, nubes (Clouds del Terrain)
+-- y el viento que las arrastra. Colores en RGB, sin Color3 (para que Lune lo cargue). Números a ojo.
+Config.Cielo = {
+	Cada = 0.1, -- s entre repasos (10 por segundo); mientras dura un relámpago, las nubes cada fotograma
+	Estrellas = 600, -- de noche (las 3000 de serie brillaban demasiado con la exposición alta); de día y con tormenta, 0
+	EstrellasRendimiento = 0.5, -- con Rendimiento, esta parte (y sin nubes)
+	Luna = 15, -- MoonAngularSize (de serie 11): algo mayor
+	Rampa = 25, -- s que tarda el cielo en cerrarse o abrirse con la tormenta
+	-- Clouds: Cover (cuánto cielo tapan), Density (lo gruesas y oscuras que son) y Color (RGB). Día y noche se mezclan con
+	-- la misma rampa que la luz de Ambiente; la tormenta va encima.
+	Nubes = {
+		Dia = { Cover = 0.8, Density = 0.55, Color = { 150, 153, 158 } }, -- gris y casi cerrado
+		Noche = { Cover = 0.56, Density = 0.42, Color = { 104, 111, 132 } }, -- rotas: la luna y algunas estrellas entre ellas
+		Tormenta = { Cover = 0.94, Density = 0.86, Color = { 64, 66, 76 } }, -- cerrado, bajo y pesado
+	},
+	-- Con cada relámpago (Ambiente.destello, de 0 a 1) la nube se aclara por dentro: el color va hacia Color en esta
+	-- parte (Mezcla) y se hace algo menos densa. Vuelve igual en cuanto acaba.
+	Destello = { Color = { 205, 214, 240 }, Mezcla = 0.8, Densidad = -0.2 },
+	Viento = 6, -- workspace.GlobalWind = AireVista.viento (rumbo × fuerza de 0,4 a 1,6) × esto: las nubes se arrastran
+	Tormenta = {
+		Abre = 0.93, -- parte de la noche desde la que el cielo empieza a abrirse (el último relámpago cae antes del 0,92)
+		Luz = 0.8, -- con el cielo cerrado, Brightness y OutdoorAmbient de Ambiente por esto (el relámpago, entero)
+		Viento = 1.8, -- el viento de las nubes, por esto
+	},
+}
+
 return Config

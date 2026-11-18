@@ -51,6 +51,9 @@ Ambiente.factor = {} :: { [Light]: number }
 Ambiente.destello = 0
 Ambiente.lunas = {} :: { [Light]: number }
 Ambiente.temblor = 0
+-- Cielo cerrado (CieloVista, cielo.md): de 0 a 1, la tormenta en rampa. Baja algo la luz de fuera
+-- (Config.Cielo.Tormenta.Luz); con 0, nada.
+Ambiente.nublado = 0
 local semillas: { [Light]: number } = {} -- cada bombilla tiembla a su aire
 local contador = 0
 local CONTRASTE = 0.1
@@ -120,6 +123,13 @@ local function pintar(k: number, hora: number)
 	Lighting.Brightness = mezcla(DIA.Brightness, NOCHE.Brightness, k)
 	Lighting.Ambient = DIA.Ambient:Lerp(NOCHE.Ambient, k)
 	Lighting.OutdoorAmbient = DIA.OutdoorAmbient:Lerp(NOCHE.OutdoorAmbient, k)
+	local nublado = Ambiente.nublado
+	if nublado > 0 then -- con el cielo cerrado de tormenta llega menos luz de fuera (el relámpago, encima, entero)
+		local f = 1 - (1 - Config.Cielo.Tormenta.Luz) * math.min(nublado, 1)
+		local fuera = Lighting.OutdoorAmbient
+		Lighting.Brightness *= f
+		Lighting.OutdoorAmbient = Color3.new(fuera.R * f, fuera.G * f, fuera.B * f)
+	end
 	atmosfera.Density = mezcla(DIA.Densidad, NOCHE.Densidad, k)
 	atmosfera.Color = DIA.Niebla:Lerp(NOCHE.Niebla, k)
 	atmosfera.Decay = atmosfera.Color
@@ -186,6 +196,18 @@ function Ambiente.start()
 	color.Saturation = -0.35 -- colores apagados, realistas
 	color.Contrast = CONTRASTE
 	color.Parent = Lighting
+	-- Lo que traiga el lugar (la plantilla de Roblox pone Bloom, SunRays y DepthOfField), apagado: brillos flojos y la
+	-- niebla ya da la profundidad. Un efecto que el juego quiera de verdad lleva el atributo Permitido.
+	local function apagarEfecto(e: Instance)
+		local apagable = e:IsA("BloomEffect") or e:IsA("SunRaysEffect") or e:IsA("DepthOfFieldEffect")
+		if apagable and e:GetAttribute("Permitido") ~= true then
+			(e :: PostEffect).Enabled = false
+		end
+	end
+	for _, e in Lighting:GetChildren() do
+		apagarEfecto(e)
+	end
+	Lighting.ChildAdded:Connect(apagarEfecto)
 	viento = if Config.Sonidos.Viento then Sonido.bucle("Viento") else nil
 	local function apuntarLuz(luz: Instance)
 		if luz:IsA("Light") and not lamparas[luz] then
