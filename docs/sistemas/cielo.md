@@ -28,6 +28,29 @@ noches de tormenta. Todo en el cliente y solo de adorno: `src/juego/cliente/Ciel
 - **Efectos del lugar**: `Ambiente.start` apaga los `Bloom`, `SunRays` y `DepthOfField` que haya en `Lighting` (los
   trae la plantilla de Roblox) y los que lleguen tarde. Uno que el juego quiera de verdad lleva el atributo `Permitido`.
 
+## Sol, alba y ocaso
+
+En `src/juego/cliente/Ambiente.luau`, con `Config.Cielo.Sol` y `Config.Cielo.Alba` (a ojo).
+
+- `Ambiente.hora(fase, p)`: cuánto de noche (`k`) y la hora (`ClockTime`). Día de 6,5 a 18,5 (`k` sube en el último
+  20 %); noche de 18,5 a 6,5, deprisa hasta medianoche, casi quieta con la luna alta y hacia el alba en el último 10 %.
+- `Ambiente.sol(hora)`: 0 con el sol bajo el horizonte, 1 con el sol alto, 0,5 justo en `Sol.Sale` / `Sol.Pone`
+  (rampas de `Margen` horas a cada lado). Ajustar `Sale` y `Pone` mirando `Lighting:GetSunDirection().Y` en Studio.
+- La exposición sigue al **sol**, no a `k`: al atardecer no sube hasta que el sol baja de `Sol.Pleno` (sin pico de luz
+  antes de "NIGHT n") y al amanecer no baja hasta que el sol empieza a salir (antes caía con el sol aún abajo y los
+  últimos segundos de la noche eran los más negros). El `Brightness` de noche (luna) solo entra `Sol.Luna` horas después
+  de ponerse el sol del todo: con sol nunca pasa del de día. Lámparas, `Ambient` y niebla siguen con `k`.
+- `Ambiente.franja(hora, nublado)`: campana de `Alba.Ancho` horas alrededor de la salida y la puesta (máxima con el sol
+  en el horizonte, 0 a pleno día y plena noche). Lleva la niebla (`Color` más que `Decay`), algo del `OutdoorAmbient` y
+  el tinte de la imagen hacia `Alba.Amanecer` (cálido apagado) o `Alba.Atardecer` (rojo apagado); un poco de `Glare` y
+  algo menos de gris. Sin Bloom.
+- Con tormenta la franja se apaga en rampa con `Ambiente.nublado` (el amanecer de una noche de tormenta sale gris; con
+  `TormentaPrueba` en Studio se ve). En la escena final (`EscenaFinal` del jugador) tampoco hay franja: la luz la lleva
+  la escena. La bajada de luz de la tormenta y el relámpago van encima de todo esto, como antes.
+- Mientras hay franja se repinta a 30 Hz, como con `0 < k < 1`.
+- `Ambiente.valores(fase, p, nublado)`: lo que se pinta antes de la tormenta y el relámpago, sin tocar nada (rellena
+  siempre la misma tabla). Lo mira el banco.
+
 ## Rendimiento
 
 Con Rendimiento (se mira en cada repaso: cambia en marcha), sin nubes y la mitad de estrellas. Un solo `RenderStepped`
@@ -38,7 +61,8 @@ que repasa cada `Cada` s (10 por segundo); las nubes, cada fotograma solo mientr
 `tests/bancos/cielo.luau`: carga `CieloVista` y `Ambiente` de verdad con una `TormentaVista` falsa. Mira las cuentas
 (estados de nubes, destello que vuelve igual, estrellas, rampa), el día, el anochecer, la noche, la tormenta que llega en
 rampa y baja la luz, el relámpago, Rendimiento, `TormentaPrueba` (solo en Studio), entrar tarde, un `Sky` o unas nubes
-que llegan tarde y los efectos apagados.
+que llegan tarde y los efectos apagados. Y el sol: exposición y brillo sin picos ni saltos al atardecer y al amanecer, la
+franja en campana, apagada con el cielo cubierto, y en marcha al alba la tormenta y la escena final la quitan.
 
 ## Mirar en Studio
 

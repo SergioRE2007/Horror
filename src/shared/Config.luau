@@ -1557,6 +1557,25 @@ Config.Cielo = {
 		Luz = 0.8, -- con el cielo cerrado, Brightness y OutdoorAmbient de Ambiente por esto (el relámpago, entero)
 		Viento = 1.8, -- el viento de las nubes, por esto
 	},
+	-- El sol y la franja cálida del alba y del ocaso (juego/cliente/Ambiente). Sol: horas (ClockTime) a las que el sol
+	-- cruza el horizonte, y cuánto antes y después se va encendiendo o apagando su luz (Margen, horas). Pleno: con el sol
+	-- a partir de esto la exposición ya es la del día. Luna: horas tras ponerse el sol (y antes de que empiece a salir)
+	-- en que la luz sube a la de noche (nunca más que el día con sol).
+	Sol = { Sale = 6.1, Pone = 17.9, Margen = 0.7, Pleno = 0.9, Luna = 1 },
+	-- Franja cálida: una campana de Ancho horas a cada lado de la salida y la puesta. Lleva la niebla (Niebla), la luz
+	-- de fuera (Ambiente) y el tinte de la imagen hacia el color de cada una; algo de reflejo del sol en la niebla
+	-- (Glare) y un poco menos de gris (Saturacion). Flojo y sin Bloom; con la tormenta (Ambiente.nublado) se apaga en
+	-- rampa y el amanecer queda gris, y en la escena final no hay.
+	Alba = {
+		Amanecer = { 150, 120, 105 }, -- colores en RGB (sin Color3, para que Lune cargue Config)
+		Atardecer = { 110, 62, 55 },
+		Tinte = { 255, 236, 222 },
+		Ancho = 1.4,
+		Niebla = 0.55,
+		Ambiente = 0.25,
+		Glare = 0.3,
+		Saturacion = 0.12,
+	},
 }
 
 return Config
