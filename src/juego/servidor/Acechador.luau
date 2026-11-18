@@ -205,7 +205,8 @@ local function ataque(a: Ataque)
 				Remotes.Acechador:FireAllClients("Luz", modelo)
 			end
 			local rr = raizDe(presa) :: BasePart
-			if not b:quieto() and (rr.Position - b.raiz.Position).Magnitude < A.Pillar + 2 then
+			-- Sin nada en medio (Caza.alcanza): si te metes en un edificio y te pegas a la pared, no te pilla a través.
+			if not b:quieto() and b:alcanza(presa, A.Pillar + A.MasPillar) then
 				b.humanoide:MoveTo(b.raiz.Position)
 				b:mirarA(rr.Position)
 				Muerte.matar(presa, b:cabeza(), b.modelo)

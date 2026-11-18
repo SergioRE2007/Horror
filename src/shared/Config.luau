@@ -200,7 +200,23 @@ Config.Acechador = {
 	Frena = 2.5, -- segundos quieto al darle la linterna...
 	Inmune = 2.5, -- ...y después, segundos en que no le vuelve a frenar
 	Pillar = 5,
+	MasPillar = 2, -- studs de más al echarse encima (a su raíz o su cabeza, sin pared en medio: Caza.alcanza)
 	Max = 2, -- como mucho, a la vez en el mapa
+}
+
+-- Cuando un bicho de los que cazan por la casa (Caza.cazar) te pierde de vista (servidor/CazaBusqueda). Números a ojo.
+Config.Caza = {
+	Busca = {
+		Memoria = 6, -- s que le vale el rastro: si tarda más en llegar a donde te vio, vuelve a la ronda sin buscar
+		Adelante = 12, -- studs que sigue en la dirección que llevaba al llegar a donde te vio
+		Margen = 2, -- studs antes de la pared en que se para si la hay en esa dirección
+		Mirar = 1.5, -- s parado mirando a un lado y a otro
+		Giro = 70, -- grados que gira la vista a cada lado
+		Salas = 2, -- salas de al lado (de esa planta) que recorre antes de volver a la ronda
+		Planta = 6, -- studs de alto para contar una sala como de la misma planta
+		Limite = 8, -- s como mucho yendo a cada punto de la búsqueda (si no llega, al siguiente)
+		Rumbo = 2, -- studs/s a los que tiene que ir para apuntar hacia dónde iba
+	},
 }
 
 -- Dificultad por número de jugadores (shared/Dificultad), pensada para 2 (pedido por el usuario). Se calcula al

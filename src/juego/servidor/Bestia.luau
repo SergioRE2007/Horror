@@ -321,8 +321,9 @@ local function perseguir(e: Estado, b: Caza.Bicho, presa: Player, destino: Vecto
 	end
 	local escondido = Muerte.escondite(presa) ~= nil
 	local suRaiz = raizDe(presa)
-	local alcanza = if escondido or not suRaiz then b:cerca(destino, 5)
-		else (suRaiz.Position - b.raiz.Position).Magnitude < b.o.Pillar + 1.5
+	-- Sin nada en medio (Caza.alcanza): antes pillaba solo por distancia, a través de una puerta cerrada o una pared.
+	-- Si no alcanza, sigue yendo hacia ella (ir, abajo) y abre la puerta al llegar.
+	local alcanza = if escondido or not suRaiz then b:cerca(destino, 5) else b:alcanza(presa, b.o.Pillar + 1.5)
 	if alcanza then
 		b.humanoide:MoveTo(b.raiz.Position)
 		b:mirarA(if suRaiz then suRaiz.Position else destino)
