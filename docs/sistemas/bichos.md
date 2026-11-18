@@ -107,6 +107,7 @@ Servidor (`Caza`, `Bestia`):
   sin correr sirve. Si te vio u oyó hace menos de `Memoria` s (2), te ve hacia cualquier lado (doblar una esquina no le
   despista). Va antes que agachado y cubierto, que siguen mandando. El oído no cambia. `Opciones.Campo` da otro cono a
   un bicho (por defecto, el de `Config`). Números a ojo; banco `tests/bancos/vista-bichos.luau`.
+- Niebla cerrada (`Caza.esNiebla`: la de `CieloVista`, con `shared/TiempoNoche`, de noche hasta `Niebla.Abre`; en Studio `NieblaPrueba`): si el bicho o tú estáis fuera, la vista por `Config.Caza.Niebla.Vista` (0,4: el Golpeador de 70 a 28) sin bajar de `VerEspalda`; el oído y dentro, igual. El Acechador acecha y sale a `Niebla.Acechador` (0,6) de su distancia, para que se le vea la silueta. A ojo; banco `niebla-bichos`.
 - Agachado se te ve y se te oye peor (`PosturaReglas.alcanceVista`/`alcanceOido`); corriendo, te oyen a `Config.Correr.Oido` (22 en vez de 8, 14.8: `correr.md`). Debajo de un mueble (atributo
   `Cubierto`) solo te notan muy de cerca (`VerCubierto`) y en tu misma parte del mapa, pero te huelen (`oler`/`huele`:
   a `Olfato` studs, `Huele` s hasta saber dónde estás).
