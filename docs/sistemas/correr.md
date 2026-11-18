@@ -105,6 +105,20 @@ En línea recta a 60 Hz (en la casa, las esquinas cambian mucho las cosas):
   la torre; desde el pueblo, ni corriendo. Desde 36, el mejor ciclo aguanta sus 22 s (`Persigue`) y se cansa.
 - La clase Corredor sí deja atrás a todos con un buen ciclo (22,4 contra 21): a mirar.
 
+## Escondites fuera de la casa
+
+Desde el pueblo ni corriendo se llega a la luz: por eso hay cuatro armarios fuera (`Mapa.armario`, el de lamas de
+siempre, puesto dentro de `Mapa.conPadre`): la cocina de la granja y el granero (de aperos) en `Lugares`, el
+confesionario de la iglesia y el ropero de la casa abierta en `PuebloInteriores`. Cada uno con lo que cuenta lo que
+pasó (arañazos de uñas, sangre seca; Moderate como máximo). En la iglesia se quitó el primer banco del norte y el
+segundo es más corto; en la casa abierta la cocina pasó al rincón del sureste y la silla al lado oeste de la mesa.
+- Escondido fuera, el Acechador no te suelta ni se esfuma: se para a `Config.Acechador.AguardaLejos` (28) del
+  escondite, de cara a él, partiendo ramas, `Aguarda` (20) s; si sales antes, carga; si aguantas, se va. Como mucho
+  `Aguardas` (2) esperas por ataque. Mientras sigues escondido no corre el tiempo para el siguiente ataque (se queda
+  en lo que llevaba). Números a ojo.
+- `tests/bancos/lugares.luau` mira que cada uno esté dentro de su edificio, con la Salida libre y a ras del suelo, sin
+  meterse en paredes, muebles ni bancos, sin estorbar la puerta ni tapar ventanas, llaves, objetos, pesados o pistas.
+
 ## Bancos de Lune
 
 - `tests/bancos/_roblox.luau`: un Roblox de mentira (instancias con señales, servicios, reloj y tareas falsos, rayos
@@ -167,6 +181,10 @@ Antes: en Edit, que Rojo ha sincronizado (`game.ServerScriptService:FindFirstChi
 12. **Morir corriendo y reaparecer**: `Aguante` 1 y sin `Corriendo`, `Agotado` ni `Frena`; la barra no sale.
 13. **Escena final** (14.9): correr hasta agotarse (oír los resoplidos) y arrancar el coche enseguida: en la escena
    de la huida ya no suenan (`EscenaFinal`, ver `partida.md`).
+14. **Escondites de fuera** (`Prueba:Fire("Noche")` y `("Acechador")` en la granja y en el pueblo): E en el armario,
+   se ve fuera entre las lamas; el Acechador se para cerca, quieto, partiendo ramas, y se va al rato (~20 s). Salir
+   antes: carga ("Run. Get back to the light."). Al salir no quedas dentro de una pared; el armario no tapa la puerta
+   ni la mesa de la pista. En la casa abierta, que la cocina no tape mucho la esquina de la ventana del este.
 
 ## Números a ojo para mirar en Studio
 
