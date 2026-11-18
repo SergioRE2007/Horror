@@ -12,6 +12,9 @@
 --   Con la linterna encima: se encoge hacia atrás, aparta la cara, recoge una mano delante del pecho temblando y con la
 --   otra sigue arañando, más despacio y casi sin ruido (el servidor raspa más lento, no para).
 --   Flash (remote Raspador "Chilla"): chilla con la boca abierta del todo, recoge las dos manos y se va corriendo.
+--   Aturdido (el cepo: atributo Aturdido, BichoComun.aturdido): chilla, se echa atrás con las manos delante de la cara
+--   (por cinemática, como al encogerse: tampoco cruzan el cristal), la cabeza apartada y la boca abierta, temblando, y
+--   forcejea a tirones: se dobla, baja las manos hacia el pie y tira de la pierna (ver ATURDE). Sin arañar ni chirrido.
 --   Gateando (atributos Gatea y GateaHora, pedido por el usuario: "que el monstruo pueda gatear si te huele... para
 --   pillarte debajo de sitios"): se echa boca abajo y se arrastra por debajo del mueble a por ti (ver GATEO).
 -- Un solo bucle (Stepped) que solo corre mientras hay alguno; la vida, solo cerca de la cámara. Si el modelo se va
@@ -69,8 +72,35 @@ local VAHO = 7 -- partículas cada vez que suelta el aire
 local BRAZO, ANTEBRAZO = 2.65, 4.153
 local DESVIO = math.atan2(0.17, 4.15)
 local CARA = CFrame.new(0, 0, -0.62) -- en la cabeza
+-- Aturdido (a ojo): se echa atrás (Torso), endereza y ladea el cuello (Cuello, Ladeo), aparta la cabeza (cabeceo, giro
+-- y ladeo, hacia el lado que toque) y pone la punta de los dedos delante de la cara (Manos: en la cara, x hacia fuera)
+-- con los brazos algo cerrados (Abre); los pies, uno atrás y otro adelante (Piernas: el del lado de la cara, atrás); la
+-- boca, abierta; tiembla `Tiembla` radianes. Cada tirón del cepo (Tiron): se dobla, baja la cabeza, lleva los dedos
+-- hacia el pie (Manos: en la raíz) y tira de esa pierna hacia atrás, retorciéndose. Chilla al empezar con este tono.
+local ATURDE = {
+	Torso = 0.5,
+	Cuello = 0.3,
+	Ladeo = 0.35,
+	Cabeza = Vector3.new(-0.3, 0.9, 0.4),
+	Manos = Vector3.new(0.3, -0.15, -0.9),
+	Abre = -0.25,
+	Piernas = { -0.15, 0.08 },
+	Boca = 1.0,
+	Tiembla = 0.06,
+	Tiron = { Torso = -0.75, Cabeza = -0.45, Manos = Vector3.new(0.55, -1.6, -1.2), Pierna = -0.45, Giro = 0.35 },
+	Chilla = 0.75,
+	-- Segundos en subir y bajar los brazos: de 6,8 studs y con los codos por encima de la cabeza, en lo que tarda el resto
+	-- (0,12 s) daban un latigazo. Al acabar terminan de bajar después del resto.
+	Suben = 0.3,
+	Bajan = 0.45,
+	TironManos = 12, -- por segundo: lo que siguen los brazos a cada tirón (más, más de golpe)
+	-- Recién salido de debajo de un mueble (hasta que vuelve a andar) no sube los brazos: al subir por delante
+	-- atravesaban el tablero (banco del gateo, con el flash). Segundos en dejar de subirlos o en volver a poder.
+	Junto = 0.3,
+}
 local MOTORES = { "Torso", "Cuello", "Cabeza", "Mandibula", "BrazoI", "BrazoD", "AntebrazoI", "AntebrazoD", "PiernaI", "PiernaD" }
 local LADOS = { -1, 1 }
+local MANOS_DOLOR = { Vector3.zero, Vector3.zero } -- aturdido: dónde van los dedos de cada mano (se reutiliza)
 -- Gatear a por alguien escondido debajo de un mueble (pedido por el usuario: "que el monstruo pueda gatear si te huele
 -- con una animación guapa para pillarte debajo de sitios"). El servidor (Caza) le para en el borde, de cara a ti, y pone
 -- en su modelo Gatea (dónde estás) y GateaHora (workspace:GetServerTimeNow() al empezar) durante Config.Postura.Gatear s.
@@ -192,6 +222,11 @@ type Bicho = {
 	gateo: number, -- 0..1, suave: echado boca abajo a por alguien debajo de un mueble
 	gatea: Gateo?,
 	agarra: number, -- os.clock de rugir: el susto al morir le deja en el suelo
+	manos: number, -- 0..1: aturdido, cuánto han subido los brazos a la cara (más despacio que el resto: son muy largos)
+	dolorLado: number, -- aturdido: hacia dónde aparta la cara (lo guarda para cuando bajan los brazos al acabar)
+	tironManos: number, -- 0..1: los tirones del cepo, en los brazos (con retraso: si no, daban un latigazo)
+	junto: boolean, -- ha gateado y aún no ha vuelto a andar: sigue junto al mueble
+	libre: number, -- 0..1 (lineal): aturdido, cuánto puede subir los brazos (junto al mueble, nada)
 }
 local bichos: { [Model]: Bicho } = {}
 local conexion: RBXScriptConnection? = nil
@@ -264,14 +299,21 @@ local function inclinar(m: { [string]: Motor6D }, hasta: number): number
 end
 
 -- Giros del hombro y del codo para que la punta de los dedos llegue a `objetivo` (en la raíz), con el torso girado
--- `torso`. Dos huesos en el plano del brazo, el codo hacia arriba (comprobado con Lune).
+-- `torso`. Dos huesos en el plano del brazo, el codo hacia arriba (comprobado con Lune). Sin la vuelta que da atan2 con
+-- la mano por encima del hombro (aturdido, delante de la cara): hacia la mano, de -π/2 a 3π/2 (por delante y por
+-- arriba), y el codo de -π a π; si no, al pasar por arriba saltaban una vuelta entera (banco aturdidos).
 local function brazoIK(m: { [string]: Motor6D }, torso: CFrame, hombro: Motor6D, objetivo: Vector3): (number, number)
 	local p = (m.Torso.C0 * torso * m.Torso.C1:Inverse() * hombro.C0):PointToObjectSpace(objetivo)
 	local y, z = p.Y, p.Z
 	local d = math.clamp(math.sqrt(y * y + z * z), ANTEBRAZO - BRAZO + 0.01, ANTEBRAZO + BRAZO - 0.01)
-	local h = math.atan2(-z, -y) + math.acos(math.clamp((BRAZO * BRAZO + d * d - ANTEBRAZO * ANTEBRAZO) / (2 * BRAZO * d), -1, 1))
+	local hacia = math.atan2(-z, -y) -- hacia la mano, desde abajo hacia delante
+	if hacia < -math.pi / 2 then
+		hacia += 2 * math.pi
+	end
+	local h = hacia + math.acos(math.clamp((BRAZO * BRAZO + d * d - ANTEBRAZO * ANTEBRAZO) / (2 * BRAZO * d), -1, 1))
 	local ey, ez = -math.cos(h) * BRAZO, -math.sin(h) * BRAZO
-	return h, math.atan2(-(z - ez), -(y - ey)) - h - DESVIO
+	local c = math.atan2(-(z - ez), -(y - ey)) - h - DESVIO
+	return h, (c + math.pi) % (2 * math.pi) - math.pi
 end
 
 -- Una pasada de una mano (u de 0 a 1): baja despacio arañando y vuelve arriba despegada.
@@ -827,6 +869,17 @@ local function animar(dt: number)
 		local raspando = modelo:GetAttribute("Raspando") == true
 		local luz = modelo:GetAttribute("Iluminado") == true and raspando
 		local chillando = ahora - b.chillido < 1.6
+		-- Aturdido (el cepo): chilla al empezar y deja de arañar; la pose de dolor manda sobre la de siempre.
+		local aturdido = BichoComun.aturdido(modelo, ahora)
+		local dolor = if aturdido then aturdido.peso else 0
+		if aturdido then
+			b.dolorLado = aturdido.lado
+		end
+		b.manos = if dolor > b.manos then math.min(dolor, b.manos + dt / ATURDE.Suben)
+			else math.max(dolor, b.manos - dt / ATURDE.Bajan)
+		if aturdido and aturdido.nuevo then
+			Sonido.en("Chillido", b.cabeza.Position, ATURDE.Chilla)
+		end
 		b.raspar = acercar(b.raspar, if raspando then 1 else 0, dt, 3)
 		b.encogido = acercar(b.encogido, if luz or chillando then 1 else 0, dt, if luz or chillando then 10 else 2)
 
@@ -838,7 +891,14 @@ local function animar(dt: number)
 		local gateando = b.gateo > 0 or modelo:GetAttribute("Gatea") ~= nil -- mientras gatea, la vida de espera se pausa
 		b.vida = acercar(b.vida, if (rapidez < QUIETO or raspando) and not chillando and not gateando and distancia < vidaLejos
 			then 1 else 0, dt, 2)
-		local vida = b.vida * (1 - b.encogido)
+		local vida = b.vida * (1 - b.encogido) * (1 - dolor)
+		if gateando then
+			b.junto = true
+		elseif rapidez > QUIETO then
+			b.junto = false
+		end
+		b.libre = if b.junto then math.max(0, b.libre - dt / ATURDE.Junto) else math.min(1, b.libre + dt / ATURDE.Junto)
+		local manos = suave(b.manos) * suave(b.libre)
 
 		-- Dónde está el cristal (cada segundo mientras raspa): la cara y las manos se quedan justo delante. La cara se
 		-- mide también a la altura de lo alto de la cabeza: si la ventana es baja, ahí está la pared (más cerca).
@@ -913,6 +973,40 @@ local function animar(dt: number)
 		-- Torso: pegado al cristal (raspando) o echado atrás (luz); respira y pasa el peso de un pie a otro.
 		local inclina = b.raspar * b.pegar + b.encogido * 0.45 + 0.03 * aire
 		local torso = CFrame.new(0.06 * w, 0.04 * aire * vida, 0) * CFrame.Angles(inclina, 0, 0.02 * w)
+		-- Aturdido: la pose de dolor (el torso aquí, para que los brazos lleguen con él; lo demás, después) y dónde van
+		-- los dedos (en la raíz): delante de la cara de esa pose o, en cada tirón, hacia el pie.
+		local temblorDolor, tiron, tira, ladoDolor = 0, 0, 1, 1
+		local cuelloDolor, cabezaDolor = CFrame.identity, CFrame.identity
+		local manosDolor = MANOS_DOLOR
+		if dolor > 0.001 or manos > 0.001 then
+			local T = ATURDE.Tiron
+			local tirando = if aturdido then aturdido.tiron else 0
+			temblorDolor = if aturdido then aturdido.temblor else 0
+			local tiembla = ATURDE.Tiembla * temblorDolor
+			tiron = math.abs(tirando)
+			tira = if tirando >= 0 then 1 else -1
+			ladoDolor = b.dolorLado
+			b.tironManos = acercar(b.tironManos, tiron, dt, ATURDE.TironManos)
+			local torsoDolor = CFrame.Angles(ATURDE.Torso + T.Torso * tiron + tiembla, T.Giro * tirando, tiembla * 0.6)
+			cuelloDolor = CFrame.Angles(ATURDE.Cuello + tiembla, 0, -ladoDolor * ATURDE.Ladeo)
+			local c = ATURDE.Cabeza
+			cabezaDolor = CFrame.fromEulerAnglesYXZ(c.X + T.Cabeza * tiron + tiembla * 1.5, ladoDolor * c.Y + tiembla,
+				ladoDolor * c.Z - tiembla)
+			local cara = m.Torso.C0 * torsoDolor * m.Torso.C1:Inverse() * m.Cuello.C0 * cuelloDolor * m.Cuello.C1:Inverse()
+				* m.Cabeza.C0 * cabezaDolor * m.Cabeza.C1:Inverse() * CARA
+			for i, lado in LADOS do
+				local delante = cara * Vector3.new(lado * ATURDE.Manos.X, ATURDE.Manos.Y, ATURDE.Manos.Z)
+				local pie = Vector3.new(lado * T.Manos.X, T.Manos.Y, T.Manos.Z)
+				manosDolor[i] = delante:Lerp(pie, b.tironManos)
+				if b.raspar > 0.01 then -- delante del cristal (la cara, echada atrás, ya queda lejos)
+					manosDolor[i] = Vector3.new(manosDolor[i].X, manosDolor[i].Y,
+						math.max(manosDolor[i].Z, -(b.hastaManos[i] - MARGEN_MANOS)))
+				end
+			end
+			torso = torso:Lerp(torsoDolor, dolor)
+		else
+			b.tironManos = 0
+		end
 		m.Torso.Transform = torso
 		m.PiernaI.Transform = CFrame.Angles(s * 0.7 * paso + 0.04 * math.max(0, w), 0, -0.015 * w)
 		m.PiernaD.Transform = CFrame.Angles(-s * 0.7 * paso + 0.04 * math.max(0, -w), 0, -0.015 * w)
@@ -921,9 +1015,11 @@ local function animar(dt: number)
 		-- las manos se despegan y se recogen delante del pecho, temblando: con la linterna solo la izquierda (con la otra
 		-- sigue arañando, más despacio: el servidor raspa más lento, no para) y al chillar las dos. Todo por cinemática:
 		-- de un sitio a otro la punta de los dedos va en línea recta, sin cruzar el cristal.
-		local temblor = b.encogido * math.sin(ahora * 40) * 0.05
+		local temblor = if poco then 0 else b.encogido * math.sin(ahora * 40) * 0.05
 		local aranan = 0
-		local peso = math.min(1, b.raspar + b.encogido) -- suma: al chillar, una baja mientras la otra sube
+		-- (suma: al chillar, una baja mientras la otra sube; aturdido, los dedos van por cinemática a la cara)
+		local cristal = math.min(1, b.raspar + b.encogido)
+		local peso = math.max(cristal, manos)
 		b.pasada += dt / PASADA * (if luz then 0.3 else 1)
 		for i, lado in LADOS do
 			local hombro = m[if lado < 0 then "BrazoI" else "BrazoD"]
@@ -934,7 +1030,7 @@ local function animar(dt: number)
 			if peso > 0.01 then
 				local u = (b.pasada + (if lado < 0 then 0 else 0.5) + b.semilla) % 1
 				local alto, despega, arana = pasada(u)
-				aranan += arana * arana * (1 - retira)
+				aranan += arana * arana * (1 - retira) * (1 - manos)
 				rasca = arana * vida
 				-- La punta de los dedos en el cristal (la cinemática solo mira la altura y la distancia; de lado va el hombro).
 				local enCristal = Vector3.new(
@@ -943,14 +1039,19 @@ local function animar(dt: number)
 					-(b.hastaManos[i] - MARGEN_MANOS) + DESPEGA * despega
 				)
 				local recogida = Vector3.new(lado * RECOGIDA.X, RECOGIDA.Y, RECOGIDA.Z)
-				local hIK, cIK = brazoIK(m, torso, hombro, enCristal:Lerp(recogida, retira))
+				-- Aturdido: del cristal, en línea recta; sin cristal (colgando), la pose de la cara, mezclada por los giros.
+				local objetivo = enCristal:Lerp(recogida, retira):Lerp(manosDolor[i], if cristal > 0.01 then manos else 1)
+				local hIK, cIK = brazoIK(m, torso, hombro, objetivo)
 				h += (hIK - h) * peso
 				c += (cIK - c) * peso
 				giro = 0.14 * math.sin(ahora * 15 + lado) * rasca * (1 - retira) -- los dedos rascando
 			end
 			c -= 0.15 * crispacion(ahora - b.crispa[i]) * vida -- los dedos se despegan de golpe
 			-- Al subirlos al cristal o bajarlos pasan por el lado (por delante los codos y los dedos atravesarían el cristal).
-			local abre = 0.08 + 1.0 * math.sin(math.pi * peso) + 0.02 * math.sin(ahora * 17 + lado * 2) * rasca
+			-- (aturdido, no: del cristal a la cara van en línea recta, y colgando suben por delante)
+			local abre = 0.08 + 1.0 * math.sin(math.pi * cristal) + 0.02 * math.sin(ahora * 17 + lado * 2) * rasca
+			abre += (ATURDE.Abre - abre) * manos * (1 - b.tironManos) -- aturdido, algo cerrados; en cada tirón, hacia el pie
+			h += lado * ATURDE.Tiembla * temblorDolor * 2 * manos
 			hombro.Transform = CFrame.Angles(h + lado * temblor * (0.3 + 0.7 * retira), 0, lado * abre) -- la que araña, poco
 			codo.Transform = CFrame.Angles(c, giro, 0)
 		end
@@ -968,6 +1069,20 @@ local function animar(dt: number)
 		local abre = 0.15 + b.encogido * 0.35 + (if chillando then 0.6 + 0.12 * math.sin(ahora * 35) else 0)
 			+ vida * (0.06 * math.max(0, -aire) + 0.5 * bocaLenta)
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
+
+		-- Aturdido: el cuello, la cabeza, las piernas y la boca, hacia la pose de dolor (el torso y los brazos, arriba).
+		if dolor > 0.001 then
+			m.Cuello.Transform = m.Cuello.Transform:Lerp(cuelloDolor, dolor)
+			m.Cabeza.Transform = m.Cabeza.Transform:Lerp(cabezaDolor, dolor)
+			for _, lado in LADOS do
+				local pierna = m[if lado < 0 then "PiernaI" else "PiernaD"]
+				local x = (if lado == ladoDolor then ATURDE.Piernas[1] else ATURDE.Piernas[2])
+					+ (if lado == tira then ATURDE.Tiron.Pierna * tiron else 0)
+				pierna.Transform = pierna.Transform:Lerp(CFrame.Angles(x, 0, 0), dolor)
+			end
+			m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-(ATURDE.Boca + 0.12 * math.abs(temblorDolor)
+				+ 0.15 * tiron), 0, 0), dolor)
+		end
 
 		-- Debajo de un mueble: se echa boca abajo y se arrastra a por ti, encima de todo lo anterior.
 		gatear(b, dt, ahora, poco)
@@ -1039,7 +1154,8 @@ local function preparar(modelo: Instance)
 		respingo = Vector3.zero, respingoHora = -math.huge, proximoRespingo = ahora + rango(RESPINGO),
 		crispa = { -math.huge, -math.huge }, proximaCrispa = ahora + rango(CRISPA),
 		raro = -math.huge, tipoRaro = 1, proximoRaro = ahora + rango(RARO),
-		gateo = 0, gatea = nil, agarra = -math.huge,
+		gateo = 0, gatea = nil, agarra = -math.huge, manos = 0, dolorLado = 1, tironManos = 0,
+		junto = false, libre = 1,
 	}
 	encender()
 end
