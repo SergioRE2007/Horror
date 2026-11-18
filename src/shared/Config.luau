@@ -208,6 +208,7 @@ Config.Acechador = {
 	MasPillar = 2, -- studs de más al echarse encima (corriendo se pasa de largo; sin pared en medio: Caza.alcanza)
 	TrasPillar = 2.5, -- segundos quieto tras pillarte
 	Max = 2, -- como mucho, a la vez en el mapa
+	Cono = 70, -- grados a cada lado de hacia dónde mira la presa en los que nunca sale (su pantalla y algo más)
 }
 
 -- Dificultad por número de jugadores (shared/Dificultad), pensada para 2 (pedido por el usuario). Se calcula al

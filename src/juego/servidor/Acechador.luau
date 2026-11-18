@@ -126,10 +126,14 @@ local function oscuro(): boolean
 	return (workspace:GetAttribute("FaseFin") or 0) - workspace:GetServerTimeNow() < Config.Ciclo.Aviso
 end
 
--- El suelo debajo de un punto (el bosque no es del todo plano).
+-- El suelo de verdad debajo de `p` (el bosque no es del todo plano): un rayo corto desde poco más arriba (p.Y + 8) y
+-- solo contra lo que choca. Antes tiraba desde y = 120 contra todo y salía en las copas, los troncos o los tejados.
+-- nil si da en algo a más de 3 studs por encima de los pies de la presa (`pies`: un tronco caído, un tejado) o si no
+-- cabe de pie (Caza.cabe: dentro de un tronco, una roca o una casa, que el rayo no ve desde dentro).
 local filtro = RaycastParams.new()
 filtro.FilterType = Enum.RaycastFilterType.Exclude
-local function suelo(p: Vector3): Vector3
+filtro.RespectCanCollide = true
+local function suelo(p: Vector3, pies: number): Vector3?
 	local ignorar: { Instance } = { Caza.carpeta() }
 	for _, jugador in Players:GetPlayers() do
 		if jugador.Character then
@@ -137,8 +141,53 @@ local function suelo(p: Vector3): Vector3
 		end
 	end
 	filtro.FilterDescendantsInstances = ignorar
-	local golpe = workspace:Raycast(Vector3.new(p.X, 120, p.Z), Vector3.new(0, -200, 0), filtro)
-	return if golpe then golpe.Position else Vector3.new(p.X, 0, p.Z)
+	local golpe = workspace:Raycast(Vector3.new(p.X, p.Y + 8, p.Z), Vector3.new(0, -40, 0), filtro)
+	if not golpe or golpe.Position.Y > pies + 3 or not Caza.cabe(golpe.Position, ALTURA) then
+		return nil
+	end
+	return golpe.Position
+end
+
+-- Por dónde sale, a A.Lejos + 14 studs de la presa (`r`, su raíz): primero a su espalda según hacia dónde mira (su
+-- cabeza) y luego del lado contrario a la casa. Nunca entre ella y la casa (le cortaría el camino de vuelta a la luz;
+-- al volver, lo lleva a la espalda) ni en el cono de su cabeza (A.Cono): antes salía justo delante de quien se alejaba
+-- de la casa. Cada giro con algo de azar, para que no salga siempre en el mismo sitio.
+local GIROS_ESPALDA = { 0, 0.35, -0.35, 0.7, -0.7 }
+local GIROS_FUERA = { 0, 0.45, -0.45, 0.9, -0.9, 1.25, -1.25, 1.5, -1.5 }
+local function salidas(presa: Player, r: BasePart): { Vector3 }
+	local afuera = plano(r.Position)
+	afuera = if afuera.Magnitude > 0.1 then afuera.Unit else Vector3.zAxis
+	local cabeza = presa.Character and presa.Character:FindFirstChild("Head") :: BasePart?
+	local mira = plano((cabeza or r).CFrame.LookVector)
+	mira = if mira.Magnitude > 0.1 then mira.Unit else afuera
+	local cono = math.cos(math.rad(A.Cono))
+	local pies = r.Position.Y - 3 -- la raíz va a unos 3 studs del suelo
+	local azarGiro = azar:NextNumber(-0.15, 0.15)
+	local sitios = {}
+	local probadas: { Vector3 } = {}
+	local function repetida(d: Vector3): boolean
+		for _, otra in probadas do
+			if d:Dot(otra) > 0.99 then
+				return true -- casi la misma (de cara a la casa, su espalda y el lado de fuera coinciden)
+			end
+		end
+		table.insert(probadas, d)
+		return false
+	end
+	local function probar(hacia: Vector3, giros: { number })
+		for _, giro in giros do
+			local d = CFrame.Angles(0, giro + azarGiro, 0):VectorToWorldSpace(hacia)
+			if d:Dot(afuera) >= 0 and d:Dot(mira) < cono and not repetida(d) then
+				local p = suelo(r.Position + d * (A.Lejos + 14), pies)
+				if p then
+					table.insert(sitios, p)
+				end
+			end
+		end
+	end
+	probar(-mira, GIROS_ESPALDA)
+	probar(afuera, GIROS_FUERA)
+	return sitios
 end
 
 local function ataque(a: Ataque)
@@ -147,12 +196,12 @@ local function ataque(a: Ataque)
 	if not r then
 		return
 	end
-	-- Sale lejos, entre los árboles, del lado contrario a la casa: nunca le corta el camino de vuelta a la luz (y al
-	-- volver, lo lleva a la espalda).
-	local atras = plano(r.Position)
-	atras = if atras.Magnitude > 0.1 then atras.Unit else Vector3.zAxis
-	atras = CFrame.Angles(0, azar:NextNumber(-0.9, 0.9), 0):VectorToWorldSpace(atras)
-	local p = suelo(r.Position + atras * (A.Lejos + 14))
+	-- Sale lejos, entre los árboles, donde no le vea aparecer nadie (Caza.sitioSinVer). Sin sitio, esta vez no sale.
+	local sitios = salidas(presa, r)
+	if #sitios == 0 then
+		return
+	end
+	local p = Caza.sitioSinVer(sitios, ALTURA)
 	local b = crear(CFrame.lookAt(p + Vector3.new(0, ALTURA, 0), Vector3.new(r.Position.X, p.Y + ALTURA, r.Position.Z)))
 	a.bicho = b
 	b.prisa = a.prisa
@@ -220,13 +269,13 @@ local function ataque(a: Ataque)
 		end
 	end
 
-	-- Si llegó a la luz: se queda mirando un momento desde los árboles y se va.
+	-- Si llegó a la luz: se queda mirando un momento desde los árboles y se va, sin esfumarse a la vista (Caza.perderse).
 	if b.modelo then
 		b.humanoide:MoveTo(b.raiz.Position)
 		task.wait(if b.prisa then 0 else 2)
-		local aqui = b.raiz.Position
+		local aqui = b:suelo() -- a ras de suelo, como lo espera irA (con la altura de la raíz nunca "llegaba")
 		local afuera = if plano(aqui).Magnitude > 1 then plano(aqui).Unit else Vector3.zAxis
-		b:irA(aqui + afuera * 60, A.Andar, 10)
+		b:perderse(aqui + afuera * 60, A.Andar, 10)
 	end
 end
 
