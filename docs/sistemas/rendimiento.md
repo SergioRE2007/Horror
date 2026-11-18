@@ -54,6 +54,8 @@
 - Ambiente: la iluminación se pinta unas 10 veces por segundo (30 en el atardecer y el amanecer). Las lámparas se repintan
   cada fotograma mientras haya algún parpadeo de bombilla (`Ambiente.factor`), que a 10 Hz se vería a tirones. El aviso
   del atardecer se sigue mirando cada fotograma.
+- Cielo (`CieloVista`, `cielo.md`): con Rendimiento, sin nubes y la mitad de estrellas. Repasa 10 veces por segundo; las
+  nubes, cada fotograma solo mientras dura un relámpago.
 - Sin Rendimiento no debe notarse cambio a la vista. Números (60 studs, 10 y 30 Hz) a ojo.
 - Probar en Studio: con Rendimiento apagado, linterna, bengala y chimenea como siempre y bombillas parpadeando suaves; con
   Rendimiento encendido, sin sombras en esas luces y chimenea con una llama; el atardecer y el amanecer fluidos.
