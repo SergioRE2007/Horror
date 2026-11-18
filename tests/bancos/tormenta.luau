@@ -5,7 +5,9 @@
 --   horario (todos lo ven a la vez), los tiempos en sus rangos y la fuerza del destello de 0 a 1 (con Rendimiento, uno).
 --   En marcha: cae a su hora, sube la luz y la luna, enciende el fogonazo con sombras, el trueno suena y tiemblan
 --   cristales y bombillas; luego todo vuelve a 0 y el bucle se desconecta. Rendimiento: un destello y sin sombras.
---   Cinemática: nada. De día: nada. Ambiente: el destello sube la luz de fuera y la luna, y sin él queda como estaba.
+--   Rayo del cielo: misma semilla misma forma, quebrado, llega al suelo, ramas en el aire, del lado del trueno, a su
+--   distancia, se ve con el destello y desaparece; lejano, sin rayo; con Rendimiento, solo el tronco.
+--   Cinemática: nada (ni rayo). De día: nada. Ambiente: el destello sube la luz de fuera y la luna, y sin él queda como estaba.
 -- Si algo no se cumple, termina con error.
 local crearMundo = require("./_roblox")
 
@@ -108,6 +110,64 @@ for i, r in lista do
 	comprobar(Tormenta.fuerza(r, r.destellos[1].subida, false) > 0.5, "en lo más fuerte, se nota")
 	comprobar(Tormenta.fuerza(r, Tormenta.duracion(r) + 0.01, false) == 0, "después, nada")
 end
+-- La forma del rayo: la misma semilla, la misma; de arriba al suelo, quebrado, con 1-3 ramas que no llegan al suelo.
+local R = CFG.Rayo
+for semilla = 1, 300 do
+	local cerca = (semilla % 11) / 10
+	local f = Tormenta.forma(semilla * 7717, cerca, CFG)
+	local f2 = Tormenta.forma(semilla * 7717, cerca, CFG)
+	comprobar(#f.tronco == #f2.tronco and #f.ramas == #f2.ramas, "rayo: la misma semilla, la misma forma")
+	for i, p in f.tronco do
+		comprobar(p == f2.tronco[i], "rayo: el mismo punto " .. i)
+		if i > 1 then
+			comprobar(p.Y < f.tronco[i - 1].Y, "rayo: el tronco siempre baja")
+		end
+	end
+	comprobar(#f.tronco - 1 >= R.Tramos[1] and #f.tronco - 1 <= R.Tramos[2], "rayo: tramos del tronco")
+	comprobar(f.tronco[#f.tronco] == Vector3.zero, "rayo: llega al suelo, justo donde cae")
+	comprobar(math.abs(f.tronco[1].Y - R.Alto) < 1e-6, "rayo: sale de lo alto")
+	local quiebros = 0
+	for i = 2, #f.tronco do
+		local tramo = f.tronco[i] - f.tronco[i - 1]
+		if Vector3.new(tramo.X, 0, tramo.Z).Magnitude > 0.15 * -tramo.Y then
+			quiebros += 1
+		end
+	end
+	comprobar(quiebros >= 2, `rayo: quebrado, no una raya recta ({quiebros})`)
+	comprobar(#f.ramas <= R.Ramas[2], "rayo: como mucho 3 ramas")
+	for _, rama in f.ramas do
+		comprobar(#rama >= 2, "rayo: rama con algún tramo")
+		local enTronco = false
+		for _, p in f.tronco do
+			if p == rama[1] then
+				enTronco = true
+			end
+		end
+		comprobar(enTronco, "rayo: la rama sale del tronco")
+		for j = 2, #rama do
+			comprobar(rama[j].Y > 0 and rama[j].Y < rama[j - 1].Y, "rayo: la rama baja y no llega al suelo")
+		end
+	end
+	comprobar(f.ancho >= R.Ancho[1] - 1e-6 and f.ancho <= R.Ancho[2] + 1e-6, "rayo: ancho en su rango")
+end
+local conRamas = 0
+for semilla = 1, 100 do
+	if #Tormenta.forma(semilla, 1, CFG).ramas >= 1 then
+		conRamas += 1
+	end
+end
+comprobar(conRamas > 90, `rayo: casi siempre con ramas ({conRamas} de 100)`)
+comprobar(Tormenta.forma(5, 1, CFG).ancho > Tormenta.forma(5, R.Desde, CFG).ancho, "rayo: más ancho cuanto más cerca")
+comprobar(Tormenta.distanciaRayo(R.Desde - 0.01, CFG) == nil, "rayo: muy lejos, no se ve")
+local antesD = math.huge
+for c = R.Desde, 1.0001, 0.05 do
+	local dd = Tormenta.distanciaRayo(c, CFG)
+	comprobar(dd and dd >= R.Cerca - 1e-6 and dd <= R.Lejos + 1e-6, "rayo: distancia de Cerca a Lejos")
+	comprobar(dd <= antesD, "rayo: más cerca cuanto más cerca cae")
+	antesD = dd
+end
+comprobar(Tormenta.semillaRayo(lista[1]) == Tormenta.semillaRayo(otra[1]), "rayo: la semilla, de la hora")
+
 comprobar(#Tormenta.horario(1, inicio, fin, CFG) == 0, "noche 1: horario vacío")
 comprobar(#Tormenta.horario(1, inicio, fin, CFG, true) > 0, "forzada (prueba en Studio): siempre hay")
 
@@ -255,15 +315,116 @@ comprobar(encendidas == 0, "con Rendimiento, sin sombras extra")
 jugador:SetAttribute("Rendimiento", nil)
 m.correr(r2.trueno + CFG.Temblor.Dura + 0.5, 1 / 30)
 
--- Cinemática: ni destello ni trueno.
+-- El rayo del cielo. --------------------------------------------------------------------------------------------------
+-- Un suelo grande por debajo del de la casa: el rayo tiene que acabar en él (y no en Rayo.Suelo).
+m.caja(CFrame.new(0, -4, 0), Vector3.new(2000, 2, 2000), { Name = "Campo" })
+local function hacesRayo(): (number, number, number)
+	local tramos, halos, opaco = 0, 0, 1
+	local c = g.workspace:FindFirstChild("TormentaLocal")
+	local p = c and c:FindFirstChild("Rayo")
+	if p then
+		for _, b in p:GetChildren() do
+			if b:IsA("Beam") and b.Enabled then
+				if b.Name == "Halo" then
+					halos += 1
+				else
+					tramos += 1
+					opaco = math.min(opaco, b.Transparency.Keypoints[1].Value)
+				end
+				comprobar(b.LightEmission == 1 and b.LightInfluence == 0, "rayo: brilla solo, sin luz del mundo")
+			end
+		end
+	end
+	return tramos, halos, opaco
+end
+-- Lleva al siguiente relámpago que caiga cerca (o lejos, con `lejano`) y mira el rayo mientras dura.
+local function hastaUnRayo(lejano: boolean?): (any, { tramos: number, halos: number, opaco: number, rayo: any, nuevos: number })
+	local r = nil
+	for _, x in Tormenta.estado.lista do
+		local seVe = Tormenta.distanciaRayo(x.cerca, CFG) ~= nil
+		if x.t > g.workspace:GetServerTimeNow() + 0.1 and seVe ~= (lejano == true) then
+			r = x
+			break
+		end
+	end
+	if not r then
+		return nil, { tramos = 0, halos = 0, opaco = 1, rayo = nil, nuevos = 0 }
+	end
+	m.correr(r.t - g.workspace:GetServerTimeNow() - 0.05, 1 / 10)
+	local antes = Tormenta.estado.rayos
+	local visto = { tramos = 0, halos = 0, opaco = 1, rayo = nil, nuevos = 0 }
+	m.correr(Tormenta.duracion(r) * 0.9, 1 / 120, function()
+		local t, h, o = hacesRayo()
+		visto.tramos = math.max(visto.tramos, t)
+		visto.halos = math.max(visto.halos, h)
+		visto.opaco = math.min(visto.opaco, o)
+		visto.rayo = visto.rayo or Tormenta.estado.rayo
+	end)
+	visto.nuevos = Tormenta.estado.rayos - antes
+	return r, visto
+end
+local r4, visto4 = hastaUnRayo()
+assert(r4, "hay un relámpago cercano")
+local f4 = visto4.rayo and visto4.rayo.forma
+comprobar(f4, "rayo: cae uno cercano y se dibuja")
+comprobar(visto4.nuevos == 1, "rayo: uno por relámpago")
+local caida = visto4.rayo.base
+local plano = Vector3.new(caida.X - camara.CFrame.Position.X, 0, caida.Z - camara.CFrame.Position.Z)
+comprobar(plano.Unit:Dot(Vector3.new(math.cos(r4.angulo), 0, math.sin(r4.angulo))) > 0.999, "rayo: del lado del trueno")
+comprobar(math.abs(plano.Magnitude - Tormenta.distanciaRayo(r4.cerca, CFG)) < 0.01, `rayo: a su distancia ({plano.Magnitude})`)
+comprobar(math.abs(caida.Y - -3) < 0.01, `rayo: llega al suelo de verdad ({caida.Y})`)
+local igual = Tormenta.forma(Tormenta.semillaRayo(r4), r4.cerca, CFG)
+comprobar(#igual.tronco == #f4.tronco and igual.tronco[3] == f4.tronco[3], "rayo: la forma de su semilla (todos igual)")
+local esperados = #f4.tronco - 1
+for _, rama in f4.ramas do
+	esperados += #rama - 1
+end
+comprobar(visto4.tramos == esperados, `rayo: un Beam por tramo, ramas incluidas ({visto4.tramos} de {esperados})`)
+comprobar(visto4.halos == #f4.tronco - 1, "rayo: resplandor en el tronco")
+comprobar(visto4.opaco < 0.15, `rayo: con el destello se ve ({visto4.opaco})`)
+m.correr(r4.trueno + 0.5, 1 / 30)
+local t4, h4 = hacesRayo()
+comprobar(t4 == 0 and h4 == 0 and Tormenta.estado.rayo == nil, "rayo: acabado el relámpago, desaparece")
+m.correr(CFG.Temblor.Dura + 0.5, 1 / 30)
+-- Otro: se reutilizan los mismos Beams (no se acumulan).
+local piezas = #g.workspace.TormentaLocal.Rayo:GetChildren()
+local r5 = hastaUnRayo()
+if r5 then
+	m.correr(r5.trueno + CFG.Temblor.Dura + 0.5, 1 / 30)
+	local maxPuntos = R.Tramos[2] + 1 + R.Ramas[2] * (R.TramosRama[2] + 1)
+	local maxHaces = R.Tramos[2] * 2 + R.Ramas[2] * R.TramosRama[2]
+	local ahoraP = #g.workspace.TormentaLocal.Rayo:GetChildren()
+	comprobar(ahoraP >= piezas and ahoraP <= maxPuntos + maxHaces, `rayo: se reutilizan los Beams ({ahoraP})`)
+end
+-- Uno lejano: solo el fogonazo, sin rayo.
+local r6, visto6 = hastaUnRayo(true)
+if r6 then
+	comprobar(visto6.tramos == 0 and visto6.nuevos == 0, "rayo: muy lejos, sin rayo")
+	m.correr(r6.trueno + CFG.Temblor.Dura + 0.5, 1 / 30)
+end
+-- Con Rendimiento: solo el tronco, sin ramas ni resplandor.
+jugador:SetAttribute("Rendimiento", true)
+local r7, visto7 = hastaUnRayo()
+if r7 then
+	local f7 = visto7.rayo.forma
+	comprobar(visto7.tramos == #f7.tronco - 1 and visto7.halos == 0, "rayo con Rendimiento: solo el tronco")
+	comprobar(visto7.rayo.ramas == false, "rayo con Rendimiento: sin ramas")
+	m.correr(r7.trueno + CFG.Temblor.Dura + 0.5, 1 / 30)
+end
+jugador:SetAttribute("Rendimiento", nil)
+
+-- Cinemática: ni destello ni trueno (ni rayo).
 camara.CameraType = Enum.CameraType.Scriptable
 local truenos = Tormenta.estado.truenos
+local rayosAntes = Tormenta.estado.rayos
 local visto = 0
 local r3 = hastaElSiguiente(function()
 	visto = math.max(visto, AmbienteFalso.destello)
+	comprobar(hacesRayo() == 0, "cinemática: sin rayo")
 end)
 m.correr(r3.trueno + 0.5, 1 / 30)
 comprobar(visto == 0 and Tormenta.estado.truenos == truenos, "cinemática: nada")
+comprobar(Tormenta.estado.rayos == rayosAntes, "cinemática: ningún rayo")
 -- Por la mirilla (Scriptable con Vistazo), sí.
 jugador:SetAttribute("Vistazo", "Mirilla")
 visto = 0
