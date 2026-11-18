@@ -9,6 +9,7 @@ Textos aprobados por el usuario en `docs/historia.md` (no cambiarlos sin él). E
 - La 9 (sótano) está encima del banco del taller, a la izquierda (sitio dado por la 11.8.13).
 - Al leerla, el servidor comprueba vivo, cerca (`Alcance` + 4 studs de holgura), 0,3 s entre lecturas y, en las salas con llave (9 a 12), que su puerta ya esté abierta (el prompt atraviesa paredes; `SALA`); la apunta y manda `Remotes.Pista` (n, cuántas van). No hay remote de vuelta.
 - `Pistas.leida(n)`: para el final (12.2: plano de la reja, cerillas).
+- Las leídas cuentan para todos y van en el atributo de workspace `PistasLeidas` (`"1,2,9"`, en orden; `""` = ninguna), puesto al empezar, al leer una nueva y al importar. Al encontrar una nueva, los demás reciben "Fulano ha encontrado una nota. La tienes en la mochila.". La primera vez que se lee la del plano (`Config.Bestia.Reja.Pista`, la 9), a todos, tras `Config.Bestia.AvisoPlano` (1,5 s), "Hay un dibujo de una reja de hierro. Se puede hacer en el banco del sótano." (no si se ha vuelto al amanecer mientras tanto). Estos avisos van por `Remotes.Pista` ("Aviso", texto) para que `PistasUi` los ponga encima (o debajo) del papel si lo taparían.
 
 ## Guardado
 
@@ -17,6 +18,7 @@ Textos aprobados por el usuario en `docs/historia.md` (no cambiarlos sin él). E
 ## Cliente (`PistasUi`)
 
 - Papel oscuro en el centro con la esquina de sangre: arriba en rojo lo que es, el texto, abajo "3 de 12" pequeño y CERRAR. Alto según el texto. Suelta el ratón. Se cierra con CERRAR, con E otra vez en la misma pista, al alejarse (11 studs) o al morir.
+- Libreta (`PistasUi.libreta`, botón NOTAS de la mochila): el mismo papel con las leídas por cualquiera (`PistasLeidas`), empezando por la última encontrada (al cargar, la más alta). Con más de una, `<` y `>` del alto de un dedo (flechas del teclado, LB/RB del mando; dan la vuelta) y "2 de 5" entre ellas. Del alto de la más larga, para que las flechas no se muevan. No se cierra al alejarse ni suena `Papel` al pasar; se cierra con CERRAR, B, Escape, B del mando, al morir o en la escena de un final. No le dice nada al servidor. Si otro encuentra una mientras la miras, entra en la lista sin cambiarte de hoja. Con ella abierta, LB no enciende la linterna, RB no saca la pistola y B del mando no agacha.
 
 ## Probado en Studio (02-11-2026)
 
