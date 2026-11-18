@@ -33,9 +33,103 @@ local function escalar(gui: ScreenGui, escala: UIScale)
 	end
 end
 
--- Pantalla táctil (el móvil): botones grandes y otro reparto de lo de abajo.
+-- Tipo de entrada que se está usando ahora: "tactil", "mando" o "teclado" (teclado y ratón). Sale de LastInputTypeChanged;
+-- lo que no cuenta (Focus, sensores, None) no lo cambia. Al empezar, de lo que tenga el aparato.
+local function tipoDe(entrada: Enum.UserInputType): string?
+	if entrada == Enum.UserInputType.Touch then
+		return "tactil"
+	elseif entrada == Enum.UserInputType.Keyboard or entrada == Enum.UserInputType.MouseMovement
+		or entrada == Enum.UserInputType.MouseWheel or string.sub(entrada.Name, 1, 11) == "MouseButton" then
+		return "teclado"
+	elseif string.sub(entrada.Name, 1, 7) == "Gamepad" then
+		return "mando"
+	end
+	return nil
+end
+
+local function tipoInicial(): string
+	local t = tipoDe(UserInputService:GetLastInputType())
+	if t then
+		return t
+	elseif UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+		return "tactil"
+	elseif UserInputService.GamepadEnabled and not UserInputService.KeyboardEnabled and not UserInputService.MouseEnabled then
+		return "mando"
+	end
+	return "teclado"
+end
+
+local tipoActual = tipoInicial()
+local cambioEntrada = Instance.new("BindableEvent") -- sin colgar de nada: solo para avisar a quien lo pida
+
+function Ui.tipoEntrada(): string
+	return tipoActual
+end
+
+-- Pantalla táctil (el móvil): botones grandes y otro reparto de lo de abajo. TouchEnabled solo no vale: los portátiles con
+-- pantalla táctil también lo tienen. Sin teclado es táctil; con teclado y pantalla (portátil, tablet con teclado), lo es
+-- mientras lo último que se ha usado sea el dedo. Las medidas que se fijan al arrancar no cambian; esto sí lo hace.
 function Ui.tactil(): boolean
-	return UserInputService.TouchEnabled
+	if not UserInputService.TouchEnabled then
+		return false
+	elseif not UserInputService.KeyboardEnabled then
+		return true
+	end
+	return tipoActual == "tactil"
+end
+
+-- Pistas de teclado ([R], [Q]…): solo se enseñan con teclado. Con mando o con el dedo, la letra no existe.
+function Ui.conTeclado(): boolean
+	return UserInputService.KeyboardEnabled and tipoActual == "teclado"
+end
+
+-- Texto con su pista de teclado delante: "[R]  texto". Sin teclado, el texto solo (no se enseñan letras de botones del
+-- mando: en cada mando se llaman distinto, y Roblox ya pone el suyo en los carteles de coger).
+function Ui.pista(tecla: string, texto: string): string
+	return if Ui.conTeclado() then "[" .. tecla .. "]  " .. texto else texto
+end
+
+-- Llama a `funcion` cuando cambia el tipo de entrada (teclado, mando, táctil): para repintar las pistas.
+function Ui.alCambiarEntrada(funcion: () -> ()): RBXScriptConnection
+	return cambioEntrada.Event:Connect(funcion)
+end
+
+UserInputService.LastInputTypeChanged:Connect(function(entrada)
+	local nuevo = tipoDe(entrada)
+	if nuevo and nuevo ~= tipoActual then
+		tipoActual = nuevo
+		cambioEntrada:Fire()
+	end
+end)
+
+-- Ventanas abiertas (solo en este cliente): mientras haya una, el atributo VentanaAbierta del jugador vale true y B no
+-- agacha (PosturaVista lo mira). Al cerrar se quita en diferido: la misma B que cierra la ventana llega a PosturaVista
+-- en esa pulsación y debe seguir viéndola abierta.
+local ventanasAbiertas: { [string]: boolean } = {}
+local function publicarVentanas()
+	jugador:SetAttribute("VentanaAbierta", if next(ventanasAbiertas) ~= nil then true else nil)
+end
+
+function Ui.ventanaAbierta(nombre: string, abierta: boolean)
+	if abierta then
+		ventanasAbiertas[nombre] = true
+		publicarVentanas()
+	else
+		ventanasAbiertas[nombre] = nil
+		task.defer(publicarVentanas)
+	end
+end
+
+-- Cierra una ventana con B del mando (y con Escape si `conEscape`). `estaAbierta` y `cerrar` son de la ventana, que
+-- además llama a Ui.ventanaAbierta(nombre, ...) al abrirse y al cerrarse para que esa B no agache. B se atiende aunque
+-- Roblox la dé por usada (la usa para salir de la selección del mando), como en Ajustes.
+function Ui.cerrarConB(estaAbierta: () -> boolean, cerrar: () -> (), conEscape: boolean?)
+	UserInputService.InputBegan:Connect(function(entrada)
+		local tecla = entrada.KeyCode
+		if (tecla == Enum.KeyCode.ButtonB or (conEscape and tecla == Enum.KeyCode.Escape)) and estaAbierta() then
+			cerrar()
+		end
+	end)
 end
 
 -- Alto de un botón: el normal, o el de un dedo en pantallas táctiles.
@@ -114,8 +208,14 @@ function Ui.hud(): ScreenGui
 	return gui
 end
 
--- Mayúsculas que entienden las tildes (string.upper deja "á" en minúscula).
-local TILDES = { ["á"] = "Á", ["é"] = "É", ["í"] = "Í", ["ó"] = "Ó", ["ú"] = "Ú", ["ñ"] = "Ñ", ["ü"] = "Ü" }
+-- Mayúsculas que entienden las letras latinas con tilde (string.upper deja "á" en minúscula): las del español y las de
+-- otros idiomas que traduce Roblox (francés, portugués, alemán, italiano).
+local TILDES = {
+	["á"] = "Á", ["é"] = "É", ["í"] = "Í", ["ó"] = "Ó", ["ú"] = "Ú", ["ñ"] = "Ñ", ["ü"] = "Ü",
+	["à"] = "À", ["è"] = "È", ["ì"] = "Ì", ["ò"] = "Ò", ["ù"] = "Ù",
+	["â"] = "Â", ["ê"] = "Ê", ["î"] = "Î", ["ô"] = "Ô", ["û"] = "Û",
+	["ã"] = "Ã", ["õ"] = "Õ", ["ç"] = "Ç", ["ö"] = "Ö", ["ä"] = "Ä",
+}
 function Ui.mayusculas(texto: string): string
 	return (string.gsub(string.upper(texto), "\195[\160-\191]", TILDES))
 end

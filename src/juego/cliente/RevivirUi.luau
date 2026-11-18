@@ -33,11 +33,6 @@ local function precio(): string
 	return `{ROBUX}{Config.Compras.Revivir.Robux}`
 end
 
--- Ordenador: teclado sin pantalla táctil (como las teclas de MochilaUi).
-local function conTecla(): boolean
-	return UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled
-end
-
 -- El botón de un compañero: el nombre (que se corta si es largo) y el precio aparte, para que siempre se vea. En el
 -- móvil, estrecho y en dos líneas (el nombre arriba, el precio abajo): tres botones (16 + 3 · 144 + 2 · 8 = 464) acaban
 -- antes del cartel de pila y fotos (EquipoVista) y de la cuenta de bengalas, que van en la misma altura en el centro.
@@ -95,7 +90,7 @@ local function pintar()
 			b.LayoutOrder = orden
 			local texto = Ui.mayusculas(Lang.t(nil, "Revive {nombre}", { nombre = otro.DisplayName }))
 			local nombre = b:FindFirstChild("Nombre") :: TextLabel
-			nombre.Text = if primero and conTecla() then "[V] " .. texto else texto
+			nombre.Text = if primero and Ui.conTeclado() then "[V] " .. texto else texto
 			primero = false
 		end
 	end
@@ -127,6 +122,7 @@ function RevivirUi.start()
 		pedir(jugador)
 	end)
 	propio.Parent = hud
+	Ui.alCambiarEntrada(pintar) -- la [V] sale o se va según lo que se use
 
 	-- Los de los compañeros: a la izquierda en el ordenador. En el móvil, en fila arriba a la izquierda, bajo la barra
 	-- de Roblox: más abajo estarían en la zona del joystick y se pulsarían sin querer al andar.

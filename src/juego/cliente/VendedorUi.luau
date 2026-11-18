@@ -73,6 +73,7 @@ local function cerrar()
 	abierto += 1
 	panel.Visible = false
 	panel.Modal = false
+	Ui.ventanaAbierta("Vendedor", false)
 	for _, prompt in apagados do
 		if prompt.Parent then
 			prompt.Enabled = true
@@ -103,6 +104,7 @@ local function abrir(frase: string)
 	apagarPrompts()
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
+	Ui.ventanaAbierta("Vendedor", true) -- B no agacha mientras está abierto
 	task.spawn(function()
 		while abierto == mio do
 			task.wait(0.25)
@@ -222,6 +224,9 @@ end
 
 function VendedorUi.start()
 	construir()
+	Ui.cerrarConB(function()
+		return panel.Visible
+	end, cerrar, true) -- B del mando o Escape
 	RunService.Heartbeat:Connect(mirarte)
 	Remotes.Vendedor.OnClientEvent:Connect(function(que, frase)
 		if que == "Abrir" and type(frase) == "string" then

@@ -41,6 +41,7 @@ local objetivo: Instance? = nil
 local balanceo = 0
 local vistaPropia = false -- este módulo mueve el CameraOffset (llevando algo, o volviendo a 0 tras soltarlo)
 local buscado = 0
+local textoUsar = "" -- lo que dice el cartel de usar (sin la tecla): se repinta si cambia el tipo de entrada
 
 local function soltar()
 	if jugador:GetAttribute("Cargando") and not jugador:GetAttribute("Trabajando") then
@@ -144,7 +145,8 @@ local function apuntar()
 	end
 	cartel.Adornee = if objetivo then objetivo:FindFirstChild("Mando") :: BasePart else nil
 	cartel.Enabled = objetivo ~= nil
-	textoCartel.Text = if UserInputService.TouchEnabled then texto else "[R]  " .. texto
+	textoUsar = texto
+	textoCartel.Text = Ui.pista("R", texto)
 	if botonUsar then
 		botonUsar.Text = texto
 		botonUsar.Visible = objetivo ~= nil
@@ -186,8 +188,12 @@ function CargarVista.start()
 		TextTransparency = 1,
 		TextStrokeTransparency = 1,
 	})
-	local tactil = UserInputService.TouchEnabled
-	aviso.Text = if tactil then "" else "[E]  " .. Ui.mayusculas(Lang.t(nil, "Drop"))
+	local tactil = Ui.tactil()
+	-- La letra solo con teclado: con el dedo hay botón SOLTAR y con el mando, la X de siempre.
+	local function pintarAviso()
+		aviso.Text = if Ui.conTeclado() then Ui.pista("E", Ui.mayusculas(Lang.t(nil, "Drop"))) else ""
+	end
+	pintarAviso()
 	aviso.Parent = Ui.hud()
 
 	-- Cartel junto a lo que se puede usar, como los de Controles.
@@ -214,6 +220,10 @@ function CargarVista.start()
 		;(boton :: TextButton).Parent = acciones or Ui.hud()
 	end
 	jugador:GetAttributeChangedSignal("Cargando"):Connect(cambiar)
+	Ui.alCambiarEntrada(function()
+		pintarAviso()
+		textoCartel.Text = Ui.pista("R", textoUsar)
+	end)
 	UserInputService.InputBegan:Connect(function(entrada, procesado)
 		if procesado then
 			return

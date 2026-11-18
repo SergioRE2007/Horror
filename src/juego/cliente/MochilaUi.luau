@@ -454,19 +454,29 @@ local function crearGui()
 	lista.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	lista.Padding = UDim.new(0, 10)
 	lista.Parent = fila
-	local teclado = UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled
+	-- La tecla solo se enseña con teclado (Ui.conTeclado); con mando, X gira, Y tira y B cierra (ver start).
+	local pistas = {}
 	for _, b in { { "Rotate", "R", girar }, { "Throw away", "G", tirar }, { "Close", "B", function() cerrar(true) end } } do
-		local texto = Ui.mayusculas(Lang.t(nil, b[1])) .. (if teclado then "  [" .. b[2] .. "]" else "")
-		local boton = Ui.boton(texto, { Size = UDim2.fromOffset(0, BOTON), AutomaticSize = Enum.AutomaticSize.X, TextSize = 22 })
+		local function texto(): string
+			local t = Ui.mayusculas(Lang.t(nil, b[1]))
+			return if Ui.conTeclado() then t .. "  [" .. b[2] .. "]" else t
+		end
+		local boton = Ui.boton(texto(), { Size = UDim2.fromOffset(0, BOTON), AutomaticSize = Enum.AutomaticSize.X, TextSize = 22 })
+		pistas[boton] = texto
 		local relleno = Instance.new("UIPadding")
 		relleno.PaddingLeft, relleno.PaddingRight = UDim.new(0, 16), UDim.new(0, 16)
 		relleno.Parent = boton
 		boton.Activated:Connect(b[3])
 		boton.Parent = fila
 	end
+	Ui.alCambiarEntrada(function()
+		for boton, texto in pistas do
+			boton.Text = texto()
+		end
+	end)
 
 	-- Móvil: botón MOCHILA en la rejilla del equipo (EquipoVista: el tamaño lo pone ella; orden 4).
-	if UserInputService.TouchEnabled then
+	if Ui.tactil() then
 		local botones = Ui.hud():FindFirstChild("EquipoBotones")
 		if botones then
 			local boton = Ui.boton(Lang.t(nil, "Backpack"), { LayoutOrder = 4 })
@@ -533,9 +543,9 @@ function MochilaUi.start()
 		local tecla = entrada.KeyCode
 		if tecla == Enum.KeyCode.B or tecla == Enum.KeyCode.DPadUp then
 			alternar()
-		elseif abierta and tecla == Enum.KeyCode.R then
-			girar()
-		elseif abierta and tecla == Enum.KeyCode.G then
+		elseif abierta and (tecla == Enum.KeyCode.R or tecla == Enum.KeyCode.ButtonX) then
+			girar() -- X del mando: con la mochila abierta no hay carteles de coger ni nada que soltar (Cargando la cierra)
+		elseif abierta and (tecla == Enum.KeyCode.G or tecla == Enum.KeyCode.ButtonY) then
 			tirar()
 		elseif abierta and tecla == Enum.KeyCode.ButtonB then
 			cerrar(true)

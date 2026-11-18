@@ -631,6 +631,7 @@ local function cerrar()
 		return
 	end
 	abierta = false
+	Ui.ventanaAbierta("Tienda", false)
 	vez += 1
 	local mia = vez
 	seguro = nil
@@ -661,6 +662,7 @@ local function abrir()
 		return
 	end
 	abierta = true
+	Ui.ventanaAbierta("Tienda", true)
 	vez += 1
 	local mia = vez
 	seguro = nil
@@ -947,6 +949,9 @@ end
 
 function TiendaUi.start()
 	construir()
+	Ui.cerrarConB(function()
+		return abierta
+	end, cerrar, true) -- B del mando o Escape
 	Sonido.precargar({ "Papel" })
 	local atributos = { "Clases", "Cosmeticos", "Clase", "PuestoLinterna" }
 	for _, pase in Config.Compras.Pases do

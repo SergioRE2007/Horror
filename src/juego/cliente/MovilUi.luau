@@ -27,7 +27,7 @@ local ESCALA = (PANTALLA.X / 2) / Config.Movil.Radio -- píxeles por stud
 -- Dónde queda abierto: en el ordenador, abajo a la derecha. En el móvil, más pequeño (UIScale de 0,75 como mucho) y
 -- encima de la rejilla del equipo (EquipoVista: 168 de alto pegados al 97 % de abajo y por encima de la zona segura,
 -- Ui.zonaSegura), para no tapar sus botones; si no cabe bajo la barra de Roblox, encoge más (abiertoEn).
-local TACTIL = UserInputService.TouchEnabled
+local TACTIL = Ui.tactil()
 local X = 0.68
 local SOBRE_REJILLA = 2 * 80 + 8 + 12 -- la rejilla de EquipoVista (dos filas de 80 y 8 entre ellas) y 12 de hueco
 local MENOR = 0.75 -- el teléfono en el móvil: a 640 × 360 su borde derecho acaba antes de los botones de acción

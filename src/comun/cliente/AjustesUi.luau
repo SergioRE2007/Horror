@@ -62,12 +62,8 @@ local function cerrar()
 	end
 	panel.Visible = false
 	panel.Modal = false
-	-- En diferido: la misma B que lo cierra no debe agachar (PosturaVista mira AjustesAbierto en esa pulsación).
-	task.defer(function()
-		if not panel.Visible then
-			jugador:SetAttribute("AjustesAbierto", nil)
-		end
-	end)
+	-- Ui lo quita en diferido: la misma B que lo cierra no debe agachar (PosturaVista mira VentanaAbierta en esa pulsación).
+	Ui.ventanaAbierta("Ajustes", false)
 end
 
 local function abrir(conMando: boolean?)
@@ -78,7 +74,7 @@ local function abrir(conMando: boolean?)
 	pintar()
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
-	jugador:SetAttribute("AjustesAbierto", true) -- solo en este cliente: con él abierto, B no agacha (PosturaVista)
+	Ui.ventanaAbierta("Ajustes", true) -- solo en este cliente: con una ventana abierta, B no agacha (PosturaVista)
 	escalaPanel.Scale = 0.92
 	TweenService:Create(escalaPanel, TweenInfo.new(0.18, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	if conMando then
@@ -96,7 +92,7 @@ end
 -- Primera vez en un móvil: pide Rendimiento activado en cuanto el servidor ha publicado el ajuste (datos cargados).
 -- Se manda en cada entrada; el servidor lo ignora si el jugador ya lo eligió o ya se le sugirió.
 local function sugerirEnMovil()
-	if not UserInputService.TouchEnabled or UserInputService.KeyboardEnabled then
+	if not Ui.tactil() or UserInputService.KeyboardEnabled then
 		return
 	end
 	while jugador.Parent and jugador:GetAttribute("Rendimiento") == nil do
@@ -233,9 +229,9 @@ local function construirEngranaje(hud: ScreenGui)
 	engranaje.Activated:Connect(function()
 		pulsarEngranaje()
 	end)
-	-- En el ordenador (teclado sin pantalla táctil), su tecla al lado, pequeña.
-	if UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled then
-		Ui.texto("[P]", {
+	-- Con teclado, su tecla al lado, pequeña (se esconde si pasa a usarse el mando o el dedo).
+	do
+		local tecla = Ui.texto("[P]", {
 			Name = "Tecla",
 			AnchorPoint = Vector2.new(0, 0.5),
 			Position = UDim2.new(1, 6, 0.5, 0),
@@ -245,7 +241,12 @@ local function construirEngranaje(hud: ScreenGui)
 			TextStrokeTransparency = 0.6,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 26,
-		}).Parent = engranaje
+			Visible = Ui.conTeclado(),
+		})
+		tecla.Parent = engranaje
+		Ui.alCambiarEntrada(function()
+			tecla.Visible = Ui.conTeclado()
+		end)
 	end
 	engranaje.Parent = hud
 end

@@ -365,7 +365,7 @@ local function crearHud()
 	mira.Parent = hud
 	-- Las que quedan, abajo en el centro (encima del cartel de pila y fotos de EquipoVista). En el móvil, arriba en el
 	-- centro, debajo de ese cartel (que allí va arriba: abajo están los botones del equipo).
-	local tactil = UserInputService.TouchEnabled
+	local tactil = Ui.tactil()
 	cuenta = Ui.texto("", {
 		AnchorPoint = Vector2.new(0.5, if tactil then 0 else 1),
 		Position = if tactil then UDim2.new(0.5, 0, 0.17, 36) else UDim2.new(0.5, 0, 1, -52),

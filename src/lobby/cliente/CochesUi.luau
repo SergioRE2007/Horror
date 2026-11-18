@@ -422,6 +422,14 @@ local function crearFicha(i: number): Ficha
 	return { boton = boton, borde = borde, estado = estado, cinta = cinta, tachon = tachon }
 end
 
+-- BAJAR del botón y B del mando: se levanta del asiento (CochesUi.sacar hace el resto al cambiar SeatPart).
+local function bajarDelCoche()
+	local humanoide = jugador.Character and jugador.Character:FindFirstChildOfClass("Humanoid")
+	if humanoide then
+		humanoide.Sit = false -- (Jump = true desde un script no lo levanta del asiento)
+	end
+end
+
 local function construir()
 	local hud = Ui.hud()
 	-- El papel es un botón: se queda los toques (no mueven la cámara ni el joystick); ver primeraPersona.
@@ -482,12 +490,7 @@ local function construir()
 		ZIndex = 2,
 	})
 	Ui.queQuepa(bajar, LETRA_BOTON)
-	bajar.Activated:Connect(function()
-		local humanoide = jugador.Character and jugador.Character:FindFirstChildOfClass("Humanoid")
-		if humanoide then
-			humanoide.Sit = false -- (Jump = true desde un script no lo levanta del asiento)
-		end
-	end)
+	bajar.Activated:Connect(bajarDelCoche)
 	bajar.Parent = panel
 
 	-- NUEVA PARTIDA y EMPEZAR, abajo a la derecha (a la izquierda queda BAJAR); se reparten lo que quede, con HUECO
@@ -731,6 +734,11 @@ end
 
 function CochesUi.start()
 	construir()
+	-- B del mando = BAJAR (sin Escape: abre el menú de Roblox y no debería sacarte del coche). Sin Ui.ventanaAbierta: el
+	-- lobby no tiene PosturaVista, y al bajarte el papel se va solo.
+	Ui.cerrarConB(function()
+		return visible
+	end, bajarDelCoche)
 	if jugador.Character then
 		task.spawn(vigilarAsiento, jugador.Character)
 	end

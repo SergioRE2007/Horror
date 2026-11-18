@@ -28,18 +28,18 @@ local SANGRE_VIVA = Color3.fromRGB(165, 22, 18) -- la flecha: más clara que Ui.
 -- Lo que dice cada paso. Frases enteras (Lang): la de la mochila cambia con el mando o la pantalla táctil.
 local function frase(paso: string): string
 	if paso == "Mochila" then
-		if Ui.tactil() and not UserInputService.KeyboardEnabled then
+		if Ui.tactil() then
 			return Lang.t(nil, "Open your backpack: tap BACKPACK.")
-		elseif UserInputService.GamepadEnabled and not UserInputService.KeyboardEnabled then
+		elseif Ui.tipoEntrada() == "mando" then
 			return Lang.t(nil, "Open your backpack (D-pad up).")
 		end
 		return Lang.t(nil, "Open your backpack (B).")
 	elseif paso == "Hacha" then
 		return Lang.t(nil, "Find an axe and pick it up.")
 	elseif paso == "Correr" then -- 14.8
-		if Ui.tactil() and not UserInputService.KeyboardEnabled then
+		if Ui.tactil() then
 			return Lang.t(nil, "Run to the forest: tap RUN. Running is loud.")
-		elseif UserInputService.GamepadEnabled and not UserInputService.KeyboardEnabled then
+		elseif Ui.tipoEntrada() == "mando" then
 			return Lang.t(nil, "Run to the forest: press L3. Running is loud.")
 		end
 		return Lang.t(nil, "Run to the forest: hold Shift. Running is loud.")
@@ -212,14 +212,10 @@ local flechaBoton: Frame
 local saltar: TextButton
 local pulsado = 0 -- cuándo se pulsó SALTAR la primera vez
 
--- Ordenador: teclado sin pantalla táctil. Ahí el ratón va bloqueado en primera persona y SALTAR no se puede pulsar:
--- se pulsa con la K (ver start), que va en su texto.
-local function conTecla(): boolean
-	return UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled
-end
-
+-- Con teclado el ratón va bloqueado en primera persona y SALTAR no se puede pulsar: se pulsa con la K (ver start), que
+-- va en su texto. Con mando o con el dedo no se enseña la letra.
 local function textoSaltar(ingles: string): string
-	return Ui.mayusculas(Lang.t(nil, ingles)) .. (if conTecla() then "  [K]" else "")
+	return Ui.mayusculas(Lang.t(nil, ingles)) .. (if Ui.conTeclado() then "  [K]" else "")
 end
 
 -- Dos toques (como NUEVA PARTIDA en el lobby): que no se salte sin querer.
@@ -282,12 +278,16 @@ local function construir()
 	saltar = Ui.boton(textoSaltar("Skip"), {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -8, 0, 6),
-		Size = UDim2.fromOffset(if conTecla() then 140 else 110, Ui.alto(30)), -- con la tecla: "¿SEGURO?  [K]"
+		Size = UDim2.fromOffset(if Ui.conTeclado() then 140 else 110, Ui.alto(30)), -- con la tecla: "¿SEGURO?  [K]"
 		TextSize = 16,
 		ZIndex = 42,
 	})
 	saltar.Parent = cartel
 	saltar.Activated:Connect(pulsarSaltar)
+	Ui.alCambiarEntrada(function() -- la K sale o se va según lo que se use; el "¿SEGURO?" pendiente se respeta
+		saltar.Text = textoSaltar(if pulsado > 0 and os.clock() - pulsado < 3 then "Sure?" else "Skip")
+		saltar.Size = UDim2.fromOffset(if Ui.conTeclado() then 140 else 110, Ui.alto(30))
+	end)
 	cartel.Parent = hud
 
 	-- La flecha del mundo: en un BillboardGui (en PlayerGui, para que las cinemáticas la escondan con todo lo demás).
@@ -457,6 +457,7 @@ end
 function TutorialVista.start()
 	construir()
 	yo:GetAttributeChangedSignal("Tutorial"):Connect(pintarCartel)
+	Ui.alCambiarEntrada(pintarCartel) -- las frases cambian con el mando o la pantalla táctil (frase)
 	yo:GetAttributeChangedSignal("TutorialFalta"):Connect(pintarCartel)
 	yo:GetAttributeChangedSignal("TutorialPuerta"):Connect(pintarCartel)
 	yo:GetAttributeChangedSignal("TutorialGasolina"):Connect(pintarCartel)

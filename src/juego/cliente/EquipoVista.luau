@@ -281,7 +281,7 @@ local function crearHud()
 
 	-- Pila (una barrita) y fotos, abajo en el centro; sale un momento al cambiar. En el móvil, arriba en el centro, bajo
 	-- la barra de Roblox: abajo están los botones del equipo.
-	local tactil = UserInputService.TouchEnabled
+	local tactil = Ui.tactil()
 	cartel = Instance.new("CanvasGroup")
 	cartel.Name = "Equipo"
 	cartel.AnchorPoint = Vector2.new(0.5, if tactil then 0 else 1)
