@@ -104,22 +104,25 @@ end
 
 -- Meta del final de la Bestia (Tutorial la usa con la 12 leída y la casa ya a medio preparar) ------------------------
 do
-	local meta, n = PT.metaBestia(5, false, false, true, true)
+	local meta, n = PT.metaBestia(5, false, false, true, true, true)
 	igual(meta, "Cruces", "bestia: primero las cruces")
 	igual(n, 5, "bestia: cuántas cruces faltan")
-	meta, n = PT.metaBestia(1, true, true, false, false)
+	meta, n = PT.metaBestia(1, true, true, false, false, true)
 	igual(meta, "Cruces", "bestia: con la reja ya montada, aún falta una cruz")
 	igual(n, 1, "bestia: la última cruz")
-	igual(PT.metaBestia(0, false, false, true, true), "Plano", "bestia: cruces hechas, falta el plano de la 9")
-	igual(PT.metaBestia(0, true, false, false, false), "Reja", "bestia: la reja antes que la pistola y las cerillas")
-	igual(PT.metaBestia(0, false, true, true, true), "Esperar", "bestia: reja montada (aunque no se leyera la 9), a esperarla")
-	igual(PT.metaBestia(0, true, true, true, true), "Esperar", "bestia: todo listo, a esperarla")
-	igual(select(2, PT.metaBestia(0, true, true, true, true)), 0, "bestia: sin número fuera de las cruces")
+	igual(PT.metaBestia(0, false, false, true, true, true), "Plano", "bestia: cruces hechas, falta el plano de la 9")
+	igual(PT.metaBestia(0, true, false, false, false, true), "Reja", "bestia: la reja antes que la pistola y las cerillas")
+	igual(PT.metaBestia(0, false, true, true, true, true), "Esperar", "bestia: reja montada (aunque no se leyera la 9), a esperarla")
+	igual(PT.metaBestia(0, true, true, true, true, true), "Esperar", "bestia: todo listo, a esperarla")
+	igual(select(2, PT.metaBestia(0, true, true, true, true, true)), 0, "bestia: sin número fuera de las cruces")
 	-- Antes de soltarla: la pistola con bengalas y luego las cerillas
-	igual(PT.metaBestia(0, true, true, false, false), "Pistola", "bestia: sin pistola ni cerillas, primero la pistola")
-	igual(PT.metaBestia(0, true, true, false, true), "Pistola", "bestia: con cerillas pero sin pistola, la pistola")
-	igual(PT.metaBestia(0, true, true, true, false), "Cerillas", "bestia: con la pistola, faltan las cerillas")
-	igual(select(2, PT.metaBestia(0, true, true, false, false)), 0, "bestia: la pistola sin número")
+	igual(PT.metaBestia(0, true, true, false, false, true), "Pistola", "bestia: sin pistola ni cerillas, primero la pistola")
+	igual(PT.metaBestia(0, true, true, false, true, true), "Pistola", "bestia: con cerillas pero sin pistola, la pistola")
+	igual(PT.metaBestia(0, true, true, true, false, true), "Cerillas", "bestia: con la pistola, faltan las cerillas")
+	igual(select(2, PT.metaBestia(0, true, true, false, false, true)), 0, "bestia: la pistola sin número")
+	-- Sin ninguna bengala en el mundo (gastadas antes del final) no se pide la pistola: no se atasca la meta
+	igual(PT.metaBestia(0, true, true, false, true, false), "Esperar", "bestia: sin bengalas en el mundo, a esperarla")
+	igual(PT.metaBestia(0, true, true, false, false, false), "Cerillas", "bestia: sin bengalas, solo faltan las cerillas")
 end
 
 print(`tutorial-meta: {cuentas} comprobaciones`)

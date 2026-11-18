@@ -176,7 +176,8 @@ end
 -- orden en que lo cuentan las pistas: las cruces de gasolina (la 12), el plano de la reja (la 9), montar la reja y
 -- esperarla en el vestíbulo. Antes de soltarla, que alguien lleve lo que la frena y lo que la quema: `pistola` = algún
 -- jugador lleva la pistola con al menos una bengala, `cerillas` = alguien lleva las cerillas (Tutorial lo mira en las
--- mochilas). Devuelve un código y un número (Tutorial lo pasa a una frase con Lang.t):
+-- mochilas). `hayBengalas` = queda alguna bengala en el mundo (mochilas o suelta): si se gastaron todas, la pistola
+-- no se pide (el final se hace igual sin ella). Devuelve un código y un número (Tutorial lo pasa a una frase con Lang.t):
 --   "Cruces" (n = cruces que faltan), "Plano" (falta leer la 9), "Reja" (falta montarla), "Pistola", "Cerillas" o
 --   "Esperar".
 function PasosTutorial.metaBestia(
@@ -184,7 +185,8 @@ function PasosTutorial.metaBestia(
 	reja9Leida: boolean,
 	montada: boolean,
 	pistola: boolean,
-	cerillas: boolean
+	cerillas: boolean,
+	hayBengalas: boolean
 ): (string, number)
 	if cruces > 0 then
 		return "Cruces", cruces
@@ -192,7 +194,7 @@ function PasosTutorial.metaBestia(
 		return "Plano", 0
 	elseif not montada then
 		return "Reja", 0
-	elseif not pistola then
+	elseif not pistola and hayBengalas then
 		return "Pistola", 0 -- sin bengalas no hay cómo frenarla hasta el sótano
 	elseif not cerillas then
 		return "Cerillas", 0 -- sin cerillas el rastro del porche no se prende y no hay final

@@ -270,17 +270,31 @@ local function textoMeta(jugador: Player): string?
 		if prep.cruces > 0 or prep.montada then
 			-- Lo que la frena y lo que la quema, en la mochila de cualquiera (ponerMetas lo repinta cada 2 s, así que
 			-- coger o soltar la pistola o las cerillas cambia la meta enseguida)
-			local pistola, cerillas = false, false
+			-- `hayBengalas`: si ya no queda ninguna en el mundo (gastadas en noches normales), no se pide la pistola: el
+			-- final se puede hacer sin ella (Preparativos.listo no la pide) y la meta no se queda atascada.
+			local pistola, cerillas, hayBengalas = false, false, false
 			for _, otro in Players:GetPlayers() do
-				if Mochila.contar(otro, "Pistola") > 0 and Mochila.contar(otro, "Bengala") > 0 then
+				local bengalas = Mochila.contar(otro, "Bengala")
+				if bengalas > 0 then
+					hayBengalas = true
+				end
+				if Mochila.contar(otro, "Pistola") > 0 and bengalas > 0 then
 					pistola = true
 				end
 				if Mochila.contar(otro, "Cerillas") > 0 then
 					cerillas = true
 				end
 			end
+			if not hayBengalas then
+				for _, o in Mochila.sueltos() do
+					if o.tipo == "Bengala" then
+						hayBengalas = true
+						break
+					end
+				end
+			end
 			local paso, faltan = PasosTutorial.metaBestia(prep.total - prep.cruces, Pistas.leida(Config.Bestia.Reja.Pista),
-				prep.montada, pistola, cerillas)
+				prep.montada, pistola, cerillas, hayBengalas)
 			if paso == "Cruces" then
 				return if faltan == 1
 					then Lang.t(jugador, "Next: pour fuel on the last red cross.")
