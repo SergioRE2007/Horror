@@ -3,7 +3,8 @@
 -- Salas con llave (Llaves): sótano, garaje, desván y habitación del rico. La granja, el aserradero, la torre y el
 -- pueblo, en Lugares.
 -- Lo que se toca lleva una etiqueta de CollectionService y su estado en atributos (lo maneja Casa o Muerte):
---   "Ventana": cristal y persiana. "Puerta": hoja que gira en la bisagra. "Escondite": armarios y camas.
+--   "Ventana": cristal y persiana. "Puerta": hoja que gira en la bisagra. "Escondite": armarios y camas (y los
+--   cuatro armarios de fuera, con Mapa.armario desde Lugares y PuebloInteriores).
 -- Medidas en studs: suelo de abajo arriba en y = 1, el de arriba en y = 14; paredes de 12 de alto.
 -- Partido en módulos (16.18): las medidas en MapaMedidas, lo de dentro de cada sala en MapaSalas, lo que no son
 -- salas (cobertizo, garaje, coche, sótano, desván, final) en MapaAnexos y el bosque en MapaBosque. Aquí quedan las
@@ -496,14 +497,35 @@ local function p(en, hacia: Vector3, extra)
 	return h
 end
 
--- Armario de lamas: se ve fuera entre las rendijas. `frente` = hacia dónde mira la puerta.
-local function armario(centro: Vector3, frente: Vector3)
+-- Armario de lamas: se ve fuera entre las rendijas. `frente` = hacia dónde mira la puerta. Cuelga de la casa o, dentro
+-- de Mapa.conPadre, del padre de ese momento (los escondites de fuera: Lugares y PuebloInteriores). `aspecto`:
+--   nil: el de la casa, con el marco de Blender (ArmarioMarco).
+--   "Aperos": de tablas grises y viejas, con un tejadillo encima y el pasador roto (el del granero).
+--   "Confesionario": madera casi negra, cornisa y cruz encima, y la celosía del penitente en el costado -X (a la
+--   derecha visto desde delante) con su reclinatorio (el de la iglesia).
+-- Las lamas son siempre las mismas: EsconditeVista las busca por nombre y tamaño para abrir las hojas.
+local ASPECTO_ARMARIO = {
+	Aperos = { color = Color3.fromRGB(86, 80, 72), material = Enum.Material.WoodPlanks },
+	Confesionario = { color = Color3.fromRGB(38, 28, 22), material = Enum.Material.Wood },
+}
+
+local function armario(centro: Vector3, frente: Vector3, aspecto: string?): Model
 	local modelo = Instance.new("Model")
 	modelo.Name = "Armario"
 	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- el cliente lo necesita entero
 	local cf = CFrame.lookAt(centro, centro + frente) -- -Z del armario = frente
+	local estilo = aspecto and ASPECTO_ARMARIO[aspecto]
+	local color = if estilo then estilo.color else COLOR.Mueble
+	local material = if estilo then estilo.material else nil
 	local function trozo(tamano: Vector3, offset: Vector3)
-		bloque("Armario", tamano, cf * CFrame.new(offset), COLOR.Mueble, nil, modelo)
+		bloque("Armario", tamano, cf * CFrame.new(offset), color, material, modelo)
+	end
+	-- Adorno del armario: solo se ve (no choca ni tapa rayos ni la vista de los bichos).
+	local function detalle(nombre: string, tamano: Vector3, donde: CFrame, tono: Color3?, mat: Enum.Material?)
+		local adornoArmario = bloque(nombre, tamano, cf * donde, tono or color, mat or material, modelo)
+		adornoArmario.CanCollide = false
+		adornoArmario.CanQuery = false
+		adornoArmario.CanTouch = false
 	end
 	trozo(Vector3.new(4.6, 8, 0.3), Vector3.new(0, 0, 1.35)) -- fondo
 	trozo(Vector3.new(0.3, 8, 3), Vector3.new(-2.15, 0, 0))
@@ -512,8 +534,39 @@ local function armario(centro: Vector3, frente: Vector3)
 	trozo(Vector3.new(4.6, 0.3, 3), Vector3.new(0, -3.85, 0))
 	for i = 0, 18 do -- puertas de lamas con rendijas estrechas: se ve fuera a rayas
 		trozo(Vector3.new(4.0, 0.25, 0.12), Vector3.new(0, -3.6 + i * 0.4, -1.35))
-	end	local suelo = centro.Y - 4
-	mueble("ArmarioMarco", cf * CFrame.new(0, -4, 0), nil, modelo)
+	end
+	local suelo = centro.Y - 4
+	if aspecto == "Aperos" then
+		-- Tejadillo de tablas que vierte hacia delante y el pasador de hierro, roto, colgando del costado.
+		detalle("Tejadillo", Vector3.new(5.2, 0.2, 3.8), CFrame.new(0, 4.3, -0.15) * CFrame.Angles(math.rad(-8), 0, 0))
+		detalle("Pasador", Vector3.new(0.12, 0.9, 0.12), CFrame.new(2.36, 0.4, -1.2) * CFrame.Angles(0, 0, math.rad(20)),
+			Color3.fromRGB(58, 50, 44), Enum.Material.CorrodedMetal)
+	elseif aspecto == "Confesionario" then
+		local oscuro = Color3.fromRGB(26, 19, 15)
+		detalle("Cornisa", Vector3.new(4.8, 0.35, 3.2), CFrame.new(0, 4.17, 0.1), oscuro) -- por delante, a ras de la puerta
+		detalle("Cruz", Vector3.new(0.18, 1.3, 0.18), CFrame.new(0, 4.95, -1.1), oscuro)
+		detalle("Cruz", Vector3.new(0.7, 0.18, 0.18), CFrame.new(0, 5.15, -1.1), oscuro)
+		-- La celosía en el costado -X: marco y rejilla en rombos, a la altura de la cara de quien se arrodilla.
+		local rejilla = CFrame.new(-2.33, -1.4, -0.1)
+		for _, y in { -0.8, 0.8 } do
+			detalle("Celosia", Vector3.new(0.08, 0.14, 1.75), rejilla * CFrame.new(0, y, 0), oscuro)
+		end
+		for _, z in { -0.8, 0.8 } do
+			detalle("Celosia", Vector3.new(0.08, 1.75, 0.14), rejilla * CFrame.new(0, 0, z), oscuro)
+		end
+		-- Rombos: listones en las dos diagonales (y - z = c y y + z = c), cada uno cortado al cuadrado de 1,5 de lado.
+		for _, s in { 1, -1 } do
+			for k = -2, 2 do
+				local c = k * 0.5
+				detalle("Celosia", Vector3.new(0.05, math.sqrt(2) * (1.5 - math.abs(c)), 0.07),
+					rejilla * CFrame.new(0, c / 2, -s * c / 2) * CFrame.Angles(math.rad(s * 45), 0, 0), oscuro)
+			end
+		end
+		-- El reclinatorio, bajo y pegado al costado de la celosía (choca: no se atraviesa).
+		bloque("Reclinatorio", Vector3.new(1.1, 0.4, 1.8), cf * CFrame.new(-2.9, -3.8, -0.1), oscuro, Enum.Material.Wood, modelo)
+	else
+		mueble("ArmarioMarco", cf * CFrame.new(0, -4, 0), nil, modelo)
+	end
 	modelo:SetAttribute("Tipo", "Armario")
 	modelo:SetAttribute("Dentro", CFrame.lookAt(Vector3.new(centro.X, suelo + 3, centro.Z), Vector3.new(centro.X, suelo + 3, centro.Z) + frente))
 	modelo:SetAttribute("Vista", cf * CFrame.new(0, 1.6, 0.4)) -- al fondo: las lamas no tapan media pantalla
@@ -523,6 +576,7 @@ local function armario(centro: Vector3, frente: Vector3)
 	mando(cf * CFrame.new(0, -1, -2.2), modelo)
 	modelo.Parent = casa
 	CollectionService:AddTag(modelo, "Escondite")
+	return modelo
 end
 
 -- Cama con hueco debajo para esconderse. `largo` = de los pies a la cabecera; `lado` (1 o -1) por dónde se sale.
@@ -1255,7 +1309,7 @@ end
 
 
 -- Para el pueblo (Pueblo*.luau, por Lugares): las mismas ayudas que usa la casa. `Mapa.conPadre(padre, fn)` hace que
--- todo lo que se cree dentro de `fn` (muebles, manchas, adornos) cuelgue de `padre` en vez de la casa.
+-- todo lo que se cree dentro de `fn` (muebles, manchas, adornos, armarios) cuelgue de `padre` en vez de la casa.
 function Mapa.conPadre(padre: Instance, fn: () -> ())
 	local antes = casa
 	casa = padre :: any
@@ -1266,11 +1320,13 @@ function Mapa.conPadre(padre: Instance, fn: () -> ())
 	end
 end
 Mapa.mueble = tienda
+Mapa.armario = armario -- los escondites de fuera (dentro de conPadre: si no, cuelgan de la casa)
 Mapa.contraPared = contraPared
 Mapa.mancha = mancha
 Mapa.adorno = adorno
 Mapa.variante = variante
 Mapa.SANGRE = SANGRE
+Mapa.MARCAS = MARCAS -- arañazos de uñas y grietas (los escondites de fuera)
 Mapa.MUEBLES = MUEBLES
 -- Un pino como los del bosque (tronco que choca y su modelo de Piezas) en (x, z), colgado de `padre`.
 Mapa.arbol = MapaBosque.arbol

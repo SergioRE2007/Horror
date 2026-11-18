@@ -210,6 +210,11 @@ Config.Acechador = {
 	TrasPillar = 2.5, -- segundos quieto tras pillarte
 	Max = 2, -- como mucho, a la vez en el mapa
 	Cono = 70, -- grados a cada lado de hacia dónde mira la presa en los que nunca sale (su pantalla y algo más)
+	-- Escondido fuera de la casa (armarios de la granja, el granero, la iglesia y la casa abierta): se queda quieto
+	-- cerca, partiendo ramas, y se echa encima si sales antes (a ojo).
+	Aguarda = 20, -- segundos que espera junto al escondite antes de irse
+	AguardaLejos = 28, -- a cuántos studs del escondite se para a esperar
+	Aguardas = 2, -- veces que espera en el mismo ataque (esconderse, salir y volver a esconderse)
 }
 
 -- Al morir (MuerteVista). SustoComun: el susto por fases de los bichos con cara que no son el Golpeador (Acechador,

@@ -1,7 +1,9 @@
 -- El Acechador: al anochecer (desde los últimos segundos del día), al que sigue fuera de la casa le sale detrás en el
 -- bosque. Primero le sigue de lejos, entre los árboles, partiendo ramas; si le mira, se queda quieto como un tronco.
 -- Luego se le echa encima corriendo más que él. Se rinde si vuelves a la luz de la casa (Config.Acechador.Refugio);
--- la linterna lo frena un momento (y luego tarda en volver a frenarlo). Al amanecer se va.
+-- la linterna lo frena un momento (y luego tarda en volver a frenarlo). Al amanecer se va. Si te escondes fuera (los
+-- armarios de la granja, el granero, la iglesia y el pueblo) no te suelta: espera quieto cerca, partiendo ramas,
+-- Config.Acechador.Aguarda segundos y carga si sales antes; si aguantas, se va (y escondido no corre el tiempo).
 -- Cada uno va a por una sola presa. Remote Acechador para el cliente (AcechadorVista): "Rama", "Carga", "Luz".
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -207,11 +209,15 @@ local function ataque(a: Ataque)
 	b.prisa = a.prisa
 	local modelo = b.modelo :: Model
 
-	local function sigue(): boolean
+	-- Aún hay caza: viva, fuera de la luz, sin prisa (escondida fuera de la casa también cuenta: Aguarda).
+	local function cazable(): boolean
 		local rr = raizDe(presa)
 		return not b.prisa and b.modelo ~= nil and rr ~= nil and Muerte.vivo(presa)
-			and not aSalvo(rr.Position) and Muerte.escondite(presa) == nil
+			and not aSalvo(rr.Position)
 			and not workspace:GetAttribute("Bestia") -- la noche final solo está ella
+	end
+	local function sigue(): boolean
+		return cazable() and Muerte.escondite(presa) == nil
 	end
 	local function iluminado(): boolean
 		return os.clock() - b.iluminado < 0.6
@@ -241,8 +247,8 @@ local function ataque(a: Ataque)
 		task.wait(0.25)
 	end
 
-	-- Se le echa encima.
-	if sigue() then
+	-- Se le echa encima. true si acaba porque se ha escondido (fuera de la casa) en mitad de la carga.
+	local function cargar(): boolean
 		Remotes.Acechador:FireAllClients("Carga", modelo)
 		Remotes.Aviso:FireClient(presa, Lang.t(presa, "Run. Get back to the light."))
 		local fin = os.clock() + A.Persigue
@@ -261,15 +267,71 @@ local function ataque(a: Ataque)
 				b:mirarA(rr.Position)
 				Muerte.matar(presa, b:cabeza(), b.modelo)
 				task.wait(A.TrasPillar)
-				break
+				return false
 			end
 			b.humanoide.WalkSpeed = A.Correr
 			b:pasoHacia(rr.Position - Vector3.new(0, 3, 0))
 			task.wait(0.15)
 		end
+		return cazable() and Muerte.escondite(presa) ~= nil
 	end
 
-	-- Si llegó a la luz: se queda mirando un momento desde los árboles y se va, sin esfumarse a la vista (Caza.perderse).
+	-- Escondida fuera de la casa: no la suelta. Se acerca hasta `AguardaLejos` del escondite y se queda quieto, de cara
+	-- a él, partiendo ramas (la linterna de otro le frena igual), `Aguarda` segundos. true si sale antes (carga); false
+	-- si aguanta dentro (se va) o se acaba la caza.
+	local function aguardar(): boolean
+		local sitio = Muerte.escondite(presa)
+		if not sitio then
+			return false
+		end
+		local salida = sitio:GetAttribute("Salida")
+		local donde = if typeof(salida) == "CFrame" then salida.Position else sitio:GetPivot().Position
+		local fin = os.clock() + A.Aguarda
+		while os.clock() < fin and cazable() do
+			if Muerte.escondite(presa) == nil then
+				return true
+			end
+			local hacia = plano(donde - b.raiz.Position)
+			if iluminado() and not b:quieto() then
+				b:aturdir(A.Frena)
+				Remotes.Acechador:FireAllClients("Luz", modelo)
+			elseif hacia.Magnitude > A.AguardaLejos and not b:quieto() then
+				b.humanoide.WalkSpeed = A.Andar
+				b:pasoHacia(donde - hacia.Unit * (A.AguardaLejos - 4) - Vector3.new(0, 3, 0))
+			else
+				b.humanoide:MoveTo(b.raiz.Position)
+				if hacia.Magnitude > 0.1 then
+					b:mirarA(donde)
+				end
+			end
+			if os.clock() > rama then
+				Remotes.Acechador:FireAllClients("Rama", modelo)
+				rama = os.clock() + rango(A.Rama)
+			end
+			task.wait(0.25)
+		end
+		return false
+	end
+
+	-- Carga; si se esconde fuera (antes o durante la carga), espera junto al escondite y vuelve a cargar si sale.
+	local esperas = 0
+	while true do
+		if cazable() and Muerte.escondite(presa) ~= nil then
+			if esperas >= A.Aguardas then
+				break
+			end
+			esperas += 1
+			if not aguardar() then
+				break
+			end
+		end
+		if not sigue() or not cargar() then
+			break
+		end
+	end
+
+	-- Si llegó a la luz (o aguantó escondida): se queda mirando un momento desde los árboles y se va, sin esfumarse a
+	-- la vista (Caza.perderse).
 	if b.modelo then
 		b.humanoide:MoveTo(b.raiz.Position)
 		task.wait(if b.prisa then 0 else 2)
@@ -346,6 +408,9 @@ local function vigilar()
 			fuera[jugador] = 0
 			espera[jugador] = nil
 			continue
+		end
+		if Muerte.escondite(jugador) then
+			continue -- escondido fuera de la casa: no corre el tiempo para que le salga (ni se pierde lo que llevaba)
 		end
 		fuera[jugador] = (fuera[jugador] or 0) + 0.5
 		espera[jugador] = espera[jugador] or rango(A.Espera)
