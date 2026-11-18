@@ -118,6 +118,18 @@ function Mapa.mancha(pos: any, normal: any, tam: number, _imagen: string, _color
 	local cf = CFrame.lookAt(pos, pos + normal) * CFrame.Angles(0, 0, giro)
 	pieza("Mancha", Vector3.new(tam, alto or tam, 0.04), cf, actual, false).Transparency = 1
 end
+-- Los armarios de lamas de los escondites (Mapa.armario): una caja de su tamaño que choca, con la Salida delante.
+Mapa.MARCAS = { Aranazos = "x" }
+function Mapa.armario(centro: any, frente: any): any
+	assert(actual, "Mapa.armario fuera de Mapa.conPadre: se colgaría de la casa")
+	local modelo = Instance.new("Model")
+	modelo.Name = "Armario"
+	local cf = CFrame.lookAt(centro, centro + frente)
+	pieza("Armario", Vector3.new(4.6, 8, 3), cf, modelo, true)
+	modelo:SetAttribute("Salida", CFrame.new(centro - Vector3.new(0, 1, 0) + frente * 3.5))
+	modelo.Parent = actual
+	return modelo
+end
 function Mapa.variante() end
 function Mapa.arbol(x: number, z: number, alto: number, grueso: number, padre: any)
 	pieza("Tronco", Vector3.new(grueso, alto, grueso), CFrame.new(x, alto / 2, z), padre, true)

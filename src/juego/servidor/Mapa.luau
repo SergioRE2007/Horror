@@ -1326,7 +1326,7 @@ Mapa.mancha = mancha
 Mapa.adorno = adorno
 Mapa.variante = variante
 Mapa.SANGRE = SANGRE
-Mapa.MARCAS = MARCAS -- arañazos de uñas y grietas (los escondites de fuera)
+Mapa.MARCAS = MapaSalas.MARCAS -- arañazos de uñas y grietas (los escondites de fuera)
 Mapa.MUEBLES = MUEBLES
 -- Un pino como los del bosque (tronco que choca y su modelo de Piezas) en (x, z), colgado de `padre`.
 Mapa.arbol = MapaBosque.arbol

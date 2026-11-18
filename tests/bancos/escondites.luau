@@ -8,7 +8,7 @@
 --   - que no pisa la puerta (ni el paso de delante) ni tapa una ventana del pueblo;
 --   - que no tapa llaves, objetos, pesados ni pistas (shared/Pistas: sus sitios, sacados del texto);
 --   - que tiene al lado algo que cuente lo que pasó (una calcomanía: arañazos o sangre seca).
--- Ejecutar desde la raíz: lune run tests/bancos/lugares.luau (lo corre regressions.luau).
+-- Ejecutar desde la raíz: lune run tests/bancos/escondites.luau (lo corre regressions.luau).
 local fs = require("@lune/fs")
 local roblox = require("@lune/roblox")
 local crearMundo = require("./_roblox")
@@ -117,6 +117,18 @@ end
 local mapa = Instance.new("Folder")
 mapa.Name = "Mapa"
 mapa.Parent = m.workspace
+-- El suelo del bosque (como Mapa: de y = -2 a 0), para que los agujeros de la granja y el aserradero lo recorten.
+do
+	local bosque = Instance.new("Folder")
+	bosque.Name = "Bosque"
+	bosque.Parent = mapa
+	local suelo = Instance.new("Part")
+	suelo.Name = "Suelo"
+	suelo.Anchored = true
+	suelo.Size = Vector3.new(1600, 2, 1600)
+	suelo.CFrame = g.CFrame.new(0, -1, 0)
+	suelo.Parent = bosque
+end
 Lugares.construir(mapa, Mapa)
 
 -- Caja alineada con los ejes de una pieza (con su giro): centro y medio tamaño.
@@ -169,17 +181,13 @@ for i, p in pistas do
 	table.insert(cosas, { `pista {i}`, p })
 end
 
--- Los edificios: lo de dentro (x1, x2, z1, z2), la puerta ("N" -z, "S" +z, "E" +x, "O" -x) y las ventanas del pueblo.
--- Los de la granja, como en Lugares.granja (edificio(nombre, cx, cz, ancho, largo, alto, lado)).
+-- Los edificios: lo de dentro (x1, x2, z1, z2), la puerta ("N" -z, "S" +z, "E" +x, "O" -x) y las ventanas. Los de la
+-- granja, de Lugares.EDIFICIOS (con fachada, como los del pueblo).
 type Edificio = { nombre: string, x1: number, x2: number, z1: number, z2: number, puerta: string, ancho: number, cx: number,
 	cz: number,
 	ventanas: { { lado: string, en: number, ancho: number, y1: number, y2: number } } }
-local function deLugares(nombre: string, cx: number, cz: number, ancho: number, largo: number, lado: string): Edificio
-	return { nombre = nombre, x1 = cx - ancho / 2 + 0.5, x2 = cx + ancho / 2 - 0.5, z1 = cz - largo / 2 + 0.5,
-		z2 = cz + largo / 2 - 0.5, puerta = lado, ancho = 4, cx = cx, cz = cz, ventanas = {} } :: any
-end
-local function delPueblo(nombre: string): Edificio
-	local e = Plano.buscar(nombre)
+local function edificio(nombre: string): Edificio
+	local e = Lugares.EDIFICIOS[nombre] or Plano.buscar(nombre)
 	local x1, x2, z1, z2 = Plano.dentro(e)
 	local med = if nombre == "Iglesia" then Plano.VENTANA_IGLESIA else Plano.VENTANA
 	local ventanas = {}
@@ -192,10 +200,10 @@ local function delPueblo(nombre: string): Edificio
 		cz = e.z, ventanas = ventanas } :: any
 end
 local EDIFICIOS = {
-	deLugares("CasaGranja", 196, 52, 16, 12, "O"),
-	deLugares("Granero", 228, 80, 20, 24, "O"),
-	delPueblo("Iglesia"),
-	delPueblo("CasaAbierta"),
+	edificio("CasaGranja"),
+	edificio("Granero"),
+	edificio("Iglesia"),
+	edificio("CasaAbierta"),
 }
 
 -- La zona de un hueco de pared vista desde dentro: `en` a lo largo de la pared, `hondo` studs hacia dentro.
@@ -321,4 +329,4 @@ do
 end
 
 comprueba(#m.errores == 0, `sin errores en el mundo: {table.concat(m.errores, "\n")}`)
-print(`lugares: {cuentas} comprobaciones bien`)
+print(`escondites: {cuentas} comprobaciones bien`)

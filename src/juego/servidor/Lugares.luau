@@ -309,9 +309,10 @@ end
 
 -- Los cuatro con fachada, con la forma de PuebloPlano.Edificio y en el mismo sitio y con las mismas medidas que los
 -- bloques de antes (el suelo de dentro a y = 1, la cara de dentro de cada pared a ancho/2 - 0,5 del centro): las
--- pistas, las llaves y los objetos cuentan con ellos. Las ventanas no pasan por mesas ni estantes con algo encima.
+-- pistas, las llaves y los objetos cuentan con ellos. Las ventanas no pasan por mesas ni estantes con algo encima, ni
+-- por los escondites (el armario de la cocina, en el rincón noroeste: sin la ventana norte de ese lado).
 local CASA_GRANJA: PuebloPlano.Edificio = { nombre = "CasaGranja", x = 196, z = 52, ancho = 16, largo = 12, alto = 10, plantas = 1,
-	puerta = "O", entra = true, material = "madera", ventanas = { v("O", -3.8), v("O", 3.8), v("N", -4), v("N", 3), v("S", 4.5) } }
+	puerta = "O", entra = true, material = "madera", ventanas = { v("O", -3.8), v("O", 3.8), v("N", 3), v("S", 4.5) } }
 local GRANERO: PuebloPlano.Edificio = { nombre = "Granero", x = 228, z = 80, ancho = 20, largo = 24, alto = 14, plantas = 1,
 	puerta = "O", entra = true, material = "madera", ventanas = { v("N", -4), v("N", 5), v("S", 6) } }
 local OFICINA: PuebloPlano.Edificio = { nombre = "Oficina", x = -252, z = -74, ancho = 8, largo = 8, alto = 9, plantas = 1,
@@ -336,6 +337,8 @@ local PUERTA = {
 	CasetaGuarda = { puerta = "abierta", bisagra = 1, angulo = 55 },
 }
 local SEMILLA = { CasaGranja = 3101, Granero = 3102, Oficina = 3103, CasetaGuarda = 3104 }
+-- Los de la granja, con sus ventanas, para el banco de los escondites (tests/bancos/escondites).
+Lugares.EDIFICIOS = { CasaGranja = CASA_GRANJA, Granero = GRANERO }
 
 local function fachada(e: PuebloPlano.Edificio): Model
 	return PuebloFachadas.uno(ctx, e, ESTILO[e.nombre], PUERTA[e.nombre], SEMILLA[e.nombre])
@@ -347,7 +350,8 @@ end
 local F = 1.06 -- cara de arriba del suelo forrado (PuebloInteriores.forrar)
 
 -- La cocina, dejada deprisa: la mesa en medio (pista 6 y una llave), la silla volcada, el candil apagado, la cocina de
--- hierro con su olla y la encimera con las latas.
+-- hierro con su olla, la encimera con las latas y el armario de lamas (escondite: fuera de la casa, al anochecer solo
+-- se corre o se esconde, Acechador).
 local function cocinaGranja(m: Model)
 	local e = CASA_GRANJA
 	local x1, x2, z1, z2 = PuebloPlano.dentro(e) -- 188.5, 203.5, 46.5, 57.5
@@ -378,8 +382,8 @@ local function cocinaGranja(m: Model)
 		if hierro then
 			Mapa.mueble("OllaPH", hierro:GetPivot() * CFrame.new(-1, 3.42, 0.1), true)
 		end
-		-- El retrato de la familia, torcido, entre las dos ventanas del norte.
-		local retrato = Mapa.contraPared("CuadroFamiliaPH", 195.5, 5.4, z1 + 0.11, Vector3.zAxis, true)
+		-- El retrato de la familia, torcido, entre el armario y la ventana del norte.
+		local retrato = Mapa.contraPared("CuadroFamiliaPH", 196.1, 5.4, z1 + 0.11, Vector3.zAxis, true)
 		if retrato then
 			retrato:PivotTo(retrato:GetPivot() * CFrame.Angles(0, 0, math.rad(7)))
 		end
@@ -389,6 +393,12 @@ local function cocinaGranja(m: Model)
 		Mapa.mancha(Vector3.new(x2 - 0.13, 8.6, 56), -Vector3.xAxis, 3, Mapa.SANGRE[1], Color3.fromRGB(46, 36, 24), 1.2)
 		telarana(x1 + 0.4, techo, z1 + 0.4, Vector3.new(1, 0, 1), 0.45)
 		telarana(x2 - 0.4, techo, z2 - 0.4, Vector3.new(-1, 0, -1), 0.45)
+		-- El armario, contra la pared norte en el rincón de la puerta (ni tapa la puerta, ni la ventana del oeste, ni la
+		-- mesa de la pista). Lo que pasó: a alguien lo sacaron de él a rastras hacia la puerta (arañazos de uñas por el
+		-- suelo, que acaban en el umbral) y dejó unas gotas delante.
+		Mapa.armario(Vector3.new(192.4, F + 4, z1 + 1.55), Vector3.zAxis)
+		Mapa.mancha(Vector3.new(190.9, F + 0.01, 51.2), Vector3.yAxis, 2.6, Mapa.MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), 0.12, 4.4)
+		Mapa.mancha(Vector3.new(192.7, F + 0.03, 50.3), Vector3.yAxis, 1.5, SANGRE.Gotas, SECA, 0.6)
 	end)
 	objeto("Lata", Vector3.new(202.5, 4.7, 49.5))
 	objeto("Lata", Vector3.new(202.5, 4.7, 54))
@@ -505,6 +515,26 @@ local function dentroGranero(m: Model)
 		telarana(x1 + 0.4, techo, z1 + 0.4, Vector3.new(1, 0, 1), 0.6)
 		telarana(x1 + 0.4, techo, z2 - 0.4, Vector3.new(1, 0, -1), 0.6)
 		Mapa.mancha(Vector3.new(x1 + 0.13, 12, 86), Vector3.xAxis, 4, Mapa.SANGRE[1], Color3.fromRGB(46, 36, 24), 0.6)
+
+		-- El armario de los aperos (escondite), contra la pared norte entre las dos ventanas (lejos de la puerta, la
+		-- paja, los establos y el banco): algo arañó el costado queriendo abrirlo y quien estaba dentro sangró (gotas
+		-- secas delante); la horca, apoyada en la pared a su derecha, con la punta oscura.
+		local aperos = CFrame.lookAt(Vector3.new(228, F + 4, z1 + 1.55), Vector3.new(228, F + 4, z1 + 6))
+		Mapa.armario(aperos.Position, aperos.LookVector, "Aperos")
+		Mapa.mancha((aperos * CFrame.new(2.33, 0.6, -0.4)).Position, aperos.RightVector, 1.6, Mapa.MARCAS.Aranazos,
+			Color3.fromRGB(120, 76, 70), 0.15, 2.6)
+		Mapa.mancha(Vector3.new(228.4, F + 0.03, 73.2), Vector3.yAxis, 1.7, SANGRE.Gotas, SECA, 1.3)
+		Mapa.mancha(Vector3.new(227.1, F + 0.04, 74.6), Vector3.yAxis, 0.9, SANGRE.Gotas, SECA, 0.2)
+		-- La horca (no choca), de pie contra la pared, un poco inclinada hacia el armario y sin pasar por la ventana.
+		local horca = CFrame.new(231.2, F + 2.6, z1 + 0.6) * CFrame.Angles(math.rad(-6), 0, math.rad(4))
+		local madera = Color3.fromRGB(78, 64, 50)
+		adorno("Horca", Vector3.new(0.18, 5.2, 0.18), horca, madera, Enum.Material.Wood, m)
+		adorno("Horca", Vector3.new(0.9, 0.12, 0.12), horca * CFrame.new(0, 2.65, 0), COLOR.Hierro, Enum.Material.CorrodedMetal, m)
+		for _, x in { -0.4, 0, 0.4 } do
+			adorno("Horca", Vector3.new(0.08, 1.1, 0.08), horca * CFrame.new(x, 3.25, 0), COLOR.Hierro, Enum.Material.CorrodedMetal, m)
+		end
+		-- La sangre seca de la punta del medio.
+		adorno("Horca", Vector3.new(0.1, 0.5, 0.1), horca * CFrame.new(0, 3.55, 0), Color3.fromRGB(70, 14, 12), Enum.Material.SmoothPlastic, m)
 	end)
 end
 

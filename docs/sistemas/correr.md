@@ -112,12 +112,15 @@ siempre, puesto dentro de `Mapa.conPadre`): la cocina de la granja y el granero 
 confesionario de la iglesia y el ropero de la casa abierta en `PuebloInteriores`. Cada uno con lo que cuenta lo que
 pasó (arañazos de uñas, sangre seca; Moderate como máximo). En la iglesia se quitó el primer banco del norte y el
 segundo es más corto; en la casa abierta la cocina pasó al rincón del sureste y la silla al lado oeste de la mesa.
+En la cocina de la granja (con fachada) el armario va en el rincón noroeste: se quitó la ventana norte de ese lado y
+el retrato pasó entre el armario y la otra; el de aperos, en la pared norte del granero entre sus dos ventanas.
 - Escondido fuera, el Acechador no te suelta ni se esfuma: se para a `Config.Acechador.AguardaLejos` (28) del
   escondite, de cara a él, partiendo ramas, `Aguarda` (20) s; si sales antes, carga; si aguantas, se va. Como mucho
   `Aguardas` (2) esperas por ataque. Mientras sigues escondido no corre el tiempo para el siguiente ataque (se queda
   en lo que llevaba). Números a ojo.
-- `tests/bancos/lugares.luau` mira que cada uno esté dentro de su edificio, con la Salida libre y a ras del suelo, sin
-  meterse en paredes, muebles ni bancos, sin estorbar la puerta ni tapar ventanas, llaves, objetos, pesados o pistas.
+- `tests/bancos/escondites.luau` mira que cada uno esté dentro de su edificio, con la Salida libre y a ras del suelo, sin
+  meterse en paredes, muebles ni bancos, sin estorbar la puerta ni tapar ventanas (las de la granja, de
+  `Lugares.EDIFICIOS`), llaves, objetos, pesados o pistas.
 
 ## Bancos de Lune
 
