@@ -1117,7 +1117,7 @@ function MuerteVista.start()
 	end)
 	jugador:GetAttributeChangedSignal("Escondido"):Connect(cambiarEscondido)
 	jugador:GetAttributeChangedSignal("Cubierto"):Connect(pintarBordes) -- debajo de un mueble (Postura)
-	jugador:GetAttributeChangedSignal("Muerto"):Connect(function()
+	local function alCambiarMuerto()
 		if not jugador:GetAttribute("Muerto") then
 			mirando.Visible = false
 			jugador.CameraMode = Enum.CameraMode.LockFirstPerson
@@ -1126,7 +1126,11 @@ function MuerteVista.start()
 			jugador.CameraMode = Enum.CameraMode.Classic
 			jugador.CameraMinZoomDistance = 10
 		end
-	end)
+	end
+	jugador:GetAttributeChangedSignal("Muerto"):Connect(alCambiarMuerto)
+	if jugador:GetAttribute("Muerto") then
+		alCambiarMuerto() -- ha vuelto a entrar muerto (Muerte): el atributo llegó antes que esto
+	end
 	jugador.CharacterAdded:Connect(function(personaje)
 		-- Reaparecer en medio de un final (al amanecer reviven los muertos) no le quita la cámara a la escena (HuidaVista,
 		-- IncendioVista): ella la devuelve al acabar. Si no hay escena, la de siempre.
