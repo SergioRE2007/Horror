@@ -127,8 +127,9 @@ local function ponerMochila(jugador: Player)
 end
 
 -- Deja el mundo como en `d` (ya arreglado con FormatoPartida). El orden importa: el móvil del enchufe (Generador)
--- después de quitar los objetos sueltos (Mochila).
-local function aplicar(d)
+-- después de quitar los objetos sueltos (Mochila). `esperados` (solo al cargar): los UserIds que vienen y aún no han
+-- entrado; Llaves no les quita lo que llevan.
+local function aplicar(d, esperados: { number }?)
 	Cargar.importar(delMundo(d.pesados))
 	Mochila.importarSueltos(delMundo(d.objetos))
 	Casa.importar(d.casa)
@@ -140,7 +141,7 @@ local function aplicar(d)
 	for _, jugador in Players:GetPlayers() do
 		ponerMochila(jugador)
 	end
-	Llaves.repasar(semilla, d.mochilas) -- la que falte vuelve a su sitio
+	Llaves.repasar(semilla, d.mochilas, esperados) -- la que falte vuelve a su sitio (y lo del que no vuelve)
 end
 
 local acabar: (texto: string) -> ()
@@ -201,12 +202,25 @@ acabar = function(texto: string)
 	task.spawn(Viaje.volver, Players:GetPlayers(), texto) -- sin esperar: lo llaman desde el ciclo y el arranque
 end
 
-function Partida.volverAlAmanecer()
+local function volver(esperados: { number }?)
 	if ultima then
-		aplicar(ultima)
+		aplicar(ultima, esperados)
 		-- Lo que tiraron los que se fueron ya no está en el suelo: su mochila vuelve a ser la del amanecer.
 		table.clear(idos)
 	end
+end
+
+function Partida.volverAlAmanecer()
+	volver(nil)
+end
+
+-- Los que vienen a esta sesión según el viaje: los apuntados y el dueño.
+local function esperadosDe(viaje: Viaje.Info): { number }
+	local lista = table.clone(viaje.jugadores)
+	if not table.find(lista, viaje.dueno) then
+		table.insert(lista, viaje.dueno)
+	end
+	return lista
 end
 
 -- Un DataStore de mentira para Studio (una clave, en memoria): pasa por JSON, como el de verdad.
@@ -276,7 +290,13 @@ function Partida.start(): number
 	end)
 	Ciclo.alCambiar(function(fase)
 		if fase == "Dia" and op and not acabada then
-			Llaves.repasar(semilla, if ultima then ultima.mochilas else {}) -- la que se haya perdido, a su sitio
+			-- La que se haya perdido, a su sitio. Sin los que se han ido hoy: lo suyo ya está en el suelo (y la foto
+			-- quita su mochila), así que lo único que llevaban no se repone otra vez.
+			local guardadas = table.clone(if ultima then ultima.mochilas else {})
+			for id in idos do
+				guardadas[id] = nil
+			end
+			Llaves.repasar(semilla, guardadas)
 			ultima = foto()
 			task.spawn(guardar, false) -- sin frenar al resto de los que escuchan el amanecer
 		end
@@ -312,7 +332,8 @@ function Partida.start(): number
 		local primero = Players:GetPlayers()[1] or Players.PlayerAdded:Wait()
 		info = { dueno = Config.Test.Dueno or primero.UserId, ranura = Config.Test.Ranura, nueva = Config.Test.Nueva, jugadores = {} }
 		almacenPrueba = almacenDeMentira()
-		ServerStorage:WaitForChild("Prueba").Event:Connect(function(que: string)
+		-- ("Cargar", { UserIds }) carga como si esos vinieran y aún no hubieran entrado (Llaves no les quita nada).
+		ServerStorage:WaitForChild("Prueba").Event:Connect(function(que: string, esperados: { number }?)
 			if que == "Guardar" then
 				ultima = foto()
 				guardar(false)
@@ -323,7 +344,7 @@ function Partida.start(): number
 					return nil
 				end)
 				ultima = FormatoPartida.arreglar(leido and leido.datos, CAT)
-				Partida.volverAlAmanecer()
+				volver(if type(esperados) == "table" then esperados else nil)
 			end
 		end)
 	else
@@ -381,7 +402,7 @@ function Partida.start(): number
 	if d and not d.final then -- una terminada se empieza de cero
 		semilla = d.semilla
 		ultima = d
-		aplicar(d)
+		aplicar(d, esperadosDe(viaje))
 		return d.noche
 	end
 	semilla = Random.new():NextInteger(1, 2 ^ 31 - 2)
