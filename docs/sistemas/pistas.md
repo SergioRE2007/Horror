@@ -8,7 +8,8 @@ Textos aprobados por el usuario en `docs/historia.md` (no cambiarlos sin él). E
 - Sitios en `SITIOS` (mismo orden que `Historia`). La 10 (nota del cuarto de revelado), la 11 (diario del escritorio del rico) y la 12 (caja fuerte, "Open") ya están en los muebles de `Mapa`: solo llevan el prompt en una pieza invisible (`YA_HAY`).
 - La 9 (sótano) está encima del banco del taller, a la izquierda (sitio dado por la 11.8.13).
 - Al leerla, el servidor comprueba vivo, cerca (`Alcance` + 4 studs de holgura), 0,3 s entre lecturas y, en las salas con llave (9 a 12), que su puerta ya esté abierta (el prompt atraviesa paredes; `SALA`); la apunta y manda `Remotes.Pista` (n, cuántas van). No hay remote de vuelta.
-- `Pistas.leida(n)`: para el final (12.2: plano de la reja, cerillas).
+- `Pistas.leida(n)`: para el final (12.2: plano de la reja).
+- La 12 (caja fuerte) da las cerillas del final la primera vez que se abre en la partida (`Config.Bestia.PistaCerillas`): `Mochila.dar` (o a los pies) y un aviso. Va con la primera lectura, así que volver a abrirla o recargar no da más; en partidas viejas, las cerillas que ya estaban en la cocina siguen donde se guardaron.
 
 ## Guardado
 
