@@ -16,7 +16,8 @@
 --   queda ningún bidón con gasolina, no lo pide. Así el jugador nuevo no se queda a oscuras a mitad de la primera noche.
 --   La puerta principal abierta cuenta como una cortina más (la suma la hace Tutorial en `cortinas`).
 -- Después del tutorial, PasosTutorial.meta dice cuál es la siguiente meta (Tutorial la avisa al empezar cada día) y,
--- si ya se ha empezado a preparar la casa para la Bestia, PasosTutorial.metaBestia.
+-- si ya se ha empezado a preparar la casa para la Bestia, PasosTutorial.metaBestia. Lo urgente para la noche va
+-- antes que las llaves y el coche: el generador con poca gasolina, reparar lo roto y troncos junto a la chimenea.
 local PasosTutorial = {}
 
 -- En el orden en que salen. No hace falta guardarlo: si el jugador se va a medias, la próxima vez empieza de cero.
@@ -133,20 +134,32 @@ function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 end
 
 -- La siguiente meta tras el tutorial (16.5), de más cerca a más lejos como las llaves (docs/diseño.md): la llave del
--- sótano (granja), la del garaje (aserradero), las piezas del coche y su gasolina, y huir. Antes que todo eso, si el
--- generador no aguanta la noche y hay gasolina a mano, llenarlo (se empieza con poco y una noche gasta más). Devuelve
--- un código y un número (Tutorial lo pasa a una frase con Lang.t):
---   "Generador", "Sotano", "Garaje", "Piezas" (n = piezas que faltan), "Gasolina" (solo falta la del coche) o "Huir".
+-- sótano (granja), la del garaje (aserradero), las piezas del coche y su gasolina, y huir. Antes que todo eso, lo que
+-- hace falta para aguantar la noche que viene: si el generador no la aguanta y hay gasolina a mano, llenarlo (se
+-- empieza con poco y una noche gasta más); si hay ventanas o puertas reventadas, clavarles un tablón (rotas no
+-- protegen: el bicho entra al primer golpe); y, desde que sale el Trepador, troncos junto a la chimenea (el fuego lo
+-- echa y en sus segundos por el tejado no da tiempo a ir a talar). Devuelve un código y un número (Tutorial lo pasa
+-- a una frase con Lang.t):
+--   "Generador", "Reparar" (n = rotas), "Chimenea", "Sotano", "Garaje", "Piezas" (n = piezas que faltan),
+--   "Gasolina" (solo falta la del coche) o "Huir".
 --   `cerradas` = llaves de las salas aún cerradas (Casa.cerradas); `piezas` = las que le faltan al coche; `poca` = de
---   día, el generador por debajo de Config.Tutorial.Gasolina y queda gasolina que echarle (Tutorial lo calcula).
+--   día, el generador por debajo de Config.Tutorial.Gasolina y queda gasolina que echarle; `rotas` = de día,
+--   ventanas y puertas de abajo sin vida; `chimenea` = de día, ya sale el Trepador, el fuego apagado y sin troncos
+--   cerca del hogar (todo lo calcula Tutorial).
 function PasosTutorial.meta(
 	cerradas: { string },
 	piezas: number,
 	gasolinaCoche: boolean,
-	poca: boolean?
+	poca: boolean?,
+	rotas: number,
+	chimenea: boolean
 ): (string, number)
 	if poca then
 		return "Generador", 0
+	elseif rotas > 0 then
+		return "Reparar", rotas
+	elseif chimenea then
+		return "Chimenea", 0
 	elseif table.find(cerradas, "LlaveSotano") then
 		return "Sotano", 0
 	elseif table.find(cerradas, "LlaveGaraje") then

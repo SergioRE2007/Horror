@@ -1,8 +1,9 @@
 -- Banco del tutorial, 16.5 (shared/PasosTutorial, sin Roblox):
 --   La gasolina del generador: en marcha con poco depósito, el paso Generador pide echarle un bidón (repostar) hasta
 --   que llega al mínimo o sube; sin bidones con gasolina no lo pide; parado y sin gasolina, primero el bidón.
---   La siguiente meta tras el tutorial: llenar el generador si no aguanta la noche, llave del sótano, del garaje,
---   piezas del coche, su gasolina y huir. Y la del final de la Bestia: cruces, plano de la reja, reja y esperarla.
+--   La siguiente meta tras el tutorial: llenar el generador si no aguanta la noche, reparar ventanas y puertas rotas,
+--   troncos junto a la chimenea, llave del sótano, del garaje, piezas del coche, su gasolina y huir. Y la del final
+--   de la Bestia: cruces, plano de la reja, reja y esperarla.
 -- Ejecutar desde la raíz: lune run tests/bancos/tutorial-meta.luau (lo corre regressions.luau).
 local PT = require("../../src/shared/PasosTutorial")
 
@@ -69,18 +70,36 @@ end
 -- Siguiente meta --------------------------------------------------------------------------------------------------
 do
 	local todas = { "LlaveSotano", "LlaveGaraje", "LlaveDesvan", "LlaveRico" }
-	igual(PT.meta(todas, 5, true), "Sotano", "meta: primero la llave del sótano")
-	igual(PT.meta({ "LlaveGaraje", "LlaveDesvan" }, 5, true), "Garaje", "meta: luego la del garaje")
-	local meta, n = PT.meta({ "LlaveDesvan", "LlaveRico" }, 3, true)
+	igual(PT.meta(todas, 5, true, nil, 0, false), "Sotano", "meta: primero la llave del sótano")
+	igual(PT.meta({ "LlaveGaraje", "LlaveDesvan" }, 5, true, nil, 0, false), "Garaje", "meta: luego la del garaje")
+	local meta, n = PT.meta({ "LlaveDesvan", "LlaveRico" }, 3, true, nil, 0, false)
 	igual(meta, "Piezas", "meta: con el garaje abierto, el coche")
 	igual(n, 3, "meta: cuántas piezas faltan")
-	igual(PT.meta({}, 0, true), "Gasolina", "meta: solo falta la gasolina del coche")
-	igual(PT.meta({}, 0, false), "Huir", "meta: listo para huir")
+	igual(PT.meta({}, 0, true, nil, 0, false), "Gasolina", "meta: solo falta la gasolina del coche")
+	igual(PT.meta({}, 0, false, nil, 0, false), "Huir", "meta: listo para huir")
 	-- El generador no aguanta la noche (Tutorial calcula `poca`: de día, bajo el mínimo y con gasolina a mano)
-	igual(PT.meta(todas, 5, true, true), "Generador", "meta: poca gasolina, el generador antes que el sótano")
-	igual(PT.meta({}, 0, false, true), "Generador", "meta: poca gasolina, antes incluso que huir")
-	igual(PT.meta(todas, 5, true, false), "Sotano", "meta: con gasolina de sobra (o sin nada que echarle), como antes")
-	igual(PT.meta(todas, 5, true), "Sotano", "meta: sin el dato, como antes")
+	igual(PT.meta(todas, 5, true, true, 0, false), "Generador", "meta: poca gasolina, el generador antes que el sótano")
+	igual(PT.meta({}, 0, false, true, 0, false), "Generador", "meta: poca gasolina, antes incluso que huir")
+	igual(PT.meta(todas, 5, true, false, 0, false), "Sotano", "meta: con gasolina de sobra (o sin nada que echarle), como antes")
+	igual(PT.meta(todas, 5, true, nil, 0, false), "Sotano", "meta: sin el dato, como antes")
+
+	-- Ventanas y puertas rotas (Tutorial cuenta las de abajo sin vida): antes que las llaves, después del generador
+	meta, n = PT.meta(todas, 5, true, false, 1, false)
+	igual(meta, "Reparar", "meta: una rota, repararla antes que la llave")
+	igual(n, 1, "meta: cuántas rotas (1)")
+	meta, n = PT.meta({}, 0, false, false, 3, true)
+	igual(meta, "Reparar", "meta: rotas antes que la chimenea y que huir")
+	igual(n, 3, "meta: cuántas rotas (3)")
+	igual(PT.meta(todas, 5, true, true, 2, true), "Generador", "meta: sin luz no se aguanta: el generador antes que reparar")
+	igual(select(2, PT.meta(todas, 5, true, true, 2, false)), 0, "meta: el generador no lleva número")
+
+	-- Troncos junto a la chimenea (Tutorial: de día, ya sale el Trepador, apagada y sin troncos cerca)
+	meta, n = PT.meta(todas, 5, true, false, 0, true)
+	igual(meta, "Chimenea", "meta: chimenea antes que la llave del sótano")
+	igual(n, 0, "meta: la chimenea no lleva número")
+	igual(PT.meta({}, 0, false, false, 0, true), "Chimenea", "meta: chimenea antes incluso que huir")
+	igual(PT.meta({}, 0, true, true, 0, true), "Generador", "meta: el generador antes que la chimenea")
+	igual(PT.meta({ "LlaveGaraje" }, 5, true, false, 0, false), "Garaje", "meta: con troncos y nada roto, lo de siempre")
 end
 
 -- Meta del final de la Bestia (Tutorial la usa con la 12 leída y la casa ya a medio preparar) ------------------------
