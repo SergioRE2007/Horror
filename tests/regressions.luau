@@ -1441,6 +1441,36 @@ do
 	igual(PR.alcanceOido(oido, false, true, true), math.min(oido, Config.Postura.VerCubierto), "correr: cubierto manda")
 end
 
+-- Llegar e irse sin saltos (Caza.llegarA, Caza.salir y la prórroga de Caza.cazar): sacado del texto, Caza necesita
+-- Roblox. Los cuatro que atacan una ventana o la chimenea llegan con llegarA y se van con salir (nunca irA a pelo a
+-- `dentro`, que se teletransportaba delante del jugador), y la prórroga no corre con prisa ni en el bosque.
+do
+	for _, cfg in { "LlegarMas", "Prorroga", "SalirMax", "VerLejos" } do
+		local v = Config.Caza[cfg]
+		igual(type(v) == "number" and v > 0, true, `Config.Caza.{cfg}`)
+	end
+	local caza = fs.readFile("src/juego/servidor/Caza.luau")
+	for _, f in { "function Caza.nadieVe(", "function Caza.llegarA(", "function Caza.salir(" } do
+		igual(string.find(caza, f, 1, true) ~= nil, true, `Caza: {f}`)
+	end
+	local i = string.find(caza, "function Caza.cazar(", 1, true) :: number
+	local _, f = string.find(caza, "\r?\nend\r?\n", i)
+	local cazar = string.sub(caza, i, f)
+	igual(string.find(cazar, "while self.modelo and not self.prisa do", 1, true) ~= nil, true, "cazar: la prisa corta")
+	igual(string.find(cazar, "if soloFuera then fin else fin + PRORROGA", 1, true) ~= nil, true, "cazar: sin prórroga fuera")
+	igual(string.find(cazar, "ahora >= fin and not conPresa", 1, true) ~= nil, true, "cazar: prórroga solo con presa")
+	local salida = { Golpeador = "dentro", Raspador = "dentro", Imitador = "dentro", Trepador = "salida.Position" }
+	for nombre, donde in salida do
+		local fuente = fs.readFile(`src/juego/servidor/{nombre}.luau`)
+		igual(string.find(fuente, "b:llegarA(", 1, true) ~= nil, true, `{nombre}: llega con Caza.llegarA`)
+		igual(string.find(fuente, `b:salir({donde},`, 1, true) ~= nil, true, `{nombre}: se va con Caza.salir`)
+		igual(string.find(fuente, `b:irA({donde},`, 1, true), nil, `{nombre}: sin irA a pelo a la salida`)
+	end
+	local trepador = fs.readFile("src/juego/servidor/Trepador.luau")
+	local s = string.find(trepador, "b:salir(salida.Position", 1, true) :: number
+	igual((string.find(trepador, "\"Baja\", modelo", s, true) or 0) > s, true, "Trepador: sale antes de 'Baja'")
+end
+
 -- Bancos (tests/bancos, 14.8): módulos del cliente con un Roblox de mentira (tests/bancos/_roblox.luau) y cuentas,
 -- cada uno en su propio proceso de Lune (no se pisan lo que tocan), todos a la vez (process.exec cede): el del gateo
 -- (~30 s, sus cinco bichos a la vez) marca el paso. Los que empiezan por "_" son ayudas, no bancos.

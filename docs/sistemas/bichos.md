@@ -15,6 +15,13 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   recta. Antes, con tres bichos, 12-20 `ComputeAsync` por segundo (banco `pulido-4`). `Casa.puertas()` da una lista
   guardada y congelada (`puertasSinLlave`): cada vez que una puerta deja de estar bloqueada (con llave, al importar o
   con el modo de pruebas "Abrir") hay que vaciarla (`puertasSinLlave = nil`).
+- Llegar e irse sin saltos (`Config.Caza`, a ojo): Golpeador, Raspador, Imitador y Trepador llegan con
+  `Caza.llegarA`: si se atascan no golpean, raspan, llaman ni trepan desde lejos; se ponen en su sitio (de cara a la
+  casa) en cuanto nadie les ve a ellos ni ese sitio (`Caza.nadieVe`: rayo desde la cabeza de cada vivo, los cristales
+  no tapan, hasta `VerLejos` 160 studs) o, si les ven, tras `LlegarMas` 10 s más andando. `Caza.cazar` no corta en
+  seco a quien persigue: pasado su tiempo sigue mientras tenga presa (no en un armario), `Prorroga` 8 s como mucho;
+  nunca con prisa (amanecer, flash del Raspador) ni en el bosque. Al irse, `Caza.salir`: andan hasta la ventana o el
+  hogar y, si no llegan, siguen hasta que nadie les vea o `SalirMax` 10 s; solo entonces salen fuera de golpe o se quitan.
 - Modo de pruebas: `ServerStorage.Prueba:Fire("Trepador" | "Imitador" | "Acechador" | "Fuego")`. "Imitador" va con apagón; "Acechador" sale a por el primer jugador (que debe estar en el bosque).
 
 ## Cliente (`src/juego/cliente`)
