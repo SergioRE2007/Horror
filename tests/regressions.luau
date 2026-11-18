@@ -103,6 +103,10 @@ assert(cfg.Caduca > cfg.Intervalo * 2, "Caduca tiene que ser bastante mayor que 
 assert(cfg.Espera > cfg.Reintento, "Espera tiene que dar para varios intentos")
 comprobaciones += 2
 
+-- Generador: apagarlo pide mantener E y, recién arrancado, ni eso (quien sigue tirando a ritmo no lo apaga).
+igual(Config.Generador.Apagar > 0, true, "generador: apagar pide mantener E")
+igual(Config.Generador.Gracia >= Config.Generador.Tiron, true, "generador: la gracia cubre el tirón siguiente")
+
 -- Formato: partida nueva y arreglar lo viejo o roto.
 do
 	local nuevo = Formato.arreglarJugador(nil)
