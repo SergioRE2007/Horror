@@ -26,6 +26,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local TiempoNoche = require(ReplicatedStorage.Shared.TiempoNoche)
 local AireVista = require(script.Parent.AireVista)
 local Ambiente = require(script.Parent.Ambiente)
 local CasaVista = require(script.Parent.CasaVista)
@@ -49,17 +50,15 @@ export type Relampago = {
 	angulo: number, -- de dónde viene el trueno cercano (radianes, en planta)
 }
 
--- La semilla de una noche: la misma en todos los clientes (Noche y FaseInicio llegan iguales del servidor).
+-- La semilla de una noche: la misma en todos los clientes (Noche y FaseInicio llegan iguales del servidor). La cuenta,
+-- en shared/TiempoNoche (el servidor la usa igual).
 function TormentaVista.semilla(noche: number, inicio: number): number
-	return (math.floor(inicio) % 2_147_000) * 1000 + math.floor(noche) % 1000
+	return TiempoNoche.semilla(noche, inicio)
 end
 
--- ¿Hay tormenta esta noche?
+-- ¿Hay tormenta esta noche? (TiempoNoche.hayTormenta)
 function TormentaVista.hay(noche: number, inicio: number, cfg: any): boolean
-	if noche < cfg.Desde then
-		return false
-	end
-	return Random.new(TormentaVista.semilla(noche, inicio)):NextNumber() < cfg.Probabilidad
+	return TiempoNoche.hayTormenta(noche, inicio, cfg)
 end
 
 -- Todos los relámpagos de una noche (de `inicio` a `fin`, horas del servidor), en orden. Vacío si no hay tormenta

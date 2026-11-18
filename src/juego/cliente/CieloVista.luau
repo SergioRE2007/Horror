@@ -26,6 +26,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local TiempoNoche = require(ReplicatedStorage.Shared.TiempoNoche)
 local AireVista = require(script.Parent.AireVista)
 local Ambiente = require(script.Parent.Ambiente)
 local TormentaVista = require(script.Parent.TormentaVista)
@@ -92,12 +93,14 @@ function CieloVista.objetivoTormenta(fase: string?, p: number, hay: boolean, cfg
 end
 
 -- ¿Hay niebla cerrada esta noche? Desde Niebla.Desde, con su Probabilidad y nunca si hay tormenta (la misma cuenta que
--- TormentaVista.hay, con Config.Tormenta). La misma en todos los clientes: semilla de TormentaVista con otra tirada.
+-- TormentaVista.hay, con Config.Tormenta). La misma en todos los clientes: semilla de TormentaVista con otra tirada
+-- (TiempoNoche.nieblaCon; el servidor la mira con TiempoNoche.hayNiebla, que da lo mismo: Caza.esNiebla).
 function CieloVista.hayNiebla(noche: number, inicio: number, cfg: any): boolean
-	if noche < cfg.Desde or TormentaVista.hay(noche, inicio, Config.Tormenta) then
+	if noche < cfg.Desde then
 		return false
 	end
-	return Random.new(TormentaVista.semilla(noche, inicio) + 104729):NextNumber() < cfg.Probabilidad
+	local conTormenta = TormentaVista.hay(noche, inicio, Config.Tormenta)
+	return TiempoNoche.nieblaCon(TormentaVista.semilla(noche, inicio), conTormenta, noche, cfg)
 end
 
 -- Lo que toca de niebla (0 o 1), como objetivoTormenta: solo de noche, si la hay, hasta que se levanta (Niebla.Abre).
