@@ -13,7 +13,7 @@ local NOMBRES = {
 	"Linterna", -- cliente -> servidor: enciende o apaga mi linterna (si no tiene pila, la cambia)
 	"Flash", -- cliente -> servidor: (dirección de la cámara) hago una foto; servidor -> todos: (jugador) ha hecho una
 	"Mochila", -- cliente -> servidor: ("Abrir", abierta), ("Mover", id, x, y, girada) o ("Tirar", id)
-	"Cargar", -- cliente -> servidor: suelto lo pesado que llevo
+	"Cargar", -- cliente -> servidor: suelto lo pesado que llevo, o ("Parar") dejo a medias lo que estoy haciendo
 	"Usar", -- cliente -> servidor: (objetivo) uso lo que llevo en las manos con esto (serrar, clavar, echar gasolina)
 	"Trabajo", -- servidor -> todos: (jugador, que, pieza, segundos) para animar: "Hachazo", "Serrar", "Clavar", "Verter",
 	-- "Montar" (una pieza del coche), "Fabricar" (en un banco del taller),
