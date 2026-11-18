@@ -215,3 +215,7 @@ Números de la vista al principio del módulo.
 Cámara (`CuerpoVista`, Camera + 1), mirilla (`MirarVista`, + 3), manos (+ 5) y luz de la linterna (`EquipoVista`,
 + 6): la luz va ahora después de las manos (antes, en + 4, salía un fotograma tarde y corriendo se torcía hasta 1,5
 grados de la linterna que se ve). Correr con las manos: `docs/sistemas/correr.md`.
+
+## Cámara siempre al día (16.20)
+
+Ningún módulo guarda `workspace.CurrentCamera` al cargar: todos llaman a `Camara.get()` (`src/juego/cliente/Camara.luau`, sin `start()`), que relee la cámara si el motor la sustituye. Las conexiones a propiedades de la cámara (p. ej. `CameraType` en `BengalasVista`) usan `Camara.alCambiar(propiedad, f)`, que se rehace sola. Probar en Studio: jugar y comprobar que manos, cabeceo, mirilla, mochila y vista de muerte siguen igual.

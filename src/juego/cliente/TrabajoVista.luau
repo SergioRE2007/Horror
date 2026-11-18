@@ -20,7 +20,7 @@ local Sonido = require(script.Parent.Sonido)
 local TrabajoVista = {}
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local azar = Random.new()
 
 local MADERA = Color3.fromRGB(150, 118, 82)
@@ -74,7 +74,7 @@ local function herramienta(accion: string): { Pieza }
 	local lista = {}
 	for _, datos in HERRAMIENTAS[accion] or {} do
 		local p = parte(datos[1], datos[3], datos[4])
-		p.Parent = camara
+		p.Parent = Camara.get()
 		table.insert(lista, { parte = p, sitio = datos[2] })
 	end
 	return lista
@@ -272,7 +272,7 @@ local function martillazo(a: Activo, quien: Player)
 		return
 	end
 	a.golpes += 1
-	local ojo = if quien == jugador then camara.CFrame.Position else tablon.Position + Vector3.yAxis
+	local ojo = if quien == jugador then Camara.get().CFrame.Position else tablon.Position + Vector3.yAxis
 	local cara = if (ojo - tablon.Position):Dot(tablon.CFrame.UpVector) >= 0 then 1 else -1
 	local sitios = { -2.3, 2.3, -1.3, 1.3, 0 }
 	local x = sitios[(a.golpes - 1) % #sitios + 1]
@@ -305,7 +305,7 @@ local function chorro(pieza: BasePart, segundos: number): BasePart?
 	local p = parte(Vector3.new(0.2, 0.2, largo), Color3.fromRGB(205, 165, 60), Enum.Material.Glass)
 	p.Transparency = 0.25
 	p.CFrame = CFrame.lookAt((boca + tapon) / 2, tapon)
-	p.Parent = camara
+	p.Parent = Camara.get()
 	local s = Sonido.bucle("Verter", p)
 	task.delay(segundos, function()
 		s:Destroy()
@@ -395,7 +395,7 @@ local function mover()
 		local base: CFrame
 		local sitio = SITIO[a.accion] or SITIO.Hachazo
 		if quien == jugador then
-			base = camara.CFrame * sitio[1]
+			base = Camara.get().CFrame * sitio[1]
 		else
 			local raiz = quien.Character and quien.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if not raiz then
@@ -422,7 +422,7 @@ local function mover()
 			p.parte.CFrame = base * pose * p.sitio
 		end
 		if quien == jugador then
-			agarreMio = camara.CFrame:ToObjectSpace(base * pose) -- respecto a la cámara: sin un fotograma de retraso
+			agarreMio = Camara.get().CFrame:ToObjectSpace(base * pose) -- respecto a la cámara: sin un fotograma de retraso
 		else
 			agarresOtros[quien] = base * pose
 		end
@@ -439,14 +439,14 @@ local function manosEnHerramienta(): Manos.Pose?
 	if not a or not agarreMio then
 		return nil
 	end
-	local g = camara.CFrame * (agarreMio :: CFrame)
+	local g = Camara.get().CFrame * (agarreMio :: CFrame)
 	local pieza = a.pieza
 	if not HERRAMIENTAS[a.accion] then
 		-- Sin herramienta (echar un tronco al fuego, verter el bidón): las dos manos en la pieza, por sus lados.
 		if not pieza or not pieza.Parent then
 			return nil
 		end
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local function lado(x: number): CFrame
 			local natural = cf * Vector3.new(x, -1.0, -1.3)
 			local caja, medio = pieza.CFrame, pieza.Size / 2
@@ -475,7 +475,7 @@ local function manosEnHerramienta(): Manos.Pose?
 	end
 	if not izq and pieza and pieza.Parent then
 		-- La izquierda apoyada en lo que trabajas, del lado que queda cerca, sujetándolo.
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local natural = cf * Vector3.new(-0.6, -1.0, -1.4)
 		local caja, medio = pieza.CFrame, pieza.Size / 2
 		local l = caja:PointToObjectSpace(natural)
@@ -560,7 +560,7 @@ local function generador(gen: Instance)
 	encender()
 	-- Encendido y cerca: tiembla.
 	RunService.Heartbeat:Connect(function()
-		if motor and (camara.CFrame.Position - escape.Position).Magnitude < 60 then
+		if motor and (Camara.get().CFrame.Position - escape.Position).Magnitude < 60 then
 			for p, cf in temblar do
 				p.CFrame = cf * CFrame.new(azar:NextNumber(-0.02, 0.02), azar:NextNumber(-0.02, 0.02), 0)
 			end

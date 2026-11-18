@@ -34,6 +34,7 @@ local Cargar = require(script.Parent.Cargar)
 local Casa = require(script.Parent.Casa)
 local Ciclo = require(script.Parent.Ciclo)
 local Coche = require(script.Parent.Coche)
+local FinPartida = require(script.Parent.FinPartida)
 local FormatoPartida = require(script.Parent.FormatoPartida)
 local Generador = require(script.Parent.Generador)
 local Incendio = require(script.Parent.Incendio)
@@ -55,7 +56,6 @@ local ultima = nil -- la foto del último amanecer: lo que se guarda y a lo que 
 local semilla = 0
 local idos: { [string]: boolean } = {} -- UserIds que se han ido en esta sesión (lo suyo cayó al suelo)
 local guardando = false
-local acabada = false
 local cerrando = false -- el servidor se está cerrando (BindToClose)
 local cargandoPartida = false -- cogiendo el candado de la partida
 local esperaDueno = 0 -- sube cada vez que el dueño se va: una espera vieja no acaba la partida
@@ -178,25 +178,25 @@ end
 
 -- Se ha terminado con un final (Coche al huir, Incendio al quemar a la Bestia): se guarda así, se suelta y ya no pasa nada más (Director lo mira).
 local function terminar(final: string)
-	if acabada then
+	if FinPartida.acabada() then
 		return
 	end
-	acabada = true
+	FinPartida.marcar()
 	ultima = foto()
 	ultima.final = final
 	task.spawn(guardar, true)
 end
 
 function Partida.terminada(): boolean
-	return acabada
+	return FinPartida.acabada()
 end
 
 -- Se acaba para todos: se queda lo del último amanecer y vuelven al lobby.
 acabar = function(texto: string)
-	if acabada then
+	if FinPartida.acabada() then
 		return
 	end
-	acabada = true
+	FinPartida.marcar()
 	task.spawn(guardar, true)
 	task.spawn(Viaje.volver, Players:GetPlayers(), texto) -- sin esperar: lo llaman desde el ciclo y el arranque
 end
@@ -228,7 +228,7 @@ local function alEntrar(jugador: Player)
 	while not jugador:GetAttribute("Mochila") and jugador.Parent do -- que Mochila le haya preparado la suya
 		task.wait()
 	end
-	if acabada then
+	if FinPartida.acabada() then
 		Viaje.volver({ jugador }, "This game has already ended.")
 	elseif info and #info.jugadores > 0 and not table.find(info.jugadores, jugador.UserId) then
 		Viaje.volver({ jugador }, "This game has already started.")
@@ -246,7 +246,7 @@ end
 
 local function alSalir(jugador: Player)
 	idos[tostring(jugador.UserId)] = true
-	if not info or jugador.UserId ~= info.dueno or acabada then
+	if not info or jugador.UserId ~= info.dueno or FinPartida.acabada() then
 		return
 	end
 	esperaDueno += 1
@@ -275,7 +275,7 @@ function Partida.start(): number
 		terminar("Bestia")
 	end)
 	Ciclo.alCambiar(function(fase)
-		if fase == "Dia" and op and not acabada then
+		if fase == "Dia" and op and not FinPartida.acabada() then
 			Llaves.repasar(semilla, if ultima then ultima.mochilas else {}) -- la que se haya perdido, a su sitio
 			ultima = foto()
 			task.spawn(guardar, false) -- sin frenar al resto de los que escuchan el amanecer
@@ -285,7 +285,7 @@ function Partida.start(): number
 	-- preparado). Si mueren todos esa noche se vuelve ahí, no al amanecer (14.1, pedido por el usuario). Una vez al día
 	-- como mucho: Preparativos solo deja esperarla de día y una vez.
 	Preparativos.alSoltar(function()
-		if op and not acabada then
+		if op and not FinPartida.acabada() then
 			ultima = foto()
 			task.spawn(guardar, false)
 		end
@@ -293,7 +293,7 @@ function Partida.start(): number
 	task.spawn(function() -- renueva el candado aunque tarde en amanecer
 		while true do
 			task.wait(Config.Guardado.Intervalo)
-			if op and not acabada then
+			if op and not FinPartida.acabada() then
 				guardar(false)
 			end
 		end
@@ -352,17 +352,22 @@ function Partida.start(): number
 	-- `op` solo cuando ya es nuestra: un cierre a media carga no debe escribir nada (borraría la partida).
 	cargandoPartida = true
 	local cargado, estado, guardado = pcall(Candado.cargar, opciones)
-	cargandoPartida = false
 	if not cargado then
 		warn("[Partida] " .. tostring(estado))
 		estado, guardado = "fallo", nil
 	end
 	if estado == "ok" and cerrando then
 		-- El servidor se cierra mientras la cogía: soltarla tal cual estaba (si no, la ranura quedaba cogida hasta
-		-- que el candado caducara, Config.Guardado.Caduca).
-		Candado.guardar(opciones, guardado, true, Config.Guardado.Intentos)
+		-- que el candado caducara, Config.Guardado.Caduca). `cargandoPartida` baja después, para que BindToClose
+		-- espere a este soltado (como Datos.cargar); con pcall, para que un error no lo deje esperando hasta el tope.
+		local soltado, motivo = pcall(Candado.guardar, opciones, guardado, true, Config.Guardado.Intentos)
+		if not soltado then
+			warn("[Partida] " .. tostring(motivo))
+		end
+		cargandoPartida = false
 		return 1
 	end
+	cargandoPartida = false
 	if estado ~= "ok" then
 		acabar(if estado == "ocupado" then "This game is open in another server. Try again later."
 			else "The game could not be loaded. Try again later.")

@@ -16,12 +16,23 @@ Con bloques grises y animaciones sencillas. Números a ojo, todos en `Config` (`
 - La mochila a la espalda es una pieza (`Mochila` con su `Weld` `Union`) que ven los demás.
 - `Equipo`: la linterna, la cámara, las pilas y los carretes son objetos de la mochila. Sin linterna no hay luz; sin cámara, no hay flash. La pila y las fotos van en la `carga` del objeto, así que viajan con él si se tira y lo coge otro. Cambiar pila o carrete gasta uno de la mochila. Con las manos ocupadas (cargando) no hay flash.
 - `Cargar` (pedido por el usuario): troncos, tablones, bidón y motor en `workspace.Pesados` (primeros en `Mapa.pesados`, delante de la casa). Prompt "Carry". Cada uno que coge tira de su agarre con un `AlignPosition` que solo levanta `Cargar.Fuerza` (0,6) veces el peso: con todos los que pide el `Peso` se levanta; con menos, se arrastra por el suelo (el motor, entre dos). Uno solo: la lleva delante (lo largo, a lo largo; desde el paso 5 sin chocar con nada, ver `bosque.md`, salvo lo que arrastra: el motor se hundía, arreglado en el paso 8) y la simula su cliente. Entre dos: cada uno coge un extremo y la simula el servidor. Frena: ×0,6 una persona, ×0,5 entre dos, ×0,25 arrastrando; sin salto. Mientras se lleva no choca con los jugadores (grupos `Cargado` y `Personajes`). Se suelta sola al esconderse, morir o quedarse atascada a más de 9 studs. Atributo `Cargando` (el tipo).
+- Con físicas de verdad (15.8, pedido por el usuario: "todo"; cuentas en `shared/CargarReglas`, números en `Config.Cargar` y `Config.Pesados`):
+  - Lo que lleva uno solo (Peso 1) lo mueve su cliente (`CargarVista` escribe cada fotograma el `AlignPosition` del agarre y el `Giro`; el servidor ya no). Troncos y tablones (`Hombro`) van al hombro derecho a lo largo, con la punta algo levantada; lo demás, delante atravesado. El giro sigue al tuyo con un muelle (se queda atrás y se pasa un poco) y baja y se ladea a cada paso.
+  - Choca con todo menos con los jugadores (sigue en `Cargado`), con un giro flojo (`Cargar.Giro`) para que los marcos lo tuerzan: hay que entrar de frente por las puertas. Si se queda a más de `Engancha` studs en horizontal de donde debería ir, atributo `Enganchado` y frenas a `FrenaEnganche`; a `Suelta` (9) se cae. Mientras se lleva o vuela, `CanQuery` apagado: un tronco al hombro no te esconde de los bichos ni para la linterna.
+  - Atributos nuevos de la pieza: `Lleva` (UserId de quien la lleva solo) y `Arrastra` (alguien la arrastra: suena en bucle).
+  - La E la baja al suelo en `Dejar` s y luego la suelta, sin ruido; entre varios o arrastrando, de golpe.
+  - Lanzar, solo la madera (`Lanzar`: lo demás es único y no debe perderse): mantener clic, R2 o LANZAR (móvil) coge fuerza (`Lanzar.Carga` s, se echa atrás); al soltar, remote `Cargar` ("Lanzar", carga, dirección), que el servidor valida con `CargarReglas.lanzamiento` (recorta la carga y la dirección, de -30 a 60 grados). Un clic suelto (menos de `Lanzar.Minimo`) no hace nada. Cargado del todo llega a ~12 studs.
+  - Lo soltado lo simula el servidor (`vuelan`) hasta que se para: si pierde de golpe más de `Ruido.Umbral` studs/s, suena para todos (remote `Pesado`, sonido `Golpe` del tipo) y hace un ruido para los bichos (`Ruidos`, alcance de `Ruido.Alcance` según la fuerza: soltarlo desde el hombro, ~38 studs; correr, 22). Si cae `Caida` studs por debajo de donde se soltó, vuelve allí. Al pararse vuelve a `Default`.
+  - Arrastrar (el motor solo) hace ruido cada `Ruido.CadaArrastre` s a `Ruido.Arrastrar` studs.
+  - Los bichos que rondan (`Caza.cazar` y la Bestia) van corriendo a mirar el ruido más cerca que oyen (`Caza.oir`, una vez cada ruido; de dentro a fuera de la casa llega la mitad). Van al sitio del ruido, nunca a por ti: escondido lejos no te pillan por él.
+  - Bancos: `tests/bancos/cargar.luau` (las cuentas y los ruidos) y `tests/bancos/cargar-vista.luau` (CargarVista con el Roblox de mentira). Sin probar en Studio (sin Studio en la nube): ver "Pendiente".
 
 ## Cliente (`src/juego/cliente`)
 
 - `MochilaUi`: B, botón MOCHILA en el móvil o cruceta arriba. Al abrir, una mochila de bloques sube delante de la cámara con la tapa abriéndose, la vista baja 16°, el campo se cierra y el fondo se oscurece con algo de desenfoque; la rejilla sale encima (panel oscuro con una esquina de sangre). Clic o toque en una cosa la coge (sale con borde claro donde iría, rojo si no cabe); clic en una casilla la deja; R o GIRAR la gira; G o TIRAR la tira; B, CERRAR o tocar fuera cierra. Las cosas altas llevan el nombre de lado. A los demás, su mochila les pasa de la espalda al pecho mientras la tienen abierta.
 - La inclinación de la vista se deshace antes de la cámara de Roblox en cada fotograma (`MochilaVistaAntes`): la cámara parte de la del fotograma anterior y, sin eso, se iba sumando hasta mirar al suelo.
-- `CargarVista`: con algo en las manos, "[E] SOLTAR" abajo (en el móvil, botón SOLTAR donde el de acción); la vista baja un poco y se balancea al andar.
+- `CargarVista`: con algo en las manos, "[E] SOLTAR" abajo ("[E] SOLTAR   [CLIC] LANZAR" con madera; en el móvil, botones SOLTAR y LANZAR donde el de acción); la vista baja un poco y se balancea al andar (al hombro, la cabeza algo a la izquierda).
+- `ManosGestos`: al hombro, la derecha encima junto al hombro y la izquierda cruzando por delante; al lanzar, las dos estiradas un momento (`capaLanzar`). `BrazosVista`: los brazos de los demás van a la pieza con su `Lleva`.
 - `Controles`: con las manos ocupadas o la mochila abierta no salen los carteles de coger o abrir.
 - `Ui.mayusculas`: mayúsculas con tildes (string.upper dejaba "CáMARA").
 - Por la mirilla o entre las cortinas se puede abrir (pedido antes por el usuario, recuperado en la 14.9): `MirarVista`
@@ -35,6 +46,8 @@ Con bloques grises y animaciones sencillas. Números a ojo, todos en `Config` (`
 - Lune: 163 comprobaciones bien.
 
 ## Pendiente
+
+- Probar en Studio la 15.8 (todo sin Studio): que la física siga lo que escribe el cliente (si no, el tronco se queda donde se cogió y se cae a los 9 studs); cómo se ve el tronco al hombro en primera persona y las manos; pasar puertas, girar en el pasillo y subir la escalera con él (que no se enganche demasiado); lanzar y que caiga dando vueltas; golpes y ruido con un bicho rondando; el motor arrastrado; el botón LANZAR en el móvil; dos jugadores.
 
 - Sin probar: dos jugadores de verdad con el motor, botones del móvil, la mochila con mando (abre y cierra, pero no se mueve por la rejilla).
 - Sin sonidos de coger, tirar ni abrir (llegan con ElevenLabs).

@@ -10,10 +10,9 @@ local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local Datos = require(script.Parent.Datos)
+local Limite = require(script.Parent.Limite)
 
 local Clases = {}
-
-local ultimo: { [Player]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 -- "" = sin clase. Una que no existe o no tiene comprada no vale.
 local function vale(datos, id: string): boolean
@@ -47,11 +46,9 @@ local function elegir(jugador: Player, id: unknown)
 	if type(id) ~= "string" or #id > 32 then
 		return
 	end
-	local ahora = os.clock()
-	if ahora - (ultimo[jugador] or -math.huge) < 0.3 then
+	if not Limite.pasa(jugador, "Clase", Config.Limites.Clase) then
 		return
 	end
-	ultimo[jugador] = ahora
 	Datos.editar(jugador, function(datos)
 		if vale(datos, id) then
 			datos.clase = id

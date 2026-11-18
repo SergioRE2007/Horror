@@ -32,7 +32,7 @@ local TrabajoVista = require(script.Parent.TrabajoVista)
 local BrazosVista = {}
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local CERCA = 120
 local SUAVE = 10 -- lo deprisa que gira el hombro hacia su objetivo
 local ABAJO = Vector3.new(0, -1, 0) -- hacia donde cuelga el brazo en el espacio del hombro
@@ -316,6 +316,12 @@ local function pesadoDe(otro: Player, raiz: BasePart): BasePart?
 	end
 	local mejor, distancia = nil, 8
 	for _, p in CollectionService:GetTagged("Pesado") do
+		if p:IsA("BasePart") and p:GetAttribute("Lleva") == otro.UserId then -- la lleva él solo (15.8): sin dudas
+			pesados[otro] = { pieza = p, buscado = os.clock() }
+			return p
+		end
+	end
+	for _, p in CollectionService:GetTagged("Pesado") do
 		if p:IsA("BasePart") and p:GetAttribute("Tipo") == tipo then
 			local d = (p.Position - raiz.Position).Magnitude
 			if d < distancia then
@@ -374,7 +380,7 @@ function ponerLinterna(o: Otro, encendida: boolean)
 				p.Color = d[3]
 				p.Material = Enum.Material.Metal
 				p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = true, false, false, false, false
-				p.Parent = camara
+				p.Parent = Camara.get()
 				table.insert(partes, p)
 			end
 			o.linterna = partes
@@ -480,7 +486,7 @@ local function medirCuerpo(o: Otro, p: Postura, raiz: BasePart)
 	if not hum then
 		return
 	end
-	suelo.FilterDescendantsInstances = { o.personaje, camara }
+	suelo.FilterDescendantsInstances = { o.personaje, Camara.get() }
 	local dePie = hum.HipHeight + raiz.Size.Y / 2
 	local abajo = workspace:Raycast(raiz.Position, Vector3.new(0, -(dePie + 1), 0), suelo)
 	p.bajaMeta = if abajo then math.clamp(dePie - (raiz.Position.Y - abajo.Position.Y), 0, p.largo) else 0
@@ -597,7 +603,7 @@ local function correr(otro: Player, o: Otro, dt: number): (number, number, numbe
 end
 
 local function paso(dt: number)
-	local ojo = camara.CFrame.Position
+	local ojo = Camara.get().CFrame.Position
 	for otro, o in otros do
 		if not otro.Parent or otro.Character ~= o.personaje then
 			ponerLinterna(o, false)

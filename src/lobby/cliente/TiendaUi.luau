@@ -29,7 +29,9 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 local TiendaUi = {}
 
 local jugador = Players.LocalPlayer
-local LEJOS = 16 -- studs del mostrador a los que se cierra sola
+-- Studs del mostrador a los que se cierra sola: algo menos que lo que acepta el servidor (Config.Lobby.TiendaLejos).
+local LEJOS = math.min(Config.Lobby.TiendaCerrar, Config.Lobby.TiendaLejos)
+local ESPERA_MOSTRADOR = 30 -- segundos máximos esperando a que llegue el mostrador (solo existe cerca, con streaming)
 local ROBUX = "\u{E002}" -- el símbolo de Robux (lo pintan todas las fuentes)
 local SEGURO = 4 -- segundos que dura el "¿COMPRAR?" del primer toque
 -- Segundos: un toque en el botón de una fila tan seguido del anterior es un doble toque sin querer y no cuenta (si
@@ -629,6 +631,7 @@ local function cerrar()
 		return
 	end
 	abierta = false
+	Ui.ventanaAbierta("Tienda", false)
 	vez += 1
 	local mia = vez
 	seguro = nil
@@ -659,6 +662,7 @@ local function abrir()
 		return
 	end
 	abierta = true
+	Ui.ventanaAbierta("Tienda", true)
 	vez += 1
 	local mia = vez
 	seguro = nil
@@ -945,6 +949,9 @@ end
 
 function TiendaUi.start()
 	construir()
+	Ui.cerrarConB(function()
+		return abierta
+	end, cerrar, true) -- B del mando o Escape
 	Sonido.precargar({ "Papel" })
 	local atributos = { "Clases", "Cosmeticos", "Clase", "PuestoLinterna" }
 	for _, pase in Config.Compras.Pases do
@@ -969,10 +976,17 @@ function TiendaUi.start()
 		end)
 	end)
 	task.spawn(function()
-		local m = workspace:WaitForChild("Mapa"):WaitForChild("Mostrador") :: BasePart
+		-- Con tiempo máximo: si el servidor no llega a construir la tienda, que quede apuntado en la consola.
+		local mapa = workspace:WaitForChild("Mapa", ESPERA_MOSTRADOR)
+		local m = mapa and mapa:WaitForChild("Mostrador", ESPERA_MOSTRADOR) :: BasePart?
+		local p = m and m:WaitForChild("Tienda", ESPERA_MOSTRADOR) :: ProximityPrompt?
+		if not m or not p then
+			warn("[TiendaUi] el mostrador de la tienda no ha llegado")
+			return
+		end
 		mostrador = m
-		prompt = m:WaitForChild("Tienda") :: ProximityPrompt
-		;(prompt :: ProximityPrompt).Triggered:Connect(abrir)
+		prompt = p
+		p.Triggered:Connect(abrir)
 	end)
 end
 

@@ -117,12 +117,14 @@ local function tirar(jugador: Player)
 end
 
 -- Con más jugadores se gasta más (Tareas de la tabla de dificultad).
-local function ritmo(): number
+-- Se guarda y solo se recalcula al arrancar y al entrar o salir jugadores (no en cada fotograma).
+local ritmoActual = 1
+local function recalcularRitmo()
 	local n = #Players:GetPlayers()
 	if Prueba.activa() and Config.Test.Jugadores then
 		n = Config.Test.Jugadores
 	end
-	return Dificultad.de(math.max(n, 1), 0, Config.Dificultad).tareas
+	ritmoActual = Dificultad.de(math.max(n, 1), 0, Config.Dificultad).tareas
 end
 
 local function bidon()
@@ -193,6 +195,11 @@ local function enchufar(jugador: Player)
 	ponerMovil(cosa.carga or 0)
 end
 
+-- Si el motor está encendido ahora mismo.
+function Generador.encendido(): boolean
+	return encendido
+end
+
 -- Se va la luz (la primera noche del Imitador): el motor se para de golpe aunque tenga gasolina y hay que salir al
 -- cobertizo a arrancarlo. false si ya estaba apagado.
 function Generador.apagon(): boolean
@@ -235,7 +242,7 @@ end
 local cuenta = 0
 local function gastar(dt: number)
 	if encendido then
-		gasolina = math.max(0, gasolina - dt * ritmo())
+		gasolina = math.max(0, gasolina - dt * ritmoActual)
 		if gasolina <= 0 then
 			encendido = false
 			gen:SetAttribute("Ahogado", (gen:GetAttribute("Ahogado") or 0) + 1)
@@ -283,6 +290,12 @@ function Generador.start()
 	bidon()
 	ponerLuces(false)
 	publicar()
+	recalcularRitmo()
+	Players.PlayerAdded:Connect(recalcularRitmo)
+	-- PlayerRemoving salta antes de que se vaya de GetPlayers: se recalcula un instante después.
+	Players.PlayerRemoving:Connect(function()
+		task.defer(recalcularRitmo)
+	end)
 	RunService.Heartbeat:Connect(gastar)
 end
 

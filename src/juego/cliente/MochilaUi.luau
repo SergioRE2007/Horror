@@ -26,7 +26,7 @@ local casilla = CASILLA -- la de ahora: en el móvil, más grande si cabe (medir
 local BOTON = Ui.alto(50) -- alto de los botones de abajo (en el móvil, el de un dedo)
 local MARCO = 62 + 14 + BOTON + 14 -- lo que ocupa el panel aparte de la rejilla, de alto (título, botones y bordes)
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 
 local r: Rejilla.Rejilla? = nil
 type Cogida = { id: number, girada: boolean, dx: number, dy: number }
@@ -277,8 +277,8 @@ local function colocarProp()
 	end
 	-- La vista baja hacia la mochila (después de la cámara de Roblox; antes de la siguiente se deshace: ver start).
 	inclinado = -math.rad(16) * t
-	camara.CFrame *= CFrame.Angles(inclinado, 0, 0)
-	local base = camara.CFrame * CFrame.new(0, -1.5 - (1 - t) * 3.5, -5) * CFrame.Angles(math.rad(-25), 0, 0)
+	Camara.get().CFrame *= CFrame.Angles(inclinado, 0, 0)
+	local base = Camara.get().CFrame * CFrame.new(0, -1.5 - (1 - t) * 3.5, -5) * CFrame.Angles(math.rad(-25), 0, 0)
 	local cuerpo = prop:FindFirstChild("Cuerpo") :: BasePart
 	cuerpo.CFrame = base
 	;(prop:FindFirstChild("Bolsillo") :: BasePart).CFrame = base * CFrame.new(0, -0.8, -1)
@@ -287,13 +287,13 @@ local function colocarProp()
 	end
 	-- La tapa se abre hacia atrás desde el borde de arriba.
 	tapa.CFrame = base * CFrame.new(0, 1.9, 0.8) * CFrame.Angles(math.rad(-100) * t, 0, 0) * CFrame.new(0, 0.15, -0.85)
-	prop.Parent = camara
+	prop.Parent = Camara.get()
 end
 
 local function animar(abrirla: boolean)
 	local info = TweenInfo.new(if abrirla then 0.35 else 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	TweenService:Create(apertura, info, { Value = if abrirla then 1 else 0 }):Play()
-	TweenService:Create(camara, info, { FieldOfView = if abrirla then campoNormal - 12 else campoNormal }):Play()
+	TweenService:Create(Camara.get(), info, { FieldOfView = if abrirla then campoNormal - 12 else campoNormal }):Play()
 	TweenService:Create(desenfoque, info, { Size = if abrirla then 5 else 0 }):Play()
 	TweenService:Create(fondo, info, { BackgroundTransparency = if abrirla then 0.55 else 1 }):Play()
 	TweenService:Create(panel, TweenInfo.new(if abrirla then 0.4 else 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -454,19 +454,29 @@ local function crearGui()
 	lista.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	lista.Padding = UDim.new(0, 10)
 	lista.Parent = fila
-	local teclado = UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled
+	-- La tecla solo se enseña con teclado (Ui.conTeclado); con mando, X gira, Y tira y B cierra (ver start).
+	local pistas = {}
 	for _, b in { { "Rotate", "R", girar }, { "Throw away", "G", tirar }, { "Close", "B", function() cerrar(true) end } } do
-		local texto = Ui.mayusculas(Lang.t(nil, b[1])) .. (if teclado then "  [" .. b[2] .. "]" else "")
-		local boton = Ui.boton(texto, { Size = UDim2.fromOffset(0, BOTON), AutomaticSize = Enum.AutomaticSize.X, TextSize = 22 })
+		local function texto(): string
+			local t = Ui.mayusculas(Lang.t(nil, b[1]))
+			return if Ui.conTeclado() then t .. "  [" .. b[2] .. "]" else t
+		end
+		local boton = Ui.boton(texto(), { Size = UDim2.fromOffset(0, BOTON), AutomaticSize = Enum.AutomaticSize.X, TextSize = 22 })
+		pistas[boton] = texto
 		local relleno = Instance.new("UIPadding")
 		relleno.PaddingLeft, relleno.PaddingRight = UDim.new(0, 16), UDim.new(0, 16)
 		relleno.Parent = boton
 		boton.Activated:Connect(b[3])
 		boton.Parent = fila
 	end
+	Ui.alCambiarEntrada(function()
+		for boton, texto in pistas do
+			boton.Text = texto()
+		end
+	end)
 
 	-- Móvil: botón MOCHILA en la rejilla del equipo (EquipoVista: el tamaño lo pone ella; orden 4).
-	if UserInputService.TouchEnabled then
+	if Ui.tactil() then
 		local botones = Ui.hud():FindFirstChild("EquipoBotones")
 		if botones then
 			local boton = Ui.boton(Lang.t(nil, "Backpack"), { LayoutOrder = 4 })
@@ -506,7 +516,7 @@ function MochilaUi.start()
 	desenfoque = Instance.new("BlurEffect")
 	desenfoque.Name = "MochilaBlur"
 	desenfoque.Size = 0
-	desenfoque.Parent = camara
+	desenfoque.Parent = Camara.get()
 	jugador:GetAttributeChangedSignal("Mochila"):Connect(leer)
 	leer()
 	-- Si el servidor la cierra (te escondes, mueres), se cierra aquí también. Si dice abierta y aquí ya está cerrada
@@ -533,9 +543,9 @@ function MochilaUi.start()
 		local tecla = entrada.KeyCode
 		if tecla == Enum.KeyCode.B or tecla == Enum.KeyCode.DPadUp then
 			alternar()
-		elseif abierta and tecla == Enum.KeyCode.R then
-			girar()
-		elseif abierta and tecla == Enum.KeyCode.G then
+		elseif abierta and (tecla == Enum.KeyCode.R or tecla == Enum.KeyCode.ButtonX) then
+			girar() -- X del mando: con la mochila abierta no hay carteles de coger ni nada que soltar (Cargando la cierra)
+		elseif abierta and (tecla == Enum.KeyCode.G or tecla == Enum.KeyCode.ButtonY) then
 			tirar()
 		elseif abierta and tecla == Enum.KeyCode.ButtonB then
 			cerrar(true)
@@ -548,7 +558,7 @@ function MochilaUi.start()
 	-- La cámara de Roblox sigue desde donde quedó la anterior: sin deshacer la inclinación, se iría sumando.
 	RunService:BindToRenderStep("MochilaVistaAntes", Enum.RenderPriority.Camera.Value - 1, function()
 		if inclinado ~= 0 then
-			camara.CFrame *= CFrame.Angles(-inclinado, 0, 0)
+			Camara.get().CFrame *= CFrame.Angles(-inclinado, 0, 0)
 			inclinado = 0
 		end
 	end)

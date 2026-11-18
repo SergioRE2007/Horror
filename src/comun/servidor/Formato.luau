@@ -21,6 +21,9 @@ function Formato.jugadorNuevo()
 		clase = "", -- Id de la clase elegida en el lobby ("" = ninguna)
 		puestos = {}, -- [Tipo] = Id del cosmético que lleva puesto de cada tipo (sin entrada = el de serie)
 		rendimiento = false, -- ajuste Rendimiento (comun/servidor/Ajustes): menos partículas y adornos
+		-- true cuando el jugador ya ha elegido Rendimiento con el botón (o se le sugirió una vez en el móvil): desde
+		-- entonces manda lo suyo y no se vuelve a sugerir. Los datos de antes no lo traen (16.9): ver arreglarJugador.
+		rendimientoElegido = false,
 	}
 end
 
@@ -32,6 +35,11 @@ function Formato.arreglarJugador(guardado: any)
 		return nuevo
 	end
 	-- Aquí irán los pasos de una versión a la siguiente: if (guardado.version or 0) < 2 then ... end
+	-- Datos de antes de 16.9, sin `rendimientoElegido`: false era también "nunca lo tocó", así que solo cuenta como
+	-- elegido si lo dejó activado; con false se le puede sugerir una vez (solo lo enciende, nunca lo apaga).
+	if guardado.rendimientoElegido == nil and guardado.rendimiento == true then
+		guardado.rendimientoElegido = true
+	end
 	for clave, valor in nuevo do
 		if type(guardado[clave]) ~= type(valor) then
 			guardado[clave] = valor
@@ -49,6 +57,17 @@ function Formato.arreglarJugador(guardado: any)
 	end
 	guardado.version = Formato.VERSION
 	return guardado
+end
+
+-- Sugerencia del cliente al entrar (16.9: táctil sin teclado = Rendimiento activado). Solo si el jugador nunca lo
+-- ha elegido, solo un booleano y una sola vez: queda como elegido. true si ha cambiado algo.
+function Formato.sugerirRendimiento(datos: any, valor: unknown): boolean
+	if type(datos) ~= "table" or type(valor) ~= "boolean" or datos.rendimientoElegido == true then
+		return false
+	end
+	datos.rendimiento = valor
+	datos.rendimientoElegido = true
+	return true
 end
 
 return Formato

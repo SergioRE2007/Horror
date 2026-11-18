@@ -692,7 +692,8 @@ function PosturaVista.start()
 		end
 		local tecla = entrada.KeyCode
 		if tecla == Enum.KeyCode.C or tecla == Enum.KeyCode.LeftControl
-			or (tecla == Enum.KeyCode.ButtonB and not jugador:GetAttribute("MochilaAbierta")) then -- B cierra la mochila
+			or (tecla == Enum.KeyCode.ButtonB and not jugador:GetAttribute("MochilaAbierta")
+				and not jugador:GetAttribute("VentanaAbierta")) then -- B cierra la mochila y las ventanas (Ui.cerrarConB)
 			alternar()
 		elseif tecla == Enum.KeyCode.Z then
 			izquierda, ultima = true, -1

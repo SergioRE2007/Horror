@@ -11,6 +11,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Casa = require(script.Parent.Casa)
+local Bichos = require(script.Parent.Bichos)
 local Caza = require(script.Parent.Caza)
 local Cuerpo = require(script.Parent.Cuerpo)
 local Generador = require(script.Parent.Generador)
@@ -99,7 +100,7 @@ local function elegirAmigo(puerta: Vector3): Player?
 	local lista = {}
 	for _, jugador in Muerte.vivos() do
 		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if raiz and (raiz.Position - puerta).Magnitude > 25 then
+		if raiz and (raiz.Position - puerta).Magnitude > I.AmigoLejos then
 			table.insert(lista, jugador)
 		end
 	end
@@ -123,7 +124,7 @@ end
 -- ¿Hay alguien fuera muy cerca de él? (si sale alguien a mirar, va a por él)
 local function alguienCerca(b: Caza.Bicho): boolean
 	local presa, destino = b:elegirPresa(true)
-	return presa ~= nil and destino ~= nil and (destino - b:suelo()).Magnitude < 22
+	return presa ~= nil and destino ~= nil and (destino - b:suelo()).Magnitude < I.SaleCerca
 end
 
 local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, apagon: boolean, alApagar: (() -> ())?)
@@ -166,10 +167,10 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 		if i == 1 and apagon then
 			-- Se va la luz justo al llamar (solo si estaba encendida). Solo aquí se da el apagón por hecho: si se va sin
 			-- llamar (caza fuera o se encuentra la puerta abierta), le toca al siguiente Imitador de la noche.
-			if alApagar then
+			if alApagar and Generador.encendido() then
 				alApagar()
 			end
-			task.delay(1.5, function()
+			task.delay(I.Apagon, function()
 				if Generador.apagon() then
 					for _, jugador in Players:GetPlayers() do
 						Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "The lights went out."))
@@ -266,6 +267,11 @@ function Imitador.cuantos(): number
 		n += 1
 	end
 	return n
+end
+
+-- Solo se apunta en el registro común (Bichos): lo lanza el Director.
+function Imitador.start()
+	Bichos.registrar("Imitador", Imitador)
 end
 
 return Imitador

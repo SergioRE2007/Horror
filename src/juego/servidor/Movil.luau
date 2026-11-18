@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Mochila = require(script.Parent.Mochila)
 local Muerte = require(script.Parent.Muerte)
 
@@ -24,6 +25,10 @@ end
 local function pedir(jugador: Player, abierto: unknown)
 	if abierto ~= true then
 		cerrar(jugador)
+		return
+	end
+	-- Contando también los fallidos (avisos): cerrar no cuenta (es barato y no se debe perder).
+	if not Limite.pasa(jugador, "Movil", Config.Limites.Movil) then
 		return
 	end
 	local movil = Mochila.primera(jugador, "Movil")

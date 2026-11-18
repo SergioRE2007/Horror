@@ -48,7 +48,7 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 19 | `Config.SonidosLobby.Radio` (0,5) | Radio vieja de la tienda con interferencias | 15 | bucle | 3 | nada |
 | 20 | `Config.SonidosLobby.Campanilla` (0,6) | Campanilla al abrirse la puerta de la tienda | 2 | suelto | 3 | nada |
 | 21 | `Config.SonidosLobby.Sello` (0,6), **clave nueva** | Sello al estamparse ELEGIDA / EN USO / TUYO en la tienda | 0,6 | suelto | 3 | nada (solo `Papel` al cambiar de separador y al cerrar) |
-| 22 | `Config.SonidosLobby.MotorCoche` (0,8) | Motor de coche viejo al ralentí: el que llega al lobby tras un viaje (22 s) | 10 | bucle | 3 | el Arranque una vez al acercarse (hoy también Id 0: nada) |
+| 22 | `Config.SonidosLobby.MotorCoche` (0,8) | Motor de coche viejo al ralentí: el coche que llega (al lobby tras un viaje, 22 s, y a la casa en la llegada de la partida, 16.8) | 10 | bucle | 3 | lobby: el Arranque una vez al acercarse (hoy también Id 0: nada); partida: nada |
 | 23 | `Config.SonidosLobby.Arranque` (1) | El coche arranca y se va (cinemática de 7 s) | 7 | suelto | 3 | nada |
 | 24 | `Config.Sonidos.Mirilla` (0,5) | La tapita de latón de la mirilla | 0,6 | suelto | 3 | nada |
 | 25 | `Config.Sonidos.Papel` (0,75) | Papel de las pistas (y de la tienda y los coches) | — | — | — | ya hecho: 3 versiones que puso Claude |
@@ -57,6 +57,18 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 28 | `Config.Sonidos.Olfateo` (0,9) | El Golpeador olfateando | 2 | suelto | 3 | otro provisional |
 | 29 | `Config.Sonidos.UnasPared` (1) | Garras por la pared al pasar | 2,5 | suelto | 3 | otro provisional |
 | 30 | `Config.Sonidos.ToqueDedo` (1) | Toque lento de uña en el cristal | 0,5 | suelto | 4 | otro provisional |
+| 31 | `Config.Sonidos.GolpeMadera` (1,2) | Un tronco o un tablón que cae al suelo (15.8) | 1 | suelto | 4 | Caida (el árbol) |
+| 32 | `Config.Sonidos.GolpeMetal` (1,6) | El bidón, la rueda o el motor al caer (15.8) | 1 | suelto | 4 | Golpe (el Golpeador) |
+| 33 | `Config.Sonidos.Arrastre` (1,2) | Algo pesado arrastrado por un suelo de madera (15.8) | 4 | bucle | 3 | Hollin |
+| 34 | `Config.Sonidos.Lanzar` (0,7) | Resoplido al lanzar algo pesado (15.8) | 0,6 | suelto | 3 | nada (Id 0) |
+| 35 | `Config.Sonidos.RataChillido` (0,35) | Chillido corto de rata al huir de la linterna (bichitos.md) | 0,8 | suelto | 4 | Cruje a 0,12 de volumen y tono 1,9-2,3 |
+| 36 | `Config.Sonidos.RataPatas` (0,3) | Patitas con uñas corriendo por madera | 1,2 | suelto | 3 | nada |
+| 37 | `Config.Sonidos.Moscas` (0,25) | Zumbido de moscas sobre un charco (bucle) | 6 | bucle | 3 | nada |
+| 38 | `Config.Sonidos.Trueno` (1) | Trueno de la tormenta seca de las noches (tormenta.md); lista de 3-4. El mismo texto que el del lobby (fila 2): se puede usar el mismo audio en las dos claves | 7 | suelto, lista | 4 | Retumbo a tono 0,38-0,5 |
+| 39 | `Config.Sonidos.LluviaNoche` (0,5), **clave nueva** | Lluvia de las noches de tormenta (bucle): la misma que la del lobby (fila 1) | 20 | bucle | — | nada (la tormenta es seca) |
+| 40 | `Config.Sonidos.GritoMuerte` (1,6) | Grito de alguien al que pilla un bicho, oído desde lejos (cadaver.md) | 2 | suelto | 4 | Susto a tono 0,8 |
+| 41 | `Config.Sonidos.CuerpoCae` (0,9) | Cuerpo que cae contra el suelo (cadaver.md) | 1 | suelto, lista | 4 | Retumbo flojo a tono 1,3 |
+| 42 | `Config.Sonidos.LinternaCae` (0,6) | Linterna de metal que cae y rueda (cadaver.md) | 1,5 | suelto | 3 | nada |
 
 Notas por fila:
 
@@ -74,6 +86,13 @@ Notas por fila:
   en bucle en la copia y le sube el tono con la velocidad (`PlaybackSpeed` 0,8 + 0,012 × studs/s: 0,8 parado, ~1,16 a
   30); al apagar el coche, volumen 0. Pedirlo a velocidad constante, sin arranque ni acelerones. Sin él (Id 0), la llegada
   usa el Arranque una vez a 16 s de la hora (`Sonido.hay`).
+  **Falta también en la partida** (16.8): la escena de llegada en coche (`juego/cliente/LlegadaCocheVista`) toca la
+  misma entrada (`Config.Sonidos.MotorCoche = Config.SonidosLobby.MotorCoche`) con el tono según lo que le queda por
+  frenar; con Id 0 la llegada va muda. Un solo audio vale para los dos lugares.
+- **38 Trueno y 39 LluviaNoche** (tormenta.md): con el Id del Trueno, `TormentaVista` lo usa solo (`Sonido.hay`) a tono
+  `Config.Tormenta.TonoTrueno` en lugar del Retumbo. La lluvia no hay que generarla aparte: cuando la del lobby exista,
+  poner su Id en una clave `LluviaNoche` de `Config.Sonidos` y sumarla en `TormentaVista` como bucle sin posición
+  mientras dure la tormenta (tapada dentro, como el viento: `Config.Oido.ApagarEscondido`). Entonces deja de ser seca.
 - **25 Papel**: no generar más. Falta que Sergio elija en `sonidos-terror\miedo\escuchar.html`; si no le gusta ninguno,
   se pide otro.
 
@@ -111,7 +130,17 @@ Notas por fila:
 	{ "name": "Olfateo", "seconds": 2, "versions": 3, "label": "Golpes de nariz de un bicho grande", "text": "Large creature sniffing the air in short sharp bursts through its nose, four or five quick wet sniffs, close, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "UnasPared", "seconds": 2.5, "versions": 3, "label": "Garras arrastradas por una pared al pasar", "text": "Long sharp claws slowly dragged along a wooden and plaster wall while walking, a continuous scraping screech of nails on wallpaper and wood, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "ToqueDedo", "seconds": 0.5, "versions": 4, "label": "Un toque lento de uña en el cristal", "text": "Single slow tap of a long fingernail against a window pane, one hard click on glass with a faint ring, very short, horror game sound effect, realistic, dry, no reverb, no music" },
-	{ "name": "RespiraBicho", "seconds": 5, "versions": 3, "label": "Respiración del bicho pegado al armario", "text": "Slow heavy wet breathing of a large creature right outside a wooden closet door, deep rattling inhales and long exhales, very close, no voice, no growl, horror game sound effect, realistic, dry, no reverb, no music" }
+	{ "name": "RespiraBicho", "seconds": 5, "versions": 3, "label": "Respiración del bicho pegado al armario", "text": "Slow heavy wet breathing of a large creature right outside a wooden closet door, deep rattling inhales and long exhales, very close, no voice, no growl, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "GolpeMadera", "seconds": 1, "versions": 4, "label": "Tronco o tablón que cae al suelo", "text": "Heavy wooden log dropped onto old wooden floorboards, one deep hollow thud with a short bounce and a creak of the boards, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "GolpeMetal", "seconds": 1, "versions": 4, "label": "Bidón o pieza de metal que cae al suelo", "text": "Heavy metal jerrycan and car engine part dropped onto a wooden floor, a loud dull metallic clang and thud with a short rattle, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "Arrastre", "seconds": 4, "versions": 3, "loop": true, "label": "Algo pesado arrastrado por el suelo (bucle)", "text": "Heavy metal machine being slowly dragged across old wooden floorboards, continuous low scraping and grinding with creaks, steady, horror game sound effect, realistic, dry, no reverb, no music, seamless loop" },
+	{ "name": "Lanzar", "seconds": 0.6, "versions": 3, "label": "Resoplido al lanzar algo pesado", "text": "Young person grunting with effort while throwing a heavy log, one short strained exhale, no words, close, realistic, dry, no reverb, no music" },
+	{ "name": "RataChillido", "seconds": 0.8, "versions": 4, "label": "Chillido corto de rata al huir", "text": "Single rat squeaking sharply as it gets startled and runs away, one or two short high-pitched squeals, close, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "RataPatas", "seconds": 1.2, "versions": 3, "label": "Patitas de rata corriendo por madera", "text": "Small rat scurrying fast across an old wooden floor, tiny claws ticking and scratching on the boards, quick light patter that fades away, close, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "Moscas", "seconds": 6, "versions": 3, "loop": true, "label": "Moscas zumbando sobre un charco (bucle)", "text": "A few flies buzzing around close to the ground over something rotten, irregular buzzing that comes and goes, quiet and close, no music, seamless loop" },
+	{ "name": "GritoMuerte", "seconds": 2, "versions": 4, "label": "Grito de alguien al que pilla un bicho", "text": "Young person screaming in sudden terror and pain as they are caught by a monster, one short desperate scream that cuts off abruptly, no words, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "CuerpoCae", "seconds": 1, "versions": 4, "label": "Cuerpo que cae contra el suelo", "text": "Limp human body falling and hitting a wooden floor, one heavy dull thud with a soft cloth rustle, no voice, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "LinternaCae", "seconds": 1.5, "versions": 3, "label": "Linterna de metal que cae y rueda", "text": "Small metal flashlight dropped on a wooden floor, a hard clack, a short bounce and a little rolling rattle that stops, horror game sound effect, realistic, dry, no reverb, no music" }
 ]
 ```
 

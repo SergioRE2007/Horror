@@ -51,7 +51,9 @@ local function tengo(): { [string]: number }
 	local mando = banco and banco:FindFirstChild("Mando") :: BasePart?
 	if mando then
 		for _, pieza in CollectionService:GetTagged("Pesado") do
-			if pieza:IsA("BasePart") and pieza.CollisionGroup ~= "Cargado" and (pieza.Position - mando.Position).Magnitude <= T.Radio then
+			-- Lo que nadie lleva ni se trabaja (como Cargar.libre en el servidor; atributos de Cargar, 15.8).
+			if pieza:IsA("BasePart") and not pieza:GetAttribute("Llevada") and not pieza:GetAttribute("Trabajo")
+				and (pieza.Position - mando.Position).Magnitude <= T.Radio then
 				local tipo = pieza:GetAttribute("Tipo")
 				cuenta[tipo] = (cuenta[tipo] or 0) + 1
 			end
@@ -84,6 +86,7 @@ local function cerrar()
 	banco = nil
 	panel.Visible = false
 	panel.Modal = false
+	Ui.ventanaAbierta("Taller", false)
 	encenderPrompt()
 end
 
@@ -134,6 +137,7 @@ local function abrir(nuevo: Model, lista: { number })
 	apagarPrompt(nuevo)
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
+	Ui.ventanaAbierta("Taller", true) -- B no agacha mientras está abierto
 	task.spawn(function()
 		while abierto == mio do
 			task.wait(0.25)
@@ -218,6 +222,9 @@ end
 
 function TallerUi.start()
 	construir()
+	Ui.cerrarConB(function()
+		return panel.Visible
+	end, cerrar, true) -- B del mando o Escape
 	Remotes.Taller.OnClientEvent:Connect(function(que, dato, lista)
 		if que == "Abrir" and typeof(dato) == "Instance" and dato:IsA("Model") then
 			abrir(dato, if type(lista) == "table" then lista else {})

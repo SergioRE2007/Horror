@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Bichos = require(script.Parent.Bichos)
 local Caza = require(script.Parent.Caza)
 local Chimenea = require(script.Parent.Chimenea)
 local Cuerpo = require(script.Parent.Cuerpo)
@@ -319,6 +320,11 @@ function Trepador.cuantos(): number
 		n += 1
 	end
 	return n
+end
+
+-- Solo se apunta en el registro común (Bichos): lo lanza el Director.
+function Trepador.start()
+	Bichos.registrar("Trepador", Trepador)
 end
 
 return Trepador

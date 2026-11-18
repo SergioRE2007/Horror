@@ -5,6 +5,7 @@
 -- apagada, las brasas que quedaban se apagan de golpe (aviso). De noche, con el fuego apagado, el viento aúlla por el
 -- tiro y aviva un poco las brasas. Todo en el cliente: nada de esto choca ni cambia el camino del Trepador.
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -16,6 +17,15 @@ local ChimeneaVista = {}
 
 local D = Config.Detalles
 local azar = Random.new()
+local jugador = Players.LocalPlayer
+
+-- Con Rendimiento (ajuste del jugador): sin sombra, una sola llama, la mitad de chispas y sin temblor ni luz de brasas.
+local function poco(): boolean
+	return jugador:GetAttribute("Rendimiento") == true
+end
+
+-- Más allá de esta distancia a la cámara el hogar no se anima si no hay nada cambiando (a ojo).
+local LEJOS = 60
 
 local function parte(cf: CFrame, tamano: Vector3): Part
 	local p = Instance.new("Part")
@@ -39,7 +49,7 @@ local function preparar(modelo: Instance)
 	local dentro = hogar * CFrame.new(0, 0, -0.5)
 	local fuego = parte(dentro, Vector3.new(2, 1, 0.6))
 	-- Una llama grande en medio y dos más bajas a los lados (con una sola parecía una antorcha). Tamaño y calor de base.
-	local llamas: { { fire: Fire, size: number, heat: number } } = {}
+	local llamas: { { fire: Fire, size: number, heat: number, grande: boolean } } = {}
 	for _, l in { { 0, 4, 8, fuego }, { -0.65, 2.4, 5 }, { 0.7, 2.1, 5 } } do
 		local f = Instance.new("Fire")
 		f.Heat = l[3]
@@ -48,7 +58,7 @@ local function preparar(modelo: Instance)
 		f.SecondaryColor = Color3.fromRGB(120, 30, 10)
 		f.Enabled = false
 		f.Parent = l[4] or parte(dentro * CFrame.new(l[1], -0.3, 0), Vector3.new(0.6, 0.4, 0.4))
-		table.insert(llamas, { fire = f, size = l[2], heat = l[3] })
+		table.insert(llamas, { fire = f, size = l[2], heat = l[3], grande = l[4] ~= nil })
 	end
 	local luz = Instance.new("PointLight")
 	luz.Color = Color3.fromRGB(255, 140, 70)
@@ -105,29 +115,60 @@ local function preparar(modelo: Instance)
 		end
 	end)
 
+	local antes = false -- si estaba encendida en el último fotograma que se animó
+	local avivaEscrita = 0 -- el aviva con el que están puestos el tamaño y el calor de las llamas
 	RunService.Heartbeat:Connect(function(dt)
 		local ahora = os.clock()
 		local encendida = (modelo:GetAttribute("Fuego") or 0) > workspace:GetServerTimeNow()
+		local sencillo = poco()
+		-- (Antes de salir pronto, para que el aviso no se acumule lejos.) El viento por el tiro: de noche, apagada y con la cámara cerca.
+		if ahora >= proximoViento then
+			proximoViento = ahora + azar:NextNumber(D.VientoTiro[1], D.VientoTiro[2])
+			local cerca = (workspace.CurrentCamera.CFrame.Position - hogar.Position).Magnitude < D.Cerca
+			if not encendida and cerca and workspace:GetAttribute("Fase") == "Noche" then
+				Sonido.en("VientoTiro", hogar.Position, azar:NextNumber(0.9, 1.1))
+				racha = 1
+			end
+		end
+		-- Lejos de la cámara y sin nada cambiando (ni encendiéndose, ni apagándose, ni brasas enfriándose, ni humo,
+		-- ni llamarada o racha de viento), no hay nada que ver: se sale sin tocar nada. Cerca, o con algo pendiente,
+		-- se anima entero como siempre.
+		if encendida == antes and aviva == 0 and racha == 0
+			and math.abs((if encendida then 1 else 0) - brillo) < 0.005
+			and (encendida or ahora - apagadoDesde > math.max(D.Rescoldo, 8))
+			and (workspace.CurrentCamera.CFrame.Position - hogar.Position).Magnitude > LEJOS then
+			if encendida then
+				apagadoDesde = ahora -- que al apagarse, las brasas partan de ahora y no de un momento viejo
+			end
+			return
+		end
+		antes = encendida
 		brillo += ((if encendida then 1 else 0) - brillo) * math.min(1, dt * 1.5)
 		aviva = math.max(0, aviva - dt / 1.8)
 		racha = math.max(0, racha - dt / 3)
+		local cambioAviva = aviva ~= avivaEscrita
+		avivaEscrita = aviva
 		for _, l in llamas do
-			l.fire.Enabled = encendida
-			l.fire.Size = l.size * (1 + aviva * 1.5)
-			l.fire.Heat = l.heat + aviva * 10
+			l.fire.Enabled = encendida and (l.grande or not sencillo)
+			if cambioAviva then
+				l.fire.Size = l.size * (1 + aviva * 1.5)
+				l.fire.Heat = l.heat + aviva * 10
+			end
 		end
+		luz.Shadows = not sencillo
 		chispas.Enabled = encendida
-		chispas.Rate = 5 + aviva * 60
+		chispas.Rate = (5 + aviva * 60) * (if sencillo then 0.5 else 1)
 		if encendida then
 			apagadoDesde = ahora
 		end
 		-- Lo que queda de las brasas: 1 con fuego y baja hasta 0 en Rescoldo segundos.
 		local rescoldo = math.clamp(1 - (ahora - apagadoDesde) / D.Rescoldo, 0, 1)
-		local temblor = 0.75 + 0.25 * math.noise(ahora * 6, 0.3)
+		-- Con Rendimiento la luz no tiembla (queda en el valor medio) y no hay luz de brasas.
+		local temblor = if sencillo then 0.875 else 0.75 + 0.25 * math.noise(ahora * 6, 0.3)
 		local ascuas = math.max(brillo, rescoldo * (0.45 + 0.4 * racha))
-		brasas.Transparency = 1 - ascuas * 0.6 * (0.85 + 0.15 * math.noise(ahora * 2, 1.7))
+		brasas.Transparency = 1 - ascuas * 0.6 * (if sencillo then 0.925 else 0.85 + 0.15 * math.noise(ahora * 2, 1.7))
 		luz.Brightness = brillo * 1.3 * temblor * (1 + aviva * 1.5)
-		luzBrasas.Brightness = if encendida then 0 else rescoldo * (0.35 + 0.5 * racha) * temblor
+		luzBrasas.Brightness = if encendida or sencillo then 0 else rescoldo * (0.35 + 0.5 * racha) * temblor
 		humo.Enabled = ahora - apagadoDesde < 8
 		if encendida and not bucle then
 			local s = Sonido.bucle("Fuego", fuego)
@@ -139,20 +180,21 @@ local function preparar(modelo: Instance)
 			bucle:Destroy()
 			bucle = nil
 		end
-		-- El viento por el tiro: de noche, apagada y con la cámara cerca.
-		if ahora >= proximoViento then
-			proximoViento = ahora + azar:NextNumber(D.VientoTiro[1], D.VientoTiro[2])
-			local cerca = (workspace.CurrentCamera.CFrame.Position - hogar.Position).Magnitude < D.Cerca
-			if not encendida and cerca and workspace:GetAttribute("Fase") == "Noche" then
-				Sonido.en("VientoTiro", hogar.Position, azar:NextNumber(0.9, 1.1))
-				racha = 1
-			end
-		end
 	end)
 end
 
 function ChimeneaVista.start()
-	local modelo = CollectionService:GetTagged("Chimenea")[1] or CollectionService:GetInstanceAddedSignal("Chimenea"):Wait()
+	-- Espera a la chimenea con tiempo máximo (el mapa puede llegar por partes); el arranque la lanza con task.spawn.
+	local modelo = CollectionService:GetTagged("Chimenea")[1]
+	local limite = os.clock() + D.EsperaChimenea
+	while not modelo and os.clock() < limite do
+		task.wait(0.5)
+		modelo = CollectionService:GetTagged("Chimenea")[1]
+	end
+	if not modelo then
+		warn("[ChimeneaVista] la chimenea no llegó a tiempo: sin llamas ni crepitar")
+		return
+	end
 	preparar(modelo)
 end
 

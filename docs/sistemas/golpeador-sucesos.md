@@ -1,9 +1,16 @@
 # Sucesos al azar del Golpeador (14.10)
 
 Pedido por el usuario: "que no sea siempre igual". El servidor decide (`juego/servidor/GolpeadorSucesos.luau`, tiradas en
-`GolpeadorTiradas.luau`) y lo pone en atributos del modelo; el cliente (`GolpeadorVista`) lo anima. Nunca injustos:
+`GolpeadorTiradas.luau`) y lo pone en atributos del modelo; el cliente (`GolpeadorVista`, las poses en
+`GolpeadorVistaSucesos` y el susto en `GolpeadorVistaMuerte` desde 16.19) lo anima. Nunca injustos:
 durante un suceso no pilla a nadie y ninguno pilla a través de paredes.
 
+- Aguante según jugadores (16.2): la `Paciencia` de `Config.Dificultad` alarga el margen del Raspador, el Trepador y el
+  Generador, pero en el Golpeador alargar el aguante son más golpes y más daño. Por eso `Golpeador` usa
+  `Dificultad.aguanteGolpeando(paciencia)`: con paciencia > 1 (solo, 1,25) golpea 1/paciencia (x0,8, menos rato) y con
+  paciencia <= 1 queda igual (2-3 jugadores x1, 4 jugadores x0,85). Solo nunca aguanta más que con cuatro (banco
+  `tests/bancos/golpeador-aguante.luau`). Probar en Studio: `Config.Test.Jugadores = 1` y comprobar que un ataque
+  a una persiana nueva dura ~11-16 s y no la rompe casi nunca.
 - Cada suceso sale con su `Probabilidad` (Config.Golpeador.Sucesos) en cada ocasión, y como mucho **una vez por noche
   entre todos los Golpeadores**. Se olvida al cambiar de noche y al volver a empezar el día (`Golpeador.quitar`).
 - Atributos del modelo: `SucesoHora` (se pone antes que `Suceso`), `SucesoDura`, `SucesoMira`, `SucesoLado` (solo

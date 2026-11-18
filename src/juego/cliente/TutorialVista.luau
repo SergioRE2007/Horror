@@ -28,18 +28,18 @@ local SANGRE_VIVA = Color3.fromRGB(165, 22, 18) -- la flecha: más clara que Ui.
 -- Lo que dice cada paso. Frases enteras (Lang): la de la mochila cambia con el mando o la pantalla táctil.
 local function frase(paso: string): string
 	if paso == "Mochila" then
-		if Ui.tactil() and not UserInputService.KeyboardEnabled then
+		if Ui.tactil() then
 			return Lang.t(nil, "Open your backpack: tap BACKPACK.")
-		elseif UserInputService.GamepadEnabled and not UserInputService.KeyboardEnabled then
+		elseif Ui.tipoEntrada() == "mando" then
 			return Lang.t(nil, "Open your backpack (D-pad up).")
 		end
 		return Lang.t(nil, "Open your backpack (B).")
 	elseif paso == "Hacha" then
 		return Lang.t(nil, "Find an axe and pick it up.")
 	elseif paso == "Correr" then -- 14.8
-		if Ui.tactil() and not UserInputService.KeyboardEnabled then
+		if Ui.tactil() then
 			return Lang.t(nil, "Run to the forest: tap RUN. Running is loud.")
-		elseif UserInputService.GamepadEnabled and not UserInputService.KeyboardEnabled then
+		elseif Ui.tipoEntrada() == "mando" then
 			return Lang.t(nil, "Run to the forest: press L3. Running is loud.")
 		end
 		return Lang.t(nil, "Run to the forest: hold Shift. Running is loud.")
@@ -48,11 +48,21 @@ local function frase(paso: string): string
 	elseif paso == "Serrar" then
 		return Lang.t(nil, "Saw the log on the sawhorse.")
 	elseif paso == "Generador" then
+		if yo:GetAttribute("TutorialGasolina") then -- 16.5: con poca gasolina, que le eche un bidón
+			return Lang.t(nil, "Fill up the generator: carry a fuel can to it.")
+		end
 		return Lang.t(nil, "Start the generator in the shed.")
 	elseif paso == "Espera" then
 		return Lang.t(nil, "Stay close to the house. Night is coming.")
 	elseif paso == "Cortinas" then
-		return Lang.t(nil, "Close the curtains downstairs: {n} left.", { n = yo:GetAttribute("TutorialFalta") or 0 })
+		local n = yo:GetAttribute("TutorialFalta") or 0
+		if yo:GetAttribute("TutorialPuerta") then -- 16.5: la puerta principal abierta cuenta como una más
+			if n <= 1 then
+				return Lang.t(nil, "Close the front door.")
+			end
+			return Lang.t(nil, "Close the front door and the curtains downstairs: {n} left.", { n = n })
+		end
+		return Lang.t(nil, "Close the curtains downstairs: {n} left.", { n = n })
 	elseif paso == "Amanecer" then
 		return Lang.t(nil, "Survive until dawn. If something gets in, hide.")
 	end
@@ -124,9 +134,29 @@ local function objetivo(paso: string, desde: Vector3): (Instance?, Vector3?)
 	elseif paso == "Serrar" then
 		return masCerca(desde, etiquetados("Caballete"))
 	elseif paso == "Generador" then
+		-- 16.5: si pide gasolina y no lleva un bidón, al bidón con gasolina más cercano; con él en las manos, al generador.
+		if yo:GetAttribute("TutorialGasolina") and yo:GetAttribute("Cargando") ~= "Bidon" then
+			local bidones = {}
+			for _, c in conTipo("Pesado", "Bidon") do
+				if (c[1]:GetAttribute("Carga") or 0) > 0.05 then
+					table.insert(bidones, c)
+				end
+			end
+			if #bidones > 0 then
+				return masCerca(desde, bidones)
+			end
+		end
 		return masCerca(desde, etiquetados("Generador"))
 	elseif paso == "Cortinas" then
 		local lista = {}
+		-- La puerta principal abierta también (16.5): el bicho entra a la primera por ella.
+		for _, puerta in CollectionService:GetTagged("Puerta") do
+			local mando = puerta:FindFirstChild("Mando")
+			if puerta:GetAttribute("Atacable") and puerta:GetAttribute("Abierta") == true
+				and (puerta:GetAttribute("Vida") or 0) > 0 and mando and mando:IsA("BasePart") then
+				table.insert(lista, { puerta, mando.Position })
+			end
+		end
 		for _, ventana in CollectionService:GetTagged("Ventana") do
 			local mando = ventana:FindFirstChild("Mando")
 			if ventana:GetAttribute("Atacable") and ventana:GetAttribute("Persiana") == false
@@ -182,14 +212,10 @@ local flechaBoton: Frame
 local saltar: TextButton
 local pulsado = 0 -- cuándo se pulsó SALTAR la primera vez
 
--- Ordenador: teclado sin pantalla táctil. Ahí el ratón va bloqueado en primera persona y SALTAR no se puede pulsar:
--- se pulsa con la K (ver start), que va en su texto.
-local function conTecla(): boolean
-	return UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled
-end
-
+-- Con teclado el ratón va bloqueado en primera persona y SALTAR no se puede pulsar: se pulsa con la K (ver start), que
+-- va en su texto. Con mando o con el dedo no se enseña la letra.
 local function textoSaltar(ingles: string): string
-	return Ui.mayusculas(Lang.t(nil, ingles)) .. (if conTecla() then "  [K]" else "")
+	return Ui.mayusculas(Lang.t(nil, ingles)) .. (if Ui.conTeclado() then "  [K]" else "")
 end
 
 -- Dos toques (como NUEVA PARTIDA en el lobby): que no se salte sin querer.
@@ -252,12 +278,16 @@ local function construir()
 	saltar = Ui.boton(textoSaltar("Skip"), {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -8, 0, 6),
-		Size = UDim2.fromOffset(if conTecla() then 140 else 110, Ui.alto(30)), -- con la tecla: "¿SEGURO?  [K]"
+		Size = UDim2.fromOffset(if Ui.conTeclado() then 140 else 110, Ui.alto(30)), -- con la tecla: "¿SEGURO?  [K]"
 		TextSize = 16,
 		ZIndex = 42,
 	})
 	saltar.Parent = cartel
 	saltar.Activated:Connect(pulsarSaltar)
+	Ui.alCambiarEntrada(function() -- la K sale o se va según lo que se use; el "¿SEGURO?" pendiente se respeta
+		saltar.Text = textoSaltar(if pulsado > 0 and os.clock() - pulsado < 3 then "Sure?" else "Skip")
+		saltar.Size = UDim2.fromOffset(if Ui.conTeclado() then 140 else 110, Ui.alto(30))
+	end)
 	cartel.Parent = hud
 
 	-- La flecha del mundo: en un BillboardGui (en PlayerGui, para que las cinemáticas la escondan con todo lo demás).
@@ -427,7 +457,10 @@ end
 function TutorialVista.start()
 	construir()
 	yo:GetAttributeChangedSignal("Tutorial"):Connect(pintarCartel)
+	Ui.alCambiarEntrada(pintarCartel) -- las frases cambian con el mando o la pantalla táctil (frase)
 	yo:GetAttributeChangedSignal("TutorialFalta"):Connect(pintarCartel)
+	yo:GetAttributeChangedSignal("TutorialPuerta"):Connect(pintarCartel)
+	yo:GetAttributeChangedSignal("TutorialGasolina"):Connect(pintarCartel)
 	pintarCartel()
 	-- SALTAR también con la K (en el mando, la cruceta a la derecha), mientras se ve el cartel (no en las cinemáticas,
 	-- que apagan el HUD).

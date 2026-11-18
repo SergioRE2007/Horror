@@ -22,16 +22,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
-local Acechador: any -- se carga en start(): Acechador -> Partida -> Preparativos -> Bestia sería un require circular
+local Bichos = require(script.Parent.Bichos)
 local Casa = require(script.Parent.Casa)
 local Caza = require(script.Parent.Caza)
 local Cuerpo = require(script.Parent.Cuerpo)
-local Golpeador = require(script.Parent.Golpeador)
-local Imitador = require(script.Parent.Imitador)
 local Mapa = require(script.Parent.Mapa)
 local Muerte = require(script.Parent.Muerte)
-local Raspador = require(script.Parent.Raspador)
-local Trepador = require(script.Parent.Trepador)
 
 local Bestia = {}
 
@@ -483,7 +479,8 @@ local function cazar(e: Estado, b: Caza.Bicho)
 		parada = 0
 	end
 	if not presa and not b:quieto() then
-		ultimoVisto = oler(b) or ultimoVisto
+		-- Lo que huele manda; si no, un ruido de algo pesado (15.8: va a mirar allí).
+		ultimoVisto = oler(b) or b:oir(false) or ultimoVisto
 	end
 	if b:quieto() then
 		b.humanoide:MoveTo(b.raiz.Position)
@@ -639,11 +636,7 @@ function Bestia.soltar()
 	actual = e
 	workspace:SetAttribute("Bestia", true)
 	-- Esta noche solo está ella: los demás se van.
-	Golpeador.irse()
-	Raspador.irse()
-	Trepador.irse()
-	Imitador.irse()
-	Acechador.irse()
+	Bichos.irseTodos("Bestia")
 	e.hilo = task.spawn(function()
 		-- Con pcall: si falla, se quita igual (si no, Bestia.activa() seguía en true hasta el amanecer).
 		local ok, fallo = pcall(noche, e)
@@ -713,11 +706,7 @@ function Bestia.quemar()
 		task.cancel(e.hilo)
 	end
 	-- Caen todos: eran partes suyas.
-	Golpeador.quitar()
-	Raspador.quitar()
-	Trepador.quitar()
-	Imitador.quitar()
-	Acechador.quitar()
+	Bichos.quitarTodos("Bestia")
 	local b = e.bicho
 	if b and b.modelo then
 		b.humanoide:MoveTo(b.raiz.Position)
@@ -764,7 +753,7 @@ function Bestia.quitar()
 end
 
 function Bestia.start()
-	Acechador = require(script.Parent.Acechador)
+	Bichos.registrar("Bestia", Bestia)
 	Caza.carpeta()
 end
 

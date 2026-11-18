@@ -9,7 +9,8 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 1. 14.2 (que Sergio apruebe el tutorial) y 14.5 Partida entera de prueba, con la propuesta a ojo de
    `docs/sistemas/economia.md`.
 2. Sonidos e imágenes que faltan (`docs/sistemas/sonidos-pendientes.md`), cuando vuelva a haber créditos.
-3. **15. Mejoras pedidas por el usuario** (abajo): inventario, objetos con forma, mapa e interacciones.
+3. **15. Mejoras pedidas por el usuario** (abajo): inventario, objetos con forma, mapa e interacciones. La 15.8
+   (cargar con físicas) va primero, pedida el 18-11-2026.
 4. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
 ## Hechas
@@ -148,6 +149,16 @@ Cómo empezar: en Edit, que Rojo ha sincronizado (buscar un texto nuevo en el `S
 Play al acabar.
 
 Lo que puede romper una partida o atascar al jugador:
+0. **Paso 16 entero (18-11-2026, hecho sin Studio).** Primero lo que toca a todo: Play sin errores rojos ni
+   `[arranque] ... no ha arrancado` en la Salida (arranque nuevo con `pcall`, `Bichos`, `Mapa` partido, `Sonido` común);
+   VER MAPA igual que antes. Después, por tarea (detalle en cada `docs/sistemas/*.md`, "Probar en Studio"):
+   llegada en coche con SALTAR y el coche destrozado al amanecer de la noche 1 (`Prueba:Fire("Destrozar")`), y que el
+   tutorial empiece después; tutorial con la puerta principal y el bidón; aviso de meta y su línea en el móvil; guía
+   del lobby (`Config.Lobby.Guia.Forzar`); Rendimiento en SÍ con el emulador de teléfono; mando (R3 Ajustes, B cierra
+   ventanas sin agachar ni bajarte del coche, X/Y en la Mochila); sustos en noches altas y el espejo sin la pista 11;
+   morir todos y `Saltar` (sin premio de noche); Golpeador con `Config.Test.Jugadores = 1`; Imitador con el generador
+   apagado; manos, mirilla y muerte (Camara); los seis bichos (vaho, gateo, sucesos, susto). Solo publicado: el candado
+   al cerrar cargando, revivir pagado y los reintentos del viaje. Falta el sonido `MotorCoche`.
 1. Escenas finales y escondites (14.9), probado con un jugador el 04-11-2026 (bien, también la mirilla con el tutorial y sustos seguidos); falta lo de dos jugadores: el fuego con alguien escondido y el fuego cancelado (la cámara no se congela),
    no esconderse en la escena (sí durante el fuego), el susto justo antes de la escena, `EscenaFinal` que vuelve a nil, nadie revive en un
    final. `docs/sistemas/partida.md`, "Muerte y finales", Probar en Studio.
@@ -204,6 +215,26 @@ Retoques a ojo:
    las manos (`manos.md`, "Si algo se ve mal").
 17. Números de correr (`correr.md`, "Números a ojo para mirar en Studio") y de la llegada al lobby (`lobby.md`,
    "Números a ojo").
+
+Inmersión, vuelta 1 (sin ver aún en Studio):
+- Aire: de noche con el generador, motas en el haz de la linterna, más en desván y sótano; haz azul bajo la ventana del vestíbulo (se apaga con cortinas); niebla y pinocha fuera. Si los haces se notan mucho, subir `Config.Aire.Haz.Transparencia`.
+- Oído: golpe tras una puerta suena sordo; escondido se apaga lo de fuera; `SoundService.AmbientReverb` cambia por zona.
+- Bichitos: ratas en sótano, desván, trastero y garaje que huyen de la linterna; polillas en bombillas; moscas en charcos (`bichitos.md`).
+- Huellas: barro tras el Golpeador, rojo tras una muerte, pisadas rojas en charcos; mirar si la punta apunta bien y si la textura se tiñe (`huellas.md`).
+
+Inmersión, vuelta 2 (sin ver aún en Studio):
+- Tormenta: de noche, `workspace:SetAttribute("TormentaPrueba", true)` y `Config.Tormenta.Cada = { 5, 8 }` (sin subirlo). Mirar fogonazo, sombra del marco, bicho negro en la ventana, trueno apagado dentro y claro fuera. Si la sombra no sale, bajar `Fogonazo.Atras` (`tormenta.md`).
+- Pavor: `game.Players.LocalPlayer:SetAttribute("PavorPrueba", 10)` en el cliente. Vista que se cierra, latido, linterna que tiembla; no repite antes de 15 s; con Rendimiento solo latido y temblor flojo (`pavor.md`).
+- Ojos: de noche fuera con linterna, `Config.Ojos.Entre = { 1, 2 }` (sin subirlo). Puntitos junto a un tronco que se apagan al mirarlos; los de bichos de verdad no (`ojos.md`).
+- Marcas: Golpeador en la puerta deja zarpazos; Raspador, rayas en el cristal; una muerte junto a una pared salpica sangre que se seca. Mirar orientación y si el hollín se tiñe de rojo (`marcas.md`).
+
+Inmersión, vuelta 3 (sin ver aún en Studio):
+- Cadáver: con 2 jugadores, un bicho mata a uno con la linterna encendida. El muñeco sale lejos del bicho, se dobla sin articulaciones al revés y se para; sin piezas sueltas ni nombre. Charco bajo el pecho en 8 s, linterna rodando y parpadeando hasta apagarse a los 40 s. Al revivir desaparece todo menos la sangre. Con Rendimiento se para a los 1,5 s (`cadaver.md`).
+- Puerta rota: bajar `Vida` del modelo de la puerta a 45, 20 y 0 (con `Abierta` a true). Rendija con luz, otro trozo cede, hoja colgando torcida, astillas que crujen, pomo rodando y polvo. Con la vida al máximo todo vuelve. Mirar si las astillas atraviesan el suelo y la mirilla de la puerta principal (`puerta-rota.md`).
+
+Inmersión, vuelta 4 (sin ver aún en Studio):
+- Adaptar: de noche, en casa sin generador, linterna a una pared y apagarla: casi negro y en ~10 s grises; al encenderla deslumbra. Atajo: `Players.LocalPlayer:SetAttribute("AdaptarPrueba", 0)` en el cliente. Con 2 clientes, linterna a la cara a menos de 25 studs. Nada en mirilla, muerto ni cinemáticas. Pesos a ojo en `Config.Adaptar.Luz` (`adaptar.md`).
+- Desorden: de noche, el Golpeador golpea ventana o puerta de cocina o comedor (o subir `Golpes` 1, 2, 3 desde el servidor). Caen 1-2 adornos, la vajilla se rompe y crujen los trozos, al tercer golpe cae un cuadro, el bicho vuelca sillas, al amanecer todo vuelve. Mirar que no atraviesen baldas y si basta `Config.Desorden.Empuje`. Probar con Rendimiento (`desorden.md`).
 
 ### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
 - **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
@@ -271,6 +302,21 @@ Retoques a ojo:
   Armario. Falta: el susto gateando, Garras, Quieto, Finge, Llama, Rendimiento y los 5 sonidos (sonidos-pendientes.md,
   26-30: mientras suenan provisionales). Los brazos de la malla a veces salen como hojas planas estiradas: mirarlo.
 
+### 14.11 Inmersión: bucle de mejoras (pedido por el usuario, 17-11-2026: "mejorar la inmersión, interacciones, polvo en el aire, animaciones")
+- **Estado:** hecho sin Studio, en vueltas; falta verlo en Studio
+- Vuelta 1: Aire vivo, polvo siempre en la luz, haces de luna y niebla baja — hecho sin Studio (`docs/sistemas/aire.md`)
+- Vuelta 1: Oído, sonido tapado por las paredes y eco de cada sala — hecho sin Studio (`docs/sistemas/oido.md`)
+- Vuelta 1: Bichitos, ratas que huyen de la linterna, polillas y moscas — hecho sin Studio (`docs/sistemas/bichitos.md`)
+- Vuelta 1: Huellas de barro y de sangre — hecho sin Studio (`docs/sistemas/huellas.md`)
+- Vuelta 2: Tormenta seca, relámpagos que iluminan la casa y recortan a los bichos — hecho sin Studio (`docs/sistemas/tormenta.md`)
+- Vuelta 2: Pavor al ver un bicho, vértigo, manos que tiemblan y latido — hecho sin Studio (`docs/sistemas/pavor.md`)
+- Vuelta 2: Ojos en la oscuridad, la linterna los hace brillar entre los árboles — hecho sin Studio (`docs/sistemas/ojos.md`)
+- Vuelta 2: Marcas de la noche, arañazos en las puertas y sangre en las paredes — hecho sin Studio (`docs/sistemas/marcas.md`)
+- Vuelta 3: Cuerpos que caen de verdad, el compañero muerto se queda tirado — hecho sin Studio (`docs/sistemas/cadaver.md`)
+- Vuelta 3: Puertas que revientan, astillas y la hoja colgando de una bisagra — hecho sin Studio (`docs/sistemas/puerta-rota.md`)
+- Vuelta 4: Ojos que se acostumbran a la oscuridad (y deslumbran) — hecho sin Studio (`docs/sistemas/adaptar.md`)
+- Vuelta 4: La casa se desordena, adornos que caen y sillas que vuelca el bicho — hecho sin Studio (`docs/sistemas/desorden.md`)
+
 ## 15. Mejoras pedidas por el usuario (05-11-2026: "a mi parecer hay muchas cosas que mejorar aun")
 
 ### 15.1 Inventario (mochila) de nuevo
@@ -278,10 +324,8 @@ Retoques a ojo:
   es darle un click, es antiintuitivo".
 - Qué: cada objeto con su imagen (el modelo 3D en un ViewportFrame, como las armas del primer juego); coger y soltar
   **arrastrando** (ratón, dedo y mando), con la casilla de destino marcada en verde o rojo; girar con R o un botón; tirar
-  arrastrando fuera de la rejilla. Al estilo oscuro (papel viejo, letras desgastadas). Skills 
-oblox-ui-designer y
-  
-oblox-ui-engineer. Sin cambiar el guardado de la mochila (mochila.md).
+  arrastrando fuera de la rejilla. Al estilo oscuro (papel viejo, letras desgastadas). Skills `roblox-ui-designer` y
+  `roblox-ui-engineer`. Sin cambiar el guardado de la mochila (mochila.md).
 - **Estado:** pendiente
 
 ### 15.2 Objetos con forma
@@ -325,19 +369,32 @@ oblox-ui-engineer. Sin cambiar el guardado de la mochila (mochila.md).
 - **Estado:** pendiente
 
 ### 15.7 Recuperar los commits aplastados en el historial de main
+- Pedido por el usuario: "a mí me mola ver un montón de commits". Hasta el 05-11-2026 las ramas se juntaban aplastadas
+  (squash) y main solo tenía un commit por rama; desde entonces se juntan con --no-ff (CLAUDE.md).
 - Los commits de las 30 PR siguen en GitHub (`refs/pull/N/head`, ~270 commits) y los dos últimos en el reflog de este PC
   (`fdc5981`, `f206e22`). `tools/git/rehacer-historial.ps1` rehace main cambiando cada commit aplastado por un merge de
-- Los commits de las 30 PR siguen en GitHub (
+  verdad de su rama, sin cambiar el código (mismos árboles). Antes: `git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"`.
 - Copia de seguridad ya hecha: etiqueta `respaldo/main-aplastado` (en GitHub). Al acabar: comprobar que el árbol de la
-  (dc5981, 206e22). 	ools/git/rehacer-historial.ps1 rehace main cambiando cada commit aplastado por un merge de
-  verdad de su rama, sin cambiar el código (mismos árboles). Antes: git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*".
-- Copia de seguridad ya hecha: etiqueta 
-espaldo/main-aplastado (en GitHub). Al acabar: comprobar que el árbol de la
-  punta nueva es igual al de main, git push --force-with-lease origin main y avisar de volver a bajar el proyecto en
-  otros ordenadores. Se paró a medias por falta de tiempo (pedido por el usuario); main no se llegó a tocar.
+  punta nueva es igual al de main, `git push --force-with-lease origin main` y avisar de volver a bajar el proyecto en
+  otros ordenadores.
 - Hecho el 05-11-2026: main pasó de 55 a 328 commits con 40 merges, mismos árboles en todos los commits. La #9 se queda
   aplastada: su rama se siguió usando tras juntarla y los commits originales ya no existen.
 - **Estado:** hecho
+
+### 15.8 Cargar cosas pesadas con físicas de verdad (pedido por el usuario, 18-11-2026: "todo")
+- Antes lo pesado era un bloque rígido que flotaba delante y atravesaba las paredes. Claude propuso cuatro cosas y el
+  usuario las quiso todas:
+  1. Físicas de verdad: se balancea al andar y se queda atrás al girar; choca con paredes y marcos, así que hay que
+     entrar de frente por las puertas; si se engancha, frenas, y si sigues tirando, se cae.
+  2. Al hombro: troncos y tablones van al hombro derecho, a lo largo; lo demás, delante con las dos manos.
+  3. Lanzar (troncos y tablones): mantener clic, R2 o LANZAR para coger fuerza y soltar para tirarlo; cae dando vueltas
+     y suena. La E lo deja en el suelo con cuidado, sin ruido.
+  4. Ruido: lo que cae de golpe (lanzado, soltado al morir o al engancharse) y lo que se arrastra suena, y los bichos
+     que rondan lo oyen y van corriendo a mirar allí (no a ti: si estás escondido no te pillan por el ruido).
+- **Estado:** hecho sin Studio (18-11-2026, en la nube: `docs/sistemas/mochila.md`), números a ojo. Bancos de Lune
+  `cargar.luau` y `cargar-vista.luau`; revisado con cinco `reviewer` y un verificador por cada uno (nada grave; los
+  cuatro detalles menores, arreglados). Falta probarlo en Studio (lista en `mochila.md`, "Pendiente") y los 4 sonidos
+  (`sonidos-pendientes.md`, 31-34: mientras suenan provisionales).
 
 ### Ideas de Claude, por decidir (05-11-2026)
 Sin aprobar todavía; el usuario decide cuáles entran: sucesos al azar en los demás bichos (como la 14.10); noches
@@ -345,3 +402,37 @@ distintas (tormenta, niebla, luna llena, silencio); llaves y pistas en sitios di
 dónde está el bicho y música solo al perseguirte; sustos de una sola vez; miedo que crece a oscuras (ruidos y cosas que
 no están); llevar a cuestas al compañero caído; walkie-talkie; misiones del día; varios finales; mapa por partes
 (StreamingEnabled) para móviles flojos.
+
+## 16. Mejoras del análisis del juego (pedido por el usuario, 18-11-2026: "hazlo todo, lanza los agentes que hagan falta")
+Salen de un análisis con 8 agentes (7 por área y un verificador). Nada grave: ni pérdidas de datos ni duplicados. Hecho
+sin Studio (la sesión fue en la nube): todo lo de aquí va también a "Pendientes para Studio". Números nuevos, a ojo.
+
+| Tarea | Qué | Estado |
+|---|---|---|
+| 16.1 | Candado de la partida: soltarlo aunque el servidor se cierre mientras carga | hecho |
+| 16.2 | Golpeador: jugando solo no debe golpear más rato que con cuatro | hecho |
+| 16.3 | Morir todos justo antes del amanecer no cuenta como noche superada | hecho |
+| 16.4 | Revivir pagado revive al del botón, no a otro muerto | hecho |
+| 16.5 | Tutorial: cerrar la puerta principal, la gasolina del generador y la siguiente meta tras el tutorial | hecho |
+| 16.6 | Aviso de una línea la primera vez que raspa el Raspador | hecho |
+| 16.7 | Guía corta del lobby para el jugador nuevo | hecho |
+| 16.8 | Llegada en coche y coche destrozado tras la noche 1 (`docs/diseño.md`) | hecho |
+| 16.9 | Rendimiento activado la primera vez en móvil; Ajustes con mando | hecho |
+| 16.10 | Sustos: que salgan en noches altas, que vayan a más y que el espejo no destape el giro; polvo con Rendimiento | hecho |
+| 16.11 | Linternas, bengalas, chimenea e iluminación más ligeras y con Rendimiento | hecho |
+| 16.12 | Apagón del Imitador solo con el generador encendido; generador sin recalcular cada fotograma | hecho |
+| 16.13 | Lobby: reintentos del viaje, tienda con datos cargados y cerca del mostrador, coche fijo en la cuenta atrás, menos JSON | hecho |
+| 16.14 | Mando y táctil: cerrar ventanas con B, táctil bien detectado, pistas de teclado solo con teclado, mayúsculas con más tildes | hecho |
+| 16.15 | Registro común de bichos, sin `require` diferidos, números a `Config` y reparto del Director como función probada | hecho |
+| 16.16 | Límite de ritmo común para los remotes (`Limite`), también en los que no tenían | hecho |
+| 16.17 | Un solo módulo `Sonido` para lobby y juego, con límite de vida; arranque del cliente protegido | hecho |
+| 16.18 | `Mapa.luau` partido en salas, anexos y bosque, sin cambiar nada del juego | hecho |
+| 16.19 | Vistas de bichos: funciones comunes en `BichoComun` y `GolpeadorVista` partida | hecho |
+| 16.20 | Cámara leída siempre al día (`workspace.CurrentCamera`) en los módulos del cliente | hecho |
+| 16.21 | Pruebas de Lune: guardado, recibos, recompensas, revivir, textos en español, reparto y `Config.Test` | hecho |
+
+Fuera por ahora: `StreamingEnabled` en el lobby (hay que probarlo en Studio con el emulador de móvil).
+Por decidir con Sergio: la meta tras el tutorial no habla del desván ni de la habitación del rico (final difícil);
+el Incendio sigue quitando solo al Golpeador y al Raspador; la clave de LangEs "It doesn't fit there." no la usa nadie.
+Sabido: los bancos de las vistas de bichos solo pasan con la semilla de siempre (con otra, una cabeza o un brazo puede
+entrar unas décimas en la pared o el suelo, `docs/sistemas/bichos.md`).

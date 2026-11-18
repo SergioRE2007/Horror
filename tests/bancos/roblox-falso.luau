@@ -486,4 +486,89 @@ do
 	igual(#m.errores, 0, "Ui: sin errores")
 end
 
+-- Servidor (16.21): DataStore compartido entre dos mundos, que tarda y falla; GUID distintos; Kick saca al jugador;
+-- BindToClose con mundo.cerrar.
+do
+	local nube = {}
+	local s1 = crearMundo({ servidor = true, nube = nube })
+	local s2 = crearMundo({ servidor = true, nube = nube })
+	local guid1 = s1.servicio("HttpService"):GenerateGUID(false)
+	local guid2 = s2.servicio("HttpService"):GenerateGUID(false)
+	igual(guid1 ~= guid2, true, "servidor: dos mundos no sacan el mismo GUID")
+	local a1 = s1.servicio("DataStoreService"):GetDataStore("Prueba")
+	local a2 = s2.servicio("DataStoreService"):GetDataStore("Prueba")
+	igual(s1.servicio("DataStoreService"):GetDataStore("Prueba"), a1, "servidor: el mismo almacén con el mismo nombre")
+	local escrito = { n = 1, lista = { 1, 2 } }
+	local hecho = false
+	nube.retraso = 1
+	s1.task.spawn(function()
+		a1:UpdateAsync("k", function(viejo)
+			igual(viejo, nil, "servidor: clave nueva sin nada")
+			return escrito
+		end)
+		hecho = true
+	end)
+	s1.correr(0.5)
+	igual(hecho, false, "servidor: UpdateAsync tarda lo de retraso")
+	s1.correr(0.6)
+	igual(hecho, true, "servidor: y acaba")
+	escrito.n = 99
+	local leido = nil
+	s2.task.spawn(function()
+		leido = a2:GetAsync("k")
+	end)
+	s2.correr(1.1)
+	igual(leido and leido.n, 1, "servidor: el otro mundo lo lee, copiado (no ve lo cambiado después)")
+	nube.retraso = 0
+	nube.falla = 1
+	local ok1 = nil
+	s1.task.spawn(function()
+		ok1 = pcall(a1.UpdateAsync, a1, "k", function()
+			return { n = 2 }
+		end)
+	end)
+	igual(ok1, false, "servidor: falla = 1, la siguiente falla")
+	igual(nube.datos["Prueba/k"].n, 1, "servidor: y no escribe")
+	nube.pierde = 1
+	s1.task.spawn(function()
+		ok1 = pcall(a1.UpdateAsync, a1, "k", function()
+			return { n = 3 }
+		end)
+	end)
+	igual(ok1, false, "servidor: pierde = 1, error...")
+	igual(nube.datos["Prueba/k"].n, 3, "servidor: ...pero escrito")
+	s1.task.spawn(function()
+		ok1 = pcall(a1.UpdateAsync, a1, "k", function()
+			-- selene: allow(mixed_table)
+			return { 1, x = 2 } -- a propósito: no se puede guardar
+		end)
+	end)
+	igual(ok1, false, "servidor: una tabla mezcla no se puede guardar")
+
+	local j = s1.jugador("A")
+	local idos = 0
+	s1.servicio("Players").PlayerRemoving:Connect(function(quien)
+		igual(quien.Parent, s1.servicio("Players"), "servidor: en PlayerRemoving aún está en Players")
+		idos += 1
+	end)
+	j:Kick("adiós")
+	igual(#s1.expulsados, 1, "servidor: Kick apuntado")
+	s1.paso()
+	igual(j.Parent, nil, "servidor: Kick lo saca")
+	igual(idos, 1, "servidor: con PlayerRemoving")
+	s1.salir(j)
+	igual(idos, 1, "servidor: salir otra vez no hace nada")
+
+	local cerrado = false
+	s1.game:BindToClose(function()
+		s1.task.wait(2)
+		cerrado = true
+	end)
+	local listo = s1.cerrar()
+	igual(listo(), false, "servidor: BindToClose en marcha")
+	s1.correr(2.1)
+	igual(cerrado and listo(), true, "servidor: BindToClose acabado")
+	igual(#s1.errores + #s2.errores, 0, "servidor: sin errores")
+end
+
 print(`roblox-falso: {cuentas} comprobaciones.`)

@@ -42,10 +42,8 @@ local COS_LINTERNA = math.cos(math.rad(Config.Linterna.Angulo))
 local APARTA = 0.6 -- s apartándose del cristal
 local DELANTE = 4.65 -- del centro del armario a donde se para (la puerta a 1,35: ~3,3 delante; inclinado, la cara llega a las rendijas sin meterse)
 local PUERTA = 1.35 -- del centro del armario a sus puertas de lamas
-local LLEGAR = 6 -- s como mucho andando hasta delante del armario
-local FINGE_LEJOS = 28 -- studs que se aleja antes de pararse a mirar atrás
-local GARRAS_OTRA = 5 -- s sin volver a tirar Garras tras una ocasión
-local QUIETO_OTRA = 6 -- s sin volver a tirar Quieto por el mismo jugador
+-- Los de ritmo (lo que tarda en llegar al armario, lo que se aleja al fingir, cada cuánto se tiran Garras y Quieto),
+-- en Config.Golpeador.Sucesos (16.15): Armario.Llegar, Finge.Lejos, Garras.Otra y Quieto.Otra.
 local HOMBRO = 1 -- studs sobre la raíz: la altura del hombro
 
 local function rango(r: { number }): number
@@ -272,7 +270,7 @@ function GolpeadorSucesos.finge(b: Caza.Bicho, casa: Vector3, fuera: Vector3, le
 	local function nadie(): boolean
 		return not b.prisa and b:elegirPresa(true) == nil
 	end
-	b:irA(fuera + ida.Unit * FINGE_LEJOS, G.Andar, 8, nadie)
+	b:irA(fuera + ida.Unit * C.Finge.Lejos, G.Andar, 8, nadie)
 	if not b.modelo or b.prisa then
 		return nil
 	elseif b:elegirPresa(true) then
@@ -348,7 +346,7 @@ local function armario(b: Caza.Bicho, est: Estado): boolean
 			return Muerte.escondite(jugador) == sitio and b:elegirPresa(false) == nil
 		end
 		-- Hasta delante de la puerta andando (aún es la ronda, sin Suceso) y el último trecho, recto.
-		b:irA(delante, b.o.Andar, LLEGAR, sigue)
+		b:irA(delante, b.o.Andar, C.Armario.Llegar, sigue)
 		local hasta = os.clock() + 1.5
 		while b.modelo and not b.prisa and not b:quieto() and os.clock() < hasta and plano(delante - b:suelo()).Magnitude > 0.6
 			and sigue() do
@@ -435,7 +433,7 @@ local function garras(b: Caza.Bicho, est: Estado, ronda: Vector3?): boolean
 	if not lado or not punto then
 		return false
 	end
-	est.garrasOtra = os.clock() + GARRAS_OTRA
+	est.garrasOtra = os.clock() + C.Garras.Otra
 	if not tiradas:tirar("Garras", est.noche) then
 		return false
 	end
@@ -489,7 +487,7 @@ local function quieto(b: Caza.Bicho, est: Estado, presa: Player, destino: Vector
 	if os.clock() < (est.quietoOtra[presa] or -math.huge) and not tiradas.forzados.Quieto then
 		return nil
 	end
-	est.quietoOtra[presa] = os.clock() + QUIETO_OTRA
+	est.quietoOtra[presa] = os.clock() + C.Quieto.Otra
 	if not tiradas:tirar("Quieto", est.noche) then
 		return nil
 	end

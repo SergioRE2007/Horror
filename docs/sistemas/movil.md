@@ -70,3 +70,19 @@ esquina de arriba a la derecha.
   una línea ("La reja está lista. Tira de la palanca de la trampilla.").
 - Móvil escondido: abrirlo con M y meterse en un armario: sigue abierto. Cerrarlo con M dentro y abrirlo otra vez: se
   abre. En la huida o el incendio, al empezar la escena se guarda y M no lo saca.
+
+## Táctil, mando y teclado (16.14)
+
+- `Ui.tactil()`: `TouchEnabled` y sin teclado; con teclado y pantalla (portátil táctil) solo mientras lo último usado sea el
+  dedo. `Ui.tipoEntrada()` da "tactil", "mando" o "teclado" (sale de `LastInputTypeChanged`); `Ui.alCambiarEntrada(f)`
+  avisa del cambio. Las medidas fijadas al arrancar (`TACTIL = Ui.tactil()`) no cambian; los textos con pista, sí.
+- Pistas de teclado ([R], [E], [V], [K], [P], las de la mochila): solo con `Ui.conTeclado()` / `Ui.pista(tecla, texto)`.
+  Con mando o dedo no se enseña ninguna letra (en cada mando los botones se llaman distinto).
+- Mochila con mando: X gira, Y tira, B cierra, cruceta arriba abre (no chocan: con ella abierta no hay carteles de coger ni
+  se puede llevar nada en las manos; L1 linterna, R1 bengalas, R2 disparo, L2 mirar, R3 ajustes, L3 correr, cruceta
+  izquierda revivir, derecha saltar tutorial, abajo móvil).
+- B (y Escape, salvo en el coche) cierra taller, vendedor y tienda; en el coche, B es BAJAR (`Ui.cerrarConB`). Cada ventana
+  llama a `Ui.ventanaAbierta(nombre, abierta)` para que esa B no agache (atributo `VentanaAbierta`).
+- `Ui.mayusculas` cubre à è ì ò ù â ê î ô û ã õ ç ö ä ü ñ y las tildes del español.
+- Probar en Studio: emulador táctil y con teclado (sin pistas ni cambios raros); con mando, abrir taller o tienda y cerrar
+  con B sin agacharse; mochila abierta: X gira lo cogido, Y lo tira; texto de botón con ç/ã/ö en mayúsculas.

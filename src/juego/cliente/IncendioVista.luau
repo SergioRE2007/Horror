@@ -36,7 +36,7 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 local IncendioVista = {}
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local azar = Random.new()
 local enMarcha = false
 
@@ -759,9 +759,9 @@ local function escena(segundos: number, devolver: { () -> () })
 	alAcabar(function()
 		jugador:SetAttribute("EscenaFinal", nil)
 	end)
-	camara.CameraType = Enum.CameraType.Scriptable
+	Camara.get().CameraType = Enum.CameraType.Scriptable
 	alAcabar(function()
-		camara.CameraType = Enum.CameraType.Custom
+		Camara.get().CameraType = Enum.CameraType.Custom
 	end)
 	local escala = LARGO_ESCENA / math.max(1, segundos)
 	local inicio = os.clock()
@@ -856,7 +856,7 @@ local function escena(segundos: number, devolver: { () -> () })
 			local f = temblorFuerza * (temblorHasta - t)
 			cf *= CFrame.Angles(math.rad(math.noise(reloj * 25, 1) * f), math.rad(math.noise(reloj * 25, 2) * f), 0)
 		end
-		camara.CFrame = cf
+		Camara.get().CFrame = cf
 
 		-- Fundido a negro y el título.
 		if t > LARGO_ESCENA - 2.2 then

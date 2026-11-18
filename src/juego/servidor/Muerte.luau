@@ -12,6 +12,7 @@ local StarterPlayer = game:GetService("StarterPlayer")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 
 local Muerte = {}
 
@@ -196,6 +197,8 @@ local function alEntrar(jugador: Player)
 	jugador.CameraMode = Enum.CameraMode.LockFirstPerson -- en la partida siempre primera persona (pedido por el usuario)
 	jugador.CharacterAdded:Connect(function(personaje)
 		local humanoide = personaje:WaitForChild("Humanoid") :: Humanoid
+		-- Al morir el personaje se queda entero: cada cliente lo esconde y pone un muñeco de trapo (CadaverVista).
+		humanoide.BreakJointsOnDeath = false
 		humanoide.Died:Connect(function()
 			soltarSitio(jugador)
 			if not jugador:GetAttribute("Muerto") then
@@ -209,9 +212,34 @@ end
 
 -- De muerto, la cámara sigue a otro (MuerteVista): con el mapa por partes (StreamingEnabled, rendimiento.md) el
 -- servidor manda el mapa alrededor de él y no del cuerpo. Sin el mapa por partes no cambia nada.
+-- Con Config.Limites.Mirar entre una y otra: la que llega antes no se tira (la cámara del cliente ya cambió y no la
+-- vuelve a mandar), se guarda la última y se aplica al acabar el intervalo. Una sola espera por jugador: sin ráfagas.
+local aplazadas: { [Player]: Player } = setmetatable({}, { __mode = "k" }) :: any
+local esperando: { [Player]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+
 local function mirar(jugador: Player, objetivo: unknown)
 	if not jugador:GetAttribute("Muerto") or typeof(objetivo) ~= "Instance" or not objetivo:IsA("Player")
-		or objetivo.Parent ~= Players or objetivo == jugador or not vivo(objetivo) then
+		or objetivo.Parent ~= Players or objetivo == jugador then
+		return
+	end
+	local falta = Limite.restante(jugador, "Mirar", Config.Limites.Mirar)
+	if falta > 0 then
+		aplazadas[jugador] = objetivo
+		if not esperando[jugador] then
+			esperando[jugador] = true
+			task.delay(falta, function()
+				esperando[jugador] = nil
+				local ultima = aplazadas[jugador]
+				aplazadas[jugador] = nil
+				if ultima and jugador.Parent == Players then
+					mirar(jugador, ultima) -- con todas las comprobaciones otra vez (sigue muerto, el otro sigue aquí…)
+				end
+			end)
+		end
+		return
+	end
+	aplazadas[jugador] = nil -- esta es más nueva que la guardada
+	if not Limite.pasa(jugador, "Mirar", Config.Limites.Mirar) or not vivo(objetivo) then
 		return
 	end
 	local raiz = objetivo.Character and objetivo.Character:FindFirstChild("HumanoidRootPart")

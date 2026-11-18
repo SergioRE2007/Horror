@@ -442,7 +442,7 @@ function Fachada.vestir(m)
 		local p = Vector3.new(T.x + ra * math.cos(a), 13.5, T.z + ra * math.sin(a)) -- del suelo al alero
 		pieza("Esquinera", Vector3.new(1.1, 27, 0.5), CFrame.lookAt(p, p + Vector3.new(math.cos(a), 0, math.sin(a))), COLOR.Moldura)
 	end
-	-- Franja entre plantas de la torre, en sus caras de fuera (las mismas que en Mapa.construirTorre).
+	-- Franja entre plantas de la torre, en sus caras de fuera (las mismas que en construirTorre de Mapa).
 	local rf = (T.apotema + 0.7) / math.cos(math.pi / 8)
 	for _, c in { { 4, 0.5, 1 }, { 5, 0, 1 }, { 6, 0, 1 }, { 7, 0, 1 }, { 0, 0, 1 }, { 1, 0, 1 }, { 2, 0, 0.5 } } do
 		local a0, a1 = (c[1] - 0.5) * math.pi / 4, (c[1] + 0.5) * math.pi / 4

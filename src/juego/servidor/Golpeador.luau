@@ -14,10 +14,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Bichos = require(script.Parent.Bichos)
 local Bichos3D = require(script.Parent.Bichos3D)
 local Casa = require(script.Parent.Casa)
 local Caza = require(script.Parent.Caza)
 local Cuerpo = require(script.Parent.Cuerpo)
+local Dificultad = require(ReplicatedStorage.Shared.Dificultad)
 local Sucesos = require(script.Parent.GolpeadorSucesos)
 
 local Golpeador = {}
@@ -166,7 +168,8 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 	end
 
 	-- Golpea hasta cansarse o hasta entrar.
-	local aguante = (rango(G.Paciencia) + G.MasPaciencia * (noche - 1)) * paciencia
+	-- La paciencia de la tabla no se multiplica tal cual: golpear más rato es más difícil (Dificultad.aguanteGolpeando).
+	local aguante = (rango(G.Paciencia) + G.MasPaciencia * (noche - 1)) * Dificultad.aguanteGolpeando(paciencia)
 	local entra = golpear(a, b, el, noche, aguante, true)
 	if not entra and not b.prisa then
 		-- Cansado, a veces finge irse: se para a medio camino, mira atrás y vuelve corriendo a golpear un poco más.
@@ -211,7 +214,7 @@ local function terminar(a: Ataque)
 end
 
 -- Empieza un ataque a esa ventana o puerta y devuelve una función que dice si sigue en marcha.
--- `paciencia` multiplica lo que aguanta golpeando (tabla de dificultad).
+-- `paciencia` (tabla de dificultad) ajusta lo que aguanta golpeando: con más paciencia golpea menos rato.
 function Golpeador.atacar(el: Model, noche: number, paciencia: number?): () -> boolean
 	local a: Ataque = { bicho = nil, objetivo = nil, hilo = nil, prisa = false }
 	ataques[a] = true
@@ -250,6 +253,7 @@ function Golpeador.quitar()
 end
 
 function Golpeador.start()
+	Bichos.registrar("Golpeador", Golpeador)
 	Caza.carpeta()
 	Sucesos.start() -- la orden de prueba "Suceso"
 end

@@ -8,6 +8,7 @@ require(ReplicatedStorage.Shared.Remotes) -- crea los RemoteEvents antes de que 
 local Comun = ServerScriptService:WaitForChild("Comun")
 
 require(Comun.Limpieza).start() -- lo primero: deja el Workspace solo con lo del código
+require(Comun.Limite).start() -- límite de ritmo de los remotes (16.16): olvida a los que se van
 require(Comun.Idioma).start()
 require(Comun.Datos).start()
 require(Comun.Recompensas).start()
@@ -21,6 +22,10 @@ require(Sistemas.Mapa).start() -- la casa y el bosque, antes que lo que los usa
 require(Sistemas.Casa).start()
 require(Sistemas.Muerte).start()
 require(Sistemas.Golpeador).start()
+-- Se apuntan en Bichos (16.15) en este orden, el de quitarlos: Golpeador, Raspador, Trepador, Imitador, Acechador, Bestia.
+require(Sistemas.Raspador).start()
+require(Sistemas.Trepador).start()
+require(Sistemas.Imitador).start()
 require(Sistemas.Cargar).start()
 require(Sistemas.Mochila).start()
 require(Sistemas.Postura).start() -- agacharse y asomarse (14.6): atributos Agachado y Asomado
@@ -35,6 +40,7 @@ require(Sistemas.Pistas).start()
 require(Sistemas.Vendedor).start()
 require(Sistemas.Taller).start()
 require(Sistemas.Coche).start()
+require(Sistemas.Llegada).start() -- llegada en coche y coche destrozado tras la noche 1 (16.8); después de Coche
 require(Sistemas.Director).start()
 require(Sistemas.Acechador).start()
 require(Sistemas.Bestia).start() -- final de la Bestia (12.2)

@@ -44,12 +44,29 @@ local lamparas: { [Light]: number } = {} -- luz → su brillo puesto por el serv
 -- Parpadeos (DetallesVista): luz → cuánto de su brillo le queda ahora (0 a 1). Sin entrada, todo.
 Ambiente.factor = {} :: { [Light]: number }
 
+-- Tormenta seca (TormentaVista, tormenta.md): lo pone TormentaVista y se suma encima de lo de aquí en cada fotograma.
+--   destello: fogonazo del relámpago de 0 a 1 (luz de fuera, niebla, ColorCorrection y las lunas de `lunas`).
+--   lunas: luz de luna → cuánto de Config.Tormenta.Luz.Luna se le suma ahora (0 a 1).
+--   temblor: las bombillas (PointLight) tiemblan con el trueno, de 0 a 1.
+Ambiente.destello = 0
+Ambiente.lunas = {} :: { [Light]: number }
+Ambiente.temblor = 0
+local semillas: { [Light]: number } = {} -- cada bombilla tiembla a su aire
+local contador = 0
+local CONTRASTE = 0.1
+
 local atmosfera: Atmosphere
 local color: ColorCorrectionEffect
 local viento: Sound? -- nil mientras no haya un viento en Config.Sonidos
 
 local function mezcla(a: number, b: number, k: number): number
 	return a + (b - a) * k
+end
+
+-- Suma a un color un RGB ({ r, g, b } de 0 a 255) por k.
+local function mas(c: Color3, d: { number }, k: number): Color3
+	k /= 255
+	return Color3.new(math.min(1, c.R + d[1] * k), math.min(1, c.G + d[2] * k), math.min(1, c.B + d[3] * k))
 end
 
 -- Cuánto de noche (0 a 1) y la hora (ClockTime) según la fase y lo que lleva de ella.
@@ -72,8 +89,33 @@ local function momento(): (number, number)
 	return k, hora
 end
 
-local function pintar()
-	local k, hora = momento()
+-- Lo de las lámparas del mapa: su brillo según cuánto de noche es (k) y los parpadeos (factor).
+local function pintarLamparas(k: number)
+	local proporcion = mezcla(DIA.Lamparas, NOCHE.Lamparas, k)
+	local temblor = Ambiente.temblor
+	local reloj = os.clock()
+	for luz, base in lamparas do
+		if luz.Parent then
+			local brillo = base * proporcion * (Ambiente.factor[luz] or 1)
+			if temblor > 0 and luz:IsA("PointLight") then -- el trueno: tiembla y baja un poco, cada una a su aire
+				local n = semillas[luz] or 0
+				brillo *= 1 - temblor * (0.5 + 0.5 * math.noise(reloj * 22, n, 0.37))
+			end
+			local luna = Ambiente.lunas[luz]
+			if luna then
+				brillo += luna * Ambiente.destello * Config.Tormenta.Luz.Luna
+			end
+			luz.Brightness = brillo
+		else
+			lamparas[luz] = nil
+			Ambiente.factor[luz] = nil
+			Ambiente.lunas[luz] = nil
+			semillas[luz] = nil
+		end
+	end
+end
+
+local function pintar(k: number, hora: number)
 	Lighting.ClockTime = hora
 	Lighting.Brightness = mezcla(DIA.Brightness, NOCHE.Brightness, k)
 	Lighting.Ambient = DIA.Ambient:Lerp(NOCHE.Ambient, k)
@@ -83,14 +125,20 @@ local function pintar()
 	atmosfera.Decay = atmosfera.Color
 	color.Brightness = mezcla(DIA.Brillo, NOCHE.Brillo, k)
 	Lighting.ExposureCompensation = mezcla(DIA.Exposicion, NOCHE.Exposicion, k)
-	local proporcion = mezcla(DIA.Lamparas, NOCHE.Lamparas, k)
-	for luz, base in lamparas do
-		if luz.Parent then
-			luz.Brightness = base * proporcion * (Ambiente.factor[luz] or 1)
-		else
-			lamparas[luz] = nil
-			Ambiente.factor[luz] = nil
-		end
+	pintarLamparas(k)
+	-- Relámpago de la tormenta seca: la luz de fuera, la niebla (el cielo se pone blanco) y un pico de brillo y
+	-- contraste (las siluetas, más negras), encima de lo de arriba. Sin destello, nada. Con destello se pinta todo en
+	-- cada fotograma (ver start), así que el += parte siempre de lo recién puesto.
+	local d = Ambiente.destello
+	color.Contrast = CONTRASTE
+	if d > 0 then
+		local T = Config.Tormenta.Luz
+		Lighting.Brightness += T.Brillo * d
+		Lighting.OutdoorAmbient = mas(Lighting.OutdoorAmbient, T.Fuera, d)
+		atmosfera.Color = mas(atmosfera.Color, T.Niebla, d)
+		atmosfera.Decay = mas(atmosfera.Decay, T.Niebla, d * 0.6)
+		color.Brightness += T.Color * d
+		color.Contrast = CONTRASTE + T.Contraste * d
 	end
 	if viento then
 		viento.Volume = Config.Sonidos.Viento.Volumen * (1 + k)
@@ -136,12 +184,14 @@ function Ambiente.start()
 	atmosfera.Parent = Lighting
 	color = Instance.new("ColorCorrectionEffect")
 	color.Saturation = -0.35 -- colores apagados, realistas
-	color.Contrast = 0.1
+	color.Contrast = CONTRASTE
 	color.Parent = Lighting
 	viento = if Config.Sonidos.Viento then Sonido.bucle("Viento") else nil
 	local function apuntarLuz(luz: Instance)
 		if luz:IsA("Light") and not lamparas[luz] then
 			lamparas[luz] = luz.Brightness
+			contador += 1
+			semillas[luz] = contador * 1.618
 		end
 	end
 	local mapa = workspace:WaitForChild("Mapa")
@@ -162,8 +212,30 @@ function Ambiente.start()
 		faseAntes = fase
 		avisado = false
 	end)
-	RunService.RenderStepped:Connect(function()
-		pintar()
+	-- La hora corre en minutos, no en fotogramas: la iluminación se pinta unas 10 veces por segundo (rendimiento.md) y
+	-- más seguido (30) mientras cambia deprisa (atardecer y amanecer: 0 < k < 1). Los parpadeos de las bombillas (Efectos
+	-- y DetallesVista, cortes de 30 a 140 ms) sí se ven a 10 Hz, así que las lámparas se repintan cada fotograma mientras
+	-- haya alguno o tiemblen con el trueno (Ambiente.temblor). El relámpago (Ambiente.destello) es un fogonazo de
+	-- décimas: mientras dura se pinta todo cada fotograma, y una vez más al acabar para quitarlo. El aviso del
+	-- atardecer se mira cada fotograma, aparte.
+	local desdePintar = math.huge
+	local habiaParpadeo = false
+	local habiaDestello = false
+	RunService.RenderStepped:Connect(function(dt)
+		desdePintar += dt
+		local k, hora = momento()
+		local cadaCuanto = if k > 0 and k < 1 then 1 / 30 else 1 / 10
+		local destello = Ambiente.destello > 0
+		local parpadeo = next(Ambiente.factor) ~= nil or Ambiente.temblor > 0
+		if desdePintar >= cadaCuanto or destello or habiaDestello then
+			desdePintar = 0
+			pintar(k, hora)
+			habiaParpadeo = parpadeo
+			habiaDestello = destello
+		elseif habiaParpadeo or parpadeo then
+			habiaParpadeo = parpadeo
+			pintarLamparas(k)
+		end
 		local fin = workspace:GetAttribute("FaseFin")
 		if not avisado and workspace:GetAttribute("Fase") == "Dia" and fin
 			and fin - workspace:GetServerTimeNow() < Config.Ciclo.Aviso then

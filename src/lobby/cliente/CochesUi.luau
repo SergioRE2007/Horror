@@ -104,9 +104,17 @@ local function coche(): Model?
 	return if nombre and carpeta then carpeta:FindFirstChild(nombre) :: Model? else nil
 end
 
+-- El JSON de Partidas se decodifica solo cuando cambia la cadena (pintar corre cada 0,2 s).
+local partidasCadena: string? = nil
+local partidasTabla: any = {}
 local function partidas()
-	local ok, t = pcall(HttpService.JSONDecode, HttpService, jugador:GetAttribute("Partidas") or "{}")
-	return if ok and type(t) == "table" then t else {}
+	local cadena = jugador:GetAttribute("Partidas") or "{}"
+	if cadena ~= partidasCadena then
+		local ok, t = pcall(HttpService.JSONDecode, HttpService, cadena)
+		partidasCadena = cadena
+		partidasTabla = if ok and type(t) == "table" then t else {}
+	end
+	return partidasTabla
 end
 
 -- En primera persona (la cámara pegada a la cabeza) el ratón va bloqueado en el centro y no se podría pulsar el papel:
@@ -414,6 +422,14 @@ local function crearFicha(i: number): Ficha
 	return { boton = boton, borde = borde, estado = estado, cinta = cinta, tachon = tachon }
 end
 
+-- BAJAR del botón y B del mando: se levanta del asiento (CochesUi.sacar hace el resto al cambiar SeatPart).
+local function bajarDelCoche()
+	local humanoide = jugador.Character and jugador.Character:FindFirstChildOfClass("Humanoid")
+	if humanoide then
+		humanoide.Sit = false -- (Jump = true desde un script no lo levanta del asiento)
+	end
+end
+
 local function construir()
 	local hud = Ui.hud()
 	-- El papel es un botón: se queda los toques (no mueven la cámara ni el joystick); ver primeraPersona.
@@ -474,12 +490,7 @@ local function construir()
 		ZIndex = 2,
 	})
 	Ui.queQuepa(bajar, LETRA_BOTON)
-	bajar.Activated:Connect(function()
-		local humanoide = jugador.Character and jugador.Character:FindFirstChildOfClass("Humanoid")
-		if humanoide then
-			humanoide.Sit = false -- (Jump = true desde un script no lo levanta del asiento)
-		end
-	end)
+	bajar.Activated:Connect(bajarDelCoche)
 	bajar.Parent = panel
 
 	-- NUEVA PARTIDA y EMPEZAR, abajo a la derecha (a la izquierda queda BAJAR); se reparten lo que quede, con HUECO
@@ -723,6 +734,12 @@ end
 
 function CochesUi.start()
 	construir()
+	-- B del mando = BAJAR (sin Escape: abre el menú de Roblox y no debería sacarte del coche). Sin Ui.ventanaAbierta: el
+	-- lobby no tiene PosturaVista, y al bajarte el papel se va solo. Pero si hay otra ventana abierta encima (Ajustes con
+	-- R3), la B es para cerrarla a ella: no te baja ni cancela el viaje del grupo (Ui quita VentanaAbierta en diferido).
+	Ui.cerrarConB(function()
+		return visible and not jugador:GetAttribute("VentanaAbierta")
+	end, bajarDelCoche)
 	if jugador.Character then
 		task.spawn(vigilarAsiento, jugador.Character)
 	end

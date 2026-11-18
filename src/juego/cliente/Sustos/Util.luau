@@ -195,6 +195,8 @@ end
 ---------------------------------------------------------------- bichos y luces
 
 -- Algún bicho a menos de `distancia` de la cámara.
+-- Solo cuenta uno a menos de `distancia` de la cámara o metido en la casa: un Golpeador aporreando otra ventana ya
+-- no tapa un susto en el pasillo (antes bastaba cualquiera a 90 studs y en las noches altas casi no salían).
 function Util.bichoCerca(distancia: number): boolean
 	local bichos = workspace:FindFirstChild("Bichos")
 	if not bichos then
@@ -202,8 +204,11 @@ function Util.bichoCerca(distancia: number): boolean
 	end
 	local p = Util.camara().Position
 	for _, b in bichos:GetChildren() do
-		if b:IsA("Model") and (b:GetPivot().Position - p).Magnitude < distancia then
-			return true
+		if b:IsA("Model") then
+			local donde = b:GetPivot().Position
+			if (donde - p).Magnitude < distancia or Util.dentro(donde) then
+				return true
+			end
 		end
 	end
 	return false
@@ -406,7 +411,9 @@ function Util.figura(palida: boolean): Figura
 end
 
 -- Polvo y arenilla que caen de `p` (techo o pared): una nube floja y unos granitos que rebotan en el suelo.
+-- Con Rendimiento, la nube a medias y sin granitos (son piezas con física); el sonido lo pone quien llama.
 function Util.polvo(p: Vector3, cuanto: number)
+	local poco = jugador:GetAttribute("Rendimiento") == true
 	local punto = Instance.new("Attachment")
 	punto.WorldPosition = p
 	punto.Parent = workspace.Terrain
@@ -423,8 +430,8 @@ function Util.polvo(p: Vector3, cuanto: number)
 	e.EmissionDirection = Enum.NormalId.Bottom
 	e.Rate = 0
 	e.Parent = punto
-	e:Emit(math.ceil(cuanto * 6))
-	for _ = 1, math.ceil(cuanto * 5) do
+	e:Emit(math.ceil(cuanto * (if poco then 3 else 6)))
+	for _ = 1, if poco then 0 else math.ceil(cuanto * 5) do
 		local g = Util.pieza(Vector3.one * Util.azar:NextNumber(0.06, 0.13),
 			CFrame.new(p + Vector3.new(Util.azar:NextNumber(-0.6, 0.6), -0.1, Util.azar:NextNumber(-0.6, 0.6))),
 			Color3.fromRGB(128, 118, 100), workspace.Terrain, Enum.Material.Concrete)

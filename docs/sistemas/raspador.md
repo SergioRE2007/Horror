@@ -29,3 +29,4 @@ Con bloques grises y animaciones sencillas, como el paso 2. Números a ojo, todo
 
 - Sin probar: botones del móvil, el parpadeo con poca pila jugando, 2 o más jugadores (luces de los demás, tabla de dificultad real).
 - La linterna se ve poco con las lámparas de la casa encendidas; fuera sí se nota el círculo (brillo 4).
+- Aviso (16.6): la primera vez que raspa en la partida, una línea a los que están dentro de la casa ("Something scratches the glass. It flinches from light."); se reinicia en `Raspador.quitar()`. Probar en Studio: noche 3, esperar al primer Raspador y ver el aviso una sola vez.

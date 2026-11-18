@@ -7,10 +7,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Casa = require(script.Parent.Casa)
+local Bichos = require(script.Parent.Bichos)
 local Caza = require(script.Parent.Caza)
 local Cuerpo = require(script.Parent.Cuerpo)
+local Muerte = require(script.Parent.Muerte)
 
 local Raspador = {}
 
@@ -21,6 +24,19 @@ local plano = Caza.plano
 
 type Ataque = { bicho: Caza.Bicho?, hilo: thread?, prisa: boolean }
 local ataques: { [Ataque]: boolean } = {}
+
+-- Aviso de una línea la primera vez que raspa en la partida (se reinicia en quitar).
+local avisado = false
+
+-- Un aviso de una línea a los que están dentro de la casa.
+local function avisarDentro(frase: string)
+	for _, jugador in Muerte.vivos() do
+		local cabeza = jugador.Character and jugador.Character:FindFirstChild("Head") :: BasePart?
+		if cabeza and Caza.dentroDeCasa(cabeza.Position) then
+			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, frase))
+		end
+	end
+end
 
 local function rango(r: { number }): number
 	return azar:NextNumber(r[1], r[2])
@@ -135,6 +151,10 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 	b.humanoide.AutoRotate = false
 	b:mirarA(centro.Position)
 	modelo:SetAttribute("Raspando", true)
+	if not avisado then
+		avisado = true
+		avisarDentro("Something scratches the glass. It flinches from light.")
+	end
 	local total = math.max(R.RasparMin, rango(R.Raspar) - R.MenosPorNoche * math.max(0, noche - R.Noche)) * paciencia
 	local hecho = 0
 	local antes = os.clock()
@@ -204,6 +224,7 @@ function Raspador.irse()
 end
 
 function Raspador.quitar()
+	avisado = false
 	for a in ataques do
 		if a.hilo and coroutine.status(a.hilo) ~= "dead" then
 			task.cancel(a.hilo)
@@ -219,6 +240,11 @@ function Raspador.cuantos(): number
 		n += 1
 	end
 	return n
+end
+
+-- Solo se apunta en el registro común (Bichos): lo lanza el Director.
+function Raspador.start()
+	Bichos.registrar("Raspador", Raspador)
 end
 
 return Raspador

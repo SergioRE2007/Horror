@@ -5,7 +5,10 @@
 -- El cliente solo pide (remote Ajustes) y enseña el atributo "Rendimiento" del Player, que pone el servidor
 -- (comun/servidor/Ajustes) y se guarda entre partidas. Los módulos de efectos lo leen cada vez que lo usan.
 -- En la partida el ratón va bloqueado en primera persona y el engranaje no se puede pulsar: también se abre y se
--- cierra con la P (en el ordenador, con "[P]" a su lado).
+-- cierra con la P (en el ordenador, con "[P]" a su lado) y con R3 en el mando (la cruceta y L3 ya son de otros:
+-- MovilUi, MochilaUi, RevivirUi, TutorialVista y CorrerVista); ButtonB lo cierra.
+-- Al entrar por primera vez en un móvil (táctil sin teclado) pide Rendimiento activado: el servidor solo lo acepta si
+-- el jugador nunca lo eligió (16.9).
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -24,6 +27,7 @@ local ALTO = if Ui.tactil() then 280 else 250
 local ROJO = Color3.fromRGB(150, 34, 28) -- como en PistasUi: sobre el papel oscuro tiene que leerse
 local HUECO = 6 -- píxeles entre los botones de Roblox y el engranaje
 local SIN_BARRA = 12 -- si no hay barra de Roblox (cinemáticas), el engranaje a esta distancia de la esquina
+local MANDO = Enum.KeyCode.ButtonR3 -- abre y cierra con el mando (libre: mirar los otros antes de cambiarlo)
 
 local jugador = Players.LocalPlayer
 local panel: TextButton
@@ -53,11 +57,16 @@ local function pintar()
 end
 
 local function cerrar()
+	if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(panel) then
+		GuiService.SelectedObject = nil
+	end
 	panel.Visible = false
 	panel.Modal = false
+	-- Ui lo quita en diferido: la misma B que lo cierra no debe agachar (PosturaVista mira VentanaAbierta en esa pulsación).
+	Ui.ventanaAbierta("Ajustes", false)
 end
 
-local function abrir()
+local function abrir(conMando: boolean?)
 	if panel.Visible then
 		cerrar()
 		return
@@ -65,15 +74,33 @@ local function abrir()
 	pintar()
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
+	Ui.ventanaAbierta("Ajustes", true) -- solo en este cliente: con una ventana abierta, B no agacha (PosturaVista)
 	escalaPanel.Scale = 0.92
 	TweenService:Create(escalaPanel, TweenInfo.new(0.18, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	if conMando then
+		GuiService.SelectedObject = interruptor -- con el mando, A cambia el ajuste enseguida
+	end
 end
 
 -- El engranaje (o la P): gira un cuarto de vuelta y abre o cierra el papel.
-local function pulsarEngranaje()
+local function pulsarEngranaje(conMando: boolean?)
 	rueda.Rotation = 0
 	TweenService:Create(rueda, TweenInfo.new(0.35, Enum.EasingStyle.Quad), { Rotation = 90 }):Play()
-	abrir()
+	abrir(conMando)
+end
+
+-- Primera vez en un móvil: pide Rendimiento activado en cuanto el servidor ha publicado el ajuste (datos cargados).
+-- Se manda en cada entrada; el servidor lo ignora si el jugador ya lo eligió o ya se le sugirió.
+local function sugerirEnMovil()
+	if not Ui.tactil() or UserInputService.KeyboardEnabled then
+		return
+	end
+	while jugador.Parent and jugador:GetAttribute("Rendimiento") == nil do
+		jugador:GetAttributeChangedSignal("Rendimiento"):Wait()
+	end
+	if jugador.Parent and not activo() then
+		Remotes.Ajustes:FireServer("Sugerir", true)
+	end
 end
 
 local function construirPanel(hud: ScreenGui)
@@ -199,10 +226,12 @@ local function construirEngranaje(hud: ScreenGui)
 	end
 	trozo(UDim2.fromScale(0.72, 0.72), 0, Ui.Color.Hueso, true, 27)
 	trozo(UDim2.fromScale(0.3, 0.3), 0, Ui.Color.Papel, true, 28)
-	engranaje.Activated:Connect(pulsarEngranaje)
-	-- En el ordenador (teclado sin pantalla táctil), su tecla al lado, pequeña.
-	if UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled then
-		Ui.texto("[P]", {
+	engranaje.Activated:Connect(function()
+		pulsarEngranaje()
+	end)
+	-- Con teclado, su tecla al lado, pequeña (se esconde si pasa a usarse el mando o el dedo).
+	do
+		local tecla = Ui.texto("[P]", {
 			Name = "Tecla",
 			AnchorPoint = Vector2.new(0, 0.5),
 			Position = UDim2.new(1, 6, 0.5, 0),
@@ -212,7 +241,12 @@ local function construirEngranaje(hud: ScreenGui)
 			TextStrokeTransparency = 0.6,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 26,
-		}).Parent = engranaje
+			Visible = Ui.conTeclado(),
+		})
+		tecla.Parent = engranaje
+		Ui.alCambiarEntrada(function()
+			tecla.Visible = Ui.conTeclado()
+		end)
 	end
 	engranaje.Parent = hud
 end
@@ -246,12 +280,17 @@ function AjustesUi.start()
 		escala:GetPropertyChangedSignal("Scale"):Connect(recolocar)
 	end
 	recolocar()
-	-- La P hace lo mismo que el engranaje (no con el HUD escondido en las cinemáticas: no se vería).
+	-- La P (o R3 del mando) hace lo mismo que el engranaje (no con el HUD escondido en las cinemáticas: no se vería).
+	-- B cierra aunque Roblox la use para salir de la selección del mando (entonces llega como procesada).
 	UserInputService.InputBegan:Connect(function(entrada, procesado)
-		if not procesado and hud.Enabled and entrada.KeyCode == Enum.KeyCode.P then
-			pulsarEngranaje()
+		local tecla = entrada.KeyCode
+		if tecla == Enum.KeyCode.ButtonB and panel.Visible then
+			cerrar()
+		elseif not procesado and hud.Enabled and (tecla == Enum.KeyCode.P or tecla == MANDO) then
+			pulsarEngranaje(tecla == MANDO)
 		end
 	end)
+	task.spawn(sugerirEnMovil)
 	jugador:GetAttributeChangedSignal("Rendimiento"):Connect(function()
 		if panel.Visible then
 			pintar()

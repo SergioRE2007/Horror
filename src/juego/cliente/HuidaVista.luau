@@ -22,7 +22,7 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 local HuidaVista = {}
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local enMarcha = false
 
 -- Camino del coche: sale del garaje hacia -z, gira hasta la carretera (x = 0) y baja por ella. Puntos cada ~1 stud.
@@ -322,9 +322,9 @@ local function escena(segundos: number, devolver: { () -> () })
 	alAcabar(function()
 		jugador:SetAttribute("EscenaFinal", nil)
 	end)
-	camara.CameraType = Enum.CameraType.Scriptable
+	Camara.get().CameraType = Enum.CameraType.Scriptable
 	alAcabar(function()
-		camara.CameraType = Enum.CameraType.Custom
+		Camara.get().CameraType = Enum.CameraType.Custom
 	end)
 	local inicio = os.clock()
 	local rugidos = 0
@@ -364,15 +364,15 @@ local function escena(segundos: number, devolver: { () -> () })
 
 		-- Cámara por planos.
 		if t < 3.4 then
-			camara.CFrame = CFrame.lookAt(Vector3.new(sitio.X + 1, 4.5, -27), sitio.Position + Vector3.new(0, 2.5, 0))
+			Camara.get().CFrame = CFrame.lookAt(Vector3.new(sitio.X + 1, 4.5, -27), sitio.Position + Vector3.new(0, 2.5, 0))
 		elseif t < 7.4 then
 			local ojo = Vector3.new(22, 7, -50)
-			camara.CFrame = CFrame.lookAt(ojo, pos + Vector3.new(0, 2, 0))
+			Camara.get().CFrame = CFrame.lookAt(ojo, pos + Vector3.new(0, 2, 0))
 		elseif t < 11.6 then
 			-- De lado, un poco por delante: el coche y, detrás, el bicho acercándose.
-			camara.CFrame = CFrame.lookAt((cf * CFrame.new(-10, 5, 4)).Position, (cf * CFrame.new(0, 2.5, 10)).Position)
+			Camara.get().CFrame = CFrame.lookAt((cf * CFrame.new(-10, 5, 4)).Position, (cf * CFrame.new(0, 2.5, 10)).Position)
 		else
-			camara.CFrame = CFrame.lookAt((cf * CFrame.new(1.5, 5.2, -13)).Position, (cf * CFrame.new(0, 3.6, 12)).Position)
+			Camara.get().CFrame = CFrame.lookAt((cf * CFrame.new(1.5, 5.2, -13)).Position, (cf * CFrame.new(0, 3.6, 12)).Position)
 		end
 		-- Fundido a negro y el título.
 		if t > segundos - 2.2 then

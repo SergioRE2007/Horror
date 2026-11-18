@@ -13,6 +13,9 @@
 --   modelo, para el cliente.
 --   Correr hace ruido (14.8, pedido por el usuario: riesgo y premio): con el atributo Corriendo del jugador le oyen
 --   desde Config.Correr.Oido (PosturaReglas.alcanceOido). Lo usan todos los que eligen presa aquí, la Bestia también.
+--   Ruidos (15.8, pedido por el usuario: lo pesado que cae o se arrastra lo oye el bicho): Caza.oir da el ruido más
+--   cerca que oye y aún no ha ido a mirar (Ruidos; de dentro de la casa a fuera o al revés llega la mitad). Si no ve
+--   a nadie, Caza.cazar va corriendo a mirar allí; nunca pilla por un ruido a quien no está allí.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
@@ -23,6 +26,7 @@ local PosturaReglas = require(ReplicatedStorage.Shared.PosturaReglas)
 local Casa = require(script.Parent.Casa)
 local Mapa = require(script.Parent.Mapa)
 local Muerte = require(script.Parent.Muerte)
+local Ruidos = require(script.Parent.Ruidos)
 
 local Caza = {}
 Caza.__index = Caza
@@ -352,6 +356,7 @@ function Caza.nuevo(modelo: Model, humanoide: Humanoid, o: Opciones): Bicho
 		rumboVisto = -math.huge,
 		sinSalida = {},
 		gateaEn = nil,
+		oido = 0, -- el número del último ruido al que fue a mirar (Ruidos)
 	}, Caza)
 	vivos[b] = true
 	return b
@@ -607,6 +612,21 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 	return mejor, destino, mejorDebajo
 end
 
+-- El ruido más cerca que oye y al que aún no ha ido (15.8): dónde, o nil. Con `soloFuera`, los de dentro de la casa no.
+-- Entre dentro y fuera de la casa llega Config.Cargar.Ruido.Paredes.
+function Caza.oir(self: Bicho, soloFuera: boolean): Vector3?
+	local yoDentro = Caza.dentroDeCasa(self.raiz.Position)
+	local punto, visto = Ruidos.oir(self.raiz.Position, self.oido, function(p: Vector3): number
+		local dentro = Caza.dentroDeCasa(p)
+		if soloFuera and dentro then
+			return 0
+		end
+		return if dentro == yoDentro then 1 else Config.Cargar.Ruido.Paredes
+	end)
+	self.oido = visto
+	return punto
+end
+
 -- ¿Sigue a su alcance quien está debajo del mueble al que se mete? Dentro de esa zona, o fuera pero a menos de
 -- SE_ESCAPA del borde; y siempre sin nada que choque en medio (nunca a través de una pared). Dentro, el rayo sale de la
 -- boca del hueco por dentro: no hay patas ni sillas (están fuera de la zona) y, si la zona cruzase una pared, la ve.
@@ -745,6 +765,12 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 	local ronda: Vector3? = nil
 	while self.modelo and os.clock() < fin and not self.prisa do
 		local presa, destino, bajo = self:elegirPresa(soloFuera)
+		if not presa then
+			local oido = self:oir(soloFuera)
+			if oido then
+				ultimoVisto = oido -- lo ha oído (15.8): va corriendo a mirar allí
+			end
+		end
 		if self:quieto() then
 			self.humanoide:MoveTo(self.raiz.Position)
 		elseif presa and destino and bajo then

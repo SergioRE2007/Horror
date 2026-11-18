@@ -15,7 +15,10 @@
 -- atraviesa paredes; la cámara de Roblox en primera persona; teclas, ratón y clics.
 -- Qué no hay (a propósito, para que sea pequeño): física de piezas sueltas, mallas de verdad (todo son cajas, las bolas
 -- esferas), Terrain, maquetación de la interfaz (UIListLayout, UIScale y UIPadding no cambian AbsoluteSize), red de
--- verdad (los remotes guardan lo que se les manda), DataStores y los .rbxmx de src.
+-- verdad (los remotes guardan lo que se les manda) y los .rbxmx de src.
+-- Para el servidor (16.21): un DataStore de mentira (UpdateAsync que puede tardar o fallar, compartido entre varios
+-- mundos con la opción `nube`: varios servidores a la vez), BindToClose que se lanza con mundo.cerrar(), jugadores
+-- que se van (mundo.salir; Kick también los saca, como Roblox) y GenerateGUID distinto en cada mundo.
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
@@ -30,6 +33,7 @@ local EPOCA = 1_793_000_000 -- tick() al empezar (noviembre de 2026, más o meno
 local NADA = newproxy() -- una propiedad puesta a nil a mano (manda sobre el valor por defecto)
 local CARGANDO = newproxy()
 local INFINITO = math.huge
+local GUIAS = { n = 0 } -- GenerateGUID cuenta en todos los mundos: dos "servidores" nunca sacan el mismo
 
 -- Lo que hay en src, leído una vez al cargar esta ayuda: las funciones de @lune/fs son asíncronas y, llamadas desde una
 -- corrutina del mundo (un require dentro de un módulo), la dejarían a medias. Solo los .luau (y qué hay en cada carpeta).
@@ -127,6 +131,20 @@ export type Opciones = {
 	semilla: number?, -- de Random.new() sin semilla y de math.random
 	estricto: boolean?, -- un error en una conexión o tarea para el banco (por defecto true); false: se apunta y sigue
 	pantalla: Vector2?, -- ViewportSize (por defecto 1280 × 720)
+	nube: Nube?, -- lo guardado en los DataStores; la misma en varios mundos = varios servidores del mismo juego
+}
+
+-- Los DataStores de mentira (DataStoreService:GetDataStore). Lo que hay se guarda copiado (nada compartido con quien
+-- lo escribió) y comprobando que se puede guardar. Cada petición espera `retraso` s del mundo que la hace y luego lee
+-- y escribe de una vez (como UpdateAsync). `falla` = true: todas fallan sin llegar; un número: las n siguientes.
+-- `pierde` = n: las n siguientes escriben pero la respuesta no llega (error después de escribir).
+export type Nube = {
+	datos: { [string]: any }?, -- [almacén .. "/" .. clave] = lo guardado
+	retraso: number?,
+	falla: (boolean | number)?,
+	pierde: number?,
+	llamadas: number?, -- peticiones (las que fallan también)
+	escrituras: number?,
 }
 
 return function(opciones: Opciones?)
@@ -134,6 +152,7 @@ return function(opciones: Opciones?)
 	local mundo: any = {
 		errores = {} :: { string }, -- errores en conexiones, tareas y módulos (con su traza)
 		avisos = {} :: { string }, -- warn() y avisos del mundo falso (WaitForChild que no encuentra, clases que no conoce)
+		expulsados = {} :: { { jugador: any, motivo: string? } }, -- los Kick, por orden
 		estricto = op.estricto ~= false,
 		falsos = {} :: { [string]: any }, -- módulos sustituidos: por ruta ("src/shared/Sonido") o por nombre ("Sonido")
 		sueloY = 0 :: number?, -- un suelo infinito e invisible para los personajes (nil = sin él: caen al vacío)
@@ -721,6 +740,7 @@ return function(opciones: Opciones?)
 	end
 
 	local juego: any -- el DataModel (game)
+	local cierres: { () -> () } = {} -- lo de game:BindToClose (mundo.cerrar)
 	local espacio: any -- workspace
 	local etiquetadas: { [string]: { any } } = {}
 	local senalesEtiqueta: { [string]: { puesta: any, quitada: any } } = {}
@@ -2828,7 +2848,7 @@ return function(opciones: Opciones?)
 	})
 	for _, n in { "ReplicatedStorage", "ReplicatedFirst", "ServerStorage", "ServerScriptService", "StarterPack",
 		"MaterialService", "Teams", "Chat", "TextChatService", "VRService", "BadgeService", "PolicyService",
-		"AnalyticsService", "Stats", "DataStoreService", "MessagingService", "AssetService", "SocialService",
+		"AnalyticsService", "Stats", "MessagingService", "AssetService", "SocialService",
 		"AvatarEditorService", "GroupService", "TeleportService", "InsertService", "StarterPlayer" } do
 		servicio(n)
 	end
@@ -2901,7 +2921,6 @@ return function(opciones: Opciones?)
 	servicio("ProximityPromptService", { props = { Enabled = true, MaxPromptsVisible = 16 },
 		eventos = { "PromptShown", "PromptHidden", "PromptTriggered", "PromptTriggerEnded", "PromptButtonHoldBegan",
 			"PromptButtonHoldEnded" } })
-	local guias = 0
 	servicio("HttpService", { props = { HttpEnabled = false }, metodos = {
 		JSONEncode = function(_, v)
 			return serde.encode("json", v)
@@ -2910,8 +2929,8 @@ return function(opciones: Opciones?)
 			return serde.decode("json", t)
 		end,
 		GenerateGUID = function(_, llaves)
-			guias += 1
-			local g = string.format("00000000-0000-4000-8000-%012d", guias)
+			GUIAS.n += 1
+			local g = string.format("00000000-0000-4000-8000-%012d", GUIAS.n)
 			return if llaves == false then g else "{" .. g .. "}"
 		end,
 		UrlEncode = function(_, t)
@@ -2920,6 +2939,96 @@ return function(opciones: Opciones?)
 			end))
 		end,
 	} })
+	-- DataStores de mentira: ver el tipo Nube.
+	local nube: any = op.nube or {}
+	nube.datos = nube.datos or {}
+	nube.retraso = nube.retraso or 0
+	nube.falla = nube.falla or false
+	nube.pierde = nube.pierde or 0
+	nube.llamadas = nube.llamadas or 0
+	nube.escrituras = nube.escrituras or 0
+	-- Como lo devuelve un DataStore: una copia; y que se pueda guardar (números finitos, textos, booleanos y tablas que
+	-- sean lista o diccionario de textos, nunca mezcla).
+	local function guardable(valor: any, donde: string): any
+		if valor == nil then
+			return nil -- nada guardado
+		elseif type(valor) ~= "table" then
+			assert(type(valor) == "string" or type(valor) == "boolean"
+				or (type(valor) == "number" and valor == valor and math.abs(valor) ~= math.huge),
+				`DataStore: no se puede guardar {donde}`)
+			return valor
+		end
+		local copia, cuantos = {}, 0
+		for clave, dentro in valor do
+			cuantos += 1
+			copia[clave] = guardable(dentro, donde .. "." .. tostring(clave))
+		end
+		if cuantos ~= #valor then
+			for clave in valor do
+				assert(type(clave) == "string", `DataStore: no se puede guardar {donde}: clave {tostring(clave)} en un diccionario`)
+			end
+		end
+		return copia
+	end
+	local function peticion(): ()
+		nube.llamadas += 1
+		if nube.retraso > 0 then
+			task.wait(nube.retraso)
+		end
+		if nube.falla == true then
+			error("DataStore falso: sin red", 0)
+		elseif type(nube.falla) == "number" and nube.falla > 0 then
+			nube.falla -= 1
+			error("DataStore falso: sin red", 0)
+		end
+	end
+	local function escribir(k: string, valor: any)
+		nube.datos[k] = guardable(valor, k)
+		nube.escrituras += 1
+		if nube.pierde > 0 then
+			nube.pierde -= 1
+			error("DataStore falso: escrito, pero la respuesta no ha llegado", 0)
+		end
+	end
+	local function almacen(nombre: string, ambito: string?): any
+		local prefijo = nombre .. "/" .. (if ambito and ambito ~= "" then ambito .. "/" else "")
+		local a = {}
+		function a.UpdateAsync(_, clave: string, transformar: (any) -> any): any
+			peticion()
+			local k = prefijo .. clave
+			local salida = transformar(guardable(nube.datos[k], k))
+			if salida == nil then
+				return nil
+			end
+			escribir(k, salida)
+			return guardable(nube.datos[k], k)
+		end
+		function a.GetAsync(_, clave: string): any
+			peticion()
+			return guardable(nube.datos[prefijo .. clave], clave)
+		end
+		function a.SetAsync(_, clave: string, valor: any)
+			peticion()
+			escribir(prefijo .. clave, valor)
+		end
+		function a.RemoveAsync(_, clave: string): any
+			peticion()
+			local viejo = nube.datos[prefijo .. clave]
+			nube.datos[prefijo .. clave] = nil
+			nube.escrituras += 1
+			return viejo
+		end
+		return a
+	end
+	local almacenes: { [string]: any } = {}
+	servicio("DataStoreService", { metodos = {
+		GetDataStore = function(_, nombre: string, ambito: string?)
+			local k = nombre .. "|" .. (ambito or "")
+			almacenes[k] = almacenes[k] or almacen(nombre, ambito)
+			return almacenes[k]
+		end,
+	} })
+
 	local compras: { any } = {}
 	servicio("MarketplaceService", {
 		eventos = { "PromptGamePassPurchaseFinished", "PromptProductPurchaseFinished", "PromptPurchaseFinished" },
@@ -2986,6 +3095,10 @@ return function(opciones: Opciones?)
 			end,
 			Kick = function(self, motivo)
 				aviso(`{self.Name} expulsado: {motivo or ""}`)
+				table.insert(mundo.expulsados, { jugador = self, motivo = motivo })
+				task.defer(function()
+					mundo.salir(self) -- como en Roblox: al poco se va
+				end)
 			end,
 			HasAppearanceLoaded = function(self)
 				return self.Character ~= nil
@@ -3053,7 +3166,9 @@ return function(opciones: Opciones?)
 			IsLoaded = function()
 				return true
 			end,
-			BindToClose = function() end,
+			BindToClose = function(_, fn)
+				table.insert(cierres, fn)
+			end,
 			GetJobsInfo = function()
 				return {}
 			end,
@@ -3091,12 +3206,12 @@ return function(opciones: Opciones?)
 	personajeInicial.Parent = inicial
 
 	local cuentaJugadores = 0
-	local function nuevoJugador(nombre: string?): any
+	local function nuevoJugador(nombre: string?, userId: number?): any
 		cuentaJugadores += 1
 		local j = nueva("Player")
 		j.Name = nombre or (if cuentaJugadores == 1 then "Prueba" else "Otro" .. cuentaJugadores)
 		j.DisplayName = j.Name
-		j.UserId = cuentaJugadores
+		j.UserId = userId or cuentaJugadores
 		for _, n in { "PlayerGui", "PlayerScripts", "Backpack", "StarterGear" } do
 			local h = nueva(n)
 			h.Name = n
@@ -3803,9 +3918,36 @@ return function(opciones: Opciones?)
 		return nodoDeRuta(ruta)
 	end
 	mundo.personaje = crearPersonaje
-	function mundo.jugador(nombre: string?): any
-		return nuevoJugador(nombre)
+	-- Un jugador que entra (con `userId`, el de otro que ya estuvo: volver a entrar, o el mismo en otro servidor).
+	function mundo.jugador(nombre: string?, userId: number?): any
+		return nuevoJugador(nombre, userId)
 	end
+	-- El jugador se va (como en Roblox: PlayerRemoving con él aún en Players y luego fuera). Sin hacer nada si ya no está.
+	function mundo.salir(j: any)
+		local jugadores = S("Players")
+		if j.Parent ~= jugadores then
+			return
+		end
+		senalDe(estado[jugadores], "PlayerRemoving"):Fire(j)
+		j.Parent = nil
+		vaciarDiferidos()
+	end
+	-- El servidor se cierra: lanza cada función de game:BindToClose en su corrutina. Devuelve una función que dice si
+	-- ya han acabado todas (Roblox espera a que acaben, hasta 30 s): avanzar con mundo.paso hasta entonces.
+	function mundo.cerrar(): () -> boolean
+		local quedan = #cierres
+		for _, fn in table.clone(cierres) do
+			task.spawn(function()
+				fn()
+				quedan -= 1
+			end)
+		end
+		vaciarDiferidos()
+		return function()
+			return quedan == 0
+		end
+	end
+	mundo.nube = nube
 	-- Una pieza anclada que choca, en el mundo: `donde` es un CFrame o una posición.
 	function mundo.caja(donde: any, tam: any?, props: { [string]: any }?): any
 		local p = nueva("Part")

@@ -15,6 +15,8 @@ local RunService = game:GetService("RunService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Sonido = require(script.Parent.Sonido)
+-- (Después de Sonido: el Random de BichoComun tiene en los bancos de Lune la semilla que tenía el de esta Vista.)
+local BichoComun = require(script.Parent.BichoComun)
 
 local AcechadorVista = {}
 
@@ -84,54 +86,25 @@ type Bicho = {
 
 local jugador = Players.LocalPlayer
 local bichos: { [Model]: Bicho } = {}
-local azar = Random.new()
+local azar = BichoComun.azar
 local conexion: RBXScriptConnection? = nil
 local filtroTroncos = OverlapParams.new()
 filtroTroncos.FilterType = Enum.RaycastFilterType.Include
 
-local function rango(r: { number }): number
-	return azar:NextNumber(r[1], r[2])
-end
-
-local function plano(v: Vector3): Vector3
-	return Vector3.new(v.X, 0, v.Z)
-end
-
--- Suave al empezar y al acabar.
-local function suave(k: number): number
-	k = math.clamp(k, 0, 1)
-	return k * k * (3 - 2 * k)
-end
+local rango, plano = BichoComun.rango, BichoComun.plano
+local suave = BichoComun.suave -- suave al empezar y al acabar
 
 local function puedeVaho(distancia: number): boolean
-	return distancia < VAHO_LEJOS and workspace:GetAttribute("Fase") == "Noche" and jugador:GetAttribute("Rendimiento") ~= true
+	return BichoComun.puedeVaho(distancia, VAHO_LEJOS)
 end
 
 -- Vaho por la grieta de la boca (las partículas se quedan donde salen, como el tuyo en CuerpoVista).
+local VAHO_COMO: BichoComun.Vaho = {
+	Transparencia = 0.8, Tam = { 0.2, 1.1 }, Vida = { 1.2, 2 }, Rapidez = { 0.8, 1.4 }, Abre = 20, Sube = 0.5, Freno = 1.5,
+	Delante = true,
+}
 local function vahoDe(b: Bicho): ParticleEmitter
-	if b.vaho and b.vaho.Parent then
-		return b.vaho
-	end
-	local a = Instance.new("Attachment")
-	a.Name = "Vaho"
-	a.Position = Vector3.new(0, -0.45, -0.75) -- delante de la boca
-	local e = Instance.new("ParticleEmitter")
-	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
-	e.LightInfluence = 1 -- de noche, apenas: solo se ve con la linterna
-	e.Color = ColorSequence.new(Color3.fromRGB(215, 220, 228))
-	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 1) })
-	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1.1) })
-	e.Lifetime = NumberRange.new(1.2, 2)
-	e.Speed = NumberRange.new(0.8, 1.4)
-	e.SpreadAngle = Vector2.new(20, 20)
-	e.EmissionDirection = Enum.NormalId.Front
-	e.Acceleration = Vector3.new(0, 0.5, 0)
-	e.Drag = 1.5
-	e.Rate = 0
-	e.Parent = a
-	a.Parent = b.cabeza
-	b.vaho = e
-	return e
+	return BichoComun.vahoDe(b, Vector3.new(0, -0.45, -0.75), VAHO_COMO) -- delante de la boca
 end
 
 local function olvidar(modelo: Model)
@@ -411,14 +384,7 @@ local function preparar(modelo: Instance)
 end
 
 local function cercano(punto: Vector3, maximo: number): Bicho?
-	local mejor, distancia = nil, maximo
-	for _, b in bichos do
-		local d = (b.raiz.Position - punto).Magnitude
-		if d < distancia then
-			mejor, distancia = b, d
-		end
-	end
-	return mejor
+	return BichoComun.cercano(bichos, punto, maximo)
 end
 
 -- La cabeza está muy alta: se busca por cualquier punto cercano a ella.

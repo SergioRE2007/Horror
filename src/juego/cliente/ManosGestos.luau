@@ -31,8 +31,10 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local CargarReglas = require(ReplicatedStorage.Shared.CargarReglas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local CargarVista = require(script.Parent.CargarVista)
 local CorrerVista = require(script.Parent.CorrerVista)
 local Manos = require(script.Parent.Manos)
 local ManosCorrer = require(script.Parent.ManosCorrer)
@@ -41,7 +43,7 @@ local Sonido = require(script.Parent.Sonido)
 local ManosGestos = {}
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local azar = Random.new()
 
 -- Apoyarse en las paredes (capa "Pared", más abajo). Números a ojo, para retocarlos en Studio. Distancias en studs.
@@ -298,7 +300,7 @@ local function cortinas(ventana: Instance)
 		return centro * Vector3.new(lado * dentro, -0.2, 0.95)
 	end
 	-- Cada mano con el paño de su lado (mirando desde dentro, la derecha de la cámara puede ser -X de la ventana).
-	local derecha = if camara.CFrame.RightVector:Dot(centro.RightVector) >= 0 then 1 else -1
+	local derecha = if Camara.get().CFrame.RightVector:Dot(centro.RightVector) >= 0 then 1 else -1
 	local llega, corre = 0.28, cfgCasa.TiempoPersiana
 	Manos.gesto("Mano", llega + corre + 0.3, function(_, s)
 		local b = if s < llega then desde else lerp(desde, hasta, suave((s - llega) / corre))
@@ -354,7 +356,7 @@ local function copiaDe(objeto: BasePart): BasePart?
 		end
 	end
 	c.Anchored, c.CanCollide, c.CanQuery, c.CanTouch = true, false, false, false
-	c.Parent = camara
+	c.Parent = Camara.get()
 	return c
 end
 
@@ -388,7 +390,7 @@ local function coger(objeto: BasePart)
 		elseif s < 0.4 then
 			return { der = Manos.hacia("der", donde + Vector3.new(0, 0.05, 0), "abajo"), velocidad = 25 }
 		end
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		return { der = Manos.palma(cf * Vector3.new(0.55, -1.0, -0.6), -cf.UpVector + cf.LookVector * 0.3, cf.RightVector),
 			velocidad = 14 }
 	end)
@@ -402,7 +404,7 @@ end
 -- Cargar algo pesado: las dos manos van a por sus lados (luego manda la capa de cargar).
 local function aPorPesado(p: BasePart)
 	Manos.gesto("Mano", 0.4, function()
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local der = cercaEnCaja(p, cf * Vector3.new(0.7, -1.2, -1.3))
 		local izq = cercaEnCaja(p, cf * Vector3.new(-0.7, -1.2, -1.3))
 		return { der = Manos.hacia("der", der, "dentro"), izq = Manos.hacia("izq", izq, "dentro"), velocidad = 16 }
@@ -416,7 +418,7 @@ local function cuerda(gen: Instance)
 		return
 	end
 	Manos.gesto("Mano", 0.95, function(_, s)
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local agarre = c.Position
 		if s < 0.25 then
 			return { der = Manos.hacia("der", agarre, "agarra"), velocidad = 18 }
@@ -439,7 +441,7 @@ local function apretar(punto: Vector3, lado: string?)
 		if s > 0.45 then
 			return nil
 		end
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local empuje = if s > 0.22 and s < 0.35 then 0.12 else 0
 		local p = punto + (punto - cf.Position).Unit * empuje
 		return { [l] = Manos.hacia(l, p, "delante"), velocidad = 18 } :: any
@@ -453,7 +455,7 @@ local function esconderse(sitio: Instance)
 		return
 	end
 	Manos.gesto("Mano", 0.4, function()
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		return {
 			der = Manos.hacia("der", (p :: Vector3) + cf.RightVector * 0.5, "delante"),
 			izq = Manos.hacia("izq", (p :: Vector3) - cf.RightVector * 0.5, "delante"),
@@ -470,7 +472,7 @@ local function leer(cosa: Instance)
 		return
 	end
 	Manos.gesto("Mano", 1.1, function(_, s)
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		if s < 0.35 then
 			return { der = Manos.hacia("der", p :: Vector3, "abajo"), velocidad = 16 }
 		elseif s < 0.95 then
@@ -508,7 +510,7 @@ local function banco(mando: Instance)
 		if s > 0.4 then
 			return nil
 		end
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		return {
 			der = Manos.hacia("der", (p :: Vector3) + cf.RightVector * 0.6, "abajo"),
 			izq = Manos.hacia("izq", (p :: Vector3) - cf.RightVector * 0.6, "abajo"),
@@ -532,7 +534,7 @@ local function palanca(prompt: ProximityPrompt, mando: Instance)
 		if not sosteniendo[prompt] then
 			return nil
 		end
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local k = math.clamp(s / math.max(dura, 0.1), 0, 1)
 		local tira = (cf.Position - (p :: Vector3)).Unit * 0.7 * suave(k) - cf.UpVector * 0.25 * k
 		local tiembla = Vector3.new(0, math.sin(s * 40) * 0.02, 0) -- cuesta
@@ -554,7 +556,7 @@ local function cerillaGesto(prompt: ProximityPrompt, mando: Instance)
 		if not sosteniendo[prompt] then
 			return nil
 		end
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local caja = Manos.palma(cf * Vector3.new(-0.2, -0.7, -1.1), cf.LookVector, cf.UpVector * 0.3 - cf.RightVector)
 		if s < 0.45 then
 			-- Raspa: de la caja hacia la derecha, de golpe.
@@ -579,7 +581,7 @@ local function volante(prompt: ProximityPrompt)
 		if not sosteniendo[prompt] then
 			return nil
 		end
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local gira = math.sin(s * 3) * 0.08
 		return {
 			der = Manos.palma(cf * Vector3.new(0.42, -0.75 + gira, -1.25), cf.UpVector + cf.RightVector * 0.3, -cf.LookVector * 0.3 + cf.RightVector),
@@ -658,7 +660,7 @@ local function capaLinterna(): Manos.Pose?
 	if jugador:GetAttribute("Linterna") ~= true then
 		return nil
 	end
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local ahora = os.clock()
 	local meneo = CFrame.new()
 	if (jugador:GetAttribute("Pila") or 1) < L.Poca then
@@ -682,7 +684,7 @@ local function capaMovil(): Manos.Pose?
 	if jugador:GetAttribute("MovilAbierto") ~= true then
 		return nil
 	end
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	return {
 		der = Manos.palma(cf * Vector3.new(0.3, -0.75, -1.0), cf.UpVector - cf.LookVector * 0.15, cf.LookVector),
 		cosaDer = "Movil",
@@ -692,7 +694,7 @@ end
 
 -- La pistola de bengalas (BengalasVista la pone delante de la cámara): la derecha en el mango, la izquierda debajo.
 local function capaPistola(): Manos.Pose?
-	local pistola = camara:FindFirstChild("PistolaBengalas")
+	local pistola = Camara.get():FindFirstChild("PistolaBengalas")
 	local mango = pistola and pistola:FindFirstChild("Mango")
 	if not (mango and mango:IsA("BasePart")) then
 		return nil
@@ -710,7 +712,7 @@ local llevando: BasePart? = nil
 local buscado = 0
 local function buscarPesado(tipo: string): BasePart?
 	if llevando and llevando.Parent and llevando:GetAttribute("Tipo") == tipo
-		and (llevando.Position - camara.CFrame.Position).Magnitude < 10 then
+		and (llevando.Position - Camara.get().CFrame.Position).Magnitude < 10 then
 		return llevando
 	end
 	if os.clock() - buscado < 0.25 then
@@ -718,7 +720,13 @@ local function buscarPesado(tipo: string): BasePart?
 	end
 	buscado = os.clock()
 	local mejor, distancia = nil, 10
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
+	for _, p in CollectionService:GetTagged("Pesado") do
+		if p:IsA("BasePart") and p:GetAttribute("Lleva") == jugador.UserId then
+			llevando = p -- la que llevo yo solo (15.8): sin dudas
+			return p
+		end
+	end
 	for _, p in CollectionService:GetTagged("Pesado") do
 		if p:IsA("BasePart") and p:GetAttribute("Tipo") == tipo then
 			local d = (p.Position - cf.Position).Magnitude
@@ -742,9 +750,11 @@ local function capaCargar(): Manos.Pose?
 	if not p then
 		return nil
 	end
-	local cf = camara.CFrame
-	local der = cercaEnCaja(p, cf * Vector3.new(0.75, -1.1, -1.2))
-	local izq = cercaEnCaja(p, cf * Vector3.new(-0.75, -1.1, -1.2))
+	local cf = Camara.get().CFrame
+	-- Al hombro (15.8): la derecha encima, junto al hombro; la izquierda cruza por delante y lo sujeta más adelante.
+	local hombro = CargarReglas.alHombro(tipo)
+	local der = cercaEnCaja(p, cf * (if hombro then Vector3.new(0.75, -0.25, -0.9) else Vector3.new(0.75, -1.1, -1.2)))
+	local izq = cercaEnCaja(p, cf * (if hombro then Vector3.new(0.35, -0.55, -1.8) else Vector3.new(-0.75, -1.1, -1.2)))
 	local centro = p.Position
 	local function fuera(punto: Vector3): Vector3
 		local d = punto - centro
@@ -754,6 +764,24 @@ local function capaCargar(): Manos.Pose?
 		der = Manos.palma(der + fuera(der) * 0.12, cf.LookVector - cf.UpVector * 0.3, fuera(der)),
 		izq = Manos.palma(izq + fuera(izq) * 0.12, cf.LookVector - cf.UpVector * 0.3, fuera(izq)),
 		velocidad = 22,
+	}
+end
+
+-- Justo después de lanzar algo (15.8): las dos manos se quedan estiradas hacia delante un momento y bajan.
+local LANZAR_DURA = 0.35
+local function capaLanzar(): Manos.Pose?
+	local desde = os.clock() - CargarVista.lanzado()
+	if desde > LANZAR_DURA or jugador:GetAttribute("Cargando") then
+		return nil
+	end
+	local k = desde / LANZAR_DURA
+	local cf = Camara.get().CFrame
+	local baja = -0.45 - 0.5 * k * k
+	local dedos = cf.LookVector + cf.UpVector * (0.25 - k * 0.6)
+	return {
+		der = Manos.palma(cf * Vector3.new(0.42, baja, -1.45), dedos, -cf.LookVector + cf.RightVector * 0.3),
+		izq = Manos.palma(cf * Vector3.new(-0.42, baja, -1.45), dedos, -cf.LookVector - cf.RightVector * 0.3),
+		velocidad = 30,
 	}
 end
 
@@ -772,7 +800,7 @@ local function capaCambiar(): Manos.Pose?
 	end
 	local dura = if que == "Pila" then Config.Linterna.Cambiar else Config.Flash.Cambiar
 	local k = math.clamp((os.clock() - cambioInicio) / dura, 0, 1)
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	if que == "Pila" then
 		-- La linterna atravesada delante, con la culata hacia la derecha.
 		local centro = cf * Vector3.new(-0.15, -0.62, -1.15)
@@ -847,7 +875,7 @@ local function capaAire(dt: number): Manos.Pose?
 	if enElAire < 0.3 then
 		return nil
 	end
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local abre = math.min(1, (enElAire - 0.3) / 0.3)
 	return {
 		der = Manos.palma(cf * Vector3.new(0.7 + 0.15 * abre, -0.9 + 0.25 * abre, -1.0), cf.LookVector + cf.RightVector * 0.4, cf.UpVector),
@@ -900,7 +928,7 @@ filtroApoyo.IgnoreWater = true
 local conGrupo = false
 
 local function filtroParaApoyar(): RaycastParams
-	local fuera: { Instance } = { camara } -- lo que se pinta delante de la cámara (las manos, la pistola)
+	local fuera: { Instance } = { Camara.get() } -- lo que se pinta delante de la cámara (las manos, la pistola)
 	for _, nombre in { "Bichos", "Objetos" } do
 		local carpeta = workspace:FindFirstChild(nombre)
 		if carpeta then
@@ -1241,7 +1269,7 @@ end
 
 -- Una tanda de rayos: dónde debería ir cada mano libre (nil = en ningún sitio).
 local function sondear(hum: Humanoid, raiz: BasePart, libres: { [string]: boolean }): { [string]: Ideal? }
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local ojo = cf.Position
 	local frente = plano(cf.LookVector) or plano(raiz.CFrame.LookVector) or Vector3.new(0, 0, -1)
 	local derecha = frente:Cross(Vector3.yAxis)
@@ -1435,7 +1463,7 @@ local function capaPared(): Manos.Pose?
 			end
 		end
 	end
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local frente = plano(cf.LookVector) or plano(raiz.CFrame.LookVector) or Vector3.new(0, 0, -1)
 	local der, velDer, codoDer, meneoDer = poseMano("der", libres.der, ahora, cf, frente)
 	local izq, velIzq, codoIzq, meneoIzq = poseMano("izq", libres.izq, ahora, cf, frente)
@@ -1472,7 +1500,7 @@ local function capaCorrer(dt: number): Manos.Pose?
 	if ritmo < 0.02 and jadeo <= 0.01 then
 		return nil
 	end
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local fase, respiro, cansancio = Manos.fasePaso(), Manos.respiro(), CorrerVista.cansancio()
 	local pose: Manos.Pose = {
 		velocidad = if ritmo > 0.3 then CORRER.velocidad else CORRER.velJadeo,
@@ -1498,7 +1526,7 @@ local function capaTropiezo(): Manos.Pose?
 	if not t or ManosCorrer.tropiezo(t) <= 0 then
 		return nil
 	end
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local pose: Manos.Pose = { velocidad = CORRER.velTropiezo, meneoDer = 0, meneoIzq = 0 }
 	for _, lado in LADOS do
 		local pos, dedos, dorso, codo = ManosCorrer.frenar(SIGNO[lado], t)
@@ -1517,7 +1545,7 @@ end
 -- La foto (EquipoVista, al pedirla): sube la cámara a la cara con las dos manos, da el disparo y la baja.
 function ManosGestos.foto()
 	Manos.gesto("Foto", 0.7, function(_, s)
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local sube = if s < 0.15 then suave(s / 0.15) elseif s < 0.45 then 1 else 1 - suave((s - 0.45) / 0.25)
 		local golpe = if s > 0.16 and s < 0.26 then 0.04 else 0 -- el dedo en el disparador
 		local y = lerp(-1.0, -0.32, sube)
@@ -1536,7 +1564,7 @@ end
 function ManosGestos.sobresalto(fuerza: number)
 	local f = math.clamp(fuerza, 0.2, 1)
 	Manos.gesto("Sobresalto", 0.9, function(_, s)
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local sube = if s < 0.1 then suave(s / 0.1) else 1 - suave((s - 0.1) / 0.8)
 		local y = lerp(-1.2, -0.55, sube * f)
 		-- Con la linterna encendida, la izquierda no la suelta.
@@ -1554,7 +1582,7 @@ end
 
 local function alSalirDelEscondite()
 	Manos.gesto("Mano", 0.5, function(_, s)
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local k = suave(s / 0.35)
 		return {
 			der = Manos.palma(cf * Vector3.new(0.35, -0.45, lerp(-0.7, -1.5, k)), cf.UpVector, -cf.LookVector),
@@ -1567,7 +1595,7 @@ end
 -- Te pilla: las manos se levantan delante, temblando (abajo, para no tapar la cara del bicho).
 local function alMorir()
 	Manos.gesto("Susto", 1.8, function(_, s)
-		local cf = camara.CFrame
+		local cf = Camara.get().CFrame
 		local t = math.min(1, s / 0.15)
 		local function temblor(): Vector3
 			return Vector3.new(azar:NextNumber(-1, 1), azar:NextNumber(-1, 1), 0) * 0.03
@@ -1604,6 +1632,7 @@ function ManosGestos.start()
 	Manos.capa("Movil", 20, capaMovil)
 	Manos.capa("Pistola", 25, capaPistola)
 	Manos.capa("Cargar", 30, capaCargar)
+	Manos.capa("Lanzar", 31, capaLanzar)
 	Manos.capa("Cambiar", 45, capaCambiar)
 	Manos.capa("Trepar", 35, capaTrepar)
 	Manos.capa("Aire", 5, capaAire)

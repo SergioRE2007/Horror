@@ -100,7 +100,7 @@ local PEGADO_TIEMBLA = 0.02 -- radianes de temblor de más
 local PEGADO_CIERRA = 0.97 -- lo oscuros que se ponen los bordes de más (CIERRA, conteniendo normal)
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local azar = Random.new()
 
 local capa: Frame -- bordes oscuros, sangre y negro
@@ -364,7 +364,7 @@ local function debajoDeMueble(dt: number): boolean
 		latido = latido or Sonido.bucle("Latido")
 		respirarEnBucle()
 	end
-	local cerca, acecha = bichoMasCerca(camara.CFrame.Position)
+	local cerca, acecha = bichoMasCerca(Camara.get().CFrame.Position)
 	sofocar(t, dt)
 	respirar(t, dt, acecha, t - (cubiertoDesde :: number) < ENTRAR, false) -- recién metido, aún no
 	escaparse(t, acecha)
@@ -393,10 +393,10 @@ local function enEscondite(dt: number)
 		return
 	end
 	local t = os.clock()
-	if camara.CameraType ~= Enum.CameraType.Scriptable and not metiendose then
-		metiendose = { desde = camara.CFrame, inicio = t }
+	if Camara.get().CameraType ~= Enum.CameraType.Scriptable and not metiendose then
+		metiendose = { desde = Camara.get().CFrame, inicio = t }
 	end
-	camara.CameraType = Enum.CameraType.Scriptable
+	Camara.get().CameraType = Enum.CameraType.Scriptable
 	local e = metiendose
 	local cerca, acecha = bichoMasCerca(vista.Position)
 	-- El bicho pegado a las rendijas (suceso Armario): mientras esté, no se suelta el aire.
@@ -431,7 +431,7 @@ local function enEscondite(dt: number)
 		local agacha = math.sin(k * math.pi) * 0.5 -- baja un poco al meterse
 		destino = e.desde:Lerp(destino, k) * CFrame.new(0, -agacha, 0)
 	end
-	camara.CFrame = destino
+	Camara.get().CFrame = destino
 	notarAliento(cerca, 0.25, aprieta, jadeo)
 end
 
@@ -466,7 +466,7 @@ local function cambiarEscondido()
 		end
 		cortarAliento(susto) -- si sales a medias, sin soltar el aire
 		if not susto and not enEscena() then -- en la escena de un final, la cámara es suya
-			camara.CameraType = Enum.CameraType.Custom
+			Camara.get().CameraType = Enum.CameraType.Custom
 		end
 	end
 end
@@ -499,9 +499,9 @@ local function mirarVivos(siguiente: boolean)
 	mirado = ((mirado - 1) % #lista) + 1
 	local otro = lista[mirado]
 	local humanoide = otro.Character and otro.Character:FindFirstChildOfClass("Humanoid")
-	if humanoide and camara.CameraSubject ~= humanoide then
-		camara.CameraType = Enum.CameraType.Custom
-		camara.CameraSubject = humanoide
+	if humanoide and Camara.get().CameraSubject ~= humanoide then
+		Camara.get().CameraType = Enum.CameraType.Custom
+		Camara.get().CameraSubject = humanoide
 		Remotes.Mirar:FireServer(otro) -- con el mapa por partes, que cargue alrededor de él (no del muerto)
 	end
 	mirando.Text = Lang.t(nil, "Watching {name}", { name = otro.DisplayName })
@@ -532,7 +532,7 @@ local function gota(padre: GuiObject, posicion: UDim2, ancho: number, alto: numb
 end
 
 local function salpicadura(padre: GuiObject, x: number, y: number, grande: number)
-	local aspecto = camara.ViewportSize.X / math.max(1, camara.ViewportSize.Y)
+	local aspecto = Camara.get().ViewportSize.X / math.max(1, Camara.get().ViewportSize.Y)
 	for _ = 1, 5 do -- el centro: manchas encimadas, forma irregular
 		local t = grande * azar:NextNumber(0.5, 1)
 		gota(padre, UDim2.fromScale(x + azar:NextNumber(-0.4, 0.4) * grande / aspecto, y + azar:NextNumber(-0.4, 0.4) * grande),
@@ -688,7 +688,7 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 		if plano.Magnitude > ARRASTRA_HASTA then
 			fin = sinPared(abajo, abajo + plano.Unit * (plano.Magnitude - ARRASTRA_HASTA), filtro)
 		end
-		camara.FieldOfView = 80
+		Camara.get().FieldOfView = 80
 		pcall(CorrerVista.jadear, nil, 1) -- el respingo al notar la mano
 		destello(0.6, 0.5)
 		local tiron = -1
@@ -706,11 +706,11 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 			p = Vector3.new(p.X, desde.Y + (abajo.Y - desde.Y) * math.min(1, k * ARRASTRA_TIRONES), p.Z)
 			ojo = p
 			ladeo = ARRASTRA_LADEO * math.min(1, k * ARRASTRA_TIRONES)
-			camara.CFrame = CFrame.lookAt(p, suCara()) * CFrame.Angles(0, 0, ladeo) * temblor(0.04 + 0.14 * (1 - f))
+			Camara.get().CFrame = CFrame.lookAt(p, suCara()) * CFrame.Angles(0, 0, ladeo) * temblor(0.04 + 0.14 * (1 - f))
 		end)
 	end
 	-- Mira: quieto a su distancia, mirándote; tú, sin moverte, y solo un golpe del corazón.
-	camara.FieldOfView = 70
+	Camara.get().FieldOfView = 70
 	if foco then
 		foco.Brightness = 0.7
 		foco.Range = 9
@@ -721,7 +721,7 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 		quitar.sonido = golpe
 	end
 	etapa(fases.Mira, function()
-		camara.CFrame = CFrame.lookAt(ojo, suCara()) * CFrame.Angles(0, 0, ladeo)
+		Camara.get().CFrame = CFrame.lookAt(ojo, suCara()) * CFrame.Angles(0, 0, ladeo)
 	end)
 	if quitar.sonido then
 		quitar.sonido:Destroy()
@@ -752,8 +752,8 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 		seguir(dt)
 		local k = 1 - (1 - u) ^ 4
 		local meta = sinPared(suave, suave + frente * GOLPEADOR_ENCIMA, filtro)
-		camara.FieldOfView = 70 - 12 * k - 14 * math.sin(math.pi * u) -- el empujón
-		camara.CFrame = CFrame.lookAt(ojo:Lerp(meta, k), suave) * CFrame.Angles(0, 0, ladeo * (1 - k)) * temblor(0.1 * k)
+		Camara.get().FieldOfView = 70 - 12 * k - 14 * math.sin(math.pi * u) -- el empujón
+		Camara.get().CFrame = CFrame.lookAt(ojo:Lerp(meta, k), suave) * CFrame.Angles(0, 0, ladeo * (1 - k)) * temblor(0.1 * k)
 	end)
 	-- Encima: temblando delante de su cara, con sangre y destellos rojos (las garras y los tirones de la cabeza son
 	-- cosa de GolpeadorVista).
@@ -773,8 +773,8 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 		end
 		local cerca = GOLPEADOR_ENCIMA - 0.25 * math.sin(u * math.pi * 6) ^ 2 -- se echa hacia ti a golpes
 		local p = sinPared(suave, suave + frente * cerca, filtro)
-		camara.FieldOfView = 58 + 2 * math.sin(u * 30)
-		camara.CFrame = CFrame.lookAt(p, suave) * temblor(0.08 + 0.06 * math.noise(u * 9, 3.1))
+		Camara.get().FieldOfView = 58 + 2 * math.sin(u * 30)
+		Camara.get().CFrame = CFrame.lookAt(p, suave) * temblor(0.08 + 0.06 * math.noise(u * 9, 3.1))
 	end)
 	-- Tirón: hacia él, a un palmo de su cara, con el chillido; luego un fotograma negro del todo.
 	if Sonido.hay("GritoGolpeador") then
@@ -787,8 +787,8 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 	etapa(fases.Tiron, function(u, dt)
 		seguir(dt)
 		local cerca = GOLPEADOR_ENCIMA + (GOLPEADOR_TIRON - GOLPEADOR_ENCIMA) * u * u
-		camara.FieldOfView = 58 + 20 * u
-		camara.CFrame = CFrame.lookAt(sinPared(suave, suave + frente * cerca, filtro), suave) * temblor(0.2)
+		Camara.get().FieldOfView = 58 + 20 * u
+		Camara.get().CFrame = CFrame.lookAt(sinPared(suave, suave + frente * cerca, filtro), suave) * temblor(0.2)
 	end)
 	negro.BackgroundTransparency = 0
 	RunService.RenderStepped:Wait()
@@ -798,7 +798,7 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 	etapa(DESPUES_NEGRO, function(u, dt)
 		seguir(dt)
 		local p = sinPared(suave, suave + frente * GOLPEADOR_TIRON, filtro)
-		camara.CFrame = CFrame.lookAt(p, suave) * temblor(0.2 * (1 - u) + 0.05)
+		Camara.get().CFrame = CFrame.lookAt(p, suave) * temblor(0.2 * (1 - u) + 0.05)
 	end)
 end
 
@@ -810,7 +810,7 @@ local function escenaPillado(cabeza: Vector3, modelo: Model?, quitar: Quitar, ga
 	salir.Visible = false
 	local personaje = jugador.Character
 	local mia = personaje and personaje:FindFirstChild("Head") :: BasePart?
-	local desde = if mia then mia.Position else camara.CFrame.Position
+	local desde = if mia then mia.Position else Camara.get().CFrame.Position
 	local hacia = (desde - cabeza)
 	hacia = if hacia.Magnitude > 0.1 then hacia.Unit else Vector3.zAxis
 	-- ¿Es el Golpeador? Sin llamar a las vistas (eso va después): solo el nombre del modelo o del más cercano.
@@ -820,9 +820,9 @@ local function escenaPillado(cabeza: Vector3, modelo: Model?, quitar: Quitar, ga
 	-- Antes que buscar al bicho (que llama a las vistas de todos): si una falla, la cámara ya está en el susto y se
 	-- mira desde donde estabas. El del Golpeador empieza callado (Mira): el grito y la sangre van luego.
 	personajeVisible(false)
-	camara.CameraType = Enum.CameraType.Scriptable
+	Camara.get().CameraType = Enum.CameraType.Scriptable
 	local function gritoDeSiempre()
-		camara.FieldOfView = 60
+		Camara.get().FieldOfView = 60
 		Sonido.tocar("Susto")
 		destello(0.35, 1.4)
 		quitar.capaSangre = sangre()
@@ -874,7 +874,7 @@ local function escenaPillado(cabeza: Vector3, modelo: Model?, quitar: Quitar, ga
 		else
 			centro, ojo = cabeza, cabeza + hacia * 2.4
 		end
-		camara.CFrame = CFrame.lookAt(ojo, centro)
+		Camara.get().CFrame = CFrame.lookAt(ojo, centro)
 			* CFrame.new(azar:NextNumber(-fuerza, fuerza), azar:NextNumber(-fuerza, fuerza), 0)
 			* CFrame.Angles(0, 0, azar:NextNumber(-fuerza, fuerza) * 0.5)
 		RunService.RenderStepped:Wait()
@@ -900,14 +900,14 @@ local function meHanPillado(cabeza: Vector3, modelo: Model?, gatea: boolean)
 	TweenService:Create(negro, TweenInfo.new(0.6), { BackgroundTransparency = 0 }):Play()
 	task.wait(1.2)
 	-- El de Roblox, fijo: el que había al morir podía ser el de la mochila abierta (más cerrado) y se quedaba así.
-	camara.FieldOfView = 70
+	Camara.get().FieldOfView = 70
 	pcall(function()
 		Ui.aviso(Lang.t(nil, "It got you. You'll wake up at dawn."), 5)
 	end)
 	susto = false
 	jugador:SetAttribute("Asustado", nil)
 	if not enEscena() then -- si entretanto ha empezado la escena de un final, la cámara es suya
-		camara.CameraType = Enum.CameraType.Custom
+		Camara.get().CameraType = Enum.CameraType.Custom
 	end
 	pcall(mirarVivos, false)
 	TweenService:Create(negro, TweenInfo.new(1.5), { BackgroundTransparency = 1 }):Play()
@@ -932,6 +932,7 @@ local function charco(posicion: Vector3)
 	p.Size = Vector3.new(0.05, 1, 1)
 	p.CFrame = CFrame.new(resultado.Position + Vector3.new(0, 0.03, 0)) * CFrame.Angles(0, 0, math.pi / 2)
 	p.Parent = workspace.Terrain
+	p:AddTag("Charco") -- quien lo pisa deja huellas de sangre (HuellasVista)
 	local final = azar:NextNumber(5, 7)
 	TweenService:Create(p, TweenInfo.new(6, Enum.EasingStyle.Quad), { Size = Vector3.new(0.05, final, final) }):Play()
 	-- Se limpia al amanecer.
@@ -1059,9 +1060,9 @@ function MuerteVista.start()
 		-- Reaparecer en medio de un final (al amanecer reviven los muertos) no le quita la cámara a la escena (HuidaVista,
 		-- IncendioVista): ella la devuelve al acabar. Si no hay escena, la de siempre.
 		if not enEscena() then
-			camara.CameraType = Enum.CameraType.Custom
+			Camara.get().CameraType = Enum.CameraType.Custom
 		end
-		camara.CameraSubject = personaje:WaitForChild("Humanoid")
+		Camara.get().CameraSubject = personaje:WaitForChild("Humanoid")
 	end)
 	Remotes.Muerte.OnClientEvent:Connect(function(quien: Player, cabeza: Vector3, modelo: Model?)
 		if quien == jugador then
