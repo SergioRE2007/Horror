@@ -1,6 +1,7 @@
 -- Lo que tenían copiado igual las Vistas de los bichos (Golpeador, Raspador, Trepador, Imitador, Acechador y Bestia):
--- cuentas pequeñas, el vaho, las cuentas del gateo y la pose de los aturdidos (flash y cepo). Solo lo que era idéntico; lo que cambiaba de una a otra va por
--- parámetro (los números de cada bicho se quedan en su Vista) o se ha quedado en su Vista.
+-- cuentas pequeñas, el vaho, las cuentas del gateo y la pose de los aturdidos (flash y cepo). Solo lo que era idéntico;
+-- lo que cambiaba de una a otra va por parámetro (los números de cada bicho se quedan en su Vista) o se ha quedado en
+-- su Vista.
 -- Librería sin start(): la usa cada Vista.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

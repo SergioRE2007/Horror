@@ -164,7 +164,8 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		task.wait(0.25)
 		local ahora = os.clock()
 		local luz = iluminado(b)
-		hecho = math.min(1, hecho + (ahora - antes) / total * (if luz then R.Frena else 1))
+		-- Aturdido (el cepo bajo la ventana): forcejea y no araña, así que el cristal no se agrieta más.
+		hecho = math.min(1, hecho + (ahora - antes) / total * (if b:quieto() then 0 elseif luz then R.Frena else 1))
 		antes = ahora
 		modelo:SetAttribute("Raspado", hecho)
 		modelo:SetAttribute("Iluminado", luz)

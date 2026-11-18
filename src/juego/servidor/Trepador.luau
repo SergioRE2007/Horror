@@ -120,15 +120,21 @@ local function sobreTejado(x: number, z: number): (Vector3, Vector3)
 end
 
 -- Lleva la raíz (anclada) hasta `hasta` en `segundos`. Devuelve false si se corta: amanece, le queman (si `fuego`) o
--- desaparece.
+-- desaparece. Aturdido (flash o bengala), se para donde está y sigue cuando se le pasa.
 local function deslizar(b: Caza.Bicho, hasta: CFrame, segundos: number, fuego: boolean?): boolean
 	local desde = b.raiz.CFrame
 	local inicio = os.clock()
+	local antes = inicio
 	while true do
 		if not b.modelo or b.prisa or (fuego and Chimenea.encendida()) then
 			return false
 		end
-		local t = math.min(1, (os.clock() - inicio) / math.max(segundos, 0.01))
+		local ahora = os.clock()
+		if b:quieto() then
+			inicio += ahora - antes -- el rato quieto no cuenta: no avanza
+		end
+		antes = ahora
+		local t = math.min(1, (ahora - inicio) / math.max(segundos, 0.01))
 		b.raiz.CFrame = desde:Lerp(hasta, t)
 		if t >= 1 then
 			return true

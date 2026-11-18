@@ -162,7 +162,12 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 	local abierta = Casa.estado(el).abierta
 	local salio = false
 	for i = 1, I.Llamadas do
-		if abierta or b.prisa then
+		-- Aturdido (flash o cepo): ni golpes ni voz mientras se tapa la cara; llama cuando se le pase.
+		while b.modelo and not b.prisa and b:quieto() do
+			task.wait(0.2)
+		end
+		abierta = abierta or Casa.estado(el).abierta
+		if abierta or b.prisa or not b.modelo then
 			break
 		end
 		Remotes.Imitador:FireAllClients("Llama", modelo)
@@ -183,7 +188,11 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 		end
 		local hasta = os.clock() + rango(I.CadaLlamada) * paciencia
 		while os.clock() < hasta and not b.prisa do
+			local antes = os.clock()
 			task.wait(0.2)
+			if b:quieto() then
+				hasta += os.clock() - antes -- el rato aturdido no cuenta entre llamadas
+			end
 			if Casa.estado(el).abierta then
 				abierta = true
 				break
