@@ -25,6 +25,7 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
 - `ChimeneaVista`: llamas, luz anaranjada que tiembla, brasas flojas, humo por el tiro y crepitar.
 - `CargarVista`: el tronco vale para el caballete (SERRAR) y la chimenea (ECHAR AL FUEGO).
 - `MuerteVista`: el susto sirve para los cinco bichos.
+- Aturdidos (flash y cepo: `BichoComun.aturdido` lee `Aturdido`, que pone `Caza.aturdir`): Trepador, Imitador y Raspador se encogen en 0,12 s con su pose de dolor (atrás, cara apartada, patas o brazos delante de la cara, boca abierta, temblando), chillan al empezar, en el cepo forcejean a tirones y se sueltan en los últimos 0,4 s; el Acechador, como con la linterna. Con Rendimiento, la pose quieta. Gateando o recién salidos de debajo de un mueble, sin subir los brazos ni encabritarse (bancos `aturdidos` y `gateo` con el flash). Números a ojo en `ATURDE` de cada Vista.
 - Sonidos nuevos provisionales de la biblioteca (Pro Sound Effects y uno de fuego): `Crujido`, `Hollin`, `Fuego`, `Llamar`, `Rama`.
 
 ## Probado en Studio (22-10-2026)
@@ -217,3 +218,5 @@ Lo de la 14.9 (igual, en Play y tras `Prueba:Fire("Noche")`; `y` es la altura de
   `MuebleRayo.tablero` los leería primero). Porque `Model:GetPivot` sin PrimaryPart usa WorldPivot, que no llega
   bien al cliente, y entonces `tablero` cae en silencio al saliente de 2.
 - Luces de la cara de Bestia e Imitador solo de noche.
+- El Golpeador aturdido recién salido de gatear mete los brazos en el tablero (hasta 1,4 studs: el banco del gateo con
+  `aturde`, que aún no se le pasa).

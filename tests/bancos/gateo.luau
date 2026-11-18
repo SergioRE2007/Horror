@@ -1,8 +1,9 @@
 -- Banco del gateo debajo de las mesas (14.9.2, pedido por el usuario: "comprueba con bancos de Lune que los gateos
 -- siguen sin atravesar la mesa"). Ejecutar desde la raíz: lune run tests/bancos/gateo.luau [Bicho].
 --   Sin nombre (como lo lanza regressions.luau, a la vez que los demás bancos): un proceso de Lune por bicho, los cinco a la vez (este mismo archivo,
---   sin ruta escrita), con la tanda corta (casosDe: los casos que más han costado y uno de cada cosa, 8 por bicho):
---   ~30 s con 4 CPU (la Bestia marca el paso). GATEO_TODO=1: los 15 casos de cada bicho, ~1 min con 4 CPU.
+--   sin ruta escrita), con la tanda corta (casosDe: los casos que más han costado y uno de cada cosa, 8 por bicho y 10
+--   los que se encogen aturdidos):
+--   ~30 s con 4 CPU (la Bestia marca el paso). GATEO_TODO=1: los 15 casos de cada bicho (17), ~1 min con 4 CPU.
 --   Con un nombre: solo ese bicho, en este proceso (Bestia ~26 s la tanda corta y ~55 s entera; los demás, 6-10 s y
 --   ~20 s).
 --   GATEO_VER=1 enseña lo peor de cada fase y lo que falla, sin parar; GATEO_SOLO="<trozo de la etiqueta>" corre solo
@@ -17,7 +18,8 @@
 -- Cada caso: llega andando (LLEGA studs en 1 s) y se para, gatea (Config.Postura.Gatear s, o lo deja a mitad si te
 -- escapas), lo deja y sale (3 s); la Bestia, además, se va andando hacia atrás (2 s a 6 studs/s) y se para (1 s).
 -- Mira fotograma a fotograma, de 0,8 a 6 studs del borde del tablero, en diagonal, con Rendimiento, a 20 fps,
--- escapándote (Gatea a nil a mitad) y pillándote (rugir, como la escena de muerte):
+-- escapándote (Gatea a nil a mitad), con el flash a mitad (Aturdido, como Caza.aturdir: deja de gatear y sale aturdido)
+-- y pillándote (rugir, como la escena de muerte):
 --   sin NaN en ninguna pieza;
 --   ninguna pieza que se ve se mete más de MARGEN en el tablero (todo el Tam, de su cara de abajo arriba), las patas o la
 --   viga (lo que ya se metía al llegar andando no cuenta en los primeros HEREDA s del gateo);
@@ -214,9 +216,10 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Un gateo entero. op: bicho, mesa, distancia (de la raíz al borde de Caza.borde, a su Fuera de la zona) o diagonal, rendimiento, dt, escapa
--- (s hasta que Gatea vuelve a nil; si no, GATEAR), pilla (rugir al pillarte, como la escena de muerte).
+-- (s hasta que Gatea vuelve a nil; si no, GATEAR), aturde (al dejarlo, aturdido estos s: el flash), pilla (rugir al
+-- pillarte, como la escena de muerte).
 type Op = { bicho: string, mesa: string, distancia: number?, diagonal: boolean?, rendimiento: boolean?, dt: number?,
-	escapa: number?, pilla: boolean? }
+	escapa: number?, aturde: number?, pilla: boolean? }
 -- El mismo caso sin gatear: lo más baja que lleva la cabeza de pie mientras saldría (cabeza) y, la Bestia, por fase
 -- ("andando", "parada") y pieza (por su orden en el modelo), lo que se mete en el suelo y en cada obstáculo (por su orden).
 type Vida = { cabeza: number, suelo: { [string]: { [number]: number } }, obst: { [string]: { [number]: { [number]: number } } },
@@ -243,6 +246,7 @@ function gateo(op: Op, vida: boolean?): any
 		.. (if op.rendimiento then ", con Rendimiento" else "")
 		.. (if op.dt then `, a {math.floor(1 / op.dt + 0.5)} fps` else "")
 		.. (if op.escapa then ", escapándote" else "")
+		.. (if op.aturde then ", con el flash" else "")
 		.. (if op.pilla then ", pillándote" else "")
 	if SOLO and not vida and not string.find(etiqueta, SOLO, 1, true) then
 		return nil
@@ -501,6 +505,9 @@ function gateo(op: Op, vida: boolean?): any
 		if op.pilla then
 			Vista.rugir(cabeza.Position, modelo)
 		end
+		if op.aturde then
+			modelo:SetAttribute("Aturdido", g.workspace:GetServerTimeNow() + op.aturde)
+		end
 		modelo:SetAttribute("Gatea", nil)
 		modelo:SetAttribute("GateaHora", nil)
 		correr("saliendo", SALE)
@@ -571,12 +578,21 @@ local function casosDe(bicho: string): { Op }
 	caso("Comedor", { distancia = 2.5, rendimiento = true }, false)
 	caso("Comedor", { distancia = 2.5, dt = 1 / 20 }, true)
 	caso("Comedor", { distancia = 2.5, escapa = 1 }, true)
+	-- Con el flash a mitad: los que se encogen con BichoComun (el Golpeador tiene su pose de aturdido, que aún se mete en
+	-- el tablero al salir: pendiente en bichos.md; la Bestia no se encoge).
+	local seEncoge = bicho ~= "Golpeador" and bicho ~= "Bestia"
+	if seEncoge then
+		caso("Comedor", { distancia = 0.8, escapa = 1.2, aturde = 2 }, true)
+	end
 	caso("Comedor", { distancia = 2.5, pilla = true }, true)
 	for _, distancia in { 0.8, 2.5, 6 } do
 		caso("Cocina", { distancia = distancia }, distancia == 0.8)
 	end
 	caso("Cocina", { diagonal = true }, true)
 	caso("Cocina", { distancia = 2.5, rendimiento = true }, true)
+	if seEncoge then
+		caso("Cocina", { diagonal = true, escapa = 1.2, aturde = 2 }, true)
+	end
 	return casos
 end
 
