@@ -260,11 +260,14 @@ function Director.start()
 		for _, jugador in Players:GetPlayers() do
 			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Nobody made it. The day starts again."))
 		end
+		-- Durante la espera el tiempo no cambia de fase solo: si amanecía (han muerto en los últimos segundos de la
+		-- noche), se cobraba "You survived the night" y se guardaba como superada; si anochecía, salían los bichos.
+		local soltar = Ciclo.retener()
 		task.wait(Config.Ciclo.Reinicio)
-		-- Si mientras tanto ha amanecido, ya han revivido. Pero si lo que ha empezado es la noche (han muerto en los
-		-- últimos segundos del día: el Acechador), hay que volver al día igual: si no, la noche pasaba con todos muertos
-		-- y se cobraba y guardaba como superada.
-		if (turno ~= mio and Ciclo.fase() == "Dia") or #Muerte.vivos() > 0 then
+		-- Si mientras tanto ya es de día por otra vía (forzado en pruebas), ya han revivido; y si alguien sigue vivo
+		-- (ha entrado uno nuevo), sigue la partida: se suelta y, si el tiempo ya se acabó, la fase cambia sola.
+		if (turno ~= mio and Ciclo.fase() == "Dia") or #Muerte.vivos() > 0 or Partida.terminada() then
+			soltar()
 			return
 		end
 		Golpeador.quitar()
@@ -277,6 +280,7 @@ function Director.start()
 		table.clear(enUso)
 		Partida.volverAlAmanecer()
 		Ciclo.reiniciarDia()
+		soltar() -- después de reiniciar: el día nuevo ya tiene su tiempo entero
 	end)
 end
 

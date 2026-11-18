@@ -11,6 +11,7 @@ local Ciclo = {}
 
 local fase, noche, fin = "Dia", 1, 0
 local oyentes: { (fase: string, noche: number) -> () } = {}
+local retenido = 0 -- cuántos piden que el tiempo no cambie de fase solo (ver Ciclo.retener)
 
 local function duracion(cual: string): number
 	local prueba = if Prueba.activa() then Config.Test[cual] else nil
@@ -53,13 +54,27 @@ function Ciclo.reiniciarDia()
 	poner("Dia", noche)
 end
 
+-- Mientras haya alguien reteniendo, la fase no cambia sola al acabarse el tiempo (sí con forzar o reiniciarDia).
+-- Lo usa Director mientras espera para reiniciar el día al morir todos: si amanecía en esa espera, se cobraba
+-- "You survived the night" y se guardaba como noche superada. Devuelve la función que suelta (una vez).
+function Ciclo.retener(): () -> ()
+	retenido += 1
+	local suelto = false
+	return function()
+		if not suelto then
+			suelto = true
+			retenido -= 1
+		end
+	end
+end
+
 -- `primera`: la noche del día con el que se empieza (la guardada de la partida, ver Partida).
 function Ciclo.start(primera: number?)
 	task.defer(poner, "Dia", primera or 1) -- en diferido: que los demás sistemas se apunten antes con alCambiar
 	task.spawn(function()
 		while true do
 			task.wait(0.25)
-			if fin > 0 and workspace:GetServerTimeNow() >= fin then
+			if fin > 0 and retenido == 0 and workspace:GetServerTimeNow() >= fin then
 				if fase == "Dia" then
 					poner("Noche", noche)
 				else
