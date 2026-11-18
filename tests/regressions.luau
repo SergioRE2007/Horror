@@ -702,8 +702,8 @@ do
 end
 
 -- Susto al morir de los bichos que no son el Golpeador (MuerteVista): cabe entero antes de que el bicho se mueva.
--- Lo que se queda quieto, sacado del código del servidor: ESPERA de Caza y el task.wait tras Muerte.matar del
--- Acechador y la Bestia.
+-- Lo que se queda quieto: ESPERA de Caza y el task.wait tras Muerte.matar de la Bestia, sacados del código del
+-- servidor, y Config.Acechador.TrasPillar (el Acechador ya espera eso).
 do
 	local S = Config.Muerte.SustoComun
 	local total = 0
@@ -711,15 +711,17 @@ do
 		assert(type(S[fase]) == "number" and S[fase] > 0, `SustoComun.{fase}`)
 		total += S[fase]
 	end
-	local quietos = { tonumber(string.match(fs.readFile("src/juego/servidor/Caza.luau"), "local ESPERA = ([%d%.]+)")) }
-	for _, bicho in { "Acechador", "Bestia" } do
-		local fuente = fs.readFile(`src/juego/servidor/{bicho}.luau`)
-		table.insert(quietos, tonumber(string.match(fuente, "Muerte%.matar%b()%s*task%.wait%(([%d%.]+)%)")))
-	end
-	table.insert(quietos, 2.5)
-	for i, quieto in quietos do
-		assert(quieto, `susto común: no se encuentra lo que espera el bicho ({i})`)
-		assert(total < quieto, `susto común: {total} s no cabe en {quieto} s quieto ({i})`)
+	local quietos = {
+		Caza = tonumber(string.match(fs.readFile("src/juego/servidor/Caza.luau"), "local ESPERA = ([%d%.]+)")),
+		Acechador = Config.Acechador.TrasPillar,
+		Bestia = tonumber(string.match(fs.readFile("src/juego/servidor/Bestia.luau"),
+			"Muerte%.matar%b()%s*task%.wait%(([%d%.]+)%)")),
+	}
+	-- Por nombre fijo: un nil (patrón que ya no encaja) hace saltar el assert en vez de perderse sin avisar.
+	for _, fuente in { "Caza", "Acechador", "Bestia" } do
+		local quieto = quietos[fuente]
+		assert(type(quieto) == "number", `susto común: no se encuentra lo que espera el bicho ({fuente})`)
+		assert(total < quieto, `susto común: {total} s no cabe en {quieto} s quieto ({fuente})`)
 		comprobaciones += 1
 	end
 end
