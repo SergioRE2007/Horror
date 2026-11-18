@@ -40,6 +40,7 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   seco a quien persigue: pasado su tiempo sigue mientras tenga presa (no en un armario), `Prorroga` 8 s como mucho;
   nunca con prisa (amanecer, flash del Raspador) ni en el bosque. Al irse, `Caza.salir`: andan hasta la ventana o el
   hogar y, si no llegan, siguen hasta que nadie les vea o `SalirMax` 10 s; solo entonces salen fuera de golpe o se quitan.
+- Aparecer y perderse en el bosque sin verse (`Config.Caza.Candidatos` 6, `PerderseMax` 12 s y `Config.Acechador.Cono` 70°, a ojo): los cuatro nacen en el primero de 6 sitios (`Caza.llegadas`: el de siempre y otros más hondos y a los lados, con hueco, `Caza.cabe`) que nadie ve, cabeza incluida (`Caza.sitioSinVer`; si se ven todos, el más apartado), y al irse `Caza.perderse` sigue alejándose de la casa mientras alguien les vea; el Acechador sale a A.Lejos + 14 de la presa, primero a su espalda, nunca hacia la casa ni en el cono de su cabeza, en el suelo de verdad (rayo corto que solo da en lo que choca: ni copas, ni troncos, ni tejados) y también se pierde al rendirse. Banco `tests/bancos/aparecer.luau`.
 - Modo de pruebas: `ServerStorage.Prueba:Fire("Trepador" | "Imitador" | "Acechador" | "Fuego")`. "Imitador" va con apagón; "Acechador" sale a por el primer jugador (que debe estar en el bosque).
 
 ## Cliente (`src/juego/cliente`)
