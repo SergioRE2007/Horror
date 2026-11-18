@@ -55,6 +55,7 @@ local crudo = nil -- lo que había guardado al cargar, tal cual (se devuelve si 
 local ultima = nil -- la foto del último amanecer: lo que se guarda y a lo que se vuelve
 local semilla = 0
 local idos: { [string]: boolean } = {} -- UserIds que se han ido en esta sesión (lo suyo cayó al suelo)
+local bestiaHoy = false -- se pulsó "Wait for her" hoy: al amanecer vuelven las bengalas gastadas (Llaves.repasar)
 local guardando = false
 local cerrando = false -- el servidor se está cerrando (BindToClose)
 local cargandoPartida = false -- cogiendo el candado de la partida
@@ -130,6 +131,7 @@ end
 -- después de quitar los objetos sueltos (Mochila). `esperados` (solo al cargar): los UserIds que vienen y aún no han
 -- entrado; Llaves no les quita lo que llevan.
 local function aplicar(d, esperados: { number }?)
+	bestiaHoy = false -- al cargar o al volver al amanecer no ha salido aún
 	Cargar.importar(delMundo(d.pesados))
 	Mochila.importarSueltos(delMundo(d.objetos))
 	Casa.importar(d.casa)
@@ -296,7 +298,8 @@ function Partida.start(): number
 			for id in idos do
 				guardadas[id] = nil
 			end
-			Llaves.repasar(semilla, guardadas)
+			Llaves.repasar(semilla, guardadas, nil, bestiaHoy)
+			bestiaHoy = false
 			ultima = foto()
 			task.spawn(guardar, false) -- sin frenar al resto de los que escuchan el amanecer
 		end
@@ -305,6 +308,7 @@ function Partida.start(): number
 	-- preparado). Si mueren todos esa noche se vuelve ahí, no al amanecer (14.1, pedido por el usuario). Una vez al día
 	-- como mucho: Preparativos solo deja esperarla de día y una vez.
 	Preparativos.alSoltar(function()
+		bestiaHoy = true
 		if op and not FinPartida.acabada() then
 			ultima = foto()
 			task.spawn(guardar, false)

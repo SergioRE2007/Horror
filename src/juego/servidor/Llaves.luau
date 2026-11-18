@@ -1,13 +1,15 @@
 -- Llaves de las salas cerradas (pedido por el usuario): sótano, garaje, desván y habitación del rico (Config.Llaves).
 -- Cada llave sale, con la semilla de la partida, en uno de los sitios de su zona (Mapa.llaves, los pone Lugares), con
 -- un brillo flojo (Mochila.dejar). Con ella en la mochila, la puerta de su sala se abre y la llave se gasta (Casa).
--- Si mueres con una llave o con las cerillas, se caen donde mueres, del lado tuyo de la pared que tengas cerca
+-- Si mueres con una llave o con algo de lo único (pistola, bengalas, cerillas), se cae donde mueres, del lado tuyo de la pared que tengas cerca
 -- (Mochila.sitioLibre); si estabas escondido, a la salida del escondite.
 -- Se guarda todo con la partida (Partida): la sala abierta (Casa, "bloqueada") y la llave, suelta o en una mochila.
 -- Partida llama a repasar al empezar, al cargar y al amanecer: la llave de una sala aún cerrada que ya no está en
 -- ningún sitio (se cayó del mapa, o la llevaba en su mochila guardada alguien que no ha venido) vuelve a su sitio.
 -- Lo único del final (Config.Objetos con Unica: pistola, bengalas, cerillas) tampoco se pierde con el que no vuelve:
 -- se le quita y vuelve a su sitio del mapa; las cerillas, a la caja fuerte si ya se leyó su pista y no quedan más.
+-- Las bengalas gastadas vuelven delante del baúl del desván (Reparto.bengalas) si la Bestia salió ese día o si no queda
+-- ninguna: si no, la noche final que sale mal dejaba la partida sin bengalas para siempre.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -23,6 +25,7 @@ local Llaves = {}
 
 local CAT = Config.Objetos
 local CERILLAS = "Cerillas"
+local BENGALA = "Bengala"
 local PISTA_CERILLAS = Config.Bestia.PistaCerillas
 -- Del papel de la pista de la caja fuerte (empotrada en la pared este, mira al oeste) al suelo de delante.
 local DELANTE_CAJA = Vector3.new(-1.6, -3.2, 0)
@@ -36,10 +39,19 @@ local function esUnica(tipo: unknown): boolean
 	return type(tipo) == "string" and CAT[tipo] ~= nil and CAT[tipo].Unica == true
 end
 
--- Lo que se cuenta para no ponerlo dos veces: las llaves y las cerillas.
+-- Lo que se cuenta para no ponerlo dos veces: las llaves, las cerillas y las bengalas.
 local function cuenta(tipo: unknown): boolean
-	return esLlave(tipo) or tipo == CERILLAS
+	return esLlave(tipo) or tipo == CERILLAS or tipo == BENGALA
 end
+
+-- Lo que cae al morir: todo lo de Config.Objetos con Llave o Unica, por nombre para que el orden no cambie.
+local CAEN = {}
+for tipo, o in CAT do
+	if o.Llave == true or o.Unica == true then
+		table.insert(CAEN, tipo)
+	end
+end
+table.sort(CAEN)
 
 -- Lo quitado a los que no vuelven, a su sitio de Mapa.objetos: el primero de su tipo que no tenga ya uno encima. Se
 -- mueve, no se copia (Reparto ya lo ha quitado de la mochila guardada). Si están todos ocupados, encima del primero.
@@ -86,7 +98,8 @@ end
 -- `guardadas` = las mochilas guardadas de la partida ([UserId] = { cosas }): a los que no están se les quitan las
 -- llaves y lo único, que vuelve a su sitio. `esperados` (solo al cargar) = los UserIds que vienen a esta sesión
 -- (Viaje.Info): aún no han entrado pero cuentan como que están, y lo que llevan cuenta como visto.
-function Llaves.repasar(semilla: number, guardadas: { [string]: any }, esperados: { number }?)
+-- `bestiaHoy` (al amanecer): la Bestia salió ese día; vuelven todas las bengalas que falten (Reparto.bengalas).
+function Llaves.repasar(semilla: number, guardadas: { [string]: any }, esperados: { number }?, bestiaHoy: boolean?)
 	local vistas: { [string]: number } = {}
 	for _, o in Mochila.sueltos() do
 		if cuenta(o.tipo) then
@@ -100,6 +113,7 @@ function Llaves.repasar(semilla: number, guardadas: { [string]: any }, esperados
 			vistas[l.Llave] = (vistas[l.Llave] or 0) + Mochila.contar(jugador, l.Llave)
 		end
 		vistas[CERILLAS] = (vistas[CERILLAS] or 0) + Mochila.contar(jugador, CERILLAS)
+		vistas[BENGALA] = (vistas[BENGALA] or 0) + Mochila.contar(jugador, BENGALA)
 	end
 	if esperados then
 		Reparto.esperar(guardadas, esperados, estan, vistas, cuenta)
@@ -114,6 +128,16 @@ function Llaves.repasar(semilla: number, guardadas: { [string]: any }, esperados
 		end
 	end
 	local aSuSitio, cerillas = Reparto.reponer(quitadas, CERILLAS, Pistas.leida(PISTA_CERILLAS), vistas[CERILLAS] or 0)
+	-- Las bengalas: las vistas más las quitadas a los que no vuelven (ya van a su sitio); las que falten, también.
+	local hay = vistas[BENGALA] or 0
+	for _, tipo in aSuSitio do
+		if tipo == BENGALA then
+			hay += 1
+		end
+	end
+	for _ = 1, Reparto.bengalas(hay, Config.Bestia.Bengalas, bestiaHoy == true) do
+		table.insert(aSuSitio, BENGALA)
+	end
 	devolver(aSuSitio)
 	local caja = cerillas and Pistas.sitio(PISTA_CERILLAS)
 	if caja then
@@ -121,7 +145,8 @@ function Llaves.repasar(semilla: number, guardadas: { [string]: any }, esperados
 	end
 end
 
--- Al morir, las llaves y las cerillas que lleva caen a su alrededor.
+-- Al morir, las llaves y lo único (pistola, bengalas, cerillas) que lleva caen a su alrededor: si no, muerto el de la
+-- pistola, los vivos ya no podían herir a la Bestia.
 local function soltarAlMorir(jugador: Player)
 	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not raiz then
@@ -129,13 +154,8 @@ local function soltarAlMorir(jugador: Player)
 	end
 	-- Si muere escondido, a la puerta del armario o al lado de la cama: dentro no las cogía nadie.
 	local alrededor = Mochila.fueraDeEscondite(raiz.Position)
-	local tipos = {}
-	for _, l in Config.Llaves do
-		table.insert(tipos, l.Llave)
-	end
-	table.insert(tipos, CERILLAS)
 	local i = 0
-	for _, tipo in tipos do
+	for _, tipo in CAEN do
 		while Mochila.sacar(jugador, tipo) do
 			i += 1
 			local angulo = i * 2.4
