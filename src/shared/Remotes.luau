@@ -30,7 +30,8 @@ local NOMBRES = {
 	"Clase", -- cliente -> servidor (lobby): (id) elegir una clase que ya tengo ("" = ninguna)
 	"Tienda", -- cliente -> servidor (lobby): ("Clase", id) o ("Cosmetico", id) comprar, ("Poner", tipo, id) ponerme uno
 	"Compra", -- cliente -> servidor: abre una compra con Robux: ("Monedas", n), ("Pase", ventaja) o ("Revivir", jugador)
-	"Pista", -- servidor -> cliente: (n, encontradas) lee la pista n de shared/Historia (lo pide su ProximityPrompt)
+	"Pista", -- servidor -> cliente: (n, encontradas) lee la pista n de shared/Historia (lo pide su ProximityPrompt);
+	-- ("Aviso", texto) un aviso de una línea de las pistas, que PistasUi pone donde no tape el papel
 	-- Final de la Bestia (12.2): cada sistema documenta sus mensajes en la cabecera de su módulo.
 	"Bestia", -- servidor -> todos: animar a la Bestia (Bestia / BestiaVista)
 	"Bengala", -- cliente -> servidor: disparo la pistola; servidor -> todos: el disparo (Bengalas / BengalasVista)
