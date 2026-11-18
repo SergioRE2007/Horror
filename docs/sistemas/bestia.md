@@ -13,7 +13,7 @@ Pedido por el usuario: la Bestia es el origen de todos los bichos, y el rico la 
 
 1. **Gasolina:** hay 6 cruces en el suelo (escalera del vestíbulo, salón, dormitorio de abajo, pasillo, cocina y dormitorio grande). Con un bidón en las manos, R junto a la cruz. Cada cruz gasta 1/3 de bidón. Si le queda para otra cruz, el bidón sigue en las manos; vacío, se deja en el suelo (14.1, pedido por el usuario). Con las 6 llenas sale un rastro de la escalera al porche.
 2. **Reja:** se hace en el banco del sótano con 4 chatarras y 2 cadenas. La receta solo sale después de leer la pista 9, que está en el sótano (hace falta su llave). Se lleva con R a su marco, al pie de la escalera del sótano.
-3. **Pistola y bengalas:** la pistola y 3 bengalas están en el desván, delante del baúl del rico. Las cerillas, en la encimera de la cocina.
+3. **Pistola y bengalas:** la pistola y 3 bengalas están en el desván, delante del baúl del rico. Las cerillas, en la encimera de la cocina. Las tres son únicas (`Unica` en `Config.Objetos`): si se las lleva un amigo que no vuelve, se le quitan al cargar o al amanecer y vuelven a su sitio; las cerillas, delante de la caja fuerte del rico, solo con la pista 12 leída y si no quedan otras (`Llaves.repasar`, `docs/sistemas/llaves.md`). Al morir, las cerillas caen al lado como las llaves.
 4. **Trampilla:** del sótano al patio. Se abre desde abajo y se queda abierta.
 
 Lo preparado se guarda con la partida. Si mueren todos, se vuelve al amanecer: lo hecho ese día se pierde. Excepción (14.1, pedido por el usuario): al pulsar "Wait for her" se hace la foto de la partida y se guarda, así que morir esa noche vuelve a ese momento (de día, con todo preparado y las mochilas de entonces).
