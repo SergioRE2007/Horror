@@ -9,8 +9,8 @@
 --   No empieza mientras dura la escena de llegada en coche (atributo EscenaLlegada de workspace; con Config.Llegada
 --   activa, sin poner aún = Llegada no ha decidido: también espera). Si vuelve a haber escena, el cartel se esconde.
 -- Siguiente meta (16.5): quien ya no tiene tutorial recibe al empezar cada día (y al entrar) un aviso de una línea con
---   la siguiente meta (PasosTutorial.meta: llenar el generador si no aguanta la noche, llaves, piezas del coche,
---   huir), y la misma frase en el atributo Meta del Player, que enseña el móvil (MovilUi). Si ya se ha abierto la caja
+--   la siguiente meta (PasosTutorial.meta: llenar el generador si no aguanta la noche, reparar ventanas y puertas
+--   rotas, troncos junto a la chimenea apagada desde que sale el Trepador, llaves, piezas del coche, huir), y la misma frase en el atributo Meta del Player, que enseña el móvil (MovilUi). Si ya se ha abierto la caja
 --   fuerte (la 12) y se ha empezado a preparar la casa (una cruz con gasolina o la reja montada), la meta es la del
 --   final de la Bestia (PasosTutorial.metaBestia: cruces que faltan, plano, reja, esperarla); con ella suelta, ninguna.
 --   El cliente (TutorialVista) pinta el cartel y la flecha; solo puede pedir saltarlo (remote Tutorial, "Saltar").
@@ -201,6 +201,52 @@ local function mirar()
 	end
 end
 
+-- Ventanas y puertas de abajo reventadas (sin vida: no protegen y el bicho entra al primer golpe). El cristal roto con
+-- la cortina sana no cuenta. Y si la única rota es una puerta (para la frase).
+local function rotas(): (number, boolean)
+	local n, puerta = 0, false
+	for _, el in Casa.atacables() do
+		local e = Casa.estado(el)
+		if e and e.vida <= 0 then
+			n += 1
+			puerta = e.tipo == "Puerta"
+		end
+	end
+	return n, n == 1 and puerta
+end
+
+-- ¿La chimenea está apagada y sin troncos al lado? Cuenta cualquier tronco (suelto o en las manos de alguien) a menos
+-- de Config.Chimenea.Cerca del Mando o del sitio donde arde.
+local function chimeneaSinTroncos(): boolean
+	local chimenea = CollectionService:GetTagged("Chimenea")[1]
+	if not chimenea then
+		return false
+	end
+	local fuego = chimenea:GetAttribute("Fuego")
+	if type(fuego) == "number" and fuego > workspace:GetServerTimeNow() then
+		return false
+	end
+	local sitios = {}
+	local mando = chimenea:FindFirstChild("Mando")
+	if mando and mando:IsA("BasePart") then
+		table.insert(sitios, mando.Position)
+	end
+	local hogar = chimenea:GetAttribute("Hogar")
+	if typeof(hogar) == "CFrame" then
+		table.insert(sitios, hogar.Position)
+	end
+	for _, pieza in CollectionService:GetTagged("Pesado") do
+		if pieza:GetAttribute("Tipo") == "Tronco" and pieza:IsA("BasePart") and pieza:IsDescendantOf(workspace) then
+			for _, sitio in sitios do
+				if (pieza.Position - sitio).Magnitude < Config.Chimenea.Cerca then
+					return false
+				end
+			end
+		end
+	end
+	return true
+end
+
 -- La siguiente meta de la partida, ya en el idioma del jugador (nil = ninguna: la partida se está acabando).
 local function textoMeta(jugador: Player): string?
 	if workspace:GetAttribute("Final") or Bestia.activa() then
@@ -236,9 +282,26 @@ local function textoMeta(jugador: Player): string?
 			return Lang.t(jugador, "Next: wait for her in the hall.")
 		end
 	end
-	local meta, n = PasosTutorial.meta(Casa.cerradas(), piezas, sinGasolina, poca)
+	-- Lo que necesita la noche que viene (solo de día: las frases dicen "antes de la noche"): reparar lo roto y, desde
+	-- que sale el Trepador, troncos junto a la chimenea.
+	local fase, noche = Ciclo.fase()
+	local nRotas, puerta = 0, false
+	if fase == "Dia" then
+		nRotas, puerta = rotas()
+	end
+	local chimenea = fase == "Dia" and noche > Config.Trepador.Noche and chimeneaSinTroncos()
+	local meta, n = PasosTutorial.meta(Casa.cerradas(), piezas, sinGasolina, poca, nRotas, chimenea)
 	if meta == "Generador" then
 		return Lang.t(jugador, "Next: fuel the generator before night. The farm has fuel.")
+	elseif meta == "Reparar" then
+		if n == 1 then
+			return if puerta
+				then Lang.t(jugador, "Next: repair the broken door with a plank before night.")
+				else Lang.t(jugador, "Next: repair the broken window with a plank before night.")
+		end
+		return Lang.t(jugador, "Next: repair the {n} broken windows and doors with planks before night.", { n = n })
+	elseif meta == "Chimenea" then
+		return Lang.t(jugador, "Next: leave logs by the fireplace. Fire drives off what comes down the chimney.")
 	elseif meta == "Sotano" then
 		return Lang.t(jugador, "Next: find the basement key. It's somewhere on the farm.")
 	elseif meta == "Garaje" then
