@@ -23,6 +23,8 @@
 --   Pillar solo sin nada en medio (Caza.alcanza; también la Bestia y el Acechador): ni a través de una pared ni de una
 --   puerta cerrada. Al perderte de vista te busca (CazaBusqueda): sigue hacia donde iba, mira a un lado y a otro y
 --   recorre las salas de al lado antes de volver a la ronda (que no repite la sala en la que acaba de estar).
+--   Sigilo: quieto casi no se te oye, tras una pared o una puerta a la mitad, y con la linterna encendida agacharte
+--   no te esconde de la vista (Config.Postura.OirQuieto, OirPared).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
@@ -635,7 +637,7 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 			local agachado = jugador:GetAttribute("Agachado") == true
 			local cubierto = jugador:GetAttribute("Cubierto") == true
 			local olor = self.olor[jugador]
-			local suRaiz = if cubierto or olor then raizDe(jugador) else nil
+			local suRaiz = raizDe(jugador)
 			-- Debajo de algo solo le notan los de su misma parte del mapa.
 			local alAlcance = not cubierto or (suRaiz ~= nil and mismoSitio(suelo, suRaiz.Position))
 			local hacia = suCabeza.Position - ojos
@@ -647,11 +649,24 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 				then mira.Unit:Dot(haciaPlano.Unit)
 				else 1 -- justo encima o debajo: de frente
 			local recienVisto = visto ~= nil and ahora - visto < Config.Postura.Memoria
-			local vista = PosturaReglas.vistaDeLado(self.o.Vista, cosAngulo, recienVisto, self.o.Campo)
-			local loVe = alAlcance and d < PosturaReglas.alcanceVista(vista, agachado, cubierto)
-				and libre(ojos, suCabeza.Position, sinBichos(jugador.Character))
+			-- Sigilo: la linterna encendida te delata aunque vayas agachado; quieto casi no haces ruido; y tras una
+			-- pared o una puerta se te oye a la mitad. Un solo rayo para ver y para saber si hay algo en medio.
+			local alumbra = jugador:GetAttribute("Linterna") == true
 			local corriendo = jugador:GetAttribute("Corriendo") == true -- corriendo hace ruido (14.8)
-			local nota = loVe or (alAlcance and d < PosturaReglas.alcanceOido(OIDO, agachado, cubierto, corriendo))
+			local moviendo = suRaiz == nil or plano(suRaiz.AssemblyLinearVelocity).Magnitude > Config.Correr.Moverse
+			local vista = PosturaReglas.vistaDeLado(self.o.Vista, cosAngulo, recienVisto, self.o.Campo)
+			local ve = PosturaReglas.alcanceVista(vista, agachado, cubierto, alumbra)
+			local oye = PosturaReglas.alcanceOido(OIDO, agachado, cubierto, corriendo, moviendo)
+			local despejado = alAlcance
+				and d < math.max(ve, oye)
+				and libre(ojos, suCabeza.Position, sinBichos(jugador.Character))
+			local loVe = despejado and d < ve
+			-- Tapado se oye menos (con OirPared < 1 basta con mirar el alcance de sin pared para tirar el rayo).
+			local nota = loVe
+				or (
+					alAlcance
+					and d < PosturaReglas.alcanceOido(OIDO, agachado, cubierto, corriendo, moviendo, not despejado)
+				)
 			if nota then
 				self.vistoEn[jugador] = ahora
 			end

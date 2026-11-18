@@ -1199,6 +1199,24 @@ do
 	igual(PR.alcanceOido(8, true, true), math.min(8, CP.VerCubierto), "esconderse: debajo de algo casi no te oyen")
 	igual(PR.alcanceOido(1, true, true), 1, "esconderse: nunca más lejos que su oído")
 	igual(PR.alcanceOido(1, true, false), 1, "esconderse: agachado, tampoco")
+	-- Sigilo: quieto no haces ruido, las paredes tapan el oído y la linterna te delata agachado.
+	local CC = Config.Correr
+	igual(PR.alcanceOido(8, false, false, false, false), math.min(8, CP.OirQuieto), "sigilo: quieto casi no te oyen")
+	igual(PR.alcanceOido(8, false, false, false, true), 8, "sigilo: andando, como siempre")
+	igual(PR.alcanceOido(8, false, false, true, false), CC.Oido, "sigilo: corriendo se oye aunque no avance")
+	igual(PR.alcanceOido(8, false, false, false, true, true), 8 * CP.OirPared, "sigilo: tras la pared, menos")
+	igual(PR.alcanceOido(8, false, false, true, true, true), CC.Oido * CP.OirPared, "sigilo: corriendo tras la pared")
+	igual(PR.alcanceOido(8, false, false, false, false, true), math.min(8, CP.OirQuieto) * CP.OirPared, "sigilo: quieto y tapado")
+	igual(PR.alcanceOido(8, true, false, false, false), math.min(CP.OirAgachado, CP.OirQuieto), "sigilo: agachado y quieto")
+	igual(PR.alcanceOido(8, true, true, false, true), math.min(8, CP.VerCubierto), "sigilo: cubierto manda")
+	igual(PR.alcanceOido(8, false, false, nil, nil, nil), PR.alcanceOido(8, false, false), "sigilo: lo viejo da lo mismo")
+	igual(CP.OirQuieto < CP.OirAgachado and CP.OirPared > 0 and CP.OirPared < 1, true, "sigilo: números con sentido")
+	igual(CC.Oido * CP.OirPared > 8 * CP.OirPared and 8 * CP.OirPared >= CP.OirQuieto, true, "sigilo: correr tras la pared aún se oye")
+	igual(PR.alcanceVista(60, true, false, true), 60, "sigilo: agachado con luz te ven como de pie")
+	igual(PR.alcanceVista(60, true, false, false), 60 * CP.VistaAgachado, "sigilo: agachado sin luz, peor")
+	igual(PR.alcanceVista(60, true, true, true), CP.VerCubierto, "sigilo: cubierto con luz, el mueble manda")
+	igual(PR.alcanceVista(60, false, false, true), 60, "sigilo: de pie con luz, lo de siempre")
+	igual(PR.alcanceVista(60, true, false, nil), PR.alcanceVista(60, true, false), "sigilo: vista vieja da lo mismo")
 	local olor = 0
 	for _ = 1, 10 do
 		olor = PR.oler(olor, 0.25, CP.Olfato - 1)

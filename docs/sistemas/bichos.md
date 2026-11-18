@@ -91,6 +91,9 @@ Servidor (`Caza`, `Bestia`):
 - Agachado se te ve y se te oye peor (`PosturaReglas.alcanceVista`/`alcanceOido`); corriendo, te oyen a `Config.Correr.Oido` (22 en vez de 8, 14.8: `correr.md`). Debajo de un mueble (atributo
   `Cubierto`) solo te notan muy de cerca (`VerCubierto`) y en tu misma parte del mapa, pero te huelen (`oler`/`huele`:
   a `Olfato` studs, `Huele` s hasta saber dónde estás).
+- Sigilo (`elegirPresa`): quieto (sin pasar de `Config.Correr.Moverse` en planta) te oyen a `OirQuieto` (2,5) como
+  mucho; con una pared o puerta en medio (el mismo rayo de la vista), a `OirPared` (×0,5: corriendo, a 11). Con la
+  linterna encendida (atributo `Linterna`) agacharte ya no te esconde de la vista; debajo de un mueble sigue mandando.
 - Si te huelen o te vieron meterte, van al borde del mueble que da `Caza.borde`: frente a ti, corriéndose entre
   sillas, sin cruzar paredes y con sitio a los lados (`Ancho`), a `Fuera` studs de la zona Debajo (`FueraRaspador`,
   `FueraTrepador` y `FueraBestia` para los que de pie sacan brazos o cabeza: más lejos para no meterlos en el tablero;

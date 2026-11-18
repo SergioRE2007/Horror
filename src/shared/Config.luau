@@ -566,6 +566,9 @@ Config.Postura = {
 	Campo = 65, -- grados a cada lado de hacia dónde mira en los que ve con su Vista entera
 	VerEspalda = 12, -- studs a los que te ve fuera de ese cono (de lado o de espaldas)
 	Memoria = 2, -- segundos tras verte u oírte en los que te ve hacia cualquier lado (si giras una esquina no te pierde)
+	-- Sigilo (a ojo): quieto no haces ruido, las paredes tapan el oído y la linterna te delata agachado.
+	OirQuieto = 2.5, -- studs a los que te oye un bicho si estás quieto (sin moverte más de Config.Correr.Moverse)
+	OirPared = 0.5, -- con una pared o una puerta en medio te oye a esta parte (corriendo, a 11 en vez de 22)
 }
 
 -- Correr y aguante (14.8, pedido por el usuario: "añadir la mecánica de correr, que tengas una stamina abajo del todo,
