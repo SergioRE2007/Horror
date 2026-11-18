@@ -6,6 +6,7 @@
 --   "Ventana": cristal y persiana. "Puerta": hoja que gira en la bisagra. "Escondite": armarios y camas.
 -- Medidas en studs: suelo de abajo arriba en y = 1, el de arriba en y = 14; paredes de 12 de alto.
 local CollectionService = game:GetService("CollectionService")
+local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
@@ -14,6 +15,7 @@ local Piezas = require(ReplicatedStorage.Shared.Piezas)
 local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
 local Bichos3D = require(script.Parent.Bichos3D)
 local Fachada = require(script.Parent.Fachada)
+local Linde = require(script.Parent.Linde)
 local Lugares = require(script.Parent.Lugares)
 
 -- Muebles del Creator Store y de Poly Haven: una carpeta por archivo de src/muebles (Muebles.rbxm, lo de antes, y un
@@ -3268,6 +3270,63 @@ local function sotobosque(bosque: Folder)
 	suelo.Parent = bosque
 end
 
+-- La linde del mundo (contorno en Linde): el bosque se espesa y una pared invisible no deja pasar a los jugadores. Con
+-- su propio azar (no mueve los pinos ni los talables, que se guardan). Tres cosas, en la carpeta Bosque.Linde:
+--   Pinos espesos (uno cada ~17 studs) en la franja de 4 a 52 studs por dentro de la pared, sin pisar los del bosque,
+--     la carretera ni el pueblo (que ya tiene su cinturón). Se llaman Tronco: el Acechador se asoma tras ellos.
+--   La pared: un tramo por lado, invisible, de ALTO de alto, en el grupo de colisión "Linde", que solo choca con los
+--     jugadores (Personajes y lo que se lleva en las manos; agachado choca su raíz, que sigue en Personajes): los bichos
+--     (Default) la cruzan, así el Acechador que nace a la espalda llega igual. Los caminos de los bichos la ignoran.
+--   Por fuera, de 6 a 50 studs, solo troncos altos que no chocan (una pieza cada uno): desde la pared se ve bosque y
+--     niebla, nunca la llanura ni el borde del suelo.
+local function linde(bosque: Folder, pinos: { Vector3 })
+	if not PhysicsService:IsCollisionGroupRegistered("Linde") then
+		PhysicsService:RegisterCollisionGroup("Linde")
+	end
+	PhysicsService:CollisionGroupSetCollidable("Linde", "Default", false)
+	local carpeta = Instance.new("Folder")
+	carpeta.Name = "Linde"
+	local azar = Random.new(57)
+	for _, s in Linde.sitios(azar, 17, 5, 4, 52, true) do
+		local x, z = s.x, s.z
+		local alto, grueso = azar:NextNumber(55, 90), azar:NextNumber(2.4, 4.6)
+		local lejos = true
+		for _, otro in pinos do
+			if (otro.X - x) ^ 2 + (otro.Z - z) ^ 2 < 64 then
+				lejos = false
+				break
+			end
+		end
+		if lejos and Lugares.libre(x, z) then
+			local tronco = bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
+				COLOR.Tronco, Enum.Material.Wood, carpeta)
+			tronco.Shape = Enum.PartType.Cylinder
+			pino(tronco, x, z, alto, grueso)
+		end
+	end
+	for _, s in Linde.sitios(azar, 21, 6, 6, 50, false) do
+		local alto, grueso = azar:NextNumber(80, 125), azar:NextNumber(2.2, 4.4)
+		local tronco = bloque("TroncoLejos", Vector3.new(alto, grueso, grueso),
+			CFrame.new(s.x, alto / 2 - 1, s.z) * CFrame.Angles(0, 0, math.pi / 2), COLOR.Tronco, Enum.Material.Wood, carpeta)
+		tronco.Shape = Enum.PartType.Cylinder
+		tronco.CanCollide, tronco.CanQuery, tronco.CastShadow = false, false, false
+	end
+	local L = Linde.ALTO
+	for _, t in Linde.tramos() do
+		local a, b = Vector3.new(t.a.x, L / 2 - 1, t.a.z), Vector3.new(t.b.x, L / 2 - 1, t.b.z)
+		-- Un grosor más de largo: los tramos se montan en las esquinas y no queda rendija.
+		local pared = bloque("Pared", Vector3.new(Linde.GROSOR, L, (b - a).Magnitude + Linde.GROSOR), CFrame.lookAt((a + b) / 2, b),
+			nil, Enum.Material.SmoothPlastic, carpeta)
+		pared.Transparency = 1
+		pared.CastShadow, pared.CanQuery, pared.CanTouch = false, false, false
+		pared.CollisionGroup = "Linde"
+		local paso = Instance.new("PathfindingModifier")
+		paso.PassThrough = true
+		paso.Parent = pared
+	end
+	carpeta.Parent = bosque
+end
+
 local function construirBosque(mapa: Folder)
 	local bosque = Instance.new("Folder")
 	bosque.Name = "Bosque"
@@ -3286,6 +3345,7 @@ local function construirBosque(mapa: Folder)
 		Enum.Material.Ground, bosque), "EnMapa")
 	local azar = Random.new(7)
 	local puestos = 0
+	local pinos = {} :: { Vector3 } -- dónde quedan, para que los de la linde no caigan encima
 	while puestos < 260 do
 		local angulo = azar:NextNumber(0, math.pi * 2)
 		local distancia = azar:NextNumber(48, 420)
@@ -3301,6 +3361,7 @@ local function construirBosque(mapa: Folder)
 				COLOR.Tronco, Enum.Material.Wood, bosque)
 			tronco.Shape = Enum.PartType.Cylinder
 			pino(tronco, x, z, alto, grueso)
+			table.insert(pinos, Vector3.new(x, 0, z))
 		end
 	end
 	-- Árboles finos cerca de la casa: los que se talan (Recursos). Tronco anclado, copa soldada y un mando abajo.
@@ -3351,6 +3412,7 @@ local function construirBosque(mapa: Folder)
 	end
 	talables.Parent = bosque
 	sotobosque(bosque)
+	linde(bosque, pinos)
 	bosque.Parent = mapa
 end
 
