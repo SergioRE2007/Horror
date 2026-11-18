@@ -188,6 +188,10 @@ local function pedir(jugador: Player, que: unknown, valor: unknown)
 		if c.orden[1] ~= jugador or c.saliendo then
 			continue
 		end
+		-- Con la cuenta atrás en marcha (el coche ya tiene Salida) la partida elegida no cambia: solo bajarse cancela.
+		if (que == "Ranura" or que == "Nueva") and c.modelo:GetAttribute("Salida") then
+			return
+		end
 		if que == "Ranura" and type(valor) == "number" and valor == math.floor(valor) and valor >= 1
 			and valor <= Stats.ranuras(jugador) then
 			c.modelo:SetAttribute("Ranura", valor)

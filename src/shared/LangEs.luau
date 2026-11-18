@@ -159,6 +159,7 @@ return {
 	["You escaped."] = "Has escapado.",
 	["Add to fire"] = "Echar al fuego",
 	["The fire is already high."] = "El fuego ya está alto.",
+	["Something scratches the glass. It flinches from light."] = "Algo raspa el cristal. Le molesta la luz.",
 	["Something is walking on the roof."] = "Algo anda por el tejado.",
 	["Something is coming down the chimney!"] = "¡Algo baja por la chimenea!",
 	["Knock knock. \"It's {name}. Let me in!\""] = "Toc, toc. \"Soy {name}. ¡Déjame entrar!\"",
@@ -178,6 +179,7 @@ return {
 	["Buy?"] = "¿Comprar?",
 	["Bought."] = "Comprado.",
 	["Not enough coins."] = "No tienes monedas suficientes.",
+	["Loading... try again in a moment."] = "Cargando... prueba otra vez en un momento.",
 	["Choose"] = "Elegir",
 	["Chosen"] = "Elegida",
 	["Use"] = "Usar",
@@ -277,10 +279,25 @@ return {
 	["Stay close to the house. Night is coming."] = "No te alejes de la casa. Se acerca la noche.",
 	["Close the curtains downstairs: {n} left."] = "Cierra las cortinas de abajo: quedan {n}.",
 	["Survive until dawn. If something gets in, hide."] = "Aguanta hasta el amanecer. Si entra algo, escóndete.",
+	-- Tutorial: puerta principal, gasolina del generador y siguiente meta (16.5).
+	["Close the front door and the curtains downstairs: {n} left."] = "Cierra la puerta principal y las cortinas de abajo: quedan {n}.",
+	["Close the front door."] = "Cierra la puerta principal.",
+	["Fill up the generator: carry a fuel can to it."] = "Llena el generador: llévale un bidón de gasolina.",
+	["Next: find the basement key. It's somewhere on the farm."] = "Siguiente: busca la llave del sótano. Está en la granja.",
+	["Next: find the garage key. It's somewhere at the sawmill."] = "Siguiente: busca la llave del garaje. Está en el aserradero.",
+	["Next: fix the car in the garage. 1 part missing."] = "Siguiente: repara el coche del garaje. Falta 1 pieza.",
+	["Next: fix the car in the garage. {n} parts missing."] = "Siguiente: repara el coche del garaje. Faltan {n} piezas.",
+	["Next: fill the car with fuel and escape."] = "Siguiente: llena el coche de gasolina y huye.",
+	["The car is ready. Get in and escape."] = "El coche está listo. Súbete y huye.",
+	-- Coche destrozado tras la noche 1 (16.8).
+	["Your car is wrecked. There's no way out now."] = "Tu coche está destrozado. Ya no hay forma de irse.",
 	-- Cuerpo (14.6).
 	["Crouch"] = "Agacharse",
 	["Run"] = "Correr",
 	-- Mirar sin abrir (14.6).
 	["Look through"] = "Mirar por la mirilla",
 	["Peek"] = "Mirar entre las cortinas",
+	-- Guía del lobby (16.7).
+	["Get in the car"] = "Sube al coche",
+	["Your first class is free"] = "Tu primera clase es gratis",
 }

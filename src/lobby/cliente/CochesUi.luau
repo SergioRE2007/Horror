@@ -104,9 +104,17 @@ local function coche(): Model?
 	return if nombre and carpeta then carpeta:FindFirstChild(nombre) :: Model? else nil
 end
 
+-- El JSON de Partidas se decodifica solo cuando cambia la cadena (pintar corre cada 0,2 s).
+local partidasCadena: string? = nil
+local partidasTabla: any = {}
 local function partidas()
-	local ok, t = pcall(HttpService.JSONDecode, HttpService, jugador:GetAttribute("Partidas") or "{}")
-	return if ok and type(t) == "table" then t else {}
+	local cadena = jugador:GetAttribute("Partidas") or "{}"
+	if cadena ~= partidasCadena then
+		local ok, t = pcall(HttpService.JSONDecode, HttpService, cadena)
+		partidasCadena = cadena
+		partidasTabla = if ok and type(t) == "table" then t else {}
+	end
+	return partidasTabla
 end
 
 -- En primera persona (la cámara pegada a la cabeza) el ratón va bloqueado en el centro y no se podría pulsar el papel:

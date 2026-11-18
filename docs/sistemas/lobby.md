@@ -111,6 +111,35 @@ Pedido por el usuario: el coche de verdad reaparecía de golpe en su plaza al qu
 - El motor: el bucle `Config.SonidosLobby.MotorCoche`, con el tono según la velocidad, solo si tiene Id > 0
   (`Sonido.hay`). Si no, suena el `Arranque` una vez a `CERCA` s de la hora. Con los dos en Id 0 (hoy) no suena nada.
 
+## Guía del jugador nuevo (16.7)
+
+Hecho sin Studio (sesión en la nube) y con números a ojo: **falta verlo y que Sergio lo apruebe**. Motivo (análisis del
+juego): el jugador aparece en una explanada oscura con lluvia, sin ninguna pista, y la mitad de los nuevos se iba en 5
+minutos en el primer juego. Pedido por el usuario entonces: muy visible, flecha grande, frases cortas.
+- Una línea de papel arriba en el centro (460 de ancho, esquina de sangre) y una flecha roja grande con un círculo que
+  late, sobre lo que señala y visible a través de las paredes; si no está delante, otra flecha en el borde de la
+  pantalla. En el móvil la del borde no se pega a las esquinas de los botones de Roblox ni al botón de saltar. Con
+  Rendimiento, sin vaivén ni deslizamiento. Cuelga de `Ui.hud` (su UIScale) y usa el bucle de `Bucle`.
+- Dos etapas (`lobby/servidor/GuiaLobby` decide al cargar los datos y publica el atributo `GuiaLobby`; las reglas, en
+  `lobby/servidor/GuiaReglas`, probadas en `tests/bancos/guia-lobby.luau`):
+  - `Coche` ("Get in the car"): nunca ha jugado, es decir, ni ranura guardada (`partidas`) ni logro (`logros`). Las
+    monedas no cuentan (el premio diario las da a todos). Flecha al coche libre más cercano (sin dueño ni salida ni
+    llegada en marcha; si no hay libre, uno con gente). Se apaga al sentarse (atributo `Coche`) y vuelve si se baja. Quien
+    muere en su primera noche no deja nada apuntado y la sigue viendo: sigue siendo verdad.
+  - `Tienda` ("Your first class is free"): ya ha jugado y no ha comprado ninguna clase (`Comprar.precioClase`: la
+    primera sale gratis, así que la frase es cierta). Flecha al mostrador. Se apaga al abrir la tienda, al comprar, al
+    subirse a un coche o a los `Config.Lobby.Guia.TiendaSegundos` (120) s. Una sola vez por cuenta.
+- Lo guardado no cambia de forma: la marca de la tienda ya enseñada es una clave libre dentro de `logros`
+  (`GuiaReglas.VISTA` = `GuiaTienda`, como `Tutorial`; no renombrar). Se apunta al cargar, sin guardar aparte (se guarda
+  con lo demás).
+- Números a ojo en `Config.Lobby.Guia`. `Forzar` = `"Coche"` o `"Tienda"` fuerza la etapa en Studio (con el modo de
+  pruebas: allí `Config.Test.Partidas` ya cuenta como haber jugado y sale la de la tienda).
+- Probar en Studio (sin probar): con `Forzar = "Coche"` (lobby en su ventana): al entrar sale la línea y la flecha sobre un
+  coche, mirando a otro lado sale la del borde, al sentarse se van y al bajarse vuelven; con `Forzar = "Tienda"` la flecha
+  va al mostrador y se va al abrir la tienda. Con la cuenta de verdad (no Studio): cuenta nueva = coche; tras superar una
+  noche, tienda una vez. Emulador de móvil: que la línea no pise los botones de Roblox y la flecha del borde no vaya a
+  las esquinas. Sin `warn` de `[Bucle]`.
+
 ## Interfaz (CochesUi y TiendaUi)
 
 Pedido por el usuario: "que siga el estilo oscuro de Ui y se vea bien en el móvil". Las dos son papel viejo oscuro con
@@ -143,6 +172,11 @@ sin animaciones.
 - Lo pequeño sin sombra y sin chocar; en el cliente, lluvia con 64 emisores como mucho (36 con Rendimiento).
 - Coche que sale o llega: con Rendimiento (salvo el coche en el que vas) o a más de `Config.Lobby.Cerca` studs, la copia
   solo se mueve, sin ruedas, limpias, humo ni temblor. La que llega, a más de 250 studs (en la niebla), cada 0,25 s.
+
+## Cambios de 16.13
+
+- `Viaje.ir`: `ReserveServer` y el `SetAsync` de MemoryStore se reintentan una vez (como el teletransporte). `Coches.pedir`: con la cuenta atrás en marcha (el coche ya tiene `Salida`) se ignoran `Ranura` y `Nueva`; solo bajarse cancela. `CochesUi` decodifica el JSON de `Partidas` solo cuando cambia la cadena.
+- Probar en Studio (sin probar): con dos jugadores en un coche, tras pulsar arrancar el dueño no puede cambiar la ranura en la cuenta atrás; al bajarse sí. La tienda compra junto al mostrador y no desde lejos (la UI se cierra a 16 studs; el servidor corta a 25).
 
 ## Probar en Studio
 

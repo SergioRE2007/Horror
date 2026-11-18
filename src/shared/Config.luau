@@ -377,6 +377,21 @@ Config.Coche = {
 	Cinematica = 17, -- segundos de la escena final
 }
 
+-- Llegada en coche y coche destrozado tras la noche 1 (juego/servidor/Llegada, cliente LlegadaCocheVista, 16.8).
+-- Números a ojo. Sitio = { x, z } donde aparca, en la carretera delante de la casa (mirando a ella).
+Config.Llegada = {
+	Activa = true,
+	Sitio = { 0, -60 },
+	Segundos = 9, -- lo que dura la escena de llegada
+	Recorrido = 110, -- studs de carretera que hace el coche en la escena
+	Espera = 8, -- segundos como mucho esperando a que tengan personaje antes de la escena
+	Tope = 30, -- segundos como mucho con EscenaLlegada puesto, aunque algo falle
+	Ver = 30, -- a esta distancia del coche destrozado te llega el aviso
+	Minimo = 60, -- segundos tras el amanecer antes de llevárselo al garaje
+	Lejos = 55, -- y sin nadie a menos de esto
+	Giro = 14, -- grados que queda torcido el destrozado
+}
+
 -- Móvil (juego/servidor/Movil, cliente MovilUi): mapa con dónde estáis tú y tus amigos (pedido por el usuario). Gasta
 -- batería mientras se mira y se carga en el enchufe de la casa con el generador encendido. Números a ojo.
 -- El final difícil (12.2, TASKS.md): preparar la casa de día, "Esperarla", herirla con bengalas, encerrarla en el
@@ -526,6 +541,12 @@ Config.Tutorial = {
 	Activo = true,
 	Cada = 0.5, -- segundos entre dos miradas del servidor
 	Flecha = 4, -- studs por encima de lo que señala la flecha
+	-- 16.5, a ojo: parte del depósito del generador que pide antes de la noche (una noche gasta 0,5 a ritmo 1; con un
+	-- bidón lleno siempre se llega), segundos tras empezar el día hasta el aviso de la siguiente meta y lo que tarda
+	-- en poder repetirse (que no lleguen dos seguidos al entrar el día 1).
+	Gasolina = 0.45,
+	Meta = 6,
+	MetaOtraVez = 30,
 }
 
 -- Sonidos (juego/cliente/Sonido): de ElevenLabs, elegidos por el usuario de oído (tools/sonidos, docs/sistemas/sonidos.md).
@@ -842,8 +863,14 @@ Config.Sustos = {
 	MenosPorNoche = 0.05, -- ...cada noche un 5 % menos...
 	EsperaMinima = 0.5, -- ...hasta la mitad
 	Reintento = 3, -- si ahora no se puede, se mira otra vez a los tantos segundos
-	LejosBicho = 90, -- con un bicho más cerca, nada
-	TrasBicho = 20, -- y nada hasta estos segundos después de que se aleje
+	LejosBicho = 30, -- con un bicho más cerca (o cualquiera dentro de la casa), nada
+	TrasBicho = 8, -- y nada hasta estos segundos después de que se aleje
+	-- Noche desde la que puede salir cada uno (sin él, desde la 1): que vaya a más, los de sangre al final.
+	Desde = {
+		Cuadro = 1, Portazo = 1, Pasos = 1, Bombilla = 1, Silueta = 2, Pared = 2,
+		Susurro = 2, Juguetes = 2, Pasillo = 3, Cristal = 3, Espejo = 4, Goteo = 4,
+	},
+	PistaGiro = 11, -- el "He knew" del espejo solo sale si el jugador ya ha leído esta pista (la del giro, historia.md)
 	Junto = 8, -- studs alrededor de la casa que aún cuentan
 	RepetidoEstaNoche = 0.3, -- el peso de uno que ya ha salido esta noche se multiplica por esto
 	Pesos = {
@@ -894,8 +921,12 @@ Config.Lobby = {
 	},
 	Relampago = { Cada = { 25, 70 }, Trueno = { 1.2, 5 } }, -- segundos entre relámpagos y del relámpago al trueno
 	Puerta = 7, -- studs: la puerta de la tienda se abre con alguien a menos de esto
+	TiendaLejos = 25, -- studs del mostrador a los que el servidor aún acepta una compra (el cliente la cierra a 16)
 	Polillas = 4, -- alrededor de cada luz que las tenga (con Rendimiento, ninguna)
 	Sombra = { Cada = { 60, 150 }, Lejos = { 50, 120 } }, -- algo que se mueve entre los árboles: cada cuánto y a qué distancia
+	-- Guía del jugador nuevo (16.7, a ojo): flecha grande y una línea. Altura = studs de la flecha sobre lo que señala;
+	-- TiendaSegundos = lo que dura la de la tienda si no la sigue; Forzar = "Coche" o "Tienda" para verla en Studio.
+	Guia = { Forzar = nil :: string?, Altura = { Coche = 6, Tienda = 4.5 }, TiendaSegundos = 120 },
 }
 
 -- Sonidos del lobby que aún no existen (para hacer con ElevenLabs; con Id = 0 no suenan). Lo demás del lobby usa los de
@@ -911,6 +942,9 @@ Config.SonidosLobby = {
 	MotorCoche = { Id = 0, Volumen = 0.8, Alcance = 60 }, -- motor de coche viejo al ralentí, en bucle: el que llega tras
 	-- un viaje (LlegadaVista, 14.9.3), que le cambia el tono con la velocidad. Mientras tenga Id 0, Arranque una vez.
 }
+-- El mismo motor de coche en la partida (la llegada en coche, juego/cliente/LlegadaCocheVista, 16.8): una sola entrada
+-- para los dos lugares, así al grabarlo suena en ambos. Con Id 0, mudo (mejor que el zumbido del generador, Motor).
+Config.Sonidos.MotorCoche = Config.SonidosLobby.MotorCoche
 
 -- Modelos 3D de los bichos (IA de imagen a 3D, preparados con tools/blender/preparar_bicho.py y subidos como modelo
 -- del grupo): id del modelo con malla con esqueleto y sus cuatro texturas. Ver docs/sistemas/bichos-3d.md.

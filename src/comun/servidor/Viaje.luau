@@ -26,6 +26,22 @@ local function mapa()
 	return MemoryStoreService:GetHashMap(Config.Partida.Viajes)
 end
 
+-- Una llamada a un servicio web (ReserveServer, MemoryStore) con un reintento: fallan a veces sin motivo, y un fallo
+-- suelto no debe tirar el viaje de todo el grupo cuando ya ha visto la cuenta atrás.
+local function conReintento(que: string, fn: () -> ()): boolean
+	for intento = 1, 2 do
+		local ok, fallo = pcall(fn)
+		if ok then
+			return true
+		end
+		warn(`[Viaje] no se pudo {que} (intento {intento}): {fallo}`)
+		if intento == 1 then
+			task.wait(1)
+		end
+	end
+	return false
+end
+
 -- Teletransporta con un reintento (fallan a veces sin motivo).
 local function teletransportar(lugar: number, todos: { Player }, opciones: TeleportOptions?): boolean
 	for intento = 1, 2 do
@@ -58,11 +74,10 @@ function Viaje.ir(jugadores: { Player }, dueno: number, ranura: number, nueva: b
 	if not sePuede(lugar) then
 		return false, "studio"
 	end
-	local ok, codigo, servidor = pcall(function()
-		return TeleportService:ReserveServer(lugar)
-	end)
-	if not ok then
-		warn(`[Viaje] no se pudo reservar el servidor: {codigo}`)
+	local codigo, servidor
+	if not conReintento("reservar el servidor", function()
+		codigo, servidor = TeleportService:ReserveServer(lugar)
+	end) then
 		return false, "error"
 	end
 	local ids = {}
@@ -70,11 +85,9 @@ function Viaje.ir(jugadores: { Player }, dueno: number, ranura: number, nueva: b
 		table.insert(ids, jugador.UserId)
 	end
 	local info: Info = { dueno = dueno, ranura = ranura, nueva = nueva, jugadores = ids }
-	local apuntado, fallo = pcall(function()
+	if not conReintento("apuntar el viaje", function()
 		mapa():SetAsync(servidor, info, Config.Partida.CaducaViaje)
-	end)
-	if not apuntado then
-		warn(`[Viaje] no se pudo apuntar el viaje: {fallo}`)
+	end) then
 		return false, "error"
 	end
 	local opciones = Instance.new("TeleportOptions")

@@ -44,6 +44,17 @@ local function avisar(jugador: Player, frase: string)
 	Remotes.Aviso:FireClient(jugador, Lang.t(jugador, frase))
 end
 
+-- ¿Está el personaje cerca del mostrador? (el servidor lo comprueba: el cliente solo cierra la tienda al alejarse)
+local function cercaDelMostrador(jugador: Player): boolean
+	local mapa = workspace:FindFirstChild("Mapa")
+	local mostrador = mapa and mapa:FindFirstChild("Mostrador")
+	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart")
+	if not (mostrador and mostrador:IsA("BasePart") and raiz and raiz:IsA("BasePart")) then
+		return false
+	end
+	return (raiz.Position - mostrador.Position).Magnitude <= Config.Lobby.TiendaLejos
+end
+
 local function pedir(jugador: Player, accion: unknown, a: unknown, b: unknown)
 	if type(accion) ~= "string" or (a ~= nil and type(a) ~= "string") or (b ~= nil and type(b) ~= "string") then
 		return
@@ -53,8 +64,11 @@ local function pedir(jugador: Player, accion: unknown, a: unknown, b: unknown)
 		return
 	end
 	ultimo[jugador] = ahora
+	if not cercaDelMostrador(jugador) then
+		return
+	end
 	local r = "nada"
-	Datos.editar(jugador, function(datos)
+	local cargados = Datos.editar(jugador, function(datos)
 		if accion == "Clase" then
 			r = Comprar.clase(datos, Config.Clases, a)
 		elseif accion == "Cosmetico" then
@@ -63,6 +77,10 @@ local function pedir(jugador: Player, accion: unknown, a: unknown, b: unknown)
 			r = if Comprar.poner(datos, Config.Cosmeticos, a, b) then "puesto" else "nada"
 		end
 	end)
+	if not cargados then
+		avisar(jugador, "Loading... try again in a moment.")
+		return
+	end
 	if r == "ok" or r == "puesto" then
 		Clases.publicar(jugador)
 		publicar(jugador)
