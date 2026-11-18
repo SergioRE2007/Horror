@@ -278,7 +278,9 @@ local function dejarCaer()
 		end
 		hoja.CFrame = abajo
 		Remotes.Preparativos:FireAllClients("Reja", abajo.Position)
-		if not Bestia.encerrar(Preparativos.sotano) then
+		if Bestia.encerrar(Preparativos.sotano) then
+			avisarTodos("She's locked in. Light the trail on the porch.") -- lo siguiente del final, para que nadie se pierda
+		else
 			avisarTodos("The gate fell with nothing behind it.")
 		end
 	end)
