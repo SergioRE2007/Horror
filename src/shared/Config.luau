@@ -306,14 +306,17 @@ Config.Mochila = {
 -- Cosas pesadas que van en las manos con física y frenan (juego/servidor/Cargar). Tam en studs; Peso = cuántos hacen
 -- falta para levantarla (el motor, entre dos: uno solo la arrastra). Nombre, en inglés para Lang. La clave se guarda.
 -- Números a ojo.
+-- 15.8 (pedido por el usuario): Hombro = va al hombro a lo largo (si no, delante con las dos manos); Lanzar = se puede
+-- tirar (solo la madera: lo demás es único o hace falta, y no debe perderse); Golpe = el sonido al caer.
 Config.Pesados = {
-	Tronco = { Tam = { 6, 1.4, 1.4 }, Peso = 1, Nombre = "Log" },
-	Tablon = { Tam = { 6, 0.3, 1 }, Peso = 1, Nombre = "Plank" },
-	Bidon = { Tam = { 1.6, 2.4, 1.6 }, Peso = 1, Nombre = "Fuel can" },
-	Motor = { Tam = { 3.2, 2.2, 2.4 }, Peso = 2, Nombre = "Engine" },
-	Rueda = { Tam = { 1, 2.6, 2.6 }, Peso = 1, Nombre = "Wheel" }, -- cilindro: el eje va a lo largo de X
-	TablonReforzado = { Tam = { 6, 0.45, 1 }, Peso = 1, Nombre = "Reinforced plank" },
-	Reja = { Tam = { 6, 6, 0.5 }, Peso = 2, Nombre = "Iron gate" }, -- sale del banco del sótano; se monta al pie de la escalera
+	Tronco = { Tam = { 6, 1.4, 1.4 }, Peso = 1, Nombre = "Log", Hombro = true, Lanzar = true, Golpe = "GolpeMadera" },
+	Tablon = { Tam = { 6, 0.3, 1 }, Peso = 1, Nombre = "Plank", Hombro = true, Lanzar = true, Golpe = "GolpeMadera" },
+	Bidon = { Tam = { 1.6, 2.4, 1.6 }, Peso = 1, Nombre = "Fuel can", Golpe = "GolpeMetal" },
+	Motor = { Tam = { 3.2, 2.2, 2.4 }, Peso = 2, Nombre = "Engine", Golpe = "GolpeMetal" },
+	Rueda = { Tam = { 1, 2.6, 2.6 }, Peso = 1, Nombre = "Wheel", Golpe = "GolpeMetal" }, -- cilindro: el eje va a lo largo de X
+	TablonReforzado = { Tam = { 6, 0.45, 1 }, Peso = 1, Nombre = "Reinforced plank", Hombro = true, Lanzar = true,
+		Golpe = "GolpeMadera" },
+	Reja = { Tam = { 6, 6, 0.5 }, Peso = 2, Nombre = "Iron gate", Golpe = "GolpeMetal" }, -- sale del banco del sótano; se monta al pie de la escalera
 }
 Config.Cargar = {
 	Frena = { 0.6, 0.5 }, -- multiplica tu velocidad según el Peso de lo que llevas (con todos los que hacen falta)
@@ -321,6 +324,42 @@ Config.Cargar = {
 	Fuerza = 0.6, -- parte del peso que levanta cada uno: con 2 que la cogen, 1,2 veces el peso del motor
 	Delante = 1.4, -- studs entre tu cuerpo y lo que llevas
 	Suelta = 9, -- si se queda más lejos (atascada), se te cae
+	-- 15.8 (pedido por el usuario: "todo"): físicas de verdad, al hombro, lanzar y ruido (shared/CargarReglas). A ojo.
+	-- Lo que lleva uno solo (Peso 1) lo mueve su cliente (CargarVista) y choca con todo menos con los jugadores.
+	Engancha = 2.5, -- studs (en horizontal) entre donde debería ir y donde está: se ha enganchado en algo
+	Desengancha = 1.6, -- y por debajo de esto ya no
+	FrenaEnganche = 0.35, -- tu velocidad mientras lo que llevas está enganchado (si sigues tirando, a Suelta se cae)
+	Giro = 8, -- fuerza (veces su peso) con que se endereza lo que lleva uno: floja, para que los marcos lo giren
+	Hombro = { Lado = 1, Apoyo = -0.2, Delante = 0.12, Cabeceo = 6 }, -- studs desde la raíz, parte del largo y grados
+	Balanceo = {
+		Giro = 9, -- rad/s del muelle con que sigue tu giro (menos = se queda más atrás)
+		Amortigua = 0.5, -- menos de 1: al parar de girar se pasa un poco y vuelve
+		MaxRetraso = 55, -- grados como mucho que se queda atrás
+		Bote = 0.09, -- studs que baja a cada paso
+		Ladeo = 3, -- grados que se ladea a cada paso
+		Paso = 0.55, -- pasos por stud andado
+	},
+	Dejar = 0.35, -- s que tardas en dejarlo en el suelo con la E (así no suena)
+	Lanzar = {
+		Carga = 0.8, -- s manteniendo hasta la fuerza máxima
+		Velocidad = { 18, 46 }, -- studs/s sin cargar y cargado del todo
+		Arriba = 0.35, -- lo que sube de más hacia arriba (si no, cae enseguida)
+		Vueltas = 5, -- rad/s que da vueltas de punta a punta, cargado del todo
+		Atras = 0.7, -- studs que lo echas atrás al cargar
+		Minimo = 0.15, -- s que hay que mantener para que sea lanzar (menos, no hace nada)
+	},
+	Vuelo = 6, -- s como mucho que el servidor sigue lo que se suelta (golpes y que no se pierda)
+	Caida = 40, -- studs por debajo de donde se soltó: se ha salido del mapa y vuelve allí
+	Ruido = {
+		Umbral = 14, -- studs/s que tiene que perder de golpe para que suene
+		Fuerte = 45, -- studs/s de un golpe a tope
+		Alcance = { 18, 45 }, -- studs a los que lo oye un bicho, del golpe más flojo al más fuerte
+		Arrastrar = 26, -- studs a los que se oye arrastrar algo
+		CadaArrastre = 0.6, -- s entre dos ruidos de arrastre
+		Dura = 2, -- s que un bicho puede oír cada ruido
+		Espera = 0.25, -- s como mínimo entre dos golpes de la misma pieza
+		Paredes = 0.5, -- lo que llega de un ruido de dentro de la casa a un bicho de fuera, o al revés
+	},
 }
 
 -- Talar, serrar y clavar (juego/servidor/Recursos y Casa): árbol -> troncos -> (caballete) tablones -> reparar una
@@ -619,6 +658,12 @@ Config.Sonidos = {
 	UnasPared = { Id = 0, Volumen = 1, Alcance = 45 }, -- garras arrastradas por una pared de madera y yeso
 	ToqueDedo = { Id = 0, Volumen = 1, Alcance = 60 }, -- un toque lento con una uña contra un cristal
 	RespiraBicho = { Id = 0, Volumen = 0.8, Alcance = 20 }, -- respiración húmeda y lenta de un bicho, muy de cerca
+	-- Cargar con físicas (15.8): PROVISIONALES con ids de otros sonidos hasta hacerlos con ElevenLabs
+	-- (sonidos-pendientes.md); Lanzar falta (Id 0: no suena).
+	GolpeMadera = { Id = 90088146547108, Volumen = 1.2, Alcance = 90 }, -- un tronco o un tablón que da contra el suelo (mientras, Caida)
+	GolpeMetal = { Id = 90763366072682, Volumen = 1.6, Alcance = 90 }, -- el bidón, la rueda o el motor al caer (mientras, Golpe)
+	Arrastre = { Id = 133574014508797, Volumen = 1.2, Alcance = 50 }, -- algo pesado arrastrado por el suelo, en bucle (mientras, Hollin)
+	Lanzar = { Id = 0, Volumen = 0.7, Alcance = 25 }, -- el resoplido al lanzar algo pesado
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.
