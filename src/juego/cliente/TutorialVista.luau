@@ -48,11 +48,21 @@ local function frase(paso: string): string
 	elseif paso == "Serrar" then
 		return Lang.t(nil, "Saw the log on the sawhorse.")
 	elseif paso == "Generador" then
+		if yo:GetAttribute("TutorialGasolina") then -- 16.5: con poca gasolina, que le eche un bidón
+			return Lang.t(nil, "Fill up the generator: carry a fuel can to it.")
+		end
 		return Lang.t(nil, "Start the generator in the shed.")
 	elseif paso == "Espera" then
 		return Lang.t(nil, "Stay close to the house. Night is coming.")
 	elseif paso == "Cortinas" then
-		return Lang.t(nil, "Close the curtains downstairs: {n} left.", { n = yo:GetAttribute("TutorialFalta") or 0 })
+		local n = yo:GetAttribute("TutorialFalta") or 0
+		if yo:GetAttribute("TutorialPuerta") then -- 16.5: la puerta principal abierta cuenta como una más
+			if n <= 1 then
+				return Lang.t(nil, "Close the front door.")
+			end
+			return Lang.t(nil, "Close the front door and the curtains downstairs: {n} left.", { n = n })
+		end
+		return Lang.t(nil, "Close the curtains downstairs: {n} left.", { n = n })
 	elseif paso == "Amanecer" then
 		return Lang.t(nil, "Survive until dawn. If something gets in, hide.")
 	end
@@ -124,9 +134,29 @@ local function objetivo(paso: string, desde: Vector3): (Instance?, Vector3?)
 	elseif paso == "Serrar" then
 		return masCerca(desde, etiquetados("Caballete"))
 	elseif paso == "Generador" then
+		-- 16.5: si pide gasolina y no lleva un bidón, al bidón con gasolina más cercano; con él en las manos, al generador.
+		if yo:GetAttribute("TutorialGasolina") and yo:GetAttribute("Cargando") ~= "Bidon" then
+			local bidones = {}
+			for _, c in conTipo("Pesado", "Bidon") do
+				if (c[1]:GetAttribute("Carga") or 0) > 0.05 then
+					table.insert(bidones, c)
+				end
+			end
+			if #bidones > 0 then
+				return masCerca(desde, bidones)
+			end
+		end
 		return masCerca(desde, etiquetados("Generador"))
 	elseif paso == "Cortinas" then
 		local lista = {}
+		-- La puerta principal abierta también (16.5): el bicho entra a la primera por ella.
+		for _, puerta in CollectionService:GetTagged("Puerta") do
+			local mando = puerta:FindFirstChild("Mando")
+			if puerta:GetAttribute("Atacable") and puerta:GetAttribute("Abierta") == true
+				and (puerta:GetAttribute("Vida") or 0) > 0 and mando and mando:IsA("BasePart") then
+				table.insert(lista, { puerta, mando.Position })
+			end
+		end
 		for _, ventana in CollectionService:GetTagged("Ventana") do
 			local mando = ventana:FindFirstChild("Mando")
 			if ventana:GetAttribute("Atacable") and ventana:GetAttribute("Persiana") == false
@@ -428,6 +458,8 @@ function TutorialVista.start()
 	construir()
 	yo:GetAttributeChangedSignal("Tutorial"):Connect(pintarCartel)
 	yo:GetAttributeChangedSignal("TutorialFalta"):Connect(pintarCartel)
+	yo:GetAttributeChangedSignal("TutorialPuerta"):Connect(pintarCartel)
+	yo:GetAttributeChangedSignal("TutorialGasolina"):Connect(pintarCartel)
 	pintarCartel()
 	-- SALTAR también con la K (en el mando, la cruceta a la derecha), mientras se ve el cartel (no en las cinemáticas,
 	-- que apagan el HUD).

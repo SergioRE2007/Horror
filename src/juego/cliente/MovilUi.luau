@@ -4,6 +4,8 @@
 --   El teléfono sube desde abajo a la derecha, como en la mano. Mapa con el norte arriba y tú en el centro (flecha
 --   hacia donde miras): la casa, el cobertizo, el caballete, el camino (piezas con la etiqueta "EnMapa"), los árboles
 --   que se pueden talar y tus amigos (punto rojo con el nombre; los que quedan lejos, pegados al borde).
+--   Arriba del mapa, una línea con la siguiente meta (16.5: atributo Meta del jugador, ya traducido; lo pone
+--   juego/servidor/Tutorial tras el tutorial). Sin meta, no sale.
 local CollectionService = game:GetService("CollectionService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -39,6 +41,7 @@ local mundo: Frame
 local flecha: TextLabel
 local bateria: Frame
 local apagada: Frame
+local meta: TextLabel
 local abierto = false
 local menor: UIScale? -- solo en el móvil
 local lugares: { [Instance]: Frame } = {}
@@ -168,6 +171,12 @@ local function actualizar(dt: number)
 	end
 end
 
+local function pintarMeta()
+	local texto = jugador:GetAttribute("Meta")
+	meta.Text = if type(texto) == "string" then texto else ""
+	meta.Visible = meta.Text ~= ""
+end
+
 local function pintarBateria()
 	local b = math.clamp(jugador:GetAttribute("Bateria") or 0, 0, 1)
 	bateria.Size = UDim2.fromScale(b, 1)
@@ -290,6 +299,18 @@ local function crear()
 		ZIndex = 7,
 	})
 	flecha.Parent = mapa
+	-- La siguiente meta, como una nota en la pantalla del teléfono (encima del mapa, debajo de la pantalla apagada).
+	meta = Ui.texto("", {
+		Size = UDim2.new(1, 0, 0, 40),
+		BackgroundColor3 = Color3.fromRGB(14, 14, 16),
+		BackgroundTransparency = 0.25,
+		TextSize = 15,
+		TextWrapped = true,
+		Visible = false,
+		ZIndex = 25,
+	})
+	Ui.queQuepa(meta, 15)
+	meta.Parent = mapa
 	apagada = caja({ Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), Visible = false, ZIndex = 30 })
 	esquina(apagada, 10)
 	apagada.Parent = mapa
@@ -339,6 +360,8 @@ function MovilUi.start()
 		mostrar(jugador:GetAttribute("MovilAbierto") == true)
 	end)
 	jugador:GetAttributeChangedSignal("Bateria"):Connect(pintarBateria)
+	jugador:GetAttributeChangedSignal("Meta"):Connect(pintarMeta)
+	pintarMeta()
 	-- Empieza la escena de un final con el móvil en la mano: se guarda (como la mochila, MochilaUi).
 	jugador:GetAttributeChangedSignal("EscenaFinal"):Connect(function()
 		if jugador:GetAttribute("MovilAbierto") and enEscena() then

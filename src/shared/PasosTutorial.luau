@@ -10,6 +10,11 @@
 --   todas cerradas, "aguanta hasta el amanecer". Al amanecer se acaba (y Tutorial da el premio), solo si las cerró:
 --   quedarse quieto hasta el amanecer no lo acaba.
 --   Si mueren todos y se vuelve al principio del día, se vuelve a los pasos del día que falten.
+--   Gasolina (16.5): con el generador ya en marcha (o sin gasolina para arrancar), el mismo paso Generador pide echarle
+--   un bidón (Estado.repostar) si el depósito no llega a Config.Tutorial.Gasolina, hasta que lo llena o sube. Si no
+--   queda ningún bidón con gasolina, no lo pide. Así el jugador nuevo no se queda a oscuras a mitad de la primera noche.
+--   La puerta principal abierta cuenta como una cortina más (la suma la hace Tutorial en `cortinas`).
+-- Después del tutorial, PasosTutorial.meta dice cuál es la siguiente meta (Tutorial la avisa al empezar cada día).
 local PasosTutorial = {}
 
 -- En el orden en que salen. No hace falta guardarlo: si el jugador se va a medias, la próxima vez empieza de cero.
@@ -21,6 +26,8 @@ export type Estado = {
 	paso: string,
 	hechos: { [string]: boolean },
 	noche: number?, -- la noche que le está enseñando (se apunta al anochecer)
+	repostar: boolean?, -- el paso Generador pide echarle gasolina (16.5)
+	gasolina: number?, -- la gasolina del generador la última vez que se miró (si sube, se la han echado)
 }
 
 export type Vista = {
@@ -34,6 +41,9 @@ export type Vista = {
 	generador: boolean, -- el generador está encendido
 	cortinas: number, -- cortinas de abajo aún abiertas (sin contar las rotas)
 	corrido: boolean?, -- ha corrido alguna vez desde que empezó el tutorial (atributo Corriendo)
+	gasolina: number?, -- parte del depósito del generador (0..1); nil = no se pide echarle gasolina
+	gasolinaMin: number?, -- lo que debe tener para la noche (Config.Tutorial.Gasolina)
+	bidon: boolean?, -- queda algún bidón con gasolina en el mundo
 }
 
 function PasosTutorial.nuevo(): Estado
@@ -48,6 +58,7 @@ end
 -- Pone al día `e` con lo que se ve ahora. Devuelve true cuando se ha acabado (ha amanecido tras su noche).
 function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 	local h = e.hechos
+	e.repostar = nil
 	if v.mochila then
 		h.Mochila = true
 	end
@@ -66,6 +77,15 @@ function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 	if v.generador then
 		h.Generador = true
 	end
+	local gasolina, minimo = v.gasolina, v.gasolinaMin
+	local pideGasolina = type(gasolina) == "number" and type(minimo) == "number"
+	if pideGasolina then
+		if gasolina >= minimo or (e.gasolina ~= nil and gasolina > e.gasolina + 0.02) then
+			h.Gasolina = true -- ya tiene para la noche, o se la acaban de echar
+		end
+		e.gasolina = gasolina
+	end
+	local faltaGasolina = pideGasolina and not h.Gasolina and v.bidon == true
 
 	local anochece = v.fase == "Noche" or (v.fase == "Dia" and v.quedan <= v.aviso)
 	if not anochece then
@@ -78,6 +98,11 @@ function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 			e.noche, h.Cortinas = nil, nil
 		end
 		for _, paso in PasosTutorial.DIA do
+			-- En marcha con poca gasolina (o parado sin ella): el paso del generador pide llenarlo.
+			if paso == "Generador" and faltaGasolina and (h.Generador or (gasolina :: number) <= 0.01) then
+				e.paso, e.repostar = paso, true
+				return false
+			end
 			if not h[paso] then
 				e.paso = paso
 				return false
@@ -99,6 +124,24 @@ function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 	end
 	e.paso = if h.Cortinas then "Amanecer" else "Cortinas"
 	return false
+end
+
+-- La siguiente meta tras el tutorial (16.5), de más cerca a más lejos como las llaves (docs/diseño.md): la llave del
+-- sótano (granja), la del garaje (aserradero), las piezas del coche y su gasolina, y huir. Devuelve un código y un
+-- número (Tutorial lo pasa a una frase con Lang.t):
+--   "Sotano", "Garaje", "Piezas" (n = piezas que faltan), "Gasolina" (solo falta la del coche) o "Huir" (listo).
+--   `cerradas` = llaves de las salas aún cerradas (Casa.cerradas); `piezas` = las que le faltan al coche.
+function PasosTutorial.meta(cerradas: { string }, piezas: number, gasolinaCoche: boolean): (string, number)
+	if table.find(cerradas, "LlaveSotano") then
+		return "Sotano", 0
+	elseif table.find(cerradas, "LlaveGaraje") then
+		return "Garaje", 0
+	elseif piezas > 0 then
+		return "Piezas", piezas
+	elseif gasolinaCoche then
+		return "Gasolina", 0
+	end
+	return "Huir", 0
 end
 
 return PasosTutorial
