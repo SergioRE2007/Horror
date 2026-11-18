@@ -17,6 +17,9 @@
 -- latido suena entero mientras dure y se apaga en Latido.Apaga s al dejarte; la respiración va más deprisa y las manos
 -- tiemblan algo. Al empezar, un golpe flojo (como mucho uno cada Config.Pavor.Persigue.Cada s). Las mismas excepciones
 -- (escondido manda MuerteVista); con Rendimiento, solo el latido y el golpe.
+-- Compañero: si pillan a otro jugador (Remotes.Muerte) y lo ves (a menos de Config.Pavor.Companero.Lejos, en pantalla y
+-- sin paredes; su cuerpo y el bicho no tapan), el susto de ver un bicho con fuerza como poco Companero.Minimo. Si no lo
+-- ves pero está cerca (Companero.Oido, tras una pared), solo el latido y un golpe flojo. Las mismas excepciones.
 -- Las cuentas, en PavorCuentas (banco tests/bancos/pavor.luau). Un solo RenderStep antes de la cámara: mira los bichos
 -- cada Config.Pavor.Cada s y, si no hay pavor ni latido, no hace nada más.
 local Players = game:GetService("Players")
@@ -29,6 +32,7 @@ local CuerpoVista = require(script.Parent.CuerpoVista)
 local Manos = require(script.Parent.Manos)
 local ManosGestos = require(script.Parent.ManosGestos)
 local PavorCuentas = require(script.Parent.PavorCuentas)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Sonido = require(script.Parent.Sonido)
 
 local PavorVista = {}
@@ -89,8 +93,8 @@ local function puedeSentir(): boolean
 	return (Camara.get().CFrame.Position - cabeza.Position).Magnitude < 4
 end
 
--- Si de `desde` a `punto` no hay nada que tape (el bicho mismo no tapa; los cristales tampoco).
-local function sinParedes(desde: Vector3, punto: Vector3, bicho: Instance): boolean
+-- Si de `desde` a `punto` no hay nada que tape (el bicho mismo no tapa, ni `otro` si lo hay; los cristales tampoco).
+local function sinParedes(desde: Vector3, punto: Vector3, bicho: Instance, otro: Instance?): boolean
 	local origen = desde
 	for _ = 1, RAYOS do
 		local hacia = punto - origen
@@ -98,7 +102,7 @@ local function sinParedes(desde: Vector3, punto: Vector3, bicho: Instance): bool
 			return true
 		end
 		local choque = workspace:Raycast(origen, hacia, rayo)
-		if not choque or choque.Instance:IsDescendantOf(bicho) then
+		if not choque or choque.Instance:IsDescendantOf(bicho) or (otro and choque.Instance:IsDescendantOf(otro)) then
 			return true
 		end
 		if choque.Instance.Transparency < CRISTAL then
@@ -188,9 +192,9 @@ local function perseguido(si: boolean, ahora: number)
 	end
 end
 
--- El susto de ver uno a `distancia` studs.
-local function asustar(distancia: number, ahora: number)
-	local f = PavorCuentas.fuerza(distancia)
+-- El susto de ver uno a `distancia` studs (con la fuerza como poco `minimo`, si lo hay).
+local function asustar(distancia: number, ahora: number, minimo: number?)
+	local f = math.max(PavorCuentas.fuerza(distancia), minimo or 0)
 	if f <= 0 then
 		return
 	end
@@ -217,6 +221,69 @@ local function asustar(distancia: number, ahora: number)
 	latidoDesde = ahora
 end
 
+-- Los rayos no chocan contigo ni con lo que cuelga de la cámara (las manos).
+local function filtrar()
+	local personaje = jugador.Character
+	if personaje and filtroDe ~= personaje then
+		filtroDe = personaje
+		rayo.FilterDescendantsInstances = { personaje, Camara.get() }
+	end
+end
+
+-- Pillan a `quien` (Remotes.Muerte): si es otro y lo ves, el susto entero; si no lo ves pero está cerca, el latido.
+local function companeroCae(quien: any, cabeza: any, modelo: any)
+	if typeof(quien) ~= "Instance" or not quien:IsA("Player") or quien == jugador or not puedeSentir() then
+		return
+	end
+	local K = C.Companero
+	local ahora = os.clock()
+	local bicho: Instance? = if typeof(modelo) == "Instance" then modelo else nil
+	-- Dónde mirar: su cabeza y su torso; sin personaje, la cabeza del bicho que le pilla.
+	local pj = quien.Character
+	local puntos: { Vector3 } = {}
+	if pj then
+		for _, nombre in { "Head", "UpperTorso", "Torso", "HumanoidRootPart" } do
+			local parte = pj:FindFirstChild(nombre)
+			if parte and parte:IsA("BasePart") then
+				table.insert(puntos, parte.Position)
+			end
+		end
+	end
+	if #puntos == 0 and typeof(cabeza) == "Vector3" then
+		table.insert(puntos, cabeza)
+	end
+	if #puntos == 0 then
+		return
+	end
+	filtrar()
+	local desde = Camara.get().CFrame.Position
+	local d = (puntos[1] - desde).Magnitude
+	if d ~= d or d > K.Lejos then
+		return
+	end
+	-- Su cuerpo y el bicho que le pilla no tapan (sin cuerpo, `quien` no es de workspace: no quita nada).
+	local suyo: Instance = pj or quien
+	for _, punto in puntos do
+		if enPantalla(punto) and sinParedes(desde, punto, suyo, bicho) then
+			if bicho then
+				vistos[bicho] = ahora -- el bicho ya está visto: no asusta otra vez en la siguiente mirada
+			end
+			asustar(d, ahora, K.Minimo)
+			return
+		end
+	end
+	-- No se ve (tras una pared) pero se oye cerca: el latido y un golpe flojo.
+	if d <= K.Oido then
+		ponerLatido(K.OidoLatido)
+		latidoDesde = ahora
+		if ahora - ultimoSobresalto >= C.SobresaltoCada then
+			ultimoSobresalto = ahora
+			local s = Sonido.tocar("Sobresalto")
+			s.Volume *= K.OidoSobresalto
+		end
+	end
+end
+
 -- Mira los bichos: el que entra en la vista y no se veía desde hace Olvida s, asusta. Y si alguno te persigue.
 local function mirar(ahora: number)
 	local carpeta = workspace:FindFirstChild("Bichos")
@@ -224,11 +291,7 @@ local function mirar(ahora: number)
 		perseguido(false, ahora)
 		return
 	end
-	local personaje = jugador.Character
-	if personaje and filtroDe ~= personaje then
-		filtroDe = personaje
-		rayo.FilterDescendantsInstances = { personaje, Camara.get() } -- tú y lo que cuelga de la cámara (las manos)
-	end
+	filtrar()
 	local desde = Camara.get().CFrame.Position
 	local masCerca: number? = nil
 	local teSigue = false
@@ -340,6 +403,7 @@ function PavorVista.start()
 			end
 		end)
 	end
+	Remotes.Muerte.OnClientEvent:Connect(companeroCae)
 	-- Antes de la cámara de Roblox y de CuerpoVista (Camera - 1): lo de este fotograma ya va puesto.
 	RunService:BindToRenderStep("Pavor", Enum.RenderPriority.Camera.Value - 2, paso)
 end

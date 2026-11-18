@@ -953,6 +953,11 @@ Config.Pavor = {
 	-- esto) y un respingo flojo de las manos (`Respingo`) como mucho cada `Cada` s; la respiración más deprisa (`Respira`,
 	-- como la de arriba) y las manos tiemblan algo (`Manos`). Con Rendimiento, solo el latido y el golpe.
 	Persigue = { Cada = 10, Sobresalto = 0.35, Respingo = 0.3, Latido = 1, Respira = 0.95, Manos = 0.35 },
+	-- Pillan a un compañero (Remotes.Muerte de otro). Si lo ves (a menos de `Lejos` studs, en pantalla y sin paredes;
+	-- su cuerpo y el bicho no tapan), el susto de ver un bicho con la fuerza como poco `Minimo`. Si no lo ves pero está
+	-- a menos de `Oido` studs (tras una pared), solo el latido con fuerza `OidoLatido` y un golpe flojo (`OidoSobresalto`,
+	-- su volumen por esto; respeta SobresaltoCada). A ojo.
+	Companero = { Lejos = 45, Minimo = 0.8, Oido = 22, OidoLatido = 0.6, OidoSobresalto = 0.3 },
 }
 
 -- Cómo se mueven y suenan las latas (juego/cliente/LatasVista, 14.3). A ojo.
