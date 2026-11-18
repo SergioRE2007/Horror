@@ -148,6 +148,16 @@ Cómo empezar: en Edit, que Rojo ha sincronizado (buscar un texto nuevo en el `S
 Play al acabar.
 
 Lo que puede romper una partida o atascar al jugador:
+0. **Paso 16 entero (18-11-2026, hecho sin Studio).** Primero lo que toca a todo: Play sin errores rojos ni
+   `[arranque] ... no ha arrancado` en la Salida (arranque nuevo con `pcall`, `Bichos`, `Mapa` partido, `Sonido` común);
+   VER MAPA igual que antes. Después, por tarea (detalle en cada `docs/sistemas/*.md`, "Probar en Studio"):
+   llegada en coche con SALTAR y el coche destrozado al amanecer de la noche 1 (`Prueba:Fire("Destrozar")`), y que el
+   tutorial empiece después; tutorial con la puerta principal y el bidón; aviso de meta y su línea en el móvil; guía
+   del lobby (`Config.Lobby.Guia.Forzar`); Rendimiento en SÍ con el emulador de teléfono; mando (R3 Ajustes, B cierra
+   ventanas sin agachar ni bajarte del coche, X/Y en la Mochila); sustos en noches altas y el espejo sin la pista 11;
+   morir todos y `Saltar` (sin premio de noche); Golpeador con `Config.Test.Jugadores = 1`; Imitador con el generador
+   apagado; manos, mirilla y muerte (Camara); los seis bichos (vaho, gateo, sucesos, susto). Solo publicado: el candado
+   al cerrar cargando, revivir pagado y los reintentos del viaje. Falta el sonido `MotorCoche`.
 1. Escenas finales y escondites (14.9), probado con un jugador el 04-11-2026 (bien, también la mirilla con el tutorial y sustos seguidos); falta lo de dos jugadores: el fuego con alguien escondido y el fuego cancelado (la cámara no se congela),
    no esconderse en la escena (sí durante el fuego), el susto justo antes de la escena, `EscenaFinal` que vuelve a nil, nadie revive en un
    final. `docs/sistemas/partida.md`, "Muerte y finales", Probar en Studio.
@@ -352,26 +362,30 @@ sin Studio (la sesión fue en la nube): todo lo de aquí va también a "Pendient
 
 | Tarea | Qué | Estado |
 |---|---|---|
-| 16.1 | Candado de la partida: soltarlo aunque el servidor se cierre mientras carga | pendiente |
-| 16.2 | Golpeador: jugando solo no debe golpear más rato que con cuatro | pendiente |
-| 16.3 | Morir todos justo antes del amanecer no cuenta como noche superada | pendiente |
-| 16.4 | Revivir pagado revive al del botón, no a otro muerto | pendiente |
-| 16.5 | Tutorial: cerrar la puerta principal, la gasolina del generador y la siguiente meta tras el tutorial | pendiente |
-| 16.6 | Aviso de una línea la primera vez que raspa el Raspador | pendiente |
-| 16.7 | Guía corta del lobby para el jugador nuevo | pendiente |
-| 16.8 | Llegada en coche y coche destrozado tras la noche 1 (`docs/diseño.md`) | pendiente |
-| 16.9 | Rendimiento activado la primera vez en móvil; Ajustes con mando | pendiente |
-| 16.10 | Sustos: que salgan en noches altas, que vayan a más y que el espejo no destape el giro; polvo con Rendimiento | pendiente |
-| 16.11 | Linternas, bengalas, chimenea e iluminación más ligeras y con Rendimiento | pendiente |
-| 16.12 | Apagón del Imitador solo con el generador encendido; generador sin recalcular cada fotograma | pendiente |
-| 16.13 | Lobby: reintentos del viaje, tienda con datos cargados y cerca del mostrador, coche fijo en la cuenta atrás, menos JSON | pendiente |
-| 16.14 | Mando y táctil: cerrar ventanas con B, táctil bien detectado, pistas de teclado solo con teclado, mayúsculas con más tildes | pendiente |
-| 16.15 | Registro común de bichos, sin `require` diferidos, números a `Config` y reparto del Director como función probada | pendiente |
-| 16.16 | Límite de ritmo común para los remotes (`Limite`), también en los que no tenían | pendiente |
-| 16.17 | Un solo módulo `Sonido` para lobby y juego, con límite de vida; arranque del cliente protegido | pendiente |
-| 16.18 | `Mapa.luau` partido en salas, anexos y bosque, sin cambiar nada del juego | pendiente |
-| 16.19 | Vistas de bichos: funciones comunes en `BichoComun` y `GolpeadorVista` partida | pendiente |
-| 16.20 | Cámara leída siempre al día (`workspace.CurrentCamera`) en los módulos del cliente | pendiente |
-| 16.21 | Pruebas de Lune: guardado, recibos, recompensas, revivir, textos en español, reparto y `Config.Test` | pendiente |
+| 16.1 | Candado de la partida: soltarlo aunque el servidor se cierre mientras carga | hecho |
+| 16.2 | Golpeador: jugando solo no debe golpear más rato que con cuatro | hecho |
+| 16.3 | Morir todos justo antes del amanecer no cuenta como noche superada | hecho |
+| 16.4 | Revivir pagado revive al del botón, no a otro muerto | hecho |
+| 16.5 | Tutorial: cerrar la puerta principal, la gasolina del generador y la siguiente meta tras el tutorial | hecho |
+| 16.6 | Aviso de una línea la primera vez que raspa el Raspador | hecho |
+| 16.7 | Guía corta del lobby para el jugador nuevo | hecho |
+| 16.8 | Llegada en coche y coche destrozado tras la noche 1 (`docs/diseño.md`) | hecho |
+| 16.9 | Rendimiento activado la primera vez en móvil; Ajustes con mando | hecho |
+| 16.10 | Sustos: que salgan en noches altas, que vayan a más y que el espejo no destape el giro; polvo con Rendimiento | hecho |
+| 16.11 | Linternas, bengalas, chimenea e iluminación más ligeras y con Rendimiento | hecho |
+| 16.12 | Apagón del Imitador solo con el generador encendido; generador sin recalcular cada fotograma | hecho |
+| 16.13 | Lobby: reintentos del viaje, tienda con datos cargados y cerca del mostrador, coche fijo en la cuenta atrás, menos JSON | hecho |
+| 16.14 | Mando y táctil: cerrar ventanas con B, táctil bien detectado, pistas de teclado solo con teclado, mayúsculas con más tildes | hecho |
+| 16.15 | Registro común de bichos, sin `require` diferidos, números a `Config` y reparto del Director como función probada | hecho |
+| 16.16 | Límite de ritmo común para los remotes (`Limite`), también en los que no tenían | hecho |
+| 16.17 | Un solo módulo `Sonido` para lobby y juego, con límite de vida; arranque del cliente protegido | hecho |
+| 16.18 | `Mapa.luau` partido en salas, anexos y bosque, sin cambiar nada del juego | hecho |
+| 16.19 | Vistas de bichos: funciones comunes en `BichoComun` y `GolpeadorVista` partida | hecho |
+| 16.20 | Cámara leída siempre al día (`workspace.CurrentCamera`) en los módulos del cliente | hecho |
+| 16.21 | Pruebas de Lune: guardado, recibos, recompensas, revivir, textos en español, reparto y `Config.Test` | hecho |
 
 Fuera por ahora: `StreamingEnabled` en el lobby (hay que probarlo en Studio con el emulador de móvil).
+Por decidir con Sergio: la meta tras el tutorial no habla del desván ni de la habitación del rico (final difícil);
+el Incendio sigue quitando solo al Golpeador y al Raspador; la clave de LangEs "It doesn't fit there." no la usa nadie.
+Sabido: los bancos de las vistas de bichos solo pasan con la semilla de siempre (con otra, una cabeza o un brazo puede
+entrar unas décimas en la pared o el suelo, `docs/sistemas/bichos.md`).
