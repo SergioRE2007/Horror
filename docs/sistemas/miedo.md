@@ -28,7 +28,7 @@ Hecho en paralelo con cuatro agentes (pedido por el usuario: "tiene que quedar b
 
 ## Ambiente (`cliente/AmbienteMiedo`)
 
-- De noche dentro de la casa, `CasaFondo` en bucle bajo. `Tension`: zumbido grave que sube con un bicho cerca (el Imitador no cuenta hasta que le abren, para no delatarlo). Ráfagas (`Rafaga`) contra una ventana cercana cada 35-90 s. Papel al abrir una pista (`PistasUi`).
+- De noche dentro de la casa, `CasaFondo` en bucle bajo. `Tension`: zumbido grave que sube con un bicho cerca (el Imitador no cuenta hasta que le abren, para no delatarlo); si uno te persigue (atributo `Persigue`, de `Caza`), entera en menos de 1 s (`TensionPersigueSubir`): huir no suena como andar por la casa. Ráfagas (`Rafaga`) contra una ventana cercana cada 35-90 s. Papel al abrir una pista (`PistasUi`).
 
 ## Sonidos (tanda `miedo`)
 

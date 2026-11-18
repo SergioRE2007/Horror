@@ -18,6 +18,10 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   recta. Antes, con tres bichos, 12-20 `ComputeAsync` por segundo (banco `pulido-4`). `Casa.puertas()` da una lista
   guardada y congelada (`puertasSinLlave`): cada vez que una puerta deja de estar bloqueada (con llave, al importar o
   con el modo de pruebas "Abrir") hay que vaciarla (`puertasSinLlave = nil`).
+  Atascos (`Caza.cazar`): sin presa, si yendo a la sala de ronda o a un ruido pasa `Config.Caza.Parada` (2 s) sin
+  acercarse ni moverse 1 stud (sin camino: empujaba la pared el resto de la caza), olvida el ruido, va a otra sala y no
+  oye ruidos `SordoTrasParada` (3 s). Mientras caza, el modelo lleva `Persigue` = UserId de su presa (nil sin ella; el
+  Imitador fingiendo, nunca) para el latido y la tensión del cliente (banco `caza-atasco`).
 - Modo de pruebas: `ServerStorage.Prueba:Fire("Trepador" | "Imitador" | "Acechador" | "Fuego")`. "Imitador" va con apagón; "Acechador" sale a por el primer jugador (que debe estar en el bosque).
 
 ## Cliente (`src/juego/cliente`)

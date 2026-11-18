@@ -89,6 +89,18 @@ function PavorCuentas.finLatido(fuerza: number): number
 	return lerp(l.Dura[1], l.Dura[2], k) + l.Apaga
 end
 
+-- De 0 a 1, lo que queda de una persecución (el latido, la respiración) a los `t` s de que el bicho deje de perseguirte:
+-- entera hasta entonces (t <= 0) y se apaga en Latido.Apaga s.
+function PavorCuentas.trasPersecucion(t: number): number
+	if t ~= t then
+		return 0
+	end
+	if t <= 0 then
+		return 1
+	end
+	return 1 - suave01(t / C.Latido.Apaga)
+end
+
 -- El temblor de una mano con `pavor` (0..1) a los `t` s (os.clock): giro (cabecea, gira, ladea; radianes) y
 -- desplazamiento (studs, en la cámara). Uno fino y deprisa y otro lento e irregular, con algún tirón. `semilla`: para que
 -- cada mano tiemble a su manera.

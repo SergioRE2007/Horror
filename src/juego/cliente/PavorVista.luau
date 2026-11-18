@@ -13,6 +13,10 @@
 -- Config.Pavor.Olvida s. Nada escondido ni debajo de un mueble (allí manda MuerteVista: su latido), muerto, con la
 -- mochila abierta, mirando por la mirilla o la ventana (MirarVista tiene su susto) ni en cinemáticas (cámara que no es
 -- Custom). Con Rendimiento, sin vértigo ni retraso ni respiración de más: solo el latido y un temblor flojo.
+-- Persecución: si un bicho te persigue (atributo Persigue de su modelo = tu UserId, lo pone Caza), lo veas o no, el
+-- latido suena entero mientras dure y se apaga en Latido.Apaga s al dejarte; la respiración va más deprisa y las manos
+-- tiemblan algo. Al empezar, un golpe flojo (como mucho uno cada Config.Pavor.Persigue.Cada s). Las mismas excepciones
+-- (escondido manda MuerteVista); con Rendimiento, solo el latido y el golpe.
 -- Las cuentas, en PavorCuentas (banco tests/bancos/pavor.luau). Un solo RenderStep antes de la cámara: mira los bichos
 -- cada Config.Pavor.Cada s y, si no hay pavor ni latido, no hace nada más.
 local Players = game:GetService("Players")
@@ -47,9 +51,13 @@ local pavorDura = 1
 -- El latido.
 local latido: Sound? = nil
 local latidoBase = 1
-local latidoDesde = 0
+local latidoDesde = -math.huge
 local latidoFuerza = 0
 local ultimoSobresalto = -math.huge
+-- La persecución: si te persigue alguno ahora, cuándo dejó de hacerlo y cuándo empezó la última que dio un golpe.
+local persigue = false
+local persigueFin = -math.huge
+local ultimoPersigue = -math.huge
 local puesto = false -- si hay algo puesto en CuerpoVista o Manos (para quitarlo una vez)
 local rayo = RaycastParams.new()
 rayo.FilterType = Enum.RaycastFilterType.Exclude
@@ -141,6 +149,45 @@ local function cortarLatido()
 	end
 end
 
+-- Pone el latido si no suena (con fuerza `f`; si ya suena, con la mayor).
+local function ponerLatido(f: number)
+	if latido then
+		latidoFuerza = math.max(latidoFuerza, f)
+		return
+	end
+	latido = Sonido.bucle("Latido")
+	local l = latido :: Sound
+	latidoBase = l.Volume
+	latidoFuerza = f
+	l.Volume = latidoBase * C.Latido.Volumen * f
+end
+
+-- Empieza o acaba una persecución (`si`: alguno te persigue ahora).
+local function perseguido(si: boolean, ahora: number)
+	if si == persigue then
+		return
+	end
+	persigue = si
+	if not si then
+		persigueFin = ahora -- desde aquí se apaga (PavorCuentas.trasPersecucion)
+		return
+	end
+	local P = C.Persigue
+	ponerLatido(P.Latido)
+	-- El golpe flojo, solo si la última persecución con golpe fue hace rato (y no encima del de verlo).
+	if ahora - ultimoPersigue >= P.Cada then
+		ultimoPersigue = ahora
+		if ahora - ultimoSobresalto >= C.SobresaltoCada then
+			ultimoSobresalto = ahora
+			local s = Sonido.tocar("Sobresalto")
+			s.Volume *= P.Sobresalto
+			if jugador:GetAttribute("Rendimiento") ~= true then
+				pcall(ManosGestos.sobresalto, P.Respingo)
+			end
+		end
+	end
+end
+
 -- El susto de ver uno a `distancia` studs.
 local function asustar(distancia: number, ahora: number)
 	local f = PavorCuentas.fuerza(distancia)
@@ -166,22 +213,15 @@ local function asustar(distancia: number, ahora: number)
 		pcall(ManosGestos.sobresalto, C.Manos * f)
 	end
 	-- El latido, desde ahora (si ya sonaba, sigue: con la fuerza mayor).
-	if latido then
-		latidoFuerza = math.max(latidoFuerza, f)
-	else
-		latido = Sonido.bucle("Latido")
-		local l = latido :: Sound
-		latidoBase = l.Volume
-		latidoFuerza = f
-		l.Volume = latidoBase * C.Latido.Volumen * f
-	end
+	ponerLatido(f)
 	latidoDesde = ahora
 end
 
--- Mira los bichos: el que entra en la vista y no se veía desde hace Olvida s, asusta.
+-- Mira los bichos: el que entra en la vista y no se veía desde hace Olvida s, asusta. Y si alguno te persigue.
 local function mirar(ahora: number)
 	local carpeta = workspace:FindFirstChild("Bichos")
 	if not carpeta then
+		perseguido(false, ahora)
 		return
 	end
 	local personaje = jugador.Character
@@ -191,7 +231,12 @@ local function mirar(ahora: number)
 	end
 	local desde = Camara.get().CFrame.Position
 	local masCerca: number? = nil
+	local teSigue = false
 	for _, bicho in carpeta:GetChildren() do
+		if not teSigue and bicho:GetAttribute("Persigue") == jugador.UserId and bicho:IsA("Model")
+			and not fingiendo(bicho) then
+			teSigue = true
+		end
 		local d = seVe(bicho, desde)
 		if d then
 			local antes = vistos[bicho]
@@ -204,6 +249,7 @@ local function mirar(ahora: number)
 	if masCerca then
 		asustar(masCerca, ahora)
 	end
+	perseguido(teSigue, ahora)
 end
 
 local function quitar()
@@ -241,30 +287,34 @@ local function paso()
 	if not siente then
 		cortarLatido() -- escondido, el latido es de MuerteVista; muerto o en una cinemática, fuera
 		vertigoDesde = nil
+		persigue, persigueFin = false, -math.huge -- al volver, si aún te persigue, empieza otra (el golpe, con Cada)
 		quitar()
 		return
 	end
-	-- El latido se apaga solo.
+	-- Lo que queda de la persecución: entera mientras te persigue y se apaga al dejarte.
+	local sigue = if persigue then 1 else PavorCuentas.trasPersecucion(ahora - persigueFin)
+	-- El latido se apaga solo (perseguido, entero).
 	local l = latido
 	if l then
-		local k = PavorCuentas.latido(ahora - latidoDesde, latidoFuerza)
+		local k = math.max(PavorCuentas.latido(ahora - latidoDesde, latidoFuerza), sigue)
 		if k <= 0 then
 			cortarLatido()
 		else
 			l.Volume = latidoBase * C.Latido.Volumen * latidoFuerza * k
 		end
 	end
-	if nivel <= 0 and vertigo <= 0 then
+	if nivel <= 0 and vertigo <= 0 and sigue <= 0 then
 		quitar()
 		return
 	end
 	puesto = true
 	if jugador:GetAttribute("Rendimiento") == true then
 		CuerpoVista.ponerPavor(0, 0, 0, 0)
-		Manos.pavor(nivel * C.Temblor.Rendimiento)
+		Manos.pavor(nivel * C.Temblor.Rendimiento) -- de la persecución, solo el latido
 	else
-		CuerpoVista.ponerPavor(C.Vertigo.Campo * vertigo, C.Vertigo.Recula * vertigo, nivel * C.Respira, nivel)
-		Manos.pavor(nivel)
+		local respira = math.max(nivel * C.Respira, sigue * C.Persigue.Respira)
+		CuerpoVista.ponerPavor(C.Vertigo.Campo * vertigo, C.Vertigo.Recula * vertigo, respira, nivel)
+		Manos.pavor(math.max(nivel, sigue * C.Persigue.Manos))
 	end
 end
 
