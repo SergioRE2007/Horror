@@ -5,7 +5,7 @@ Pedido por el usuario: "hacerlo bien, pero rápido" (no las dos semanas de la ca
 ## Archivos
 
 - `PuebloPlano.luau`: el plano común. Edificios (centro, medidas, plantas, lado de la puerta, si se entra, material y ventanas), campanario y cementerio, más las ayudas `dentro`, `ventanaCF` y `puertaCF`. **Para mover un edificio se cambia aquí**: los otros tres lo leen.
-- `PuebloFachadas.luau`: el cascarón de cada edificio (un Model con su nombre): suelo `EnMapa`, paredes que chocan, techo, tejado, porche, ventanas, hiedra, manchas… y el campanario.
+- `PuebloFachadas.luau`: el cascarón de cada edificio (un Model con su nombre): suelo `EnMapa`, paredes que chocan, techo, tejado, porche, ventanas, hiedra, manchas… y el campanario. `PuebloFachadas.uno(ctx, e, estilo, puerta, semilla)` hace uno suelto: `construir` la usa con las mismas semillas (el pueblo sale idéntico) y `Lugares` para la granja, la oficina del aserradero y la caseta del guarda (`llaves.md`), que también usan `PuebloInteriores.forrar`.
 - `PuebloInteriores.luau`: lo de dentro de los cinco en los que se entra, más el vendedor y las llaves de la cripta y de la caseta.
 - `PuebloCalle.luau`: calzada, aceras, farolas apagadas, postes con cables, vallas, buzones, el coche abandonado, el cementerio con sus dos llaves de fuera y el bosque espeso alrededor (`Mapa.arbol`).
 - `Lugares.pueblo()` los llama por este orden (así salen los sitios de la llave `Cementerio`: cripta, caseta, tumba y banco) con un `ctx` (bloque, llave, objeto, vendedor, Plano, Mapa). `Mapa.conPadre(padre, fn)` hace que los muebles, manchas y adornos de `Mapa` cuelguen del pueblo y no de la casa.

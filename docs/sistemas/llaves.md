@@ -22,10 +22,13 @@ Puertas con `Bloqueada` y `Llave` (el tipo de llave que la abre). De más cerca 
 
 ## Lugares (`Lugares`)
 
-Edificios de una sala con `edificio(...)` (suelo con `EnMapa` para el móvil). El bosque no pone árboles en las zonas (`Lugares.libre`); los troncos grandes cuentan igual para no mover los de fuera.
-- Granja (205, 75): casa, granero con paja, campo, caja. 2 latas y 1 botella.
-- Aserradero (-230, -90): nave abierta con sierra, tablones, estante, troncos y oficina. 1 botella.
-- Torre (90, 300): colina (bola de 140) con la torre; se sube por una escalera de 44 peldaños hasta la caseta de arriba (las escaleras de mano `TrussPart` fallaban al cogerlas). Caseta del guarda al pie.
+La casa de la granja, el granero, la oficina del aserradero y la caseta del guarda tienen fachada de verdad, como el pueblo: registros con la forma de `PuebloPlano.Edificio` (mismo sitio y medidas que los bloques de antes) y `PuebloFachadas.uno(ctx, e, estilo, puerta, semilla)` (tablas, tejado a dos aguas, ventanas con cristal, puerta abierta, hiedra, humedad). Suelos con `EnMapa`. El bosque no pone árboles en las zonas (`Lugares.libre`); los troncos grandes cuentan igual para no mover los de fuera. Medidas de lo de dentro, a ojo.
+- Granja (205, 75): casa crema con porche y chimenea, forrada por dentro (`PuebloInteriores.forrar`): la cocina dejada deprisa (mesa con la cara de arriba a 4,02 con la pista 6 y una llave, silla volcada, candil apagado, cocina de hierro con la olla, encimera con las 2 latas, retrato torcido). Granero rojo desvaído, alto y a dos aguas (aspas blancas en las puertas, pajar con la polea, cupulín con veleta), con tres establos y, en el del medio, el boquete por el que algo se llevó a las vacas (pista 6): aro de tablas rotas, tierra removida, cuerda de la vaca que se mete dentro, arañazos, sangre seca arrastrada desde la puerta y el cencerro. Campo y caja. 1 botella.
+- Aserradero (-230, -90): nave abierta con sierra (serrín por el suelo), tablones, estante, troncos y dos barriles. Oficina sin forrar (la pista 7 va en su pared oeste, a x = -255,5): escritorio, estantería de metal con cajas y silla. Fuera, el hoyo de Harlan a medio cavar, tapado con tablones (falta uno), con la tierra sacada y la pala. 1 botella.
+- Torre (90, 300): colina (bola de 140) con la torre; se sube por una escalera de 44 peldaños hasta la caseta de arriba (las escaleras de mano `TrussPart` fallaban al cogerlas). Caseta del guarda al pie: catre, escalera de mano, candil y el mapa con chinchetas unidas con hilo rojo a la casa.
+- Agujeros (`agujero` en `Lugares`): recortan el piso del edificio, su forro y el trozo del suelo del bosque de debajo (Mapa: `Bosque.Suelo`) y dejan el fondo a -1,5, oscuro; una tapa invisible que choca (sin `CanQuery`) a ras del suelo hace que nadie se caiga.
+- Libre a propósito: el sitio del depósito de gasoil (5 studs alrededor de (212, 98)).
+- Banco `tests/bancos/lugares.luau`: pistas 6, 7 y 8 en su sitio, llaves y objetos encima de algo, agujeros hondos y con tapa, puertas libres, el sitio del depósito y `Separar.caras` sin caras que parpadeen.
 - Pueblo al final de la carretera (ahora llega a z -530): tienda con el vendedor, casa con la puerta rota (1 lata, 2 botellas), 3 casas tapiadas, iglesia con campanario y cementerio (tumbas, cripta, caseta del enterrador).
 
 ## Vendedor (`Vendedor`, cliente `VendedorUi`)
