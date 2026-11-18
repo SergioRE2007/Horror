@@ -40,6 +40,7 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   seco a quien persigue: pasado su tiempo sigue mientras tenga presa (no en un armario), `Prorroga` 8 s como mucho;
   nunca con prisa (amanecer, flash del Raspador) ni en el bosque. Al irse, `Caza.salir`: andan hasta la ventana o el
   hogar y, si no llegan, siguen hasta que nadie les vea o `SalirMax` 10 s; solo entonces salen fuera de golpe o se quitan.
+- Las dos plantas: todos los que cazan con `Caza.cazar` (Golpeador, Raspador, Imitador) rondan, persiguen y van a por lo último visto también arriba, subiendo la escalera del vestíbulo como la Bestia (`Caza.ir`); antes arriba se estaba a salvo de todos menos de ella. El Trepador no (`SubeEscalera = false`: a cuatro patas se queda contra cada peldaño) y solo ronda su planta.
 - Modo de pruebas: `ServerStorage.Prueba:Fire("Trepador" | "Imitador" | "Acechador" | "Fuego")`. "Imitador" va con apagón; "Acechador" sale a por el primer jugador (que debe estar en el bosque).
 
 ## Cliente (`src/juego/cliente`)

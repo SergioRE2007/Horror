@@ -4,6 +4,8 @@
 --   La luz: Equipo apunta en `iluminado` la última vez que una linterna le dio, y al recibir un flash llama a
 --   `alFlash` (si no tiene, se queda aturdido unos segundos).
 --   Caza.todos(): los que hay ahora en el mapa (para el flash y la linterna).
+--   Caza.ir(destino): un paso hacia un sitio, también a la otra planta subiendo o bajando recto la escalera del
+--   vestíbulo (los caminos no la suben). Lo usa Caza.cazar: todos rondan y persiguen por las dos plantas.
 --   Agacharse para esconderse (pedido por el usuario, 03-11-2026: "agacharte también debería servir para esconderte,
 --   por ejemplo debajo de mesas, y que el monstruo pueda gatear si te huele… que sea útil agacharte es la finalidad").
 --   Con los atributos del jugador Agachado y Cubierto (agachado debajo de un mueble: zona "Debajo"), PosturaReglas
@@ -52,6 +54,7 @@ export type Opciones = {
 	Fuera: number?, -- studs fuera del mueble donde se para a gatear (FUERA si no); más si el bicho es más grande
 	Espera: number?, -- s quieto tras pillar a alguien (ESPERA si no); el Golpeador, lo que dura su susto (14.10)
 	Campo: number?, -- grados a cada lado en los que ve con su Vista entera (Config.Postura.Campo si no)
+	SubeEscalera: boolean?, -- false: no sube la escalera del vestíbulo (Caza.ir) y solo ronda su planta
 }
 
 -- Alguien debajo de un mueble, visto por un bicho: por dónde se mete a por él.
@@ -93,6 +96,8 @@ export type Bicho = typeof(setmetatable({} :: {
 	parado: Parado?, -- desde dónde y cuándo no avanza hacia donde va sin presa (nil: no se está mirando)
 	sordoHasta: number, -- os.clock hasta el que no hace caso a los ruidos (tras atascarse)
 	rastro: CazaBusqueda.Rastro?, -- dónde vio por última vez a quien persigue y hacia dónde iba (para buscarle)
+	subeEscalera: boolean, -- sube la escalera del vestíbulo (Opciones.SubeEscalera)
+	trabada: number, -- os.clock desde el que no avanza yendo recto por una escalera (subirRecta); 0: avanza
 }, Caza))
 
 -- Yendo sin presa a `destino` (una sala o un ruido): dónde estaba (`punto`) y lo más cerca que estaba (`mejor`) a la
@@ -382,6 +387,8 @@ function Caza.nuevo(modelo: Model, humanoide: Humanoid, o: Opciones): Bicho
 		parado = nil,
 		sordoHasta = -math.huge,
 		rastro = nil,
+		subeEscalera = o.SubeEscalera ~= false,
+		trabada = 0,
 	}, Caza)
 	vivos[b] = true
 	return b
@@ -463,7 +470,7 @@ local function abrirPuertasCerca(self: Bicho)
 	end
 end
 
--- Para quien se mueve a mano sin pasoHacia (la Bestia por las escaleras): b:abrirPuertas().
+-- Para quien se mueve a mano sin pasoHacia (la Bestia por la escalera del sótano): b:abrirPuertas().
 Caza.abrirPuertas = abrirPuertasCerca
 
 -- Un paso hacia `destino` (a ras de suelo): recto si no hay nada en medio, si no, por el camino que calcula.
@@ -661,6 +668,103 @@ function Caza.salir(self: Bicho, dentro: Vector3, velocidad: number)
 	end
 	if self.modelo then
 		self.humanoide:MoveTo(self.raiz.Position)
+	end
+end
+
+-- La escalera del vestíbulo (Mapa): los caminos no la suben (con los peldaños de arriba sueltos PathfindingService
+-- pide saltos), así que se va al pie o a lo alto y se sube o baja recto por el medio (Caza.ir). Antes solo la Bestia
+-- sabía: arriba se estaba a salvo de todos los demás.
+local PIE_ESCALERA = Vector3.new(0, 1, -21)
+local ANTE_PIE = Vector3.new(0, 1, -25) -- delante del pie, para subir siempre de frente
+local CIMA_ESCALERA = Vector3.new(0, 14, 6) -- fuera de enEscalera (si no, se queda yendo y viniendo arriba)
+
+-- Planta de un punto (pies): 1 arriba (y el desván), 0 abajo, el sótano y fuera.
+local function planta(p: Vector3): number
+	return if p.Y > 8 then 1 else 0
+end
+
+-- Los peldaños y el rellano de arriba hasta z 4,5 (la galería empieza en z 0): ahí sigue recto al otro extremo.
+local function enEscalera(p: Vector3): boolean
+	return math.abs(p.X) < 4.8 and p.Z > -19 and p.Z < 4.5 and p.Y > 1.6 and p.Y < 14.6
+end
+
+-- Como Caza.cerca a 3 studs, desde unos pies en `suelo`.
+local function junto(suelo: Vector3, p: Vector3): boolean
+	return plano(p - suelo).Magnitude < 3 and math.abs(p.Y - suelo.Y) < 6
+end
+
+-- Por dónde va de unos pies en `suelo` a `destino` por la escalera del vestíbulo: el punto y si va recto (subirRecta)
+-- o por los caminos (pasoHacia). Si no hace falta la escalera, `destino` por los caminos.
+function Caza.tramoEscalera(suelo: Vector3, destino: Vector3): (Vector3, boolean)
+	local yaEn, aEscalera = enEscalera(suelo), enEscalera(destino)
+	if yaEn then
+		-- En la escalera: recto hacia quien también está en ella; si no, al extremo de su planta.
+		if aEscalera then
+			return destino, true
+		end
+		return if planta(destino) == 1 then CIMA_ESCALERA else PIE_ESCALERA, true
+	end
+	if planta(suelo) == planta(destino) and not aEscalera then
+		return destino, false
+	end
+	local fin = if aEscalera then destino elseif planta(destino) == 1 then CIMA_ESCALERA else PIE_ESCALERA
+	if planta(suelo) == 0 then
+		-- Siempre de frente: entrando por un lado del pie, la barandilla (Choque, a 7,5 de alto) le pilla el lomo a la
+		-- Bestia y se queda encajada debajo.
+		if junto(suelo, ANTE_PIE) or (math.abs(suelo.X) < 2 and suelo.Z > -26 and suelo.Z < -19) then
+			return fin, true
+		end
+		return ANTE_PIE, false
+	end
+	if junto(suelo, CIMA_ESCALERA) then
+		return fin, true
+	end
+	return CIMA_ESCALERA, false
+end
+
+-- Recto por una escalera hasta `hacia`. Andando despacio (rondando o cojeando) el Humanoid se atasca en el primer
+-- peldaño: si lleva un momento sin avanzar, un empujón de un peldaño hacia arriba y adelante. Cada bicho lleva su
+-- `trabada` (con uno para todos, dos bichos en la escalera se reiniciaban la cuenta el uno al otro).
+local filtroEmpujon = RaycastParams.new()
+filtroEmpujon.FilterType = Enum.RaycastFilterType.Exclude
+function Caza.subirRecta(self: Bicho, hacia: Vector3)
+	self.humanoide:MoveTo(hacia)
+	local modelo = self.modelo
+	local dir = plano(hacia - self.raiz.Position)
+	if not modelo or dir.Magnitude < 2 or plano(self.raiz.AssemblyLinearVelocity).Magnitude > 1.5 then
+		self.trabada = 0
+	elseif self.trabada == 0 then
+		self.trabada = os.clock()
+	elseif os.clock() - self.trabada > 0.6 then
+		self.trabada = 0
+		-- Nunca a través de una puerta cerrada, la reja o una pared: a la altura de la raíz solo puede haber aire (los
+		-- peldaños quedan por debajo).
+		filtroEmpujon.FilterDescendantsInstances = { Caza.carpeta() }
+		if workspace:Raycast(self.raiz.Position, dir.Unit * 3, filtroEmpujon) then
+			return
+		end
+		local sube = if hacia.Y > self:suelo().Y + 1 then 1.2 else 0.2
+		modelo:PivotTo(modelo:GetPivot() + dir.Unit * 1.2 + Vector3.new(0, sube, 0))
+	end
+end
+
+-- Un paso hacia `destino` (a ras de suelo), también a la otra planta por la escalera del vestíbulo (tramoEscalera).
+-- Los que no la suben (SubeEscalera = false), por los caminos como siempre.
+function Caza.ir(self: Bicho, destino: Vector3)
+	if self:quieto() then
+		self.humanoide:MoveTo(self.raiz.Position)
+		return
+	end
+	if not self.subeEscalera then
+		self:pasoHacia(destino)
+		return
+	end
+	local punto, recto = Caza.tramoEscalera(self:suelo(), destino)
+	if recto then
+		abrirPuertasCerca(self)
+		self:subirRecta(punto)
+	else
+		self:pasoHacia(punto)
 	end
 end
 
@@ -913,7 +1017,7 @@ function Caza.gatear(self: Bicho, presa: Player, bajo: Debajo): boolean
 end
 
 -- Un paso a por quien huele debajo de un mueble (`bajo`, de elegirPresa): hacia el borde con `paso` (Caza.pasoHacia
--- si no; la Bestia, el suyo, que sube escaleras) y, al llegar, gatea. Si en ATASCO s no se acerca al borde (no hay
+-- si no; Caza.cazar, Caza.ir, que sube la escalera del vestíbulo; la Bestia, el suyo, que además baja al sótano) y, al llegar, gatea. Si en ATASCO s no se acerca al borde (no hay
 -- camino), le deja y vuelve a olerle desde cero. "Pilla": le ha pillado; "Deja": le deja (se ha escapado, le han
 -- parado o no llega); nil: sigue yendo.
 function Caza.aPorDebajo(self: Bicho, presa: Player, bajo: Debajo, paso: ((Bicho, Vector3) -> ())?): ("Pilla" | "Deja")?
@@ -1061,8 +1165,25 @@ local function buscar(self: Bicho, busca: Busca): Vector3?
 	end
 	-- Al sitio hacia el que iba, corriendo; por las salas de al lado, andando (escuchando).
 	self.humanoide.WalkSpeed = if busca.i == 1 then self.o.Correr else self.o.Andar
-	self:pasoHacia(p.punto)
+	self:ir(p.punto)
 	return nil
+end
+
+-- Una sala a la que ir rondando (Mapa.salas: las dos plantas) que no sea `ultima` (CazaBusqueda.otraSala); los que
+-- no suben la escalera, solo las de su planta.
+local function salaDeRonda(self: Bicho, ultima: Vector3?): Vector3
+	if self.subeEscalera then
+		return CazaBusqueda.otraSala(Mapa.salas, ultima, azar)
+	end
+	local suya = planta(self:suelo())
+	local lista = {}
+	for _, sala in Mapa.salas do
+		if planta(sala) == suya then
+			table.insert(lista, sala)
+		end
+	end
+	local de = if #lista > 0 then lista else Mapa.salas
+	return CazaBusqueda.otraSala(de, ultima, azar)
 end
 
 -- Caza durante `duracion` segundos. `soloFuera`: en el bosque, solo a los que están fuera de la casa.
@@ -1104,7 +1225,7 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			ultimoVisto = destino
 			apuntarRastro(self, destino)
 			self.humanoide.WalkSpeed = self.o.Correr
-			local que = self:aPorDebajo(presa, bajo)
+			local que = self:aPorDebajo(presa, bajo, Caza.ir)
 			if que == "Pilla" then
 				task.wait(self.o.Espera or ESPERA)
 			end
@@ -1137,12 +1258,12 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 					ultimoVisto = nil
 					self.rastro = nil
 				else
-					self:pasoHacia(destino)
+					self:ir(destino)
 				end
 			end
 		elseif ultimoVisto then
 			self.humanoide.WalkSpeed = self.o.Correr
-			self:pasoHacia(ultimoVisto)
+			self:ir(ultimoVisto)
 			if self:cerca(ultimoVisto, 4) then
 				-- Ha llegado y no le ve: le busca por ahí (si el rastro es reciente) antes de volver a la ronda.
 				busca = if soloFuera then nil else planBusca(self, ultimoVisto)
@@ -1169,11 +1290,11 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 				end
 			end
 			if not ronda then
-				ronda = CazaBusqueda.otraSala(Mapa.salas, ultimaSala, azar)
+				ronda = salaDeRonda(self, ultimaSala)
 			end
 			-- Un suceso propio de ronda (el Golpeador: Armario, Garras); si lo hace, este paso ya está.
 			if not (self.alCazar and self.alCazar(self, "Ronda", nil, ronda)) then
-				self:pasoHacia(ronda :: Vector3)
+				self:ir(ronda :: Vector3)
 				yendo = ronda
 			end
 		end

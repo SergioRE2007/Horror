@@ -1334,6 +1334,41 @@ do -- Mochila.dentroDeCaja: lo que cae dentro de un armario o cama sale a su Sal
 	igual(dentro(armario, tam, V3.new(10, 9, -5), 0.5), false, "escondite: encima del armario, fuera")
 end
 
+do -- Caza.tramoEscalera: todos los que cazan suben la escalera del vestíbulo (sacada del texto: Caza necesita Roblox)
+	local roblox = require("@lune/roblox")
+	local V3 = roblox.Vector3
+	local fuente = fs.readFile("src/juego/servidor/Caza.luau")
+	local i = string.find(fuente, "local PIE_ESCALERA", 1, true)
+	local j = string.find(fuente, "function Caza.tramoEscalera(", i, true)
+	local _, f = string.find(fuente, "\r?\nend\r?\n", j)
+	local tramo = luau.load("local Caza = {}\n" .. string.sub(fuente, i, f) .. "\nreturn Caza.tramoEscalera", {
+		debugName = "Caza.tramoEscalera",
+		environment = { Vector3 = V3, plano = function(v) return V3.new(v.X, 0, v.Z) end },
+	})()
+	local PIE, ANTE, CIMA = V3.new(0, 1, -21), V3.new(0, 1, -25), V3.new(0, 14, 6)
+	local galeria, salon, cocina = V3.new(25, 14, -14), V3.new(25, 1, -15), V3.new(-30, 1, 11)
+	local function va(suelo, destino, punto, recto, etiqueta)
+		local p, r = tramo(suelo, destino)
+		igual((p - punto).Magnitude < 1e-4 and r == recto, true, etiqueta)
+	end
+	va(salon, cocina, cocina, false, "escalera: en la misma planta, por los caminos")
+	va(galeria, V3.new(-25, 14, 21), V3.new(-25, 14, 21), false, "escalera: arriba a arriba, por los caminos")
+	va(salon, galeria, ANTE, false, "escalera: de abajo a arriba, primero delante del pie")
+	va(V3.new(0.5, 1, -24.5), galeria, CIMA, true, "escalera: delante del pie, recto hasta arriba")
+	va(V3.new(4, 1, -24), galeria, ANTE, false, "escalera: de lado no sube (la barandilla), se pone de frente")
+	va(V3.new(0, 7, -10), galeria, CIMA, true, "escalera: a medio subir, sigue hasta arriba")
+	va(V3.new(0, 7, -10), salon, PIE, true, "escalera: a medio bajar, sigue hasta el pie")
+	va(galeria, salon, CIMA, false, "escalera: de arriba a abajo, primero a lo alto")
+	va(V3.new(1, 14, 7), salon, PIE, true, "escalera: en lo alto, recto hasta el pie")
+	va(V3.new(0, 1, -40), V3.new(0, 1, 31), V3.new(0, 1, 31), false, "escalera: el sótano y el pasillo, abajo")
+	-- Alguien en la misma escalera: recto a por él, y no al extremo de su planta (se iba al pie con él dos peldaños más
+	-- arriba). Y quien está fuera de ella entra siempre por un extremo.
+	va(V3.new(0, 3, -16), V3.new(0, 6, -12), V3.new(0, 6, -12), true, "escalera: los dos en ella, recto a por él")
+	va(salon, V3.new(0, 5, -13), ANTE, false, "escalera: a por quien está en los peldaños, por el pie")
+	va(V3.new(0, 1, -25), V3.new(0, 5, -13), V3.new(0, 5, -13), true, "escalera: desde el pie, recto a por él")
+	va(galeria, V3.new(0, 11, -4), CIMA, false, "escalera: desde arriba a por quien está en ella, por lo alto")
+end
+
 do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y workspace:Raycast no los ve)
 	local roblox = require("@lune/roblox")
 	local V3, CF = roblox.Vector3, roblox.CFrame
