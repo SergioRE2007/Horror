@@ -11,9 +11,9 @@
 -- Corriente (la calcula Efectos con la `brisa` de cada ventana): con una ventana rota o una puerta echada abajo cerca,
 --   las cortinas de las demás ventanas se hinchan despacio hacia la sala a rachas largas hasta que la reparan.
 -- Un portazo del bicho (atributo Portazo) también hace temblar lo de alrededor (CasaVista.alGolpe), como un golpe.
--- Para los demás módulos: CasaVista.temblar (temblor de cámara suave, nunca en cinemáticas), CasaVista.polvo (polvo y
--- arenilla que caen), CasaVista.vibrar (el cristal traquetea un momento) y CasaVista.alRomper (lo pone Efectos: los
--- trozos de cristal que quedan en el suelo).
+-- Para los demás módulos: CasaVista.temblar (temblor de cámara suave, nunca en cinemáticas; escondido lo pinta
+-- MuerteVista con temblorAhora y ultimoGolpe), CasaVista.polvo (polvo y arenilla que caen), CasaVista.vibrar (el
+-- cristal traquetea un momento) y CasaVista.alRomper (lo pone Efectos: los trozos de cristal que quedan en el suelo).
 -- Animación sencilla a propósito: se mejora más adelante (pedido por el usuario).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -159,11 +159,26 @@ local function aplicarTemblor(dt: number)
 	temblor = math.max(0, temblor - dt * 2)
 end
 
+-- El temblor de ahora (de 0 a ~0,6), aunque no se pinte: escondido la cámara es Scriptable y lo pinta MuerteVista.
+function CasaVista.temblorAhora(): number
+	return temblor
+end
+
+-- El último golpe fuerte (fuerza >= 0,4, como el respingo de las manos), para que MuerteVista dé un respingo escondido:
+-- cuándo (os.clock), su fuerza y a cuántos studs de la cámara. Solo se lee.
+CasaVista.ultimoGolpe = { en = -math.huge, fuerza = 0, distancia = math.huge }
+
 -- Temblor de la cámara si está a menos de `alcance` studs de `desde` (más flojo cuanto más lejos).
 local ultimoRespingo = 0
 function CasaVista.temblar(desde: Vector3, fuerza: number, alcance: number?)
 	local lejos = alcance or 35
 	local distancia = (workspace.CurrentCamera.CFrame.Position - desde).Magnitude
+	if fuerza >= 0.4 and distancia < lejos then
+		local golpe = CasaVista.ultimoGolpe
+		golpe.en = os.clock()
+		golpe.fuerza = fuerza
+		golpe.distancia = distancia
+	end
 	if distancia < lejos then
 		temblor = math.max(temblor, fuerza * (1 - distancia / lejos))
 		if temblor > 0.01 and not temblando then
