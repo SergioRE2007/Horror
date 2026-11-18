@@ -1422,6 +1422,26 @@ Config.Tormenta = {
 	VibraSonidos = 2, -- ...y suenan las tantas más cercanas
 	Temblor = { Fuerza = 0.35, Dura = 1.4 }, -- las bombillas tiemblan con el trueno (de 0 a 1 de su brillo) tanto tiempo
 	TemblorCamara = 0.15, -- con un trueno cercano, un temblor de cámara así de flojo (CasaVista.temblar)
+	-- El rayo que se ve en el cielo (Beams quebrados en TormentaLocal), del mismo lado que el trueno cercano (angulo).
+	Rayo = {
+		Desde = 0.3, -- cercanía (0 a 1) desde la que se ve el rayo; más lejos, solo el fogonazo
+		Lejos = 240, -- studs de la cámara (en planta) a los que cae con la cercanía Desde...
+		Cerca = 90, -- ...y a los que cae con la cercanía 1
+		Alto = 200, -- studs desde el suelo hasta donde empieza (sale de las nubes)
+		Suelo = 0, -- altura del suelo si el rayo hacia abajo no da con nada
+		Tramos = { 9, 14 }, -- tramos del tronco
+		Desvio = 0.6, -- cuánto se tuerce cada tramo hacia un lado (de su largo)
+		Inclina = 0.2, -- inclinación de todo el rayo (de su alto)
+		Ramas = { 1, 3 }, -- ramas que salen del tronco (con Rendimiento, ninguna)
+		TramosRama = { 3, 5 },
+		Ancho = { 0.9, 1.5 }, -- studs del tronco: de lejos a cerca
+		Rama = 0.45, -- ancho de las ramas (del tronco), y se afinan hacia la punta
+		Halo = { Ancho = 5, Opacidad = 0.22 }, -- resplandor alrededor del tronco (sin Rendimiento): veces el ancho, opacidad
+		Color = { 220, 230, 255 }, -- RGB, blanco azulado
+		Brillo = 3, -- Beam.Brightness: que pase la niebla sin deslumbrar
+		Realce = 1.5, -- se ve entero con un destello de fuerza 1/Realce o más
+		Resto = 0.12, -- segundos que tarda en apagarse entre destellos (se queda en el ojo un instante)
+	},
 }
 -- El trueno propio de la tormenta, mientras tanto con Id 0 (suena Retumbo): docs/sistemas/sonidos-pendientes.md.
 Config.Sonidos.Trueno = { Id = 0, Volumen = 1, Alcance = 400 }

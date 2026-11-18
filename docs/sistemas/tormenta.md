@@ -18,6 +18,13 @@ Pedido por el usuario: "mejorar la inmersión del juego". Todo en el cliente y s
   línea que la luna pero 5 studs por fuera del cristal (carpeta `TormentaLocal` del workspace, fuera de `Mapa`). Lo que
   haya entre esa luz y la sala hace sombra en el suelo: los marcos, las cortinas y un bicho pegado a la ventana, que se ve
   en negro contra el cielo blanco (ninguna luz le da por delante). Nadie lo programa: sale solo de la luz.
+- **El rayo en el cielo**: si el relámpago cae cerca (`Rayo.Desde`, cercanía 0,3 o más), se ve un rayo quebrado del
+  mismo lado del que llegará el trueno (`angulo`), a 240 studs (cercanía 0,3) a 90 (encima). Tronco de 9-14 tramos
+  desde 200 studs de alto hasta lo primero que haya debajo (suelo, árbol, tejado) y 1-3 ramas que se afinan y acaban en
+  el aire. Beams blanco azulados (`LightEmission` 1, `LightInfluence` 0, sin Neon ni piezas) entre Attachments de una
+  pieza invisible `Rayo` en `TormentaLocal`, con un resplandor ancho y flojo alrededor del tronco. Se ve con cada
+  destello y se apaga en 0,12 s entre uno y otro (parpadea); al acabar el relámpago se esconde y se reutiliza. La forma
+  sale de `TormentaVista.forma` con una semilla de la hora del relámpago: todos ven el mismo rayo.
 - **El trueno**: 1 a 5 s después (antes cuanto más cerca). Mientras no haya un `Trueno` propio (`sonidos-pendientes.md`,
   fila 38), `Retumbo` a tono 0,38-0,5 (muy grave y largo). Lejano: sin posición y, con la cámara en casa o escondido, sordo
   (ecualizador sin agudos). Cercano (`Cerca3D`): en 3D desde fuera, entero, y las paredes lo tapan solas (`OidoVista`).
@@ -31,13 +38,15 @@ Pedido por el usuario: "mejorar la inmersión del juego". Todo en el cliente y s
 ## Reglas
 
 - Nada en cinemáticas ni en la muerte (cámara `Scriptable` sin el atributo `Vistazo`); por la mirilla o las cortinas, sí.
-- Rendimiento: un solo destello por relámpago y sin el fogonazo con sombras (la luz de fuera y las lunas, sí).
+- Rendimiento: un solo destello por relámpago, sin el fogonazo con sombras y el rayo sin ramas ni resplandor (solo el
+  tronco; la luz de fuera y las lunas, sí).
 - Un solo bucle de render, y solo mientras dura el relámpago o el temblor de su trueno; entre medias, una tarea que duerme
   hasta el siguiente (mira la fase cada 2 s como mucho).
 - Lluvia: cuando exista la del lobby, se suma como bucle sin posición en las noches de tormenta (`sonidos-pendientes.md`,
   fila 39).
 - Banco: `tests/bancos/tormenta.luau` (noches con tormenta, mismo horario con la misma semilla, rangos, la fuerza del
-  destello, a su hora, trueno, cristales y bombillas, Rendimiento, cinemática, mirilla, de día, y el destello sumado en
+  destello, la forma del rayo, a su hora, el rayo del lado del trueno y a su distancia, trueno, cristales y bombillas,
+  Rendimiento, cinemática, mirilla, de día, y el destello sumado en
   `Ambiente` de verdad).
 
 ## Probar en Studio
@@ -53,5 +62,8 @@ Pedido por el usuario: "mejorar la inmersión del juego". Todo en el cliente y s
    cristal (`CastShadow = false`) en el cliente.
 4. El trueno: lejano y sordo dentro, claro fuera; uno cercano suena desde un lado y tiemblan los cristales y las
    bombillas.
-5. Ajustes → Rendimiento: un solo destello y sin sombras nuevas. Una cinemática: nada. Dos jugadores: el mismo
-   relámpago a la vez.
+5. El rayo: fuera y desde una ventana, se ve quebrado en el horizonte, parpadea con los destellos y el trueno cercano
+   llega del mismo lado. Que la niebla no lo borre (si se pierde, subir `Rayo.Brillo` o bajar `Rayo.Lejos`) y que no
+   deslumbre (bajar `Rayo.Brillo` o `Rayo.Halo.Opacidad`).
+6. Ajustes → Rendimiento: un solo destello, sin sombras nuevas y el rayo sin ramas. Una cinemática: nada. Dos
+   jugadores: el mismo relámpago (y el mismo rayo) a la vez.
