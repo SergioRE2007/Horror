@@ -277,6 +277,16 @@ return {
 	["Stay close to the house. Night is coming."] = "No te alejes de la casa. Se acerca la noche.",
 	["Close the curtains downstairs: {n} left."] = "Cierra las cortinas de abajo: quedan {n}.",
 	["Survive until dawn. If something gets in, hide."] = "Aguanta hasta el amanecer. Si entra algo, escóndete.",
+	-- Teclas del equipo la primera vez (cliente/PistasControles).
+	["Press F to turn on your flashlight."] = "Pulsa F para encender la linterna.",
+	["Press L1 to turn on your flashlight."] = "Pulsa L1 para encender la linterna.",
+	["Tap FLASHLIGHT to turn on your flashlight."] = "Toca LINTERNA para encender la linterna.",
+	["Click to use the camera flash."] = "Haz clic para usar el flash de la cámara.",
+	["Press R2 to use the camera flash."] = "Pulsa R2 para usar el flash de la cámara.",
+	["Tap FLASH to use the camera flash."] = "Toca FLASH para usar el flash de la cámara.",
+	["Press Q to draw the flare gun, click to fire."] = "Pulsa Q para sacar la pistola de bengalas y haz clic para disparar.",
+	["Press R1 to draw the flare gun, R2 to fire."] = "Pulsa R1 para sacar la pistola de bengalas y R2 para disparar.",
+	["Tap FLARE to fire."] = "Toca BENGALA para disparar.",
 	-- Cuerpo (14.6).
 	["Crouch"] = "Agacharse",
 	["Run"] = "Correr",

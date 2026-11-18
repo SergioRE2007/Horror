@@ -49,3 +49,4 @@ require(Sistemas.AmbienteMiedo).start()
 require(Sistemas.ClaseVista).start()
 require(Sistemas.RevivirUi).start()
 require(Sistemas.TutorialVista).start() -- los primeros minutos (14.2)
+require(Sistemas.PistasControles).start() -- la tecla de la linterna, el flash y la pistola, la primera vez

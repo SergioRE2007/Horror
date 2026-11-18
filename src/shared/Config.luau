@@ -526,6 +526,13 @@ Config.Tutorial = {
 	Activo = true,
 	Cada = 0.5, -- segundos entre dos miradas del servidor
 	Flecha = 4, -- studs por encima de lo que señala la flecha
+	-- Avisos de una línea con la tecla de la linterna, el flash y la pistola (cliente/PistasControles). A ojo.
+	PistaControles = {
+		Cada = 1, -- segundos entre dos miradas
+		TrasSol = 5, -- segundos tras empezar a oscurecer: detrás del aviso del sol (3,5 s y 1 s apagándose), sin pisarlo
+		Entre = 6, -- segundos como mínimo entre dos de estos avisos
+		Dura = 4.5, -- segundos que se lee cada uno
+	},
 }
 
 -- Sonidos (juego/cliente/Sonido): de ElevenLabs, elegidos por el usuario de oído (tools/sonidos, docs/sistemas/sonidos.md).

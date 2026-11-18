@@ -51,6 +51,11 @@ function BengalasVista.enMano(): boolean
 	return mano
 end
 
+-- Si lleva la pistola en la mochila (PistasControles: el aviso de la Q al recibirla).
+function BengalasVista.tienePistola(): boolean
+	return tengoPistola
+end
+
 -- Lee de la mochila publicada si lleva la pistola y cuántas bengalas.
 local function leerMochila()
 	local p, n = false, 0
