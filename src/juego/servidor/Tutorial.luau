@@ -3,7 +3,9 @@
 -- Tutorial de Config.Recompensas) o lo salta. Los pasos y cuándo se pasa de uno a otro, en shared/PasosTutorial.
 --   Cada Config.Tutorial.Cada s mira lo de cada jugador con tutorial (mochila, hacha, si ha corrido, lo que carga,
 --   generador, cortinas de abajo abiertas) y publica el paso en atributos del Player:
---     Tutorial = el paso ("Mochila", "Hacha"…; nil = sin tutorial), TutorialFalta = cortinas que quedan por cerrar.
+--     Tutorial = el paso ("Mochila", "Hacha"…; nil = sin tutorial), TutorialFalta = cortinas que quedan por cerrar,
+--     TutorialRecoger = en Serrar sin el tronco en las manos, qué hay que coger: "Tablon" si ya hay uno suelto (lo
+--     serrado cae al suelo) o "Tronco" (lo ha soltado por el camino).
 --   El cliente (TutorialVista) pinta el cartel y la flecha; solo puede pedir saltarlo (remote Tutorial, "Saltar").
 --   Todo lo que da premio lo mira el servidor: el cliente no puede acabarlo antes de tiempo.
 -- En Studio solo sale con Config.Test.Tutorial (los datos de prueba nunca lo tienen hecho).
@@ -19,6 +21,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Comun = ServerScriptService:WaitForChild("Comun")
 local Datos = require(Comun.Datos)
 local Recompensas = require(Comun.Recompensas)
+local Cargar = require(script.Parent.Cargar)
 local Casa = require(script.Parent.Casa)
 local Ciclo = require(script.Parent.Ciclo)
 local Mochila = require(script.Parent.Mochila)
@@ -45,6 +48,7 @@ local function quitar(jugador: Player)
 	if jugador.Parent then
 		jugador:SetAttribute("Tutorial", nil)
 		jugador:SetAttribute("TutorialFalta", nil)
+		jugador:SetAttribute("TutorialRecoger", nil)
 	end
 end
 
@@ -64,6 +68,26 @@ local function generadorEncendido(): boolean
 	return gen ~= nil and gen:GetAttribute("Encendido") == true
 end
 
+-- ¿Queda algún tablón suelto (nadie lo lleva ni se está clavando; los clavados ya no existen)?
+local function hayTablonSuelto(): boolean
+	for _, pieza in CollectionService:GetTagged("Pesado") do
+		local tipo = pieza:GetAttribute("Tipo")
+		if (tipo == "Tablon" or tipo == "TablonReforzado") and pieza:IsA("BasePart") and Cargar.libre(pieza) then
+			return true
+		end
+	end
+	return false
+end
+
+-- En Serrar, qué le falta coger (nil = lleva el tronco o está serrando: lo de siempre, el caballete).
+local function queRecoger(jugador: Player, paso: string, tablon: boolean): string?
+	if paso ~= "Serrar" or jugador:GetAttribute("Cargando") == "Tronco"
+		or jugador:GetAttribute("Trabajando") == "Serrar" then
+		return nil
+	end
+	return if tablon then "Tablon" else "Tronco"
+end
+
 local function mirar()
 	if next(activos) == nil then
 		return
@@ -72,6 +96,7 @@ local function mirar()
 	local fin = workspace:GetAttribute("FaseFin")
 	local quedan = if type(fin) == "number" then fin - workspace:GetServerTimeNow() else math.huge
 	local cortinas, generador = cortinasAbiertas(), generadorEncendido()
+	local tablon = hayTablonSuelto()
 	for jugador, a in activos do
 		if not jugador.Parent then
 			quitar(jugador)
@@ -96,6 +121,7 @@ local function mirar()
 		else
 			jugador:SetAttribute("Tutorial", a.estado.paso)
 			jugador:SetAttribute("TutorialFalta", if a.estado.paso == "Cortinas" then cortinas else nil)
+			jugador:SetAttribute("TutorialRecoger", queRecoger(jugador, a.estado.paso, tablon))
 		end
 	end
 end

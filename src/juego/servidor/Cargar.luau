@@ -104,6 +104,7 @@ local function rehacer(pieza: BasePart)
 		pieza:SetNetworkOwner(nil) -- entre varios, el servidor
 	end
 	pieza.CollisionGroup = if #lista > 0 then "Cargado" else "Default"
+	pieza:SetAttribute("Llevada", if #lista > 0 then true else nil) -- para el cliente (TutorialVista: lo suelto)
 	-- Lo que lleva uno solo no choca con nada: al girarse en una sala se atascaba en las paredes y se caía. Lo que se
 	-- arrastra (el motor con uno solo) sí, o se hundía en el suelo.
 	pieza.CanCollide = not (#lista == 1 and peso == 1)
