@@ -8,6 +8,9 @@
 --   el relámpago aclara las nubes un instante, Rendimiento quita las nubes y Ambiente apaga Bloom/SunRays/DepthOfField.
 --   Quien entra tarde en una noche de tormenta la ve ya cerrada; un Sky o unas nubes que lleguen tarde mandan sobre los
 --   nuestros; TormentaPrueba solo vale en Studio.
+--   Luces de luna de las ventanas (etiqueta Luna): de día grises (no azules), de noche su azul; con el cielo cerrado,
+--   apagadas a su parte (y CieloVista se lo dice también a AireVista); el fogonazo del relámpago, entero. El destello de
+--   la pantalla (ColorCorrection) solo con lo que se vea del cielo (Ambiente.cieloVisto); la luz de fuera, entera.
 -- Si algo no se cumple, termina con error.
 local crearMundo = require("./_roblox")
 
@@ -215,6 +218,7 @@ m.correr(CFG.Rampa / 2 + 1, 1 / 10, function()
 end)
 comprobar(not nan, "sin NaN en la rampa")
 comprobar(Cielo.estado.tormenta == 1 and Ambiente.nublado == 1, "con tormenta, cerrado del todo")
+comprobar(m.cargar("src/juego/cliente/AireVista").nublado == 1, "y se lo dice a AireVista (los haces de luna)")
 comprobar(sky[1].StarCount == 0, "con tormenta, ninguna estrella")
 comprobar(comoNubes(nube, N.Tormenta), "con tormenta, nubes cerradas y oscuras")
 comprobar(cerca(L.Brightness, brilloSin * CFG.Tormenta.Luz, 1e-4), "con tormenta, Ambiente baja el brillo")
@@ -424,5 +428,92 @@ C.m.jugadorLocal:SetAttribute("EscenaFinal", true)
 C.m.correr(0.3, 1 / 60)
 comprobar(atmosferaC.Glare == 0 and cerca(colorC.TintColor.B, 1, EPS), "en la escena final, sin franja")
 C.m.jugadorLocal:SetAttribute("EscenaFinal", nil)
+
+-- Las luces de luna de las ventanas y el destello de la pantalla. -----------------------------------------------------
+local AZUL = { 120, 140, 190 } -- el de Mapa.luzLuna
+local TC = CFG.Tormenta
+local function esAzul(c: any): boolean
+	return c.B * 255 - c.R * 255 > 50
+end
+local azulNoche = A.g.Color3.fromRGB(AZUL[1], AZUL[2], AZUL[3])
+local f0, c0 = Amb.lunaVentana(azulNoche, 0, 0)
+comprobar(f0 == 1 and not esAzul(c0) and cerca(c0.R * 255, CFG.LuzDia[1], 0.6), "luna: de día, entera y gris")
+local f1, c1 = Amb.lunaVentana(azulNoche, 1, 0)
+comprobar(f1 == 1 and esAzul(c1) and cerca(c1.B * 255, AZUL[3], 0.6), "luna: de noche, su azul")
+local f2 = Amb.lunaVentana(azulNoche, 1, 1)
+comprobar(cerca(f2, TC.Lunas, EPS) and TC.Lunas < 0.5, "luna: con el cielo cerrado, su parte")
+comprobar(not esAzul(A.g.Color3.fromRGB(table.unpack(CFG.LuzDia))), "Config: LuzDia, gris y no azul")
+
+local D = montar({ studio = false, fase = "Dia", p = 0.3 })
+local gD = D.g
+local CS = D.m.servicio("CollectionService")
+local function lunaEn(pos: any, conEtiqueta: boolean): any
+	local pieza = D.m.caja(gD.CFrame.new(pos), gD.Vector3.new(1, 1, 1), { Name = "Adorno", CanQuery = false, CanCollide = false })
+	local foco = gD.Instance.new("SpotLight")
+	foco.Color = azulNoche
+	foco.Brightness = 2
+	foco.Parent = pieza
+	if conEtiqueta then
+		CS:AddTag(pieza, "Luna")
+	end
+	pieza.Parent = gD.workspace.Mapa
+	return foco, pieza
+end
+local fDia = lunaEn(gD.Vector3.new(0, 19, -31.8), true)
+local fTarde, piezaTarde = lunaEn(gD.Vector3.new(25, 9, -32.4), false)
+local bombillaD = gD.Instance.new("PointLight")
+bombillaD.Color = azulNoche
+bombillaD.Brightness = 1
+bombillaD.Parent = D.m.caja(gD.CFrame.new(5, 10, 0), gD.Vector3.new(1, 1, 1), { Name = "Bombilla" })
+bombillaD.Parent.Parent = gD.workspace.Mapa
+D.m.correr(0.3, 1 / 60)
+comprobar(not esAzul(fDia.Color) and cerca(fDia.Brightness, 2, EPS), "luna en marcha: de día no es azul (y entera)")
+comprobar(esAzul(fTarde.Color), "una luz sin etiqueta, como está")
+CS:AddTag(piezaTarde, "Luna")
+D.m.correr(0.3, 1 / 60)
+comprobar(not esAzul(fTarde.Color), "la etiqueta que llega tarde: también")
+comprobar(esAzul(bombillaD.Color), "las bombillas, de su color")
+local ahoraD = gD.workspace:GetServerTimeNow()
+gD.workspace:SetAttribute("Fase", "Noche")
+gD.workspace:SetAttribute("FaseInicio", ahoraD - 0.5 * D.largo)
+gD.workspace:SetAttribute("FaseFin", ahoraD + 0.5 * D.largo)
+D.m.correr(0.3, 1 / 60)
+local lunaNoche = fDia.Brightness
+comprobar(esAzul(fDia.Color) and cerca(fDia.Color.B * 255, AZUL[3], 0.6), "luna en marcha: de noche, azul")
+comprobar(lunaNoche > 0.3, "luna en marcha: de noche se ve")
+D.Ambiente.nublado = 1
+D.m.correr(0.3, 1 / 60)
+comprobar(cerca(fDia.Brightness, lunaNoche * TC.Lunas, 1e-4), "luna con tormenta: apagada a su parte")
+local LD = D.L
+local colorD = nil
+for _, h in LD:GetChildren() do
+	if h:IsA("ColorCorrectionEffect") then
+		colorD = h
+	end
+end
+local brilloD, pantallaD, contrasteD = LD.Brightness, colorD.Brightness, colorD.Contrast
+D.Ambiente.destello = 1
+D.Ambiente.lunas[fDia] = 1
+D.m.correr(1 / 60)
+local T = Config.Tormenta.Luz
+comprobar(cerca(fDia.Brightness, lunaNoche * TC.Lunas + T.Luna, 1e-4), "luna con tormenta: el fogonazo, entero")
+comprobar(cerca(colorD.Brightness, pantallaD + T.Color, 1e-4) and cerca(colorD.Contrast, contrasteD + T.Contraste, 1e-4),
+	"destello con el cielo a la vista: la pantalla, entera")
+local brilloFuera = LD.Brightness
+comprobar(brilloFuera > brilloD + 1, "destello: la luz de fuera sube")
+D.Ambiente.cieloVisto = Config.Tormenta.Pantalla.Escondido
+D.m.correr(1 / 60)
+comprobar(colorD.Brightness - pantallaD < T.Color * 0.1 and colorD.Contrast - contrasteD < T.Contraste * 0.1,
+	"destello sin cielo a la vista: la pantalla casi no parpadea")
+comprobar(cerca(LD.Brightness, brilloFuera, 1e-6) and cerca(fDia.Brightness, lunaNoche * TC.Lunas + T.Luna, 1e-4),
+	"y la luz de fuera y la luna, enteras igual")
+D.Ambiente.destello = 0
+D.Ambiente.lunas[fDia] = nil
+D.Ambiente.cieloVisto = 1
+D.m.correr(1 / 60)
+comprobar(cerca(colorD.Brightness, pantallaD, 1e-6) and cerca(colorD.Contrast, contrasteD, 1e-6), "sin destello, la pantalla como estaba")
+D.Ambiente.nublado = 0
+D.m.correr(0.3, 1 / 60)
+comprobar(cerca(fDia.Brightness, lunaNoche, 1e-4), "abierto el cielo, la luna como estaba")
 
 print(`cielo: {cuentas} comprobaciones`)

@@ -1442,6 +1442,11 @@ Config.Tormenta = {
 		Angulo = 55,
 		Color = { 205, 215, 255 }, -- RGB
 	},
+	-- Cuánto del destello del ColorCorrection (Luz.Color y Luz.Contraste: la pantalla entera) llega según dónde esté la
+	-- cámara (Ambiente.cieloVisto): fuera, entero; dentro, lo que dé la luna sin persiana más cerca (1 - distancia /
+	-- Fogonazo.Cerca), y nunca menos que Dentro; en una sala sin ventanas (SinCielo, nombres de Config.Aire.Salas) o
+	-- escondido, Escondido. La luz de fuera y las lunas, enteras igual.
+	Pantalla = { Dentro = 0.15, Escondido = 0.05, SinCielo = { "Sotano" } },
 	Ventanas = 22, -- studs: con el trueno vibran los cristales de las ventanas a menos de esto de la cámara
 	VibraSonidos = 2, -- ...y suenan las tantas más cercanas
 	Temblor = { Fuerza = 0.35, Dura = 1.4 }, -- las bombillas tiemblan con el trueno (de 0 a 1 de su brillo) tanto tiempo
@@ -1569,9 +1574,14 @@ Config.Cielo = {
 	Viento = 6, -- workspace.GlobalWind = AireVista.viento (rumbo × fuerza de 0,4 a 1,6) × esto: las nubes se arrastran
 	Tormenta = {
 		Abre = 0.93, -- parte de la noche desde la que el cielo empieza a abrirse (el último relámpago cae antes del 0,92)
-		Luz = 0.8, -- con el cielo cerrado, Brightness y OutdoorAmbient de Ambiente por esto (el relámpago, entero)
+		Luz = 0.7, -- con el cielo cerrado, Brightness y OutdoorAmbient de Ambiente por esto (el relámpago, entero)
 		Viento = 1.8, -- el viento de las nubes, por esto
+		Lunas = 0.25, -- con el cielo cerrado, el brillo de las luces de luna de las ventanas por esto (el fogonazo, entero)
+		Haz = 0.15, -- ...y lo que se ve de los haces de luna (AireVista) por esto: la sala queda a oscuras
 	},
+	-- Las luces de luna de las ventanas (etiqueta Luna) de día no son azules: este gris frío de día (RGB) y su azul de
+	-- noche, con la misma rampa que las lámparas.
+	LuzDia = { 175, 178, 186 },
 	-- El sol y la franja cálida del alba y del ocaso (juego/cliente/Ambiente). Sol: horas (ClockTime) a las que el sol
 	-- cruza el horizonte, y cuánto antes y después se va encendiendo o apagando su luz (Margen, horas). Pleno: con el sol
 	-- a partir de esto la exposición ya es la del día. Luna: horas tras ponerse el sol (y antes de que empiece a salir)

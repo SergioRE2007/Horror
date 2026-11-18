@@ -10,7 +10,8 @@
 --     la nube se aclara por dentro y vuelve igual.
 --   Viento: workspace.GlobalWind sigue a AireVista.viento (las nubes se arrastran hacia donde va la niebla baja), más
 --     fuerte con tormenta. Ningún emisor usa WindAffectsDrag: no mueve partículas.
---   Luz: Ambiente.nublado (0 a 1, la tormenta en rampa). Ambiente baja con él algo la luz de fuera; con 0, nada.
+--   Luz: Ambiente.nublado y AireVista.nublado (0 a 1, la tormenta en rampa). Con él Ambiente baja la luz de fuera y
+--     las luces de luna de las ventanas (que de día no son azules), y AireVista apaga los haces de luna; con 0, nada.
 -- Con Rendimiento (se mira en cada repaso: cambia en marcha), sin nubes y con la mitad de estrellas. Un solo bucle de
 -- render: repasa Config.Cielo.Cada s (10 por segundo) y solo mientras dura un destello (y una vez al acabar) pinta las
 -- nubes cada fotograma. Las cuentas son funciones puras para el banco (tests/bancos/cielo.luau).
@@ -196,6 +197,7 @@ local function repasar(dt: number)
 	CieloVista.estado.tormenta = cerrado
 	CieloVista.estado.noche = noche
 	Ambiente.nublado = cerrado
+	AireVista.nublado = cerrado
 
 	local sky = asegurarCielo()
 	local estrellas = CieloVista.estrellas(noche, cerrado, poco(), CFG)
