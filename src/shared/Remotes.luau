@@ -51,6 +51,8 @@ local NOMBRES = {
 	"Correr", -- cliente -> servidor: (sí/no) quiero correr; Correr lo publica en los atributos Corriendo, Aguante, Agotado, Frena y Tropiezo
 	-- Llegada en coche (16.8).
 	"Llegada", -- cliente -> servidor: ("Saltar") he saltado la escena de llegada (juego/servidor/Llegada)
+	-- Volver tras un corte.
+	"Regreso", -- cliente -> servidor (lobby): GO BACK, llévame a mi partida abierta (lobby/servidor/Regreso)
 }
 
 local Remotes = {}

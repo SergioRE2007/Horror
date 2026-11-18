@@ -33,3 +33,4 @@ arrancar(Sistemas.SalidaVista) -- la cinemática del coche que se va
 arrancar(Sistemas.LlegadaVista) -- el coche que llega a la plaza del que se fue
 arrancar(Sistemas.TiendaUi)
 arrancar(Sistemas.GuiaLobby) -- flecha y una línea para el jugador nuevo (16.7)
+arrancar(Sistemas.RegresoUi) -- cartel con GO BACK si tienes una partida abierta (tras un corte)

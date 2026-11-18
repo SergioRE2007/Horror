@@ -21,3 +21,4 @@ local Sistemas = script
 require(Sistemas.Gasolinera).start() -- el mapa, antes que los coches
 require(Sistemas.Coches).start()
 require(Sistemas.GuiaLobby).start() -- qué guía enseña a cada jugador nuevo (16.7)
+require(Sistemas.Regreso).start() -- volver a la partida tras un corte (atributo PartidaAbierta y remote Regreso)
