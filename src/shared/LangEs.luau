@@ -114,8 +114,9 @@ return {
 	["1 flare"] = "1 bengala", -- la de BengalasVista con la última
 	["Light"] = "Prender",
 	["The trail isn't ready yet."] = "El rastro aún no está listo.",
-	["It must be locked in the basement first."] = "Antes tiene que estar encerrada en el sótano.",
+	["She must be locked in the basement first."] = "Antes tiene que estar encerrada en el sótano.",
 	["You need matches."] = "Necesitas cerillas.",
+	["There are matches inside the safe."] = "Dentro de la caja fuerte hay unas cerillas.",
 	["You killed the Beast. +{monedas} coins"] = "Has matado a la Bestia. +{monedas} monedas",
 	["The house burned with her inside."] = "La casa ardió con ella dentro.",
 	["She's gone."] = "Ya no está.",

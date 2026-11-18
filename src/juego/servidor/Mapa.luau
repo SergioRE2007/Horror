@@ -888,7 +888,7 @@ end
 --   Trampilla: tapa de tablas en el patio sobre el hueco TRAMPILLA, con escalera de mano desde el sótano. Atributo
 --   Abierta (CFrame de la tapa abierta). Se abre desde abajo.
 --   Por el mapa (objetos sueltos, Mochila): cadenas para la reja, la pistola de bengalas del rico con sus 3 bengalas al
---   lado (desván, delante del baúl) y las cerillas (encimera de la cocina).
+--   lado (desván, delante del baúl). Las cerillas no están sueltas: las da la caja fuerte del rico (Pistas, pista 12).
 local function construirFinal()
 	local F = FONDO_SOTANO
 	local hierro = Color3.fromRGB(52, 50, 48)
@@ -1008,7 +1008,6 @@ local function construirFinal()
 		{ "Bengala", Vector3.new(-1.2, 27.6, -11.3) },
 		{ "Bengala", Vector3.new(-0.9, 27.6, -11.9) },
 		{ "Bengala", Vector3.new(-1.6, 27.6, -12) },
-		{ "Cerillas", Vector3.new(-26.5, ABAJO + 3.7, 31.3) }, -- encimera de la cocina
 	} do
 		table.insert(Mapa.objetos, { tipo = o[1], cf = CFrame.new(o[2]) * CFrame.Angles(0, math.rad(#Mapa.objetos * 37), 0) })
 	end
@@ -3182,7 +3181,7 @@ local function construirCasa(mapa: Folder)
 	construirCobertizo()
 	construirCaballete()
 	construirSotano()
-	construirFinal() -- reja, palanca y trampilla del sótano; cadenas, pistola y cerillas (12.2)
+	construirFinal() -- reja, palanca y trampilla del sótano; cadenas y pistola (12.2)
 	construirGaraje()
 	Fachada.vestir({ ABAJO = ABAJO, ARRIBA = ARRIBA, ALTO = ALTO, TEJADO = TEJADO, TORRE = TORRE })
 	-- Mecedora en el porche, mirando al camino (no choca: el porche es para correr).
