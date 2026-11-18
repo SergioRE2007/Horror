@@ -18,6 +18,10 @@
 --   entre una nube de hollín, chillando) y "Quema" (chilla con el fuego).
 --   Gateando (Gatea y GateaHora en su modelo): se aplasta contra el suelo con las patas muy abiertas y se cuela a tirones
 --   debajo del mueble donde te escondes (ver GATEO).
+--   Aturdido (el flash o el cepo: atributo Aturdido, BichoComun.aturdido): chilla, se encabrita echándose atrás, aparta la
+--   cabeza, dobla las patas de delante por encima hasta tener las puntas delante de la cara y abre la boca, temblando; en
+--   el cepo forcejea a tirones (ver ATURDE). En la pared y el tejado, solo la cabeza y las patas de delante; gateando,
+--   solo gira la cabeza, y recién salido de debajo del mueble, solo la cabeza y la boca (no se mete en el tablero).
 -- Un solo bucle (Stepped) que solo corre mientras hay alguno; la vida, solo cerca de la cámara. Si el modelo se va
 -- (StreamOut o lo quita el servidor) se olvida, y si vuelve se prepara otra vez.
 local CollectionService = game:GetService("CollectionService")
@@ -27,6 +31,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local BichoComun = require(script.Parent.BichoComun)
 local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
 
@@ -61,6 +66,21 @@ local GIRO = 1.2 -- radianes que gira la cabeza como mucho a cada lado
 local AMENAZA = Vector3.new(0.5, 2.4, -1) -- chillando, cuánto suben las puntas de delante (x hacia fuera)
 local BOCA = CFrame.new(0, -0.4, -0.75) -- en la cabeza (del revés: la boca le queda arriba)
 local VAHO, VAHO_SUELTA = 3, 9 -- partículas al soltar el aire jadeando y al soltarlo de golpe tras escuchar
+-- Aturdido (a ojo): se encabrita (Torso: radianes con la parte de delante arriba, y studs arriba y atrás), aparta la
+-- cabeza (cabeceo, giro y ladeo, hacia el lado que toque), lleva las puntas de las patas de delante delante de la cara
+-- apartada (Patas: studs a cada lado, por encima y por delante de la cara: así las rodillas quedan por encima de la
+-- espalda y los antebrazos bajan por delante) y abre la boca; tiembla `Tiembla` radianes. Cada tirón del cepo (Tiron):
+-- el cuerpo da un tirón hacia el lado, las de delante golpean el suelo (Golpea: cuánto vuelven a pisar) y levanta una de
+-- detrás tirando de ella hacia delante (Alza, Tira: studs). Chilla al empezar con este tono.
+local ATURDE = {
+	Torso = Vector3.new(0.38, 0.3, 0.45),
+	Cabeza = Vector3.new(-0.3, 0.7, 0.5),
+	Patas = Vector3.new(0.5, 0.55, 0.6),
+	Boca = 0.95,
+	Tiembla = 0.06,
+	Tiron = { Torso = -0.25, Giro = 0.25, Cabeza = -0.3, Golpea = 0.7, Alza = 1.1, Tira = 1.3 },
+	Chilla = 1.4,
+}
 local MOTORES = { "Torso", "Cabeza", "Mandibula", "BrazoI", "AntebrazoI", "BrazoD", "AntebrazoD", "PiernaI", "EspinillaI",
 	"PiernaD", "EspinillaD" }
 -- Las patas (Trepador.crear): al andar van en diagonal, el brazo izquierdo con la pierna derecha y al revés.
@@ -107,6 +127,7 @@ local GATEO = {
 -- Medidas del cuerpo (Trepador.crear) que usa el gateo: del centro del torso a la frente, y a lo más adelantado de las
 -- rodillas de delante con las patas abiertas.
 local CABEZA_FRENTE, RODILLA = 3.65, 2.9
+local CARA = 0.7 -- studs del centro de la cabeza a la cara (Trepador.crear: la cabeza mide 1,4 de fondo)
 local CARRILES, CARRIL = 10, 0.75 -- el borde se mide en carriles cada 0,75 studs, 10 a cada lado (lo que abre las patas)
 -- Cuándo suenan los ruidos del gateo (ruidoGateo) y cada pisada (al apoyar cada par de patas), en un gateo de 2 s.
 local RUIDOS = { GATEO.Cae, GATEO.Tirones[1][1], GATEO.Tirones[2][1], GATEO.Tirones[3][1] }
@@ -692,6 +713,59 @@ local function apagar()
 	end
 end
 
+-- Aturdido: la pose de dolor encima de la que ya lleva (el torso, que devuelve, las puntas en b.puntas, la cabeza y la
+-- boca). `arriba`: en la pared o el tejado (el cuerpo y las de detrás, como están). Debajo de un mueble (gateando) solo
+-- gira la cabeza, y al levantarse va entrando lo demás de la cabeza y la boca (al cabecear, ladearla o abrir la boca
+-- bajo el tablero, lo rozaría); recién salido de debajo (retirado junto al mueble, hasta que vuelve a andar), las patas
+-- y el cuerpo, como están: las rodillas de las patas dobladas y el cuerpo encabritado se meterían en el tablero.
+local function aturdir(b: Bicho, at: BichoComun.Aturdido, torsoT: CFrame, arriba: boolean): CFrame
+	local k = at.peso
+	if k <= 0.001 then
+		return torsoT
+	end
+	local m = b.motores
+	local tiembla = ATURDE.Tiembla * at.temblor
+	local c = ATURDE.Cabeza
+	local cabezaLibre = if b.gatea then (1 - b.gateo) ^ 2 else 1
+	local cuerpo = k * cabezaLibre * (1 - math.clamp(b.retiro.Magnitude / 0.5, 0, 1))
+	if cabezaLibre < 1 then
+		m.Cabeza.Transform *= CFrame.Angles(0, (at.lado * c.Y * 0.5 + tiembla) * k * (1 - cabezaLibre), 0)
+	end
+	local T = ATURDE.Tiron
+	local tiron = math.abs(at.tiron)
+	local tira = if at.tiron >= 0 then 1 else -1 -- la pata de detrás de la que tira (1 derecha, -1 izquierda)
+	if not arriba and cuerpo > 0.001 then
+		local p = ATURDE.Torso
+		local dolor = CFrame.new(0, p.Y, p.Z) * CFrame.Angles(p.X + T.Torso * tiron + tiembla, T.Giro * at.tiron, tiembla * 0.7)
+		torsoT *= CFrame.identity:Lerp(dolor, cuerpo)
+	end
+	local cabeza = CFrame.fromEulerAnglesYXZ(c.X + T.Cabeza * tiron + tiembla * 1.5, at.lado * c.Y + tiembla, at.lado * c.Z - tiembla)
+	if cuerpo > 0.001 then
+		-- La cara de esa pose (en el torso) y hacia dónde mira, en planta: las puntas van delante de ella.
+		local cara = m.Cabeza.C0 * cabeza * m.Cabeza.C1:Inverse() * CFrame.new(0, 0, -CARA)
+		local frente = Vector3.new(cara.LookVector.X, 0, cara.LookVector.Z)
+		frente = if frente.Magnitude > 1e-3 then frente.Unit else -Vector3.zAxis
+		local derecha = frente:Cross(Vector3.yAxis)
+		local torsoCF = m.Torso.C0 * torsoT * m.Torso.C1:Inverse() -- el torso, en la raíz
+		for i, p in b.patas do
+			if p.delante then
+				local delante = torsoCF * (cara.Position + derecha * (p.lado * ATURDE.Patas.X)
+					+ Vector3.new(0, ATURDE.Patas.Y + tiembla * 3 * p.lado, 0) + frente * ATURDE.Patas.Z)
+				b.puntas[i] = b.puntas[i]:Lerp(delante:Lerp(b.puntas[i], T.Golpea * tiron), cuerpo)
+			elseif not arriba and p.lado == tira then
+				b.puntas[i] += Vector3.new(0, T.Alza, -T.Tira) * (tiron * cuerpo)
+			end
+		end
+	end
+	local enCabeza = k * cabezaLibre
+	if enCabeza > 0.001 then
+		m.Cabeza.Transform = m.Cabeza.Transform:Lerp(cabeza, enCabeza)
+		m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-(ATURDE.Boca + 0.12 * math.abs(at.temblor)
+			+ 0.15 * tiron), 0, 0), enCabeza)
+	end
+	return torsoT
+end
+
 -- A dónde da el próximo tirón de la cabeza: al jugador más cercano, a cualquier lado de golpe o un tironcito.
 local function decidirTiron(b: Bicho, ahora: number, desde: Vector3)
 	b.tiron = ahora + rango(TIRON)
@@ -940,8 +1014,16 @@ local function animar(dt: number)
 			+ (if chillando then 0.7 + 0.1 * math.sin(ahora * 35) else 0)
 		m.Mandibula.Transform = CFrame.Angles(-abre, 0, 0)
 
-		-- Debajo de un mueble: se aplasta y gatea a por ti, encima de todo lo anterior. Luego, las patas.
+		-- Debajo de un mueble: se aplasta y gatea a por ti, encima de todo lo anterior. Aturdido, encima de eso. Luego, las
+		-- patas.
 		torsoT = gatear(b, dt, ahora, poco, torsoT, chillando)
+		local aturdido = BichoComun.aturdido(modelo, ahora)
+		if aturdido then
+			if aturdido.nuevo then
+				Sonido.en("Chillido", b.cabeza.Position, ATURDE.Chilla)
+			end
+			torsoT = aturdir(b, aturdido, torsoT, arriba)
+		end
 		m.Torso.Transform = torsoT
 		torsoCF = m.Torso.C0 * torsoT * m.Torso.C1:Inverse()
 		b.ultimoTorso = torsoCF
