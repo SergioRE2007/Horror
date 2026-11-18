@@ -6,7 +6,7 @@
 --   La linterna y la cámara también son objetos: sin ellas en la mochila no hay luz ni flash. Su carga va con el
 --   objeto, aunque se tire y lo coja otro.
 -- Lo suelto: piezas en workspace.Objetos con atributos Tipo y Carga y un ProximityPrompt "Pick up". Lo tirado sale
--- de delante del jugador con física.
+-- de delante del jugador con física, sin pasar al otro lado de una pared (Mochila.sitioLibre).
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -43,6 +43,44 @@ local COLOR = {
 	Bateria = Color3.fromRGB(40, 40, 42),
 	Radiador = Color3.fromRGB(150, 150, 148),
 }
+
+-- Lo tirado, lo que se desparrama y las llaves al morir salían a 1,5 studs del jugador sin mirar qué había en medio, y
+-- las paredes miden 1 stud: una llave tirada contra la puerta cerrada de su sala acababa dentro, donde no se puede
+-- coger (Cargar.aLaVista) y Llaves.repasar no la repone porque sigue en el mundo. La partida se atascaba.
+-- sitioLibre(desde, hasta) tira un rayo de `desde` a `hasta` (solo lo que choca; sin personajes, objetos sueltos ni
+-- pesados, los mismos filtros que Cargar.aLaVista) y, si da en algo, devuelve el punto del choque echado DESPEGUE studs
+-- hacia atrás, y `true`. Si no, `hasta` y `false`.
+local DESPEGUE = 0.6
+local rayoLibre = RaycastParams.new()
+rayoLibre.FilterType = Enum.RaycastFilterType.Exclude
+rayoLibre.RespectCanCollide = true
+
+function Mochila.sitioLibre(desde: Vector3, hasta: Vector3): (Vector3, boolean)
+	local dir = hasta - desde
+	if dir.Magnitude < 1e-3 then
+		return hasta, false
+	end
+	local ignorar: { Instance } = {}
+	if carpeta then
+		table.insert(ignorar, carpeta)
+	end
+	local pesados = workspace:FindFirstChild("Pesados") -- la carpeta de Cargar (Cargar no se puede pedir al revés)
+	if pesados then
+		table.insert(ignorar, pesados)
+	end
+	for _, otro in Players:GetPlayers() do
+		if otro.Character then
+			table.insert(ignorar, otro.Character)
+		end
+	end
+	rayoLibre.FilterDescendantsInstances = ignorar
+	local choque = workspace:Raycast(desde, dir, rayoLibre)
+	if not choque then
+		return hasta, false
+	end
+	return choque.Position - dir.Unit * DESPEGUE, true
+end
+-- fin de sitioLibre
 
 -- La carga con la que sale un objeto nuevo (linterna llena, cámara con el carrete entero).
 local function cargaNueva(tipo: string): number?
@@ -204,8 +242,12 @@ local function tirar(jugador: Player, id: unknown)
 	if not cosa then
 		return
 	end
-	local cf = cabeza.CFrame * CFrame.new(0, -0.8, -1.6)
-	Mochila.dejar(cosa.tipo, cosa.carga, cf, cabeza.CFrame.LookVector * 8 + Vector3.new(0, 4, 0))
+	local delante = cabeza.CFrame * CFrame.new(0, -0.8, -1.6)
+	local punto, choca = Mochila.sitioLibre(cabeza.Position, delante.Position)
+	-- Pegado a una pared (o a la puerta cerrada de una sala) cae a sus pies: si saliera lanzada hacia delante, la física
+	-- la metía al otro lado.
+	local velocidad = if choca then Vector3.new(0, 2, 0) else cabeza.CFrame.LookVector * 8 + Vector3.new(0, 4, 0)
+	Mochila.dejar(cosa.tipo, cosa.carga, delante.Rotation + punto, velocidad)
 	Mochila.publicar(jugador)
 end
 
@@ -287,12 +329,14 @@ local function deInicio(jugador: Player): Rejilla.Rejilla
 	return r
 end
 
--- Tira al suelo, alrededor de `punto`, una lista de cosas de la rejilla. Devuelve las piezas.
+-- Tira al suelo, alrededor de `punto`, una lista de cosas de la rejilla. Devuelve las piezas. Cada una, del lado de
+-- `punto` de la pared que tenga cerca (sitioLibre): muerto pegado a la puerta de una sala cerrada, no cae dentro.
 local function desparramar(cosas: { Rejilla.Cosa }, punto: Vector3): { BasePart }
 	local piezas = {}
 	for i, cosa in cosas do
 		local angulo = i * 2.4
-		local cf = CFrame.new(punto + Vector3.new(math.cos(angulo) * 1.5, 1 + i * 0.3, math.sin(angulo) * 1.5))
+		local alrededor = punto + Vector3.new(math.cos(angulo) * 1.5, 1 + i * 0.3, math.sin(angulo) * 1.5)
+		local cf = CFrame.new((Mochila.sitioLibre(punto, alrededor)))
 		table.insert(piezas, Mochila.dejar(cosa.tipo, cosa.carga, cf * CFrame.Angles(0, angulo, 0)))
 	end
 	return piezas
