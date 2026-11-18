@@ -103,6 +103,14 @@ assert(cfg.Caduca > cfg.Intervalo * 2, "Caduca tiene que ser bastante mayor que 
 assert(cfg.Espera > cfg.Reintento, "Espera tiene que dar para varios intentos")
 comprobaciones += 2
 
+-- Config.Muerte.Escondido: números positivos, y el respingo tiene que caber en lo que llega de CasaVista.temblar
+-- (alcance de 35 studs si no se le da otro).
+for nombre, valor in Config.Muerte.Escondido do
+	assert(type(valor) == "number" and valor > 0, `Config.Muerte.Escondido.{nombre} tiene que ser un número > 0`)
+end
+assert(Config.Muerte.Escondido.Cerca < 35, "Config.Muerte.Escondido.Cerca: menor que el alcance del temblor")
+comprobaciones += 2
+
 -- Formato: partida nueva y arreglar lo viejo o roto.
 do
 	local nuevo = Formato.arreglarJugador(nil)

@@ -468,6 +468,17 @@ Config.Postura = {
 	SinSalida = 20, -- segundos sin volver a probar un borde al que no llegó (luego lo vuelve a intentar)
 }
 
+-- Lo que se nota escondido en un armario (juego/cliente/MuerteVista, que lee CasaVista.temblorAhora y ultimoGolpe): la
+-- cámara es fija y el temblor de siempre no se pinta. Debajo de un mueble no, que ya tiembla. Números a ojo.
+Config.Muerte = {
+	Escondido = {
+		Temblor = 0.06, -- radianes de temblor por cada punto del temblor de CasaVista (un golpe es 0,5; una pisada, ~0,2)
+		Respingo = 0.05, -- radianes que se va la vista hacia arriba con un golpe fuerte cerca (por su fuerza)
+		LatidoGolpe = 0.7, -- volumen de más del latido tras ese golpe (y tono de más, la mitad), que baja en unos s
+		Cerca = 14, -- studs de la cámara a los que tiene que ser el golpe para el respingo y el latido
+	},
+}
+
 -- Correr y aguante (14.8, pedido por el usuario: "añadir la mecánica de correr, que tengas una stamina abajo del todo,
 -- una barra fina así minimalista que aparezca al correr"). Reglas en shared/CorrerReglas; el servidor (juego/servidor/
 -- Correr) lleva el aguante y la velocidad sale de Cargar.ajustarVelocidad. Números a ojo (cuentas de persecución en
