@@ -466,6 +466,9 @@ Config.Postura = {
 	MaxOlor = 0.5, -- segundos de olor como mucho de una vez (si lleva rato sin mirar, golpeando una puerta)
 	Ancho = 1.3, -- media anchura libre que necesita a los lados del borde para meterse (su raíz mide 3)
 	SinSalida = 20, -- segundos sin volver a probar un borde al que no llegó (luego lo vuelve a intentar)
+	-- Sigilo (a ojo): quieto no haces ruido, las paredes tapan el oído y la linterna te delata agachado.
+	OirQuieto = 2.5, -- studs a los que te oye un bicho si estás quieto (sin moverte más de Config.Correr.Moverse)
+	OirPared = 0.5, -- con una pared o una puerta en medio te oye a esta parte (corriendo, a 11 en vez de 22)
 }
 
 -- Correr y aguante (14.8, pedido por el usuario: "añadir la mecánica de correr, que tengas una stamina abajo del todo,
