@@ -554,6 +554,116 @@ function Caza.irA(self: Bicho, destino: Vector3, velocidad: number, limite: numb
 	end
 end
 
+-- Llegar e irse sin saltos a la vista (Config.Caza, a ojo). Antes, atascado por el camino, golpeaba o raspaba desde
+-- lejos y luego entraba de golpe; y al irse sin llegar a la ventana desaparecía delante del jugador.
+local LLEGAR_MAS = Config.Caza.LlegarMas
+local SALIR_MAX = Config.Caza.SalirMax
+local VER_LEJOS = Config.Caza.VerLejos
+local IR_SALIDA = 25 -- s andando hacia la salida antes de mirar si le ven (lo de siempre)
+
+-- ¿Se ve `hasta` desde `desde`? Los cristales de las ventanas y lo casi transparente no tapan: el rayo sigue tras
+-- ellos (hasta 4 veces).
+local filtroVer = RaycastParams.new()
+filtroVer.FilterType = Enum.RaycastFilterType.Exclude
+local function seVe(desde: Vector3, hasta: Vector3, ignorar: { Instance }): boolean
+	filtroVer.FilterDescendantsInstances = ignorar
+	local origen = desde
+	for _ = 1, 4 do
+		local tramo = hasta - origen
+		if tramo.Magnitude < 0.1 then
+			return true
+		end
+		local golpe = workspace:Raycast(origen, tramo, filtroVer)
+		if not golpe then
+			return true
+		end
+		if golpe.Instance.Transparency < 0.3 then
+			return false
+		end
+		origen = golpe.Position + tramo.Unit * 0.05
+	end
+	return false
+end
+
+-- ¿No le ve nadie vivo, ni a él ni el sitio `punto` (a ras de suelo) donde va a aparecer? Rayo desde la cabeza de cada
+-- uno; a más de VER_LEJOS, de noche, no se distingue.
+function Caza.nadieVe(self: Bicho, punto: Vector3): boolean
+	local ignorar = sinPersonajes()
+	local raiz = self.raiz.Position
+	local alto = punto + Vector3.new(0, self.o.Altura, 0)
+	for _, jugador in Players:GetPlayers() do
+		local cabeza = if Muerte.vivo(jugador) then cabezaDe(jugador) else nil
+		if not cabeza then
+			continue
+		end
+		local ojos = cabeza.Position
+		if (raiz - ojos).Magnitude < VER_LEJOS and seVe(ojos, raiz, ignorar) then
+			return false
+		end
+		if (alto - ojos).Magnitude < VER_LEJOS and seVe(ojos, alto, ignorar) then
+			return false
+		end
+	end
+	return true
+end
+
+-- Anda hasta `destino` como irA y, si no llega (atascado en el bosque o contra algo), no ataca desde lejos: lo pone en
+-- `destino` mirando a `mirar` (el centro de la casa si no se da), pero solo cuando nadie le ve; si alguien le ve, sigue
+-- andando hasta LLEGAR_MAS s y luego lo pone allí igual. Si `seguir` dice que no (ha visto a alguien) o hay prisa, no
+-- lo mueve. Devuelve si está en `destino`.
+function Caza.llegarA(self: Bicho, destino: Vector3, velocidad: number, limite: number, seguir: (() -> boolean)?, mirar: Vector3?): boolean
+	local cortado = false
+	local function sigue(): boolean
+		if seguir and not seguir() then
+			cortado = true
+			return false
+		end
+		return true
+	end
+	self:irA(destino, velocidad, limite, sigue)
+	local hasta = os.clock() + LLEGAR_MAS
+	while self.modelo and not cortado and not self.prisa and not self:cerca(destino, 3) do
+		if os.clock() >= hasta or self:nadieVe(destino) then
+			-- Fuera de la vista (o ya no hay más remedio): allí de un paso, de cara a la casa.
+			local pie = destino + Vector3.new(0, self.o.Altura, 0)
+			local hacia = mirar or Vector3.zero
+			local frente = Vector3.new(hacia.X, pie.Y, hacia.Z)
+			if plano(frente - pie).Magnitude < 0.1 then
+				frente = pie + self.raiz.CFrame.LookVector
+			end
+			local camino = caminos[self]
+			if camino then
+				rutas[camino] = nil -- el camino que llevaba ya no vale desde aquí
+			end
+			local modelo = self.modelo :: Model
+			modelo:PivotTo(CFrame.lookAt(pie, frente))
+			self.humanoide:MoveTo(destino)
+			return true
+		end
+		if not sigue() then
+			break
+		end
+		self:pasoHacia(destino)
+		task.wait(0.25)
+	end
+	return self.modelo ~= nil and self:cerca(destino, 3)
+end
+
+-- Se va por `dentro` (la ventana o la puerta por la que entró, o el hogar): anda hasta allí y, si no llega, sigue
+-- andando hacia allí hasta que nadie le vea (ni a él ni ese sitio) o hasta SALIR_MAX s. Solo después se le puede poner
+-- fuera de golpe o quitar: así no desaparece delante de nadie.
+function Caza.salir(self: Bicho, dentro: Vector3, velocidad: number)
+	self:irA(dentro, velocidad, IR_SALIDA)
+	local hasta = os.clock() + SALIR_MAX
+	while self.modelo and os.clock() < hasta and not self:cerca(dentro, 3) and not self:nadieVe(dentro) do
+		self:pasoHacia(dentro)
+		task.wait(0.25)
+	end
+	if self.modelo then
+		self.humanoide:MoveTo(self.raiz.Position)
+	end
+end
+
 -- Por dónde se mete a por `jugador`, que tiene la raíz en `p` debajo de un mueble (nil si no está en ninguna zona
 -- Debajo). Se guarda por jugador y solo se rehace si él se mueve, cambia de mueble o pasan 2 s. Nunca un borde al que
 -- no llegó hace poco (sinSalida: así prueba por otro lado; pasado SIN_SALIDA lo vuelve a probar, que si no un mueble
@@ -956,17 +1066,27 @@ local function buscar(self: Bicho, busca: Busca): Vector3?
 end
 
 -- Caza durante `duracion` segundos. `soloFuera`: en el bosque, solo a los que están fuera de la casa.
+-- Si se le acaba el tiempo pegado a su presa (vista, no escondida en un armario) no la deja en seco: sigue mientras la
+-- tenga, PRORROGA s como mucho. Nunca con prisa (amanece o huye) ni en el bosque.
+local PRORROGA = Config.Caza.Prorroga
 function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 	local fin = os.clock() + duracion
+	local tope = if soloFuera then fin else fin + PRORROGA
+	local conPresa = false -- en el último paso tenía presa
 	local ultimoVisto: Vector3? = nil
 	local ronda: Vector3? = nil
 	self.parado = nil
 	local busca: Busca? = nil
 	local ultimaSala: Vector3? = nil -- la última sala que miró: la ronda al azar no la repite
 	self.rastro = nil
-	while self.modelo and os.clock() < fin and not self.prisa do
+	while self.modelo and not self.prisa do
+		local ahora = os.clock()
+		if ahora >= tope or (ahora >= fin and not conPresa) then
+			break
+		end
 		local presa, destino, bajo = self:elegirPresa(soloFuera)
 		publicarPresa(self, presa)
+		conPresa = presa ~= nil and Muerte.escondite(presa) == nil
 		-- Adónde va este paso sin presa por su cuenta (sala o ruido), para ver si se atasca; nil: no cuenta (quieto, con
 		-- presa o lo ha hecho un suceso).
 		local yendo: Vector3? = nil

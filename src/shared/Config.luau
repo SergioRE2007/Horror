@@ -244,6 +244,15 @@ Config.Caza = {
 	},
 }
 
+-- Llegar, cazar e irse sin saltos (juego/servidor/Caza: llegarA, cazar, salir), para Golpeador, Raspador, Imitador y
+-- Trepador. Números a ojo.
+Config.Caza = {
+	LlegarMas = 10, -- s que sigue andando hacia donde ataca si se atascó y alguien le ve (luego lo pone allí igual)
+	Prorroga = 8, -- s como mucho que sigue cazando, acabado su tiempo, mientras tenga presa a la vista
+	SalirMax = 10, -- s que sigue hacia la ventana por la que se va mientras alguien le vea (luego sale igual)
+	VerLejos = 160, -- studs hasta los que cuenta que alguien le ve (más lejos, de noche, no se distingue)
+}
+
 -- Linterna con pilas (juego/servidor/Equipo): la F, o el botón en el móvil. Con poca pila parpadea.
 Config.Linterna = {
 	Duracion = 150, -- segundos encendida que dura una pila

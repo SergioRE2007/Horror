@@ -171,10 +171,10 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 	b.prisa = a.prisa
 	local modelo = b.modelo :: Model
 
-	-- Llega desde el bosque; si ve a alguien fuera, va a por él.
-	b:irA(pie, T.Andar, 35, function()
+	-- Llega desde el bosque; si ve a alguien fuera, va a por él. Si se atasca, no trepa desde lejos (Caza.llegarA).
+	b:llegarA(pie, T.Andar, 35, function()
 		return not b.prisa and b:elegirPresa(true) == nil
-	end)
+	end, Vector3.new(x, 0, 0))
 	if b.prisa or b:elegirPresa(true) then
 		if not b.prisa then
 			b:cazar(T.Caza / 2, true)
@@ -263,8 +263,8 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 	Remotes.Trepador:FireAllClients("Entra", modelo)
 	task.wait(T.Grito)
 	b:cazar(T.Caza, false)
-	-- Se vuelve a meter por la chimenea.
-	b:irA(salida.Position, T.Andar, 25)
+	-- Se vuelve a meter por la chimenea, y solo desaparece cuando nadie le ve (Caza.salir).
+	b:salir(salida.Position, T.Andar)
 	if b.modelo then
 		Remotes.Trepador:FireAllClients("Baja", modelo)
 	end

@@ -159,8 +159,8 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		return not b.prisa and b:elegirPresa(true) == nil
 	end
 
-	-- Llega desde el bosque; si ve a alguien fuera, va a por él.
-	b:irA(fuera, G.Andar, 30, noVeNadie)
+	-- Llega desde el bosque; si ve a alguien fuera, va a por él. Si se atasca, nunca golpea desde lejos (Caza.llegarA).
+	b:llegarA(fuera, G.Andar, 30, noVeNadie, centro.Position)
 	if not b.prisa and b:elegirPresa(true) then
 		b:cazar(G.Caza / 2, true)
 		b:irA(lejos, G.Andar, 25)
@@ -191,8 +191,8 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		end
 		task.wait(G.Grito)
 		b:cazar(G.Caza, false)
-		-- Se va por donde entró.
-		b:irA(dentro, G.Andar, 25)
+		-- Se va por donde entró, y solo sale de golpe cuando nadie le ve (Caza.salir).
+		b:salir(dentro, G.Andar)
 		local pieFuera = fuera + Vector3.new(0, ALTURA, 0)
 		if b.modelo then
 			b.modelo:PivotTo(CFrame.lookAt(pieFuera, pieFuera + normal))

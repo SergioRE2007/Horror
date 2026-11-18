@@ -141,9 +141,10 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 	b.prisa = a.prisa
 	local modelo = b.modelo :: Model
 
-	b:irA(delante, I.Andar, 35, function()
+	-- Si se atasca por el camino, no llama desde lejos (Caza.llegarA).
+	b:llegarA(delante, I.Andar, 35, function()
 		return not b.prisa and b:elegirPresa(true) == nil
-	end)
+	end, centro.Position)
 	if b.prisa or b:elegirPresa(true) then
 		if not b.prisa then
 			b:cazar(I.Caza / 2, true)
@@ -206,7 +207,7 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 		modelo:PivotTo(CFrame.lookAt(pie, pie - normal))
 		task.wait(I.Grito)
 		b:cazar(I.Caza, false)
-		b:irA(dentro, I.Andar, 25)
+		b:salir(dentro, I.Andar) -- sin salir de golpe a la vista
 		local pieFuera = fuera + Vector3.new(0, ALTURA, 0)
 		if b.modelo then
 			b.modelo:PivotTo(CFrame.lookAt(pieFuera, pieFuera + normal))
