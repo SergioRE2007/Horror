@@ -24,6 +24,9 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   rondando el vestíbulo abría la de la calle. Las de fuera (`Atacable`, la principal) nunca desde fuera: solo las
   rompen los ataques, y la Bestia (`Opciones.RompePuertas` = `reventar`: dos golpes y `Casa.romper`, como al llegar)
   si su camino la cruza. `b:abrirPuertas()` sin punto (la Bestia en la escalera del sótano) abre las de cerca.
+  Con cerrojo (`taller.md`): la aporrea pegado a ella (`Config.Casa.Cerrojo`) solo si a donde va (`pasoHacia` le pasa
+  el destino además del punto del camino) queda al otro lado de la hoja; mientras, no cuenta como atasco. La Bestia
+  (`Opciones.RompeCerrojos`) la revienta al cruzarla.
   Atascos (`Caza.cazar`): sin presa, si yendo a la sala de ronda o a un ruido pasa `Config.Caza.Parada` (2 s) sin
   acercarse ni moverse 1 stud (sin camino: empujaba la pared el resto de la caza), olvida el ruido, va a otra sala y no
   oye ruidos `SordoTrasParada` (3 s). Mientras caza, el modelo lleva `Persigue` = UserId de su presa (nil sin ella; el

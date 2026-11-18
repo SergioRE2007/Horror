@@ -18,8 +18,10 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 - Dos bancos de bloques (`Mapa.banco`, etiqueta `Banco`, atributo `Banco`): el del sótano (carpintería) y el del garaje (taller del coche). Prompt "Workbench" (E).
 - Panel de papel oscuro abajo con esquina de sangre: título del banco y cada receta "LO QUE SALE: 2 × TABLÓN, 1 × CHATARRA" con HACER (apagada si no llega). Se cierra con CERRAR, al alejarte, al morir o al ponerte a trabajar.
 - Lo que pide sale de la mochila o de las cosas pesadas sueltas junto al banco (`Taller.Radio`). Se trabaja unos segundos a martillazos con chispas (`Fabricar`); al acabar se vuelve a comprobar todo y se gasta. Lo pesado que sale aparece delante del banco; lo demás, a la mochila.
-- Sótano: tablón reforzado (2 tablones + 1 chatarra) y trampa (2 chatarras + 1 tablón). Garaje: radiador (3 chatarras + 1 botella) y batería (4 pilas + 1 chatarra).
+- Sótano: tablón reforzado (2 tablones + 1 chatarra), trampa (2 chatarras + 1 tablón) y cerrojo (2 chatarras, 4 s; a la mochila, 1×1). Garaje: radiador (3 chatarras + 1 botella) y batería (4 pilas + 1 chatarra). La reja del final va siempre detrás de todas (`Recetas.delBanco`).
 - Tablón reforzado (`Casa`, R como el tablón): deja la persiana o puerta como nueva y con ×1,75 de vida (`Config.Taller.Refuerzo`) hasta que el bicho la rompa (`Defensa.reforzar`). Se ve con dos tablones en aspa con flejes (por dentro de la ventana; en la hoja de la puerta, girando con ella).
+- Cerrojo (`Casa`, `Config.Casa.Cerrojo`, a ojo): en las puertas de dentro (no la principal ni las aún cerradas con llave; sí las de las salas ya abiertas y la del balcón) la R dice "Install bolt" mientras no tengan. Con uno en la mochila, 3 s a martillazos (`Fabricar`) y queda puesto (atributo `Cerrojo`; `CasaVista` pinta el pasador en las dos caras, que se echa con un clic al cerrarla). Los jugadores abren y cierran como siempre.
+- Cerrada con cerrojo, el bicho no la abre de un empujón: si a donde va queda al otro lado y está pegado a ella, la aporrea (un golpe cada 1,2 s de 18-24 de vida: unos 10 s, reforzada unos 17; tiembla y suena) hasta reventarla (`Defensa.golpeCerrojo`: salta el cerrojo y hay que repararla y poner otro). Si solo pasa por el pasillo, no la toca. La Bestia la revienta de un golpe (`Opciones.RompeCerrojos`).
 - Trampa: se tira con G como cualquier objeto. Quieta en el suelo, al primer bicho que pasa a 3,5 studs lo deja quieto 6 s y se gasta (golpe y chillido). A los jugadores no les hace nada.
 
 ## Coche (`Coche`, cliente `HuidaVista`)
@@ -41,7 +43,7 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 
 ## Guardado
 
-- `FormatoPartida` sin subir versión: `coche = { piezas, gasolina, porton }` (lo viejo sale sin arreglar), `refuerzo` en la casa y `final = "Huida"`. Lo fabricado se guarda como lo demás (suelto o en la mochila).
+- `FormatoPartida` sin subir versión: `coche = { piezas, gasolina, porton }` (lo viejo sale sin arreglar), `refuerzo` y `cerrojo` en la casa (lo viejo, sin cerrojo) y `final = "Huida"`. Lo fabricado se guarda como lo demás (suelto o en la mochila).
 - Al huir se guarda con `final` y la ranura del dueño queda libre en el lobby; si se vuelve a ella, partida nueva.
 
 ## Arreglado de paso
@@ -67,5 +69,5 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 ## Pendiente
 
 - Sin probar: dos jugadores de verdad con el motor, volver al lobby tras huir (solo publicado), móvil.
-- Decidir si la huida tiene insignia (lanzamiento.md); las monedas del final ya se pagan (Recompensas.final, desde Coche). Cerrojos del banco del sótano (el diseño los nombra; de momento solo tablón reforzado y trampa).
+- Decidir si la huida tiene insignia (lanzamiento.md); las monedas del final ya se pagan (Recompensas.final, desde Coche). Cerrojos: hechos (sin probar en Studio).
 - Sonido propio de motor del coche, cepo y llave inglesa (ElevenLabs); ahora usa los provisionales.
