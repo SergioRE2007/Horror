@@ -1477,4 +1477,21 @@ do
 	end
 end
 
+-- Depósito de gasoil de la granja (Recursos): lo de un día da para llenar un bidón entero y para una noche de luz, y
+-- no se mete en la casa de la granja, el granero ni el campo (Lugares.granja; el grifo y el bidón, al oeste).
+do
+	local D = Config.Deposito
+	assert(D.Dia >= 1, "el depósito tiene que llenar al menos un bidón al día")
+	assert(D.Dia * Config.Generador.PorBidon * Config.Generador.Deposito >= Config.Ciclo.Noche,
+		"lo de un día del depósito tiene que dar para una noche de generador")
+	assert(D.Llenar > 0 and D.Llenar <= 10, "llenar el bidón: unos segundos")
+	comprobaciones += 3
+	local x, z = D.Posicion[1], D.Posicion[3]
+	local hueco = { x - 5.2, x + 3.3, z - 1.9, z + 3.8 } -- cilindro, patas, grifo, el bidón debajo y donde cae
+	for nombre, r in { CasaGranja = { 187.5, 204.5, 45.5, 58.5 }, Granero = { 217, 239, 67, 93 }, Campo = { 179, 215, 91, 117 } } do
+		local cruza = hueco[1] < r[2] and hueco[2] > r[1] and hueco[3] < r[4] and hueco[4] > r[3]
+		igual(cruza, false, `el depósito no se mete en {nombre}`)
+	end
+end
+
 print(`Todo bien: {comprobaciones} comprobaciones.`)

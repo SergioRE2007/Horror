@@ -4,8 +4,9 @@
 --   Talar: hachazo con astillas, el árbol tiembla y el corte se ahonda con cada golpe; al caer, golpe contra el suelo
 --   y, al partirse, polvo y astillas a lo largo del tronco.
 --   Serrar: la sierra va y viene con serrín. Clavar: martillazos con un clavo nuevo en cada uno; el tablón se funde al
---   final con lo reparado. Verter: un chorro del bidón al tapón (del generador o del coche). Montar: la llave inglesa
---   aprieta a tirones (piezas del coche). Fabricar: martillazos con chispas en un banco del taller.
+--   final con lo reparado. Verter: un chorro del bidón al tapón (del generador o del coche) o del grifo del depósito de
+--   la granja al bidón. Montar: la llave inglesa aprieta a tirones (piezas del coche). Fabricar: martillazos con chispas
+--   en un banco del taller.
 --   Generador: la cuerda se estira con cada tirón; encendido tiembla, echa humo y suena; indicador de gasolina.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -285,13 +286,13 @@ local function martillazo(a: Activo, quien: Player)
 	Sonido.en("Martillo", clavo.Position, 1)
 end
 
--- El chorro del bidón al tapón más cerca (el del generador o el del coche). Devuelve la pieza del chorro (con su
+-- El chorro del bidón al tapón más cerca (el del generador o el del coche; o del grifo del depósito al bidón). Devuelve la pieza del chorro (con su
 -- sonido dentro), para quitarla si se deja a medias.
 local function chorro(pieza: BasePart, segundos: number): BasePart?
 	local tapon: Vector3? = nil
-	for _, etiqueta in { "Generador", "Coche" } do
+	for _, etiqueta in { "Generador", "Coche", "Deposito" } do
 		for _, el in CollectionService:GetTagged(etiqueta) do
-			local cf = el:GetAttribute("Tapon")
+			local cf = el:GetAttribute("Tapon") or el:GetAttribute("Grifo") -- el depósito de la granja echa por su grifo
 			if typeof(cf) == "CFrame" and (not tapon or (cf.Position - pieza.Position).Magnitude < (tapon - pieza.Position).Magnitude) then
 				tapon = cf.Position
 			end

@@ -403,6 +403,15 @@ Config.Generador = {
 	Tiron = 1.1, -- segundos entre tirones
 }
 
+-- Depósito viejo de gasoil de la granja (juego/servidor/Recursos): con un bidón en las manos, R junto al grifo y se
+-- llena. Cada amanecer vuelve a tener Dia bidones (no se acumula de un día a otro). Números a ojo: 1,5 bidones dan
+-- para 0,75 depósitos del generador, una noche y media de luz. Posicion = { x, y, z } del suelo bajo el centro.
+Config.Deposito = {
+	Dia = 1.5, -- bidones llenos que da cada día
+	Llenar = 4, -- segundos llenando un bidón
+	Posicion = { 224, 0, 99 }, -- al sur del granero, entre su pared y el campo
+}
+
 -- Bancos del taller (juego/servidor/Taller, cliente TallerUi): el del sótano (carpintería) y el del garaje (piezas
 -- del coche). Pide = lo que gasta, { tipo, cuántos }: objetos de la mochila o cosas pesadas dejadas junto al banco (a
 -- Radio studs). Da = lo que sale (a la mochila o, si es pesado, junto al banco). Números a ojo.
