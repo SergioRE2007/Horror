@@ -1,8 +1,9 @@
 -- Tu coche (el final fácil, el de la huida): destrozado y encerrado en el garaje. Le faltan las piezas de
 -- Config.Coche.Piezas y gasolina (cuentas en shared/Recetas).
 --   Las pesadas (motor entre dos, ruedas) se montan con R llevándolas (Cargar.alUsar, etiqueta "Coche"); el bidón
---   echa su gasolina igual que en el generador. Las de la mochila (batería y radiador, del banco del garaje) con el
---   prompt "Repair" (E) del capó; sin nada que montar, avisa de lo primero que le falta.
+--   echa su gasolina igual que en el generador (uno a la vez; si le queda, sigue en tus manos). Las de la mochila
+--   (batería y radiador, del banco del garaje) con el prompt "Repair" (E) del capó; sin nada que montar, avisa de lo
+--   primero que le falta.
 --   El portón del garaje se abre y cierra con E desde que la puerta del garaje está abierta (para meter el motor).
 --   Con todo puesto sale "Escape" (mantener E en la puerta del conductor): se van los bichos, la partida se da por
 --   terminada (Partida, con alHuir), los clientes ven la escena final (HuidaVista) y todos vuelven al lobby.
@@ -146,6 +147,7 @@ local function usoBidon(): Cargar.Uso
 	local function tapon(): Vector3
 		return (coche:GetAttribute("Tapon") :: CFrame).Position
 	end
+	local llenando = false -- un solo bidón a la vez en el tapón (como el generador)
 	return {
 		etiquetas = { "Coche" },
 		accion = "Verter",
@@ -158,13 +160,32 @@ local function usoBidon(): Cargar.Uso
 				Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "The can is empty."))
 				return nil
 			end
+			if llenando then
+				Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Someone is already using it."))
+				return nil
+			end
+			llenando = true
 			-- Al lado del tapón, inclinado hacia él.
 			return CFrame.new(tapon() + Vector3.new(1.7, 1.2, 0)) * CFrame.Angles(0, 0, math.rad(70)), Config.Generador.Verter
 		end,
+		cancelar = function()
+			llenando = false
+		end,
 		terminar = function(jugador, _objetivo, pieza)
+			llenando = false
 			local _, cabe = Recetas.montar(estado, "Bidon", C, pieza:GetAttribute("Carga") or 0)
-			pieza:SetAttribute("Carga", math.max(0, (pieza:GetAttribute("Carga") or 0) - cabe))
-			Cargar.liberar(pieza, CFrame.new(tapon() + Vector3.new(2.2, -1.2, 0)))
+			local queda = math.max(0, (pieza:GetAttribute("Carga") or 0) - cabe)
+			pieza:SetAttribute("Carga", queda)
+			-- Con gasolina de sobra vuelve a las manos de quien la echaba, si sigue vivo y cerca (como en las cruces,
+			-- Preparativos, pedido por el usuario); vacío, al suelo junto al tapón.
+			local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if raiz and queda > 0.01 and Muerte.vivo(jugador) and not jugador:GetAttribute("Escondido")
+				and (tapon() - raiz.Position).Magnitude <= Config.Casa.Alcance + 6 then
+				Cargar.liberar(pieza, raiz.CFrame * CFrame.new(0, 0, -2))
+				Cargar.recoger(jugador, pieza)
+			else
+				Cargar.liberar(pieza, CFrame.new(tapon() + Vector3.new(2.2, -1.2, 0)))
+			end
 			publicar()
 			if not Recetas.queFalta(estado, C) then
 				Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "The car is ready. Get in and escape!"))

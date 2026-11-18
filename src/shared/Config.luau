@@ -420,6 +420,9 @@ Config.Generador = {
 	Verter = 3, -- segundos echando gasolina
 	Arranca = 0.4, -- probabilidad de arrancar con cada tirón; al tercero seguido arranca seguro
 	Tiron = 1.1, -- segundos entre tirones
+	-- Apagarlo pide mantener E (a ojo): con un toque se apagaba sin querer al seguir tirando o en cooperativo.
+	Apagar = 1, -- segundos manteniendo E para apagarlo
+	Gracia = 1.5, -- segundos tras arrancar en los que no se puede apagar (quien sigue tirando a ritmo)
 }
 
 -- Depósito viejo de gasoil de la granja (juego/servidor/Recursos): con un bidón en las manos, R junto al grifo y se
