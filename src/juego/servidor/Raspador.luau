@@ -113,10 +113,10 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		Remotes.Raspador:FireAllClients("Chilla", modelo)
 	end
 
-	-- Llega desde el bosque; si ve a alguien fuera, va a por él.
-	b:irA(pegado, R.Andar, 35, function()
+	-- Llega desde el bosque; si ve a alguien fuera, va a por él. Si se atasca, nunca raspa desde lejos (Caza.llegarA).
+	b:llegarA(pegado, R.Andar, 35, function()
 		return not b.prisa and b:elegirPresa(true) == nil
-	end)
+	end, centro.Position)
 	if not b.prisa and b:elegirPresa(true) then
 		b:cazar(R.Caza / 2, true)
 		b:irA(lejos, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25)
@@ -160,8 +160,8 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		modelo:PivotTo(CFrame.lookAt(pie, pie - normal))
 		task.wait(R.Grito)
 		b:cazar(R.Caza, false)
-		-- Se va por donde entró (corriendo si le han dado con el flash).
-		b:irA(dentro, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25)
+		-- Se va por donde entró (corriendo si le han dado con el flash), sin salir de golpe a la vista (Caza.salir).
+		b:salir(dentro, if modelo:GetAttribute("Huye") then R.Huir else R.Andar)
 		local pieFuera = fuera + Vector3.new(0, ALTURA, 0)
 		modelo:PivotTo(CFrame.lookAt(pieFuera, pieFuera + normal))
 	end
