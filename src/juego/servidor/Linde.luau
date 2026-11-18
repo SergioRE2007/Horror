@@ -1,5 +1,5 @@
 -- La linde del mundo: hasta dónde se puede andar. Sin Roblox (solo cuentas), para probarla con Lune; las piezas las pone
--- Mapa (linde). El suelo llega a ±800 y el bosque, a unos 420 de la casa: sin esto se cruzaba una llanura pelada y se
+-- MapaBosque (linde). El suelo llega a ±800 y el bosque, a unos 420 de la casa: sin esto se cruzaba una llanura pelada y se
 -- caía al vacío. El contorno es un círculo de RADIO alrededor de la casa que en el lado del pueblo se abre y rodea el
 -- pueblo entero (edificios, cementerio, calle) con su cinturón de pinos (PuebloCalle.bosque, de 8 a 55 studs) y algo más.
 -- Números a ojo.

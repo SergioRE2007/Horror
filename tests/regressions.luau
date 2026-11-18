@@ -1441,7 +1441,7 @@ do
 	igual(PR.alcanceOido(oido, false, true, true), math.min(oido, Config.Postura.VerCubierto), "correr: cubierto manda")
 end
 
-do -- Linde del mundo (Mapa.linde): todo lo que se usa queda dentro de la pared, y la pared no llega al borde del suelo
+do -- Linde del mundo (MapaBosque.linde): todo lo que se usa queda dentro de la pared, y la pared no llega al borde del suelo
 	-- PuebloPlano usa Vector3 (sus lados): se carga aquí con el de Lune antes de que Linde lo pida.
 	local ruta = "src/juego/servidor/PuebloPlano"
 	cargados[ruta] = cargados[ruta] or luau.load(fs.readFile(ruta .. ".luau"),
