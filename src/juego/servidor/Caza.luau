@@ -26,7 +26,8 @@
 --   puerta cerrada. Al perderte de vista te busca (CazaBusqueda): sigue hacia donde iba, mira a un lado y a otro y
 --   recorre las salas de al lado antes de volver a la ronda (que no repite la sala en la que acaba de estar).
 --   Sigilo: quieto casi no se te oye, tras una pared o una puerta a la mitad, y con la linterna encendida agacharte
---   no te esconde de la vista (Config.Postura.OirQuieto, OirPared).
+--   no te esconde de la vista (Config.Postura.OirQuieto, OirPared). Las noches de niebla cerrada (Caza.esNiebla, la
+--   misma que ve el cliente) tampoco ven lejos si él o tú estáis fuera (Config.Caza.Niebla.Vista); el oído, igual.
 --   Puertas: solo abre la que va a cruzar en ese paso (CazaBusqueda.cruzaPuerta), y las que dan fuera (Atacable) nunca
 --   desde fuera: esas las rompen los ataques, o la Bestia (Opciones.RompePuertas). Ve y oye desde los ojos (ojosDe):
 --   la cabeza, o justo antes de la pared si la cabeza se le mete en ella.
@@ -36,9 +37,11 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local PosturaReglas = require(ReplicatedStorage.Shared.PosturaReglas)
+local TiempoNoche = require(ReplicatedStorage.Shared.TiempoNoche)
 local Casa = require(script.Parent.Casa)
 local CazaBusqueda = require(script.Parent.CazaBusqueda)
 local Mapa = require(script.Parent.Mapa)
@@ -122,6 +125,7 @@ local CERCA_BORDE = Config.Postura.CercaBorde
 local SE_ESCAPA = Config.Postura.SeEscapa
 local ATASCO = Config.Postura.Atasco
 local MAX_DT = Config.Postura.MaxOlor
+local NIEBLA_VISTA = Config.Caza.Niebla.Vista
 local SIN_SALIDA = Config.Postura.SinSalida
 local MAX_SIN_SALIDA = 3 -- bordes a los que no llegó que recuerda a la vez
 local ESPERA = 2.5 -- s quieto tras pillar a alguien (Opciones.Espera si la tiene)
@@ -294,6 +298,42 @@ function Caza.dentroDeCasa(p: Vector3): boolean
 		end
 	end
 	return false
+end
+
+-- ¿Hay niebla cerrada ahora? La misma que ve el cliente (CieloVista: TiempoNoche.hayNiebla con Noche y FaseInicio del
+-- workspace): de noche y antes de que se levante (Config.Cielo.Niebla.Abre). En Studio, NieblaPrueba la fuerza y
+-- TormentaPrueba la quita (como en CieloVista). La tirada se guarda por noche (se mira en cada elegirPresa).
+local nieblaDe: { noche: number, inicio: number, hay: boolean }? = nil
+function Caza.esNiebla(): boolean
+	if workspace:GetAttribute("Fase") ~= "Noche" then
+		return false
+	end
+	local inicio, fin = workspace:GetAttribute("FaseInicio"), workspace:GetAttribute("FaseFin")
+	if type(inicio) ~= "number" or type(fin) ~= "number" then
+		return false
+	end
+	local p = (workspace:GetServerTimeNow() - inicio) / math.max(1, fin - inicio)
+	if p >= Config.Cielo.Niebla.Abre then
+		return false
+	end
+	if RunService:IsStudio() then
+		if workspace:GetAttribute("TormentaPrueba") == true then
+			return false
+		elseif workspace:GetAttribute("NieblaPrueba") == true then
+			return true
+		end
+	end
+	local noche = workspace:GetAttribute("Noche")
+	if type(noche) ~= "number" then
+		return false
+	end
+	local guardada = nieblaDe
+	if guardada and guardada.noche == noche and guardada.inicio == inicio then
+		return guardada.hay
+	end
+	local hay = TiempoNoche.hayNiebla(noche, inicio, Config.Cielo.Niebla, Config.Tormenta)
+	nieblaDe = { noche = noche, inicio = inicio, hay = hay }
+	return hay
 end
 
 -- ¿Está `p` en la misma parte del mapa que unos pies en `suelo`? Los dos dentro de la casa o los dos fuera, y en la
@@ -986,6 +1026,9 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 	local mejor, destino, mejorDistancia, mejorDebajo = nil, nil, math.huge, nil
 	local ojos = ojosDe(self) -- para el rayo de vista y oído y la distancia; el cono (mira) sale de la raíz
 	local suelo = self:suelo()
+	-- Niebla cerrada: fuera de la casa tampoco ve lejos (Config.Caza.Niebla.Vista); el oído, igual.
+	local niebla = Caza.esNiebla()
+	local yoFuera = niebla and not Caza.dentroDeCasa(self.raiz.Position)
 	for _, jugador in Players:GetPlayers() do -- Muerte.vivo y no Muerte.vivos(): sin hacer otra lista en cada vuelta
 		if not Muerte.vivo(jugador) then
 			continue
@@ -1023,6 +1066,8 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 			local corriendo = jugador:GetAttribute("Corriendo") == true -- corriendo hace ruido (14.8)
 			local moviendo = suRaiz == nil or plano(suRaiz.AssemblyLinearVelocity).Magnitude > Config.Correr.Moverse
 			local vista = PosturaReglas.vistaDeLado(self.o.Vista, cosAngulo, recienVisto, self.o.Campo)
+			local fuera = yoFuera or (niebla and not Caza.dentroDeCasa(suCabeza.Position))
+			vista = TiempoNoche.vistaConNiebla(vista, niebla, fuera, NIEBLA_VISTA, Config.Postura.VerEspalda)
 			local ve = PosturaReglas.alcanceVista(vista, agachado, cubierto, alumbra)
 			local oye = PosturaReglas.alcanceOido(OIDO, agachado, cubierto, corriendo, moviendo)
 			local despejado = alAlcance

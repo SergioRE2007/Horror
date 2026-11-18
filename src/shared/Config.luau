@@ -279,6 +279,12 @@ Config.Caza = {
 	-- Aparecer y perderse en el bosque sin verse (sitioSinVer, perderse).
 	Candidatos = 6, -- sitios que prueba para aparecer: el primero que nadie ve (si los ven todos, el más apartado)
 	PerderseMax = 12, -- s que sigue alejándose de la casa al irse mientras alguien le vea (luego se quita igual)
+	-- Las noches de niebla cerrada (Caza.esNiebla, la misma que ve el cliente: Config.Cielo.Niebla) tampoco ven lejos
+	-- en el bosque: si el bicho o el jugador están fuera de la casa. El oído no cambia. A ojo.
+	Niebla = {
+		Vista = 0.4, -- la vista por esto (sin bajar de Config.Postura.VerEspalda): el Golpeador de 70 a 28 studs
+		Acechador = 0.6, -- el Acechador acecha y sale tanto más cerca (Config.Acechador.Lejos): que se le vea la silueta
+	},
 }
 
 -- Linterna con pilas (juego/servidor/Equipo): la F, o el botón en el móvil. Con poca pila parpadea.
