@@ -72,4 +72,14 @@ function Reparto.reponer(quitadas: { string }, cerillas: string, leida: boolean,
 	return lista, leida and hay <= 0
 end
 
+-- Cuántas bengalas vuelven delante del baúl del desván: las que falten hasta `total` (Config.Bestia.Bengalas) si la
+-- Bestia salió ese día (`bestiaHoy`: la noche final salió mal y alguien llegó al amanecer) o si no queda ninguna en
+-- toda la partida (`hay`, sueltas y en mochilas). Si no, ninguna: un día normal las gastadas siguen gastadas.
+function Reparto.bengalas(hay: number, total: number, bestiaHoy: boolean): number
+	if bestiaHoy or hay <= 0 then
+		return math.max(total - hay, 0)
+	end
+	return 0
+end
+
 return Reparto
