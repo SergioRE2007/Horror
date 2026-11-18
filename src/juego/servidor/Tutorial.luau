@@ -268,8 +268,19 @@ local function textoMeta(jugador: Player): string?
 	if not poca and Pistas.leida(Config.Bestia.PistaCerillas) then
 		local prep = Preparativos.estado()
 		if prep.cruces > 0 or prep.montada then
+			-- Lo que la frena y lo que la quema, en la mochila de cualquiera (ponerMetas lo repinta cada 2 s, así que
+			-- coger o soltar la pistola o las cerillas cambia la meta enseguida)
+			local pistola, cerillas = false, false
+			for _, otro in Players:GetPlayers() do
+				if Mochila.contar(otro, "Pistola") > 0 and Mochila.contar(otro, "Bengala") > 0 then
+					pistola = true
+				end
+				if Mochila.contar(otro, "Cerillas") > 0 then
+					cerillas = true
+				end
+			end
 			local paso, faltan = PasosTutorial.metaBestia(prep.total - prep.cruces, Pistas.leida(Config.Bestia.Reja.Pista),
-				prep.montada)
+				prep.montada, pistola, cerillas)
 			if paso == "Cruces" then
 				return if faltan == 1
 					then Lang.t(jugador, "Next: pour fuel on the last red cross.")
@@ -278,6 +289,10 @@ local function textoMeta(jugador: Player): string?
 				return Lang.t(jugador, "Next: find Harlan's plan in the basement.")
 			elseif paso == "Reja" then
 				return Lang.t(jugador, "Next: build the gate at the basement bench and set it in its frame.")
+			elseif paso == "Pistola" then
+				return Lang.t(jugador, "Next: take the flare gun and flares from the attic.")
+			elseif paso == "Cerillas" then
+				return Lang.t(jugador, "Next: someone must carry the matches from the safe.")
 			end
 			return Lang.t(jugador, "Next: wait for her in the hall.")
 		end

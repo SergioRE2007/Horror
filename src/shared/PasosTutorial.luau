@@ -174,15 +174,28 @@ end
 
 -- La meta del final de la Bestia (12.2), cuando ya se ha empezado a preparar la casa (Tutorial decide cuándo). En el
 -- orden en que lo cuentan las pistas: las cruces de gasolina (la 12), el plano de la reja (la 9), montar la reja y
--- esperarla en el vestíbulo. Devuelve un código y un número (Tutorial lo pasa a una frase con Lang.t):
---   "Cruces" (n = cruces que faltan), "Plano" (falta leer la 9), "Reja" (falta montarla) o "Esperar".
-function PasosTutorial.metaBestia(cruces: number, reja9Leida: boolean, montada: boolean): (string, number)
+-- esperarla en el vestíbulo. Antes de soltarla, que alguien lleve lo que la frena y lo que la quema: `pistola` = algún
+-- jugador lleva la pistola con al menos una bengala, `cerillas` = alguien lleva las cerillas (Tutorial lo mira en las
+-- mochilas). Devuelve un código y un número (Tutorial lo pasa a una frase con Lang.t):
+--   "Cruces" (n = cruces que faltan), "Plano" (falta leer la 9), "Reja" (falta montarla), "Pistola", "Cerillas" o
+--   "Esperar".
+function PasosTutorial.metaBestia(
+	cruces: number,
+	reja9Leida: boolean,
+	montada: boolean,
+	pistola: boolean,
+	cerillas: boolean
+): (string, number)
 	if cruces > 0 then
 		return "Cruces", cruces
 	elseif not montada and not reja9Leida then
 		return "Plano", 0
 	elseif not montada then
 		return "Reja", 0
+	elseif not pistola then
+		return "Pistola", 0 -- sin bengalas no hay cómo frenarla hasta el sótano
+	elseif not cerillas then
+		return "Cerillas", 0 -- sin cerillas el rastro del porche no se prende y no hay final
 	end
 	return "Esperar", 0
 end

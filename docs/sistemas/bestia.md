@@ -27,6 +27,7 @@ Lo preparado se guarda con la partida. Si mueren todos, se vuelve al amanecer: l
 - **Bengala:** se queda quieta 0,6 s y cojea 8 s a velocidad 7. El flash de la cámara no la para.
 - **Palanca:** fuera, en un poste del patio al oeste de la trampilla, con un tubo de hierro que baja por el hueco (14.1, pedido por el usuario: dentro te pillaba mientras tirabas). Se mete a la Bestia en el sótano, se sube por la escalera de mano y se tira al salir; desde abajo no llega. Si ella ya está dentro del sótano, la reja cae y la deja atrapada. Si no, aviso de que la reja ha caído sin nada detrás, y la reja vuelve a subir al amanecer.
 - **Atrapada:** no sale. Golpea la reja si ve a alguien fuera cerca y solo pilla a quien esté dentro con ella.
+- **Encerrada:** al caer la reja con ella dentro, a todos: "Está encerrada. Prende el rastro del porche." (si cae vacía: "no había nada detrás").
 - **Incendio:** "Light" en el porche (2 s con cerillas) con ella atrapada. El fuego sale del porche, pasa por las cruces en orden, uno cada 1,6 s, y acaba en el sótano. Ella chilla y desaparece, y caen todos los bichos.
 - **Premio:** escena final de 20 s sin interfaz y premio: 600 monedas del final más 500 del logro de la Bestia, que solo se da la primera vez (prueba de Lune). La insignia sale de `Config.Insignias.Bestia`, que vale 0 hasta publicar. Después, vuelta al lobby (en Studio no hay teletransporte).
 
