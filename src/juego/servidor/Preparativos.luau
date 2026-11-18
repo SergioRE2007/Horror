@@ -39,8 +39,8 @@ local Muerte = require(script.Parent.Muerte)
 local Preparativos = {}
 
 local B = Config.Bestia
--- Parte de un bidón que se echa en cada cruz: solo hay 4 bidones en el mapa y no se rellenan (el generador y el coche
--- también gastan), así que uno lleno da para 3.
+-- Parte de un bidón que se echa en cada cruz: solo hay 4 bidones en el mapa y el depósito de la granja da poco al día
+-- (el generador y el coche también gastan), así que uno lleno da para 3.
 local POR_PUNTO = Config.Bestia.PorPunto
 local MONTAR = Config.Bestia.Montar
 local CAER = Config.Bestia.Caer

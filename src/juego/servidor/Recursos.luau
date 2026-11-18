@@ -5,6 +5,8 @@
 --   al quedarse quieto en el suelo, se parte en troncos (cosas pesadas de Cargar). Queda el tocón; a las
 --   Config.Talar.Rebrota noches vuelve a crecer (al amanecer).
 --   Caballete: con un tronco en las manos, R (Cargar.alUsar "Tronco"): se sierra y salen tablones al lado.
+--   Depósito de gasoil de la granja (etiqueta "Deposito"): con un bidón en las manos, R junto al grifo y se llena con
+--   lo que quede (atributo Litros, en bidones: Config.Deposito.Dia cada amanecer, sin acumularse ni guardarse).
 -- Las animaciones van en el cliente (TrabajoVista) con el remote Trabajo.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -247,15 +249,158 @@ local function caballete()
 	})
 end
 
+-- ===== Depósito de gasoil =====
+
+local D = Config.Deposito
+
+local function piezaDeposito(nombre: string, tamano: Vector3, cf: CFrame, color: Color3, material: Enum.Material, padre: Instance,
+	choca: boolean?): Part
+	local p = Instance.new("Part")
+	p.Name = nombre
+	p.Anchored = true
+	p.Size = tamano
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.CanCollide = choca == true
+	p.CanQuery = choca == true
+	p.CanTouch = false
+	p.Parent = padre
+	return p
+end
+
+-- Depósito viejo de bloques: cilindro oxidado tumbado sobre cuatro patas con dos traviesas, flejes, tapón arriba y el
+-- grifo en el extremo del oeste (hacia la casa), con su mancha de gasoil en el suelo y una mano de sangre seca encima.
+-- Se hace aquí y no en Lugares. Devuelve el modelo, ya en el mapa.
+local function construirDeposito(): Model
+	local modelo = Instance.new("Model")
+	modelo.Name = "Deposito"
+	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- el Mando llega con el resto
+	local suelo = Vector3.new(D.Posicion[1], D.Posicion[2], D.Posicion[3])
+	local centro = CFrame.new(suelo + Vector3.new(0, 4.4, 0)) -- el eje del cilindro va a lo largo de X
+	local oxido = Color3.fromRGB(92, 58, 42)
+	local hierro = Color3.fromRGB(48, 46, 44)
+	local cuerpo = piezaDeposito("Cuerpo", Vector3.new(6, 3.2, 3.2), centro, oxido, Enum.Material.CorrodedMetal, modelo, true)
+	cuerpo.Shape = Enum.PartType.Cylinder
+	CollectionService:AddTag(cuerpo, "EnMapa")
+	-- Tapas de los extremos y flejes, un poco más anchos que el cilindro.
+	for _, x in { -3, 3 } do
+		piezaDeposito("Tapa", Vector3.new(0.2, 3.36, 3.36), centro * CFrame.new(x, 0, 0), hierro, Enum.Material.Metal, modelo).Shape =
+			Enum.PartType.Cylinder
+	end
+	for _, x in { -1.9, 1.9 } do
+		piezaDeposito("Fleje", Vector3.new(0.25, 3.3, 3.3), centro * CFrame.new(x, 0, 0), hierro, Enum.Material.CorrodedMetal, modelo).Shape =
+			Enum.PartType.Cylinder
+	end
+	-- Patas y traviesas de hierro (las traviesas abrazan la panza del cilindro).
+	for _, x in { -2.2, 2.2 } do
+		for _, z in { -0.9, 0.9 } do -- suben hasta meterse un poco en la panza
+			piezaDeposito("Pata", Vector3.new(0.35, 3.25, 0.35), CFrame.new(suelo + Vector3.new(x, 1.625, z)), hierro, Enum.Material.CorrodedMetal,
+				modelo, true)
+		end
+		piezaDeposito("Traviesa", Vector3.new(0.4, 0.4, 2.3), CFrame.new(suelo + Vector3.new(x, 2.85, 0)), hierro, Enum.Material.CorrodedMetal,
+			modelo, true)
+		-- Un tirante en diagonal entre las patas de cada lado.
+		piezaDeposito("Tirante", Vector3.new(0.15, 0.15, 2.3), CFrame.new(suelo + Vector3.new(x, 1.4, 0)) * CFrame.Angles(math.rad(38), 0, 0),
+			hierro, Enum.Material.Metal, modelo)
+	end
+	-- Tapón de llenar arriba, con su cadena colgando.
+	piezaDeposito("Tapon", Vector3.new(0.45, 0.8, 0.8), centro * CFrame.new(1.4, 1.7, 0) * CFrame.Angles(0, 0, math.pi / 2), hierro,
+		Enum.Material.Metal, modelo).Shape = Enum.PartType.Cylinder
+	piezaDeposito("Cadena", Vector3.new(0.06, 0.9, 0.06), centro * CFrame.new(1.05, 1.3, 0.35) * CFrame.Angles(0, 0, math.rad(25)), hierro,
+		Enum.Material.Metal, modelo)
+	-- El grifo: tubo que sale de la tapa del oeste por abajo, codo hacia el suelo y la llave en cruz encima.
+	local tubo = Color3.fromRGB(70, 66, 60)
+	piezaDeposito("Tubo", Vector3.new(0.9, 0.28, 0.28), centro * CFrame.new(-3.5, -1, 0), tubo, Enum.Material.Metal, modelo).Shape =
+		Enum.PartType.Cylinder
+	piezaDeposito("Codo", Vector3.new(0.34, 0.34, 0.34), centro * CFrame.new(-3.95, -1, 0), tubo, Enum.Material.Metal, modelo)
+	piezaDeposito("Caño", Vector3.new(0.6, 0.26, 0.26), centro * CFrame.new(-3.95, -1.45, 0) * CFrame.Angles(0, 0, math.pi / 2), tubo,
+		Enum.Material.Metal, modelo).Shape = Enum.PartType.Cylinder
+	piezaDeposito("Eje", Vector3.new(0.1, 0.35, 0.1), centro * CFrame.new(-3.5, -0.72, 0), tubo, Enum.Material.Metal, modelo)
+	for _, giro in { 0, 90 } do
+		piezaDeposito("Llave", Vector3.new(0.12, 0.1, 0.7), centro * CFrame.new(-3.5, -0.55, 0) * CFrame.Angles(0, math.rad(giro + 20), 0),
+			Color3.fromRGB(96, 24, 20), Enum.Material.Metal, modelo)
+	end
+	-- Lo derramado debajo del grifo (oscuro, sin brillo) y una mano de sangre seca en la tapa, junto al grifo.
+	local charco = CFrame.new(suelo + Vector3.new(-3.6, 0.03, 0.3)) * CFrame.Angles(0, 0, math.pi / 2) -- disco tumbado
+	local mancha = piezaDeposito("Mancha", Vector3.new(0.05, 3.4, 3.4), charco, Color3.fromRGB(22, 20, 18), Enum.Material.Slate, modelo)
+	mancha.Shape = Enum.PartType.Cylinder
+	mancha.CastShadow = false
+	local tapa = centro * CFrame.new(-3.12, 0, 0) -- un poco por fuera de la cara de la tapa del oeste
+	local sangre = Color3.fromRGB(64, 12, 10)
+	piezaDeposito("Sangre", Vector3.new(0.02, 0.75, 0.55), tapa * CFrame.new(0, 0.45, 0.55) * CFrame.Angles(math.rad(-12), 0, 0), sangre,
+		Enum.Material.SmoothPlastic, modelo).CastShadow = false
+	for i, dedo in { { -0.3, 0.12 }, { -0.1, 0.18 }, { 0.1, 0.17 }, { 0.3, 0.1 } } do
+		piezaDeposito("Sangre", Vector3.new(0.02, 0.38 + dedo[2], 0.1), tapa * CFrame.new(0, 0.98 + dedo[2] / 2, 0.55 + dedo[1])
+			* CFrame.Angles(math.rad(-12 + i * 4), 0, 0), sangre, Enum.Material.SmoothPlastic, modelo).CastShadow = false
+	end
+	-- Chorretón que baja de la mano hasta el codo del grifo.
+	piezaDeposito("Sangre", Vector3.new(0.02, 1.1, 0.07), tapa * CFrame.new(0, -0.35, 0.62), sangre, Enum.Material.SmoothPlastic,
+		modelo).CastShadow = false
+	-- Dónde se pone el bidón (de pie bajo el caño), dónde cae al acabar y la boca del grifo (el chorro de TrabajoVista).
+	local boca = centro * CFrame.new(-3.95, -1.75, 0)
+	local mando = piezaDeposito("Mando", Vector3.new(1, 1, 1), boca * CFrame.new(0, -0.3, 0), tubo, Enum.Material.SmoothPlastic, modelo)
+	mando.Transparency = 1
+	local alto = Config.Pesados.Bidon.Tam[2]
+	modelo:SetAttribute("Sitio", CFrame.new(boca.X, suelo.Y + alto / 2 + 0.05, boca.Z))
+	modelo:SetAttribute("Salida", CFrame.new(boca.X - 0.2, suelo.Y + alto / 2 + 0.1, boca.Z + 2.4) * CFrame.Angles(0, 0.5, 0))
+	modelo:SetAttribute("Grifo", CFrame.new(boca.Position))
+	modelo:SetAttribute("Litros", D.Dia)
+	CollectionService:AddTag(modelo, "Deposito")
+	local mapa = workspace:FindFirstChild("Mapa")
+	modelo.Parent = (mapa and mapa:FindFirstChild("Lugares")) or mapa or workspace
+	return modelo
+end
+
+local function deposito()
+	local dep = construirDeposito()
+	Cargar.alUsar("Bidon", {
+		etiquetas = { "Deposito" },
+		accion = "Verter", -- el mismo chorro y sonido que al echar gasolina, del grifo al bidón
+		preparar = function(jugador, _dep, pieza)
+			if (pieza:GetAttribute("Carga") or 0) >= 0.99 then
+				Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "The can is full."))
+				return nil
+			elseif (dep:GetAttribute("Litros") or 0) <= 0.01 then
+				Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "It's dry. Come back tomorrow."))
+				return nil
+			elseif dep:GetAttribute("Llenando") then
+				Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Someone is already using it."))
+				return nil
+			end
+			dep:SetAttribute("Llenando", true)
+			return dep:GetAttribute("Sitio") :: CFrame, D.Llenar
+		end,
+		terminar = function(_jugador, _dep, pieza)
+			dep:SetAttribute("Llenando", nil)
+			-- Se vuelve a mirar al acabar: lo que quede ahora, no lo que había al empezar.
+			local carga = pieza:GetAttribute("Carga") or 0
+			local litros = dep:GetAttribute("Litros") or 0
+			local echado = math.clamp(math.min(1 - carga, litros), 0, 1)
+			pieza:SetAttribute("Carga", math.min(1, carga + echado))
+			dep:SetAttribute("Litros", math.max(0, litros - echado))
+			Cargar.liberar(pieza, dep:GetAttribute("Salida") :: CFrame)
+		end,
+		cancelar = function()
+			dep:SetAttribute("Llenando", nil)
+		end,
+	})
+	return dep
+end
+
 function Recursos.start()
 	for _, modelo in CollectionService:GetTagged("Arbol") do
 		originales[modelo] = modelo:Clone()
 		preparar(modelo)
 	end
 	caballete()
+	local dep = deposito()
 	Ciclo.alCambiar(function(fase, noche)
 		if fase == "Dia" then
 			rebrotar(noche)
+			dep:SetAttribute("Litros", D.Dia) -- lo de ayer no se acumula
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(jugador)
