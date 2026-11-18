@@ -1,6 +1,8 @@
 -- Lo de dentro de cada sala de la casa (11.8, plan-salas.md), sacado de Mapa sin cambiar nada: papel, suelos y techos
 -- (SALAS), lo abandonado y un `vestir<Sala>` por sala con sus muebles, manchas y luces. Mapa.start los llama después
 -- de Separar, con la casa ya hecha; las ayudas (bloque, tienda…) son las de Mapa (`iniciar`).
+local CollectionService = game:GetService("CollectionService")
+
 local Medidas = require(script.Parent.MapaMedidas)
 local ABAJO, ARRIBA, ALTO, BAJO_TECHO = Medidas.ABAJO, Medidas.ARRIBA, Medidas.ALTO, Medidas.BAJO_TECHO
 local COLOR, TEJADO, FONDO_SOTANO, BANCO_SOTANO = Medidas.COLOR, Medidas.TEJADO, Medidas.FONDO_SOTANO, Medidas.BANCO_SOTANO
@@ -318,6 +320,7 @@ local function luzLuna(desde: Vector3, hacia: Vector3, brillo: number, alcance: 
 	foco.Shadows = false
 	foco.Face = Enum.NormalId.Front
 	foco.Parent = luna
+	CollectionService:AddTag(luna, "Luna") -- su haz visible de noche (AireVista, docs/sistemas/aire.md)
 end
 
 local function vestirVestibulo()

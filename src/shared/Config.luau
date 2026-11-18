@@ -719,6 +719,14 @@ Config.Sonidos = {
 	GolpeMetal = { Id = 90763366072682, Volumen = 1.6, Alcance = 90 }, -- el bidón, la rueda o el motor al caer (mientras, Golpe)
 	Arrastre = { Id = 133574014508797, Volumen = 1.2, Alcance = 50 }, -- algo pesado arrastrado por el suelo, en bucle (mientras, Hollin)
 	Lanzar = { Id = 0, Volumen = 0.7, Alcance = 25 }, -- el resoplido al lanzar algo pesado
+	-- Bichitos (bichitos.md): FALTAN, para hacer con ElevenLabs. Mientras, la rata chilla con un Cruje flojo y agudo.
+	RataChillido = { Id = 0, Volumen = 0.35, Alcance = 25 }, -- chillido corto de rata al huir
+	RataPatas = { Id = 0, Volumen = 0.3, Alcance = 18 }, -- patitas con uñas corriendo por madera
+	Moscas = { Id = 0, Volumen = 0.25, Alcance = 12 }, -- zumbido de moscas sobre un charco, en bucle
+	-- Cuerpos que caen de verdad (cadaver.md): FALTAN, para hacer con ElevenLabs (sonidos-pendientes.md).
+	GritoMuerte = { Id = 0, Volumen = 1.6, Alcance = 200 }, -- grito de alguien al que pilla un bicho (mientras, Susto)
+	CuerpoCae = { Id = 0, Volumen = 0.9, Alcance = 50 }, -- cuerpo contra el suelo (mientras, Retumbo flojo y agudo)
+	LinternaCae = { Id = 0, Volumen = 0.6, Alcance = 30 }, -- linterna que cae y rueda por el suelo (mientras, nada)
 }
 
 -- Detalles vivos de la casa (juego/cliente/DetallesVista, 11.9, pedido por el usuario). Segundos; números a ojo.
@@ -847,6 +855,67 @@ Config.Latas = {
 	} :: { [number]: { Alto: number, Comba: number, SoloBichos: boolean } },
 }
 
+-- Aire vivo: polvo siempre en la luz, haces de luna y niebla baja (juego/cliente/AireVista, docs/sistemas/aire.md).
+-- Solo adorno del cliente; números a ojo. Con Rendimiento, motas a Rendimiento y sin haces, niebla ni pinocha.
+Config.Aire = {
+	Cada = 0.1, -- segundos entre dos repasos (cajas colocadas, emisores encendidos o apagados)
+	Rendimiento = 0.3, -- parte de las motas que quedan con Rendimiento
+	-- Motas de dentro: una caja delante de la cámara; con LightInfluence 1 solo se ven donde da la luz.
+	Motas = { Rate = 7, Caja = { 9, 5, 11 }, Delante = 6 }, -- por segundo, caja (ancho, alto, fondo) y studs por delante
+	-- Salas con más polvo (o casa también, aunque estén fuera de Config.Casa): rectángulos sacados de SALAS de Mapa.
+	-- `Motas` multiplica Motas.Rate. Lo primero que contenga a la cámara manda.
+	Salas = {
+		{ Nombre = "Desvan", x1 = -39.5, x2 = 39.5, y1 = 26.5, y2 = 42, z1 = -33.5, z2 = 33.5, Motas = 3 },
+		{ Nombre = "Sotano", x1 = -12.5, x2 = 12.5, y1 = -12, y2 = 0.5, z1 = 33.5, z2 = 66, Motas = 3 },
+		{ Nombre = "Trastero", x1 = 12, x2 = 22, y1 = 0, y2 = 13.5, z1 = 5, z2 = 19, Motas = 3 },
+		{ Nombre = "Garaje", x1 = -59, x2 = -39, y1 = 0, y2 = 14, z1 = 3, z2 = 33, Motas = 1.5 },
+		{ Nombre = "Cobertizo", x1 = -54, x2 = -44, y1 = 0, y2 = 12, z1 = 37, z2 = 45.5, Motas = 2 },
+	} :: { { Nombre: string, x1: number, x2: number, y1: number, y2: number, z1: number, z2: number, Motas: number } },
+	-- Haces de luna (las luces etiquetadas "Luna" de Mapa.luzLuna): de noche, de la ventana al suelo.
+	Haz = {
+		Cerca = 70, -- studs de la cámara: más lejos, apagado
+		Ancho = { 2.2, 7 }, -- en la ventana y en el suelo (como mucho)
+		Abre = 0.3, -- studs de ancho por stud de largo
+		Transparencia = 0.93, -- en el centro (casi transparente)
+		Motas = 3, -- por segundo dentro de cada haz
+		Ventana = 7, -- studs: la ventana (etiqueta Ventana) más cerca que esto la tapa al cerrar la persiana o tablones
+	},
+	-- Niebla baja de fuera, de noche: partículas grandes y planas alrededor de la cámara.
+	Niebla = { Radio = 40, Rate = 5, Alto = 2.2, Velocidad = { 0.5, 1.4 } },
+	-- Pinocha que cae en las rachas, con un pino a menos de `Cerca` studs (en planta).
+	Pinocha = { Cerca = 16, Rate = 12, Racha = 0.55, Alto = 14 },
+	-- Viento (no lo había en Ambiente: lo pone AireVista.viento): rumbo en radianes en el plano xz, cuánto se desvía y
+	-- cada cuánto, y fuerza (studs/s de deriva).
+	Viento = { Rumbo = 0.7, Giro = 0.6, Lento = 0.012, Fuerza = { 0.4, 1.6 }, Rachas = 0.16 },
+}
+
+-- Pavor al ver un bicho: vértigo, manos que tiemblan y latido (juego/cliente/PavorVista, docs/sistemas/pavor.md).
+-- Solo adorno del cliente; números a ojo. Con Rendimiento, sin vértigo ni retraso: solo el latido y un temblor flojo.
+Config.Pavor = {
+	Lejos = 45, -- studs: más lejos, verlo no cuenta
+	Cerca = 8, -- studs: más cerca, del todo
+	Minimo = 0.4, -- lo fuerte que es verlo justo en el límite (Lejos)
+	Olvida = 15, -- s sin verlo para que el mismo bicho vuelva a asustar
+	Cada = 0.15, -- s entre mirada y mirada (los rayos)
+	Borde = 0.04, -- parte de la pantalla, por cada borde, que no cuenta como "a la vista"
+	-- Vértigo: el campo de visión se cierra `Campo` grados (del todo) y la cámara recula `Recula` studs, en `Cierra` s;
+	-- se queda `Queda` s y vuelve en `Vuelve` s.
+	Vertigo = { Campo = 10, Recula = 0.35, Cierra = 0.5, Queda = 0.25, Vuelve = 2.6 },
+	Sobresalto = 0.45, -- el golpe de tensión, flojo: su volumen por este número (y menos lejos)
+	SobresaltoCada = 4, -- s como poco entre dos
+	Manos = 0.5, -- el respingo de las manos (ManosGestos.sobresalto) del todo
+	Latido = { Volumen = 0.9, Dura = { 3, 6 }, Apaga = 2.5 }, -- por el suyo; s que suena entero (lejos, cerca) y apagándose
+	Dura = { 20, 30 }, -- s que dura el pavor (lejos, cerca), bajando poco a poco
+	Baja = 1.6, -- cómo baja: (1 - t / dura) ^ Baja
+	-- Las manos y la linterna tiemblan: giro (radianes) y desplazamiento (studs) con el pavor entero; vueltas por
+	-- segundo del temblor fino y del lento; con Rendimiento, por `Rendimiento`.
+	Temblor = { Giro = math.rad(1.3), Mueve = 0.012, Fino = 9, Lento = 2.3, Rendimiento = 0.4 },
+	Respira = 0.8, -- el susto de la respiración de la cámara (CuerpoVista.respiracion) con el pavor entero
+	-- Al girar rápido la vista se queda atrás: desde `Desde` rad/s, `Tiempo` s de lo girado, `Max` radianes como mucho,
+	-- y lo deprisa que sigue (por segundo).
+	Retraso = { Desde = 1.5, Tiempo = 0.025, Max = math.rad(2.2), Suave = 12 },
+}
+
 -- Cómo se mueven y suenan las latas (juego/cliente/LatasVista, 14.3). A ojo.
 Config.LatasVista = {
 	Cerca = 120, -- studs: más lejos no se anima nada
@@ -904,6 +973,144 @@ Config.Efectos = {
 	MaxVentanas = 6, -- ventanas con cristales en el suelo a la vez (las más viejas se barren)
 }
 
+-- Huellas de barro y de sangre que dicen por dónde ha ido el bicho (juego/cliente/HuellasVista, docs/sistemas/huellas.md).
+-- Solo adorno del cliente: cada uno las calcula con lo que ve. Colores en RGB (sin Color3, para que Lune lo cargue). A ojo.
+Config.Huellas = {
+	Cada = 0.1, -- segundos entre dos repasos de lo andado
+	CadaColor = 1, -- segundos entre dos repasos del color y lo aclarado
+	Cerca = 160, -- studs de la cámara: más lejos ni se cuentan pisadas ni se aclaran
+	Tope = 80, -- huellas vivas como mucho (las más viejas se borran primero)
+	TopeRendimiento = 30,
+	Textura = "rbxassetid://115119002468912", -- la de las huellas con uñas del salón (Mapa, HOLLIN.Huellas)
+	Barro = { 52, 38, 26 },
+	SangreFresca = { 150, 14, 10 }, -- roja y brillante...
+	SangreSeca = { 64, 32, 20 }, -- ...y seca, marrón
+	Secar = 60, -- segundos de fresca a seca
+	Ensangrentado = 40, -- segundos tras matar en que el bicho deja huellas de sangre
+	CercaMuerte = 16, -- studs: si el remote Muerte no dice qué bicho fue, el más cercano a esto
+	Transparencia = { 0.1, 0.7 }, -- recién pisada ... al cabo de Aclarar (y así hasta el amanecer)
+	Aclarar = 240, -- segundos (una noche)
+	-- Jugadores: zapatos.
+	Zancada = 3.6, -- studs entre dos pisadas
+	PasosSangre = { 8, 10 }, -- pisadas rojas tras pisar un charco (cada jugador siempre las mismas: por su UserId)
+	SangreUltima = 0.85, -- transparencia de la última de ellas (se apagan paso a paso)
+	PasosBarro = 4, -- al entrar en casa del bosque
+	Fuera = { "Grass", "LeafyGrass", "Ground", "Mud" }, -- suelo de fuera que manchará de barro
+	Zapato = { Ancho = 0.48, Largo = 0.78, Tacon = 0.36, Lado = 0.45 }, -- planta, tacón y separación entre pies
+	-- Bichos: forma de la huella (Garra, ManosPies o Zapato), tamaño { ancho, largo } y separación entre los dos lados.
+	Bichos = {
+		Golpeador = { Forma = "Garra", Tam = { 1.4, 2.7 }, Lado = 1.6 },
+		Raspador = { Forma = "Garra", Tam = { 1, 1.9 }, Lado = 1.1 },
+		Trepador = { Forma = "ManosPies", Tam = { 0.9, 1.7 }, Lado = 1.3 },
+		Imitador = { Forma = "Zapato", Tam = { 0.52, 1.1 }, Lado = 0.5 }, -- imita a una persona: zapatos
+		Acechador = { Forma = "Garra", Tam = { 1.5, 2.9 }, Lado = 1.8 },
+		Bestia = { Forma = "Garra", Tam = { 2.8, 5.4 }, Lado = 3.4 },
+	} :: { [string]: { Forma: string, Tam: { number }, Lado: number } },
+}
+
+-- Marcas de la noche: arañazos en las puertas y sangre salpicada en las paredes (juego/cliente/MarcasVista,
+-- docs/sistemas/marcas.md). Solo adorno del cliente, calculado por cada uno con la misma semilla. RGB sin Color3. A ojo.
+Config.Marcas = {
+	Tope = 60, -- marcas vivas como mucho (un zarpazo o una mancha con sus gotas); las más viejas se borran primero
+	TopeRendimiento = 20,
+	Cerca = 70, -- studs de la cámara: más lejos no se animan los chorretones ni se seca la sangre (se pone al día luego)
+	-- Arañazos del Golpeador (cada golpe, atributo Golpes): un zarpazo de 3-4 surcos paralelos, oscuros y con el borde
+	-- claro, y alguna astilla levantada. En la hoja, el marco o la pared de al lado, por fuera.
+	Surcos = { 3, 4 },
+	Largo = { 1.3, 2.4 }, -- studs de cada surco
+	Separa = { 0.16, 0.24 }, -- studs entre dos surcos
+	Ancho = { 0.06, 0.1 }, -- studs de cada surco
+	Inclina = 0.6, -- radianes como mucho desde la vertical (arañan hacia abajo)
+	Oscuro = 0.3, -- el color del surco: el de la madera por esto (hundido, en sombra)
+	Claro = { 182, 146, 104 }, -- madera recién arrancada: el borde levantado y las astillas
+	Astillas = { 1, 3 }, -- por zarpazo (con Rendimiento, ninguna)
+	EnHoja = 0.75, -- en una puerta, de cada zarpazo, lo que cae en la hoja (el resto, en el marco)
+	Cede = 0.4, -- con la vida por debajo de esto (de 0 a 1) la hoja cede: también arañazos por dentro
+	-- El Raspador: rayas finas y largas en el cristal, por fuera, según va raspando (atributo Raspado de 0 a 1).
+	Raspado = {
+		Cada = 0.08, -- una pasada de rayas por cada tanto de Raspado
+		Rayas = { 2, 3 },
+		Largo = { 1.4, 3 },
+		Ancho = 0.025,
+		Color = { 214, 218, 220 },
+		Transparencia = 0.4,
+		Cerca = 7, -- studs del bicho a donde se planta (Fuera de la ventana) para saber qué ventana raspa
+	},
+	-- Sangre (remote Muerte): rayos desde el pecho del muerto hacia paredes, suelo y muebles; donde dan, manchas
+	-- alargadas en la dirección del golpe, gotas alrededor y, en lo vertical, algún chorretón que escurre despacio.
+	Rayos = 26, -- (con Rendimiento, Rayos / 2)
+	Alcance = 10.5, -- studs (unos 3 m)
+	Pecho = 1.2, -- studs por encima de la raíz de donde sale
+	Mancha = { 0.5, 1.5 }, -- studs de ancho de una mancha: lejos ... cerca
+	Gotas = { 1, 3 }, -- gotas pequeñas alrededor de cada mancha
+	Gota = { 0.08, 0.22 }, -- studs de ancho de una gota
+	Chorreon = 0.4, -- de cada mancha grande en lo vertical, lo que escurre
+	Chorreones = 5, -- como mucho por muerte
+	ChorreaLargo = { 0.8, 2.6 }, -- studs que baja
+	ChorreaDura = { 5, 9 }, -- segundos que tarda en bajar del todo
+	Textura = "rbxassetid://93752217357412", -- el hollín de Mapa (HOLLIN.Hollin), teñido, sobre las manchas grandes
+	Fresca = { 112, 8, 6 }, -- roja...
+	Seca = { 52, 12, 8 }, -- ...y seca, casi negra
+	Secar = 90, -- segundos de fresca a seca
+	CadaColor = 1, -- segundos entre dos repasos del color
+}
+
+-- Cuerpos que caen de verdad: el compañero muerto se queda tirado (juego/cliente/CadaverVista,
+-- docs/sistemas/cadaver.md). Solo adorno del cliente. Segundos, studs y grados; números a ojo.
+Config.Cadaver = {
+	Anclar = 3, -- segundos como mucho que se mueve el muñeco; luego se anclan todas sus piezas
+	AnclarRendimiento = 1.5,
+	Quieto = 1.5, -- studs/s del tronco: más despacio que esto...
+	QuietoMin = 0.8, -- ...pasado este rato...
+	QuietoTiempo = 0.4, -- ...y durante esto, ya se ancla antes
+	Tope = 4, -- muñecos moviéndose a la vez; con uno más, el más viejo se ancla tal como está
+	Empuje = 20, -- studs/s en horizontal, hacia el lado contrario del bicho
+	Salto = 9, -- studs/s hacia arriba
+	Giro = 5, -- rad/s del tronco hacia atrás
+	Azar = 0.2, -- cada pieza, un poco más o menos de empuje
+	Friccion = 4, -- rozamiento de las rótulas: que no se balanceen sin fin
+	Golpe = 10, -- studs/s: frenar de golpe desde más que esto suena a cuerpo contra el suelo
+	TonoGrito = 0.8, -- el grito provisional (Susto) mientras GritoMuerte tenga Id 0
+	VolumenGrito = 0.8,
+	EsperaPropio = 1, -- tu muñeco: como poco esto tras morir, y cuando la cámara deja de ser de script
+	EsperaPropioMax = 25, -- ...o a esto, pase lo que pase
+	FuerzaPropio = 0.15, -- tu cuerpo ya ha caído durante el susto: apenas empuje
+	SinAviso = 0.3, -- muertes sin remote Muerte: tras el Died, el muñeco cae donde está
+	-- Límites de cada rótula: { cono, giro a cada lado } en grados.
+	Juntas = {
+		Cuello = { 40, 45 },
+		Cintura = { 25, 20 },
+		Hombro = { 85, 60 },
+		Codo = { 70, 10 },
+		Muneca = { 30, 15 },
+		Cadera = { 55, 25 },
+		Rodilla = { 70, 8 },
+		Tobillo = { 25, 10 },
+		Otra = { 30, 20 },
+	},
+	-- El charco de MuerteVista: escondido mientras vuela el muñeco; luego bajo su pecho, creciendo despacio.
+	Charco = {
+		Crece = 8, -- segundos de pequeño a su tamaño
+		Desde = 0.5, -- studs de diámetro al empezar
+		Tam = { 5, 7 }, -- studs de diámetro al final
+		Cerca = 4, -- studs: un charco nuevo tan cerca de donde cayó es suyo
+		Espera = 3, -- segundos tras la muerte en que se busca su charco
+	},
+	-- La linterna que se le cae, si la llevaba encendida.
+	Linterna = {
+		Dura = 40, -- segundos encendida en el suelo
+		Apaga = 6, -- los últimos segundos baja y parpadea más
+		Corte = -0.45, -- con el ruido por debajo de esto, un tirón a casi apagada (más alto, más tirones)
+		Tirones = 3, -- lo deprisa que cambia el ruido
+		Rueda = 2.5, -- segundos rodando antes de quedarse quieta
+		Brillo = 2.5, -- más flojo que en la mano (Config.Linterna.Brillo)
+		Rango = 30,
+		Angulo = 50,
+		Empuje = 7, -- studs/s con que sale de la mano
+		Cerca = 160, -- studs de la cámara: más lejos no se le toca el brillo
+	},
+}
+
 -- Cortinas, cristales y puertas cuando algo se acerca por fuera (juego/cliente/CasaVista, 14.3). A ojo.
 Config.EfectosCasa = {
 	Ondea = 0.32, -- radianes que se mecen las cortinas hacia dentro con algo pegado fuera (abajo del todo)
@@ -914,6 +1121,95 @@ Config.EfectosCasa = {
 	Empuje = 0.9, -- grados que se comba la puerta hacia dentro
 	Vaho = 0.22, -- lo opaco del vaho en el cristal (0 a 1)
 	Dientes = 10, -- picos de cristal que quedan en el marco al romperse
+}
+
+-- Puertas que revientan: astillas, la hoja colgando de una bisagra (juego/cliente/PuertaRotaVista,
+-- docs/sistemas/puerta-rota.md). Solo lo ve el cliente; números a ojo.
+Config.PuertaRota = {
+	Cede = { 0.5, 0.25 }, -- con menos vida que esto (de la máxima) se mete un tablón hacia dentro, y luego otro
+	Tablas = 0.8, -- studs de ancho de cada tabla de la hoja (la hoja se parte en tablas al ceder)
+	Metido = 0.45, -- studs que se mete hacia dentro el trozo de tabla que cede
+	Hueco = { 0.28, 0.38 }, -- alto del trozo que cede (parte del alto de la hoja)
+	Colgada = { Giro = 25, Ladeo = 7, Vuelco = 6, Bisagra = 0.15 }, -- grados hacia la sala, caída del lado de la
+	-- cerradura, la parte de arriba hacia la sala y altura de la bisagra que aguanta (parte del alto de la hoja)
+	Caida = 0.4, -- segundos que tarda la hoja en quedarse colgando (con su rebote)
+	Mecer = { Grados = 6, Segundos = 2.5, Vueltas = 3 }, -- se balancea un poco en la bisagra y se para
+	Vuelve = 0.6, -- segundos que tarda en volver a su sitio al repararla
+	Astillas = { 10, 14 }, -- astillas y trozos de tabla que saltan al reventar
+	AstillasPoco = 5, -- con Rendimiento
+	Salen = { 8, 15 }, -- studs/s hacia la sala
+	Anclar = 2, -- segundos: las que ya están quietas se anclan (las que aún se mueven, como mucho al doble)
+	Picos = { 4, 6 }, -- picos de madera que quedan en el marco del lado de la cerradura
+	Polvo = 30, -- polvo y arenilla que caen del dintel al reventar
+	Cerca = 30, -- studs de la cámara: más lejos ni se mira quién las pisa
+	Pisar = 1.1, -- studs (en planta) de unos pies a una astilla para que cruja
+	CadaCrujido = 1.4, -- studs que hay que andar para que vuelva a crujir
+}
+
+-- La casa se desordena: lo que cae con los golpes y las sillas que vuelca el bicho (juego/cliente/DesordenVista,
+-- docs/sistemas/desorden.md). Solo adorno del cliente; números a ojo.
+Config.Desorden = {
+	Alcance = 14, -- studs en planta de un golpe en una puerta o ventana a los que se caen cosas...
+	Planta = 6, -- ...en la misma planta (studs de alto)
+	Caen = { 1, 2 }, -- cosas por golpe (con Rendimiento, una)
+	Ventana = 3, -- se elige entre los tantos más cerca del borde que quedan
+	Pisada = { Peso = 1, Celda = 8, Prob = 0.35, Alcance = 9 }, -- pisadas fuertes: peso mínimo del bicho, cada cuántos
+	-- studs cuenta una, la parte de ellas que tira algo y a cuántos studs
+	CuadroGolpes = 3, -- golpes cerca para que un cuadro ya muy torcido se descuelgue
+	Tope = 25, -- cosas caídas como mucho (adornos, cuadros y sillas)
+	Altura = 1, -- studs mínimos de la balda o la mesa al suelo (lo del suelo no se cae)
+	BaldaMax = 18, -- studs: un apoyo más grande es el suelo
+	Empuje = { 3.5, 5.5 }, -- studs/s hacia fuera del borde
+	Choque = 6, -- studs/s de caída: frenar de golpe desde más que esto es dar contra el suelo
+	Anclar = 2.5, -- segundos: lo caído y quieto se ancla (lo que aún se mueve, como mucho a AnclarMax)
+	AnclarMax = 5,
+	Trozos = { 4, 6 }, -- trozos de un plato o una botella rota (con Rendimiento no se rompen)
+	TrozosSalen = { 2, 5 }, -- studs/s
+	Cerca = 90, -- studs de la cámara: más lejos no hay física, se pone ya en el suelo (y sin sonido)
+	Roce = 2, -- studs en planta de la raíz del bicho a una silla para volcarla
+	Silla = { Segundos = 0.55, Rebote = 7 }, -- lo que tarda en caer y los grados del botecito (sin él con Rendimiento)
+	Mecedora = { Aparta = 1.4, Giro = 25, Segundos = 0.45 }, -- studs, grados y segundos
+	Pisar = 0.9, -- studs (en planta) de unos pies a un trozo para que cruja
+	CadaCrujido = 1.2, -- studs que hay que andar para que vuelva a crujir
+	CercaPisar = 30, -- studs de la cámara: más lejos ni se mira quién los pisa
+}
+
+-- Bichitos: ratas que huyen de la linterna, polillas en las bombillas y moscas en la sangre (juego/cliente/BichitosVista,
+-- docs/sistemas/bichitos.md). Solo adorno del cliente; números a ojo.
+Config.Bichitos = {
+	Cerca = 25, -- studs de la cámara (en planta) a los que hay bichitos; más lejos se borran
+	Margen = 5, -- studs de más para borrar lo que ya estaba (que no salga y se borre en el borde)
+	Cada = 0.25, -- segundos entre dos repasos de qué hay cerca
+	Desnivel = 1.2, -- studs: un suelo más alto o más bajo que el de la sala (escalón, hueco) no vale para andar
+	-- Salas: rectángulos en planta por dentro de las paredes (de juego/servidor/Mapa), la altura de su suelo y lo alto
+	-- (la cámara tiene que estar entre el suelo y el techo). Ratas o Cucarachas: cuántas { mín, máx }.
+	Salas = {
+		{ Nombre = "Sotano", x1 = -12, x2 = 12, z1 = 35, z2 = 65.5, Suelo = -11, Alto = 12, Ratas = { 2, 4 } },
+		{ Nombre = "Desvan", x1 = -38.5, x2 = 38.5, z1 = -14, z2 = 14, Suelo = 27, Alto = 13, Ratas = { 2, 4 } },
+		{ Nombre = "Trastero", x1 = 12.5, x2 = 21.5, z1 = 5.5, z2 = 18.5, Suelo = 1, Alto = 12, Ratas = { 2, 3 } },
+		{ Nombre = "Garaje", x1 = -58.5, x2 = -39.5, z1 = 3.5, z2 = 32.5, Suelo = 1, Alto = 14, Ratas = { 2, 4 } },
+		{ Nombre = "Cocina", x1 = -38.5, x2 = -12.5, z1 = 3.5, z2 = 32.5, Suelo = 1, Alto = 12, Cucarachas = { 2, 4 } },
+	} :: { { Nombre: string, x1: number, x2: number, z1: number, z2: number, Suelo: number, Alto: number,
+		Ratas: { number }?, Cucarachas: { number }? } },
+	-- Studs/s andando y huyendo; Susto: studs (en planta) de ti o de otro jugador a los que huye sin luz; Luz y Angulo:
+	-- hasta dónde y a cuántos grados del centro la espanta tu linterna (sin pared en medio); segundos quieta, studs de
+	-- cada paseo y segundos escondida antes de volver; Bicho: studs de la sala a los que un bicho (workspace.Bichos) las
+	-- esconde a todas, sin un ruido, hasta que se va; Tam: tamaño.
+	Rata = {
+		Anda = 2.4, Huye = 14, Susto = 6, Luz = 30, Angulo = 20,
+		Pausa = { 1.5, 5 }, Paseo = { 1.5, 4.5 }, Vuelve = { 18, 40 }, Bicho = 22, Tam = { 0.85, 1.15 },
+		Volumen = 0.12, Tono = { 1.9, 2.3 }, -- el chillido provisional (Cruje muy flojo y agudo) mientras no haya RataChillido
+	},
+	Cucaracha = {
+		Anda = 0.8, Huye = 8, Susto = 2.5, Luz = 18, Angulo = 24,
+		Pausa = { 2, 8 }, Paseo = { 0.4, 1.5 }, Vuelve = { 12, 30 }, Bicho = 22, Tam = { 0.8, 1.2 },
+	},
+	Polillas = { 2, 3 }, -- alrededor de cada bombilla encendida (las "Lampara" del generador)
+	-- De noche y fuera de casa, con la linterna encendida: cada cuánto acude una polilla, cuánto se queda y a cuántos
+	-- studs por delante de la cámara revolotea.
+	PolillaLinterna = { Cada = { 30, 70 }, Dura = { 8, 15 }, Delante = 2.6 },
+	Moscas = { Cuantas = { 5, 8 }, Llegan = 6 }, -- por charco de sangre (etiqueta Charco) y segundos que tardan en llegar
+	Rendimiento = { Ratas = 1, Polillas = 1 }, -- con Rendimiento: esto por sala y por bombilla; ni cucarachas ni moscas
 }
 
 -- Ambiente con miedo (juego/cliente/AmbienteMiedo, 14.3): fondo de la casa, tensión con un bicho cerca y ráfagas. A ojo.
@@ -1031,6 +1327,165 @@ Config.Sonidos.MotorCoche = Config.SonidosLobby.MotorCoche
 -- del grupo): id del modelo con malla con esqueleto y sus cuatro texturas. Ver docs/sistemas/bichos-3d.md.
 Config.Bichos3D = {
 	Golpeador = 86798537714395,
+}
+
+-- Oído: sonido tapado por las paredes y eco de cada sala (juego/cliente/OidoVista, docs/sistemas/oido.md). A ojo.
+Config.Oido = {
+	Cada = 0.25, -- segundos entre dos rayos de un mismo sonido mientras suena
+	CadaRendimiento = 0.5, -- ...con Rendimiento
+	CercaRendimiento = 60, -- con Rendimiento, solo se miden los sonidos a menos de esto (studs)
+	MaxParedes = 2, -- paredes que se cuentan como mucho
+	Rayos = 6, -- rayos por sonido como mucho (capas de una misma pared, cosas pequeñas por medio)
+	Grosor = 1.6, -- golpes más juntos que esto a lo largo del rayo son la misma pared (papel, muro y papel)
+	Margen = 1.5, -- studs sin mirar junto al sonido: la ventana que golpean no tapa su propio golpe
+	Pared = 3, -- tapa lo que tenga dos lados de al menos esto (studs): un tronco o una pata no tapan
+	PorPared = { Agudos = -18, Medios = -6, Volumen = 0.7 }, -- por pared: dB menos en agudos y medios, y volumen que queda
+	Escondido = { Agudos = -14, Medios = -5, Volumen = 0.75 }, -- escondido: lo de fuera, a través de la madera
+	ApagarEscondido = { Viento = true, CasaFondo = true }, -- bucles sin posición que también se apagan escondido
+	MuebleRadio = 40, -- studs alrededor de la cámara en los que se miran los muebles (MuebleRayo)
+	MuebleCada = 2, -- segundos: las cajas de los muebles se rehacen así de a menudo...
+	MuebleMover = 8, -- ...o al moverse la cámara esto (studs)
+	-- Eco (Enum.ReverbType) según dónde esté la cámara: la primera zona que la contenga. Cajas { x1, x2, y1, y2, z1, z2 }
+	-- (las salas, en juego/servidor/Mapa) o un círculo en planta (Centro { x, z } y Radio). Si ninguna, Fuera.
+	Zonas = {
+		{ Reverb = "StoneCorridor", Cajas = { { -13, 13, -14, -1.5, 33, 67 }, { -3.5, 3.5, -14, 8, 33.5, 48 } } }, -- sótano y su escalera
+		{ Reverb = "Room", Cajas = { { -39.5, 39.5, 26.5, 50, -33.5, 33.5 } } }, -- desván
+		{ Reverb = "Bathroom", Cajas = { { 12, 22, 0, 13.5, 19, 33 } } }, -- baño
+		{ Reverb = "Hangar", Cajas = { { -59.5, -39, 0, 16, 2.5, 33.5 } } }, -- garaje
+		{ Reverb = "LivingRoom", Cajas = { -- la casa y sus anexos (Config.Casa.Anexos)
+			{ -39.5, 39.5, -2, 26.5, -33.5, 33.5 },
+			{ 30.5, 47.5, -2, 40, -41.5, -24.5 },
+			{ -43.5, -39, -2, 26.5, -17.5, -2.5 },
+			{ -26.5, -11.5, -2, 26.5, 33, 45.5 },
+		} },
+		{ Reverb = "Alley", Centro = { 28, -480 }, Radio = 88 }, -- el pueblo (Lugares, ZONAS.Pueblo)
+	},
+	Fuera = "Forest",
+}
+
+-- Tormenta seca: relámpagos que iluminan la casa y recortan a los bichos (juego/cliente/TormentaVista,
+-- docs/sistemas/tormenta.md). Solo en el cliente; el horario sale de una semilla con Noche y FaseInicio. A ojo.
+Config.Tormenta = {
+	Desde = 2, -- noche desde la que puede haber tormenta
+	Probabilidad = 0.5, -- de las noches desde Desde, cuántas tienen tormenta
+	Primero = { 10, 30 }, -- segundos desde que empieza la noche hasta el primer relámpago
+	Cada = { 25, 70 }, -- segundos entre relámpagos
+	HastaNoche = 0.92, -- parte de la noche a partir de la que ya no cae ninguno (amanece)
+	Destellos = { 2, 3 }, -- destellos por relámpago (con Rendimiento, uno)
+	Duracion = { 0.05, 0.12 }, -- segundos que dura cada destello
+	Subida = 0.015, -- segundos hasta lo más fuerte de un destello
+	Entre = { 0.06, 0.25 }, -- segundos entre dos destellos seguidos
+	Trueno = { 1, 5 }, -- segundos del relámpago al trueno (cerca, antes)
+	Cerca3D = 0.65, -- desde esta cercanía (0 a 1) el trueno suena en 3D desde fuera; si no, lejano y sin posición
+	Lejos3D = 45, -- studs de la cámara (en planta) desde donde suena el trueno cercano
+	Alto3D = 25, -- ...y a esta altura por encima de ella
+	TonoRetumbo = { 0.38, 0.5 }, -- Retumbo muy grave y largo, mientras no haya un trueno propio (Sonidos.Trueno)
+	TonoTrueno = { 0.9, 1.05 }, -- el trueno propio, cuando lo haya
+	Volumen = { 0.6, 1.2 }, -- lo que se multiplica el volumen: de lejos a cerca
+	Dentro = { Volumen = 0.7, Agudos = -22, Medios = -8 }, -- el trueno lejano oído desde dentro de la casa
+	-- Lo que sube en lo más fuerte de un destello (se suma a la luz de Ambiente; un instante, nunca más).
+	Luz = {
+		Brillo = 2, -- Lighting.Brightness
+		Fuera = { 80, 88, 110 }, -- RGB que se suma al OutdoorAmbient (sin Color3, para que Lune lo cargue)
+		Niebla = { 130, 140, 165 }, -- RGB que se suma a la niebla: el cielo se pone blanco azulado
+		Color = 0.1, -- brillo del ColorCorrection
+		Contraste = 0.2, -- contraste del ColorCorrection: las siluetas, más negras
+		Luna = 4, -- se suma al brillo de cada luz de luna cercana (las de Mapa.luzLuna)
+	},
+	-- Fogonazo con sombras (sin Rendimiento): una luz por luna cercana, por fuera del cristal y en la misma línea que la
+	-- luna, para que los marcos, las cortinas y lo que haya fuera (un bicho) recorten su sombra en el suelo.
+	Fogonazo = {
+		Cerca = 50, -- studs de la cámara: lunas más lejos, sin fogonazo
+		Max = 3, -- como mucho, las tantas más cercanas
+		Atras = 5, -- studs por fuera de la luna, hacia atrás en su línea
+		Brillo = 7,
+		Angulo = 55,
+		Color = { 205, 215, 255 }, -- RGB
+	},
+	Ventanas = 22, -- studs: con el trueno vibran los cristales de las ventanas a menos de esto de la cámara
+	VibraSonidos = 2, -- ...y suenan las tantas más cercanas
+	Temblor = { Fuerza = 0.35, Dura = 1.4 }, -- las bombillas tiemblan con el trueno (de 0 a 1 de su brillo) tanto tiempo
+	TemblorCamara = 0.15, -- con un trueno cercano, un temblor de cámara así de flojo (CasaVista.temblar)
+}
+-- El trueno propio de la tormenta, mientras tanto con Id 0 (suena Retumbo): docs/sistemas/sonidos-pendientes.md.
+Config.Sonidos.Trueno = { Id = 0, Volumen = 1, Alcance = 400 }
+
+-- Ojos en la oscuridad: la linterna los hace brillar entre los árboles (juego/cliente/OjosVista, docs/sistemas/ojos.md).
+-- Solo del cliente y de adorno, salvo que los de los bichos son de verdad (y no se apagan al mirarlos). Colores en RGB
+-- (sin Color3, para que Lune lo cargue). Todo a ojo.
+Config.Ojos = {
+	Cada = 0.25, -- segundos entre repasos (qué bichos hay cerca, si toca sacar unos ojos falsos)
+	Noche = 0.5, -- desde esta noche (0 a 1, las rampas de Ambiente) hay ojos
+	Entre = { 18, 45 }, -- segundos entre unos ojos falsos y los siguientes (fuera, de noche y con la linterna)
+	Distancia = { 30, 70 }, -- studs de la cámara a los que salen los falsos (nunca a menos de Nunca)
+	Nunca = 20,
+	Lejos = 70, -- más allá no brillan (ni los de los bichos); con el pase Luz, hasta Alcance × 1,3 si es más
+	Cono = 0.9, -- de la mitad del ángulo de la linterna (Config.Linterna.Angulo): los falsos salen dentro de esto
+	Centro = 0.55, -- dentro de esta parte del cono brillan enteros; hacia el borde se apagan (fuera del haz, nada)
+	Doble = 0.3, -- probabilidad de que salgan dos pares
+	Persona = 0.3, -- probabilidad de que estén a altura de persona (si no, de animal)
+	Alto = { Animal = { 1.1, 2.4 }, Persona = { 4.6, 5.6 } }, -- studs sobre el suelo
+	Separacion = { Animal = { 0.35, 0.6 }, Persona = { 0.3, 0.4 } }, -- studs entre los dos ojos de un par
+	Vida = { 5, 10 }, -- segundos que se quedan los falsos si no los miras
+	Parpadeo = { 1.2, 3.5 }, -- segundos entre parpadeos de los falsos
+	ParpadeoBicho = { 3, 7 }, -- ...y de los bichos
+	Cierre = 0.12, -- segundos con los ojos cerrados en un parpadeo
+	Fijo = 6, -- grados del centro de la vista: mirarlos así de fijo...
+	Mirada = 0.6, -- ...estos segundos los apaga (a los falsos)
+	Cerca = 24, -- studs: acercarse a menos de esto también los apaga
+	Apagar = 0.2, -- segundos que tardan en apagarse al irse
+	Ramita = { Tras = 0.25, Volumen = 0.7, Otra = 0.5, Lejos = 3 }, -- al irse: retraso, volumen, otra más lejos, studs
+	BichoCerca = 12, -- studs: más cerca, los ojos del bicho ya no brillan (se le ve entero)
+	Cara = 0.15, -- los del bicho, solo si te mira de cara (el coseno entre su cara y tú)
+	Tam = { Studs = 0.07, Px = 3 }, -- tamaño de cada ojo (studs más píxeles: de lejos no se pierde)
+	Halo = 2.6, -- el halo flojo alrededor de cada ojo, tantas veces el ojo
+	Transparencia = 0.3, -- del ojo encendido del todo ("muy flojos")
+	TransparenciaHalo = 0.85,
+	Colores = { { 150, 195, 110 }, { 225, 160, 75 } }, -- verdoso y ámbar
+	-- Los bichos que tienen ojos que brillan: dónde está cada ojo en su Cabeza (los puntitos Neon de su modelo, un poco
+	-- por delante) y su color (de Colores).
+	Bichos = {
+		Acechador = { Color = 2, Ojos = { { -0.22, 0.35, -0.62 }, { 0.22, 0.35, -0.62 } } },
+		Golpeador = { Color = 2, Ojos = { { -0.32, 0.38, -0.78 }, { 0.3, 0.31, -0.78 } } },
+		Trepador = { Color = 1, Ojos = { { -0.3, 0.3, -0.78 }, { 0.3, 0.3, -0.78 } } },
+		Bestia = { Color = 2, Ojos = { { -0.6, 0.45, -1.52 }, { 0.55, 0.5, -1.52 }, { -0.25, 0.65, -1.52 },
+			{ 0.3, 0.3, -1.52 }, { -0.75, 0.15, -1.52 }, { 0.8, 0.2, -1.52 } } },
+	},
+}
+
+-- Ojos que se acostumbran a la oscuridad (y deslumbran) (juego/cliente/AdaptarVista, docs/sistemas/adaptar.md). Solo del
+-- cliente y de adorno. "Luz" es una suma sin unidades que pasa a 0..1 con 1 - e^(-suma) (AdaptarCuentas.juntar).
+-- Todo a ojo y flojo, para que no moleste.
+Config.Adaptar = {
+	Cada = 0.1, -- segundos entre medidas de la luz que te llega
+	Rayos = 6, -- luces que se miran con un rayo por medida como mucho (las que más dan)
+	Minimo = 0.02, -- una luz que da menos que esto ni se mira
+	Base = 0.03, -- lo que hay siempre (cielo, estrellas)
+	Luz = {
+		Dia = 1.6, -- de día, fuera (sin techo encima)...
+		DiaDentro = 0.5, -- ...y dentro
+		Linterna = 0.45, -- la tuya encendida...
+		Rebote = 0.55, -- ...y lo de más si el haz da contra algo cerca...
+		RebotaHasta = 10, -- ...a menos de estos studs
+		Bombilla = 0.6, -- cada luz a su alcance y sin pared: brillo × (1 - distancia/alcance)² × esto
+		Luna = 0.5, -- las de luna (etiqueta Luna), igual
+		Rayo = 1.8, -- el relámpago (Ambiente.destello) fuera...
+		RayoDentro = 0.5, -- ...y dentro
+		Escondido = 0.3, -- metido en un escondite, de todo eso solo llega esta parte
+		Techo = 60, -- studs del rayo hacia arriba para saber si estás bajo techo
+	},
+	Baja = 3.5, -- s (τ): acostumbrarse a la oscuridad (casi del todo en ~10 s)
+	Sube = 0.6, -- s (τ): acostumbrarse a la luz (el deslumbre se va en ~1 s)
+	Relativo = 0.1, -- los saltos de luz se miden en proporción: (nueva - vieja) / (vieja + esto)
+	Desde = 0.3, -- salto desde el que se nota...
+	Pleno = 1.8, -- ...y desde el que es entero
+	Claro = 0.25, -- con los ojos hechos a más luz que esto, nada de grises...
+	Oscuro = 0.06, -- ...y hechos a menos, del todo acostumbrado
+	Hundido = -0.25, -- Brightness al quedarte a oscuras de golpe
+	Acostumbrado = { Brillo = 0.06, Saturacion = -0.35, Frio = { 232, 238, 255 } }, -- a oscuras y hecho: siluetas en gris
+	Deslumbre = { Brillo = 0.3, Contraste = -0.3, Saturacion = -0.15, Calido = { 255, 238, 214 } }, -- RGB, sin Color3
+	-- La linterna de otro a la cara: a menos de Lejos studs y dentro de Angulo grados de su haz.
+	Ajena = { Lejos = 25, Angulo = 12, Fuerza = 0.8, Rendimiento = 0.5, Entra = 0.08, Sale = 0.25 },
 }
 
 return Config

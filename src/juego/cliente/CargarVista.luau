@@ -161,7 +161,7 @@ local function cambiar()
 	if not llevando then
 		mia, cargaDesde, dejandoDesde = nil, nil, nil
 	end
-	local tactil = UserInputService.TouchEnabled
+	local tactil = Ui.tactil()
 	if not tactil then
 		aviso.Text = if tipo and CargarReglas.lanzable(tipo)
 			then Ui.mayusculas(Lang.t(nil, "[E] Drop   [Click] Throw"))

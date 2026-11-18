@@ -30,6 +30,9 @@
 --   El campo de visión se suma igual que el giro: se quita en Camera - 1 si sigue como lo dejamos (si otro lo ha
 --   cambiado, se deja). Al empezar un vistazo (atributo Vistazo), MirarVista apunta el de antes con lo nuestro dentro
 --   y al acabar lo devuelve: eso se quita una vez al volver (`deuda`) para que no se quede abierto.
+-- Pavor al ver un bicho (PavorVista, pavor.md): CuerpoVista.ponerPavor le dice cuántos grados se cierra el campo de
+-- visión y cuánto recula la cámara (el vértigo, sin meterse en la pared de detrás), el susto de más de la respiración y
+-- cuánto se queda atrás la vista al girar rápido (PavorCuentas.retraso). Todo se suma y se quita igual que lo demás.
 -- Con lo pesado en las manos el balanceo lo pone CargarVista: aquí no se suma.
 -- Se pinta encima de la cámara de Roblox (BindToRenderStep, Camera + 1): solo mueve la posición y la inclina de lado.
 -- Lo sumado se quita antes del fotograma siguiente (Camera - 1), girando en el espacio del mundo: los temblores de
@@ -48,6 +51,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local CorrerVista = require(script.Parent.CorrerVista)
 local MuebleRayo = require(script.Parent.MuebleRayo)
+local PavorCuentas = require(script.Parent.PavorCuentas)
 local PosturaVista = require(script.Parent.PosturaVista)
 
 local CuerpoVista = {}
@@ -140,6 +144,13 @@ local tropiezoAntes: number? = nil -- lo que dio CorrerVista.tropiezo() el fotog
 local tropiezoLado = 1
 local cajasTropiezo: { MuebleRayo.Caja } = {} -- los muebles de alrededor al tropezar
 local cajasListas = false -- ya se han mirado para este tropiezo
+-- Pavor (lo pone PavorVista con CuerpoVista.ponerPavor).
+local pavorCampo = 0 -- grados que se cierra el campo de visión (el vértigo)
+local pavorRecula = 0 -- studs que va la cámara hacia atrás (el vértigo)
+local pavorSusto = 0 -- el susto de más de la respiración
+local pavorRetraso = 0 -- 0..1: cuánto se queda atrás la vista al girar rápido
+local retrasoCabeceo, retrasoGiro = 0, 0 -- lo que se queda atrás ahora (radianes)
+local miradaAntes: Vector3? = nil -- hacia dónde miraba la cámara de Roblox el fotograma anterior
 local azar = Random.new()
 local rayo = RaycastParams.new()
 rayo.FilterType = Enum.RaycastFilterType.Exclude
@@ -245,6 +256,16 @@ end
 function CuerpoVista.respiracion(susto: number, cansancio: number): (number, number, number)
 	local c = math.clamp(cansancio, 0, 1)
 	return 1.3 + susto * 2.2 + c * CANSADO_RESPIRA, 0.012 + susto * 0.03 + c * CANSADO_HONDO, c * CANSADO_CABECEA
+end
+
+-- El pavor de ahora (PavorVista): grados que se cierra el campo de visión, studs que recula la cámara, susto de más de
+-- la respiración y peso (0..1) del retraso al girar. Todo a 0 lo quita.
+function CuerpoVista.ponerPavor(campo: number, recula: number, susto: number, retraso: number)
+	local function bien(x: number): number
+		return if x == x and math.abs(x) < 1e3 then x else 0
+	end
+	pavorCampo, pavorRecula = math.max(0, bien(campo)), math.max(0, bien(recula))
+	pavorSusto, pavorRetraso = math.clamp(bien(susto), 0, 1), math.clamp(bien(retraso), 0, 1)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -451,6 +472,7 @@ local function paso(dt: number)
 	if not personaje or not hum or not raiz or not enJuego(raiz) then
 		fuerza, inclinado, caida, velCaida = 0, 0, 0, 0
 		cabeceo, velCabeceo, campoMas, media = 0, 0, 0, 0
+		retrasoCabeceo, retrasoGiro, miradaAntes = 0, 0, nil
 		-- El ladeo vuelve suave aunque ahora no toque balancear (al abrir la mochila asomándote, p. ej.).
 		if hum and ladeo ~= 0 and not jugador:GetAttribute("Escondido") then
 			aplicar(CFrame.Angles(0, 0, ladeo))
@@ -525,7 +547,8 @@ local function paso(dt: number)
 		miedo = math.clamp(1 - (d - 8) / (MIEDO - 8), 0, 1)
 	end
 	local cansancio = CorrerVista.cansancio()
-	local deprisa, hondo, respiraCabecea = CuerpoVista.respiracion(miedo, cansancio)
+	local susto = math.max(miedo, pavorSusto) -- el bicho cerca o el pavor de haberlo visto (PavorVista)
+	local deprisa, hondo, respiraCabecea = CuerpoVista.respiracion(susto, cansancio)
 	respiracion += dt * deprisa
 	local respira = math.sin(respiracion) * hondo
 	local respiraGiro = math.sin(respiracion) * respiraCabecea
@@ -553,18 +576,38 @@ local function paso(dt: number)
 		cajasTropiezo = {}
 	end
 
-	aplicar(CFrame.new(lado, sube + respira + caida, if tropezando then trDelante else 0)
-		* CFrame.Angles(cabecea + cabeceo + respiraGiro + trCabeceo, 0, mece + inclinado + ladeo + trAlabeo))
+	-- Pavor: al girar rápido la vista se queda un pelo atrás (lo girado desde el fotograma anterior: dónde queda ahora
+	-- la mirada de antes), y el vértigo recula la cámara sin meterla en lo de detrás.
+	local antes = miradaAntes
+	miradaAntes = cf.LookVector
+	if antes and (pavorRetraso > 0 or retrasoCabeceo ~= 0 or retrasoGiro ~= 0) then
+		local enCamara = cf:VectorToObjectSpace(antes)
+		retrasoCabeceo, retrasoGiro = PavorCuentas.retraso(enCamara.X, enCamara.Y, dt, retrasoCabeceo, retrasoGiro,
+			pavorRetraso)
+	end
+	local recula = 0
+	if pavorRecula > 0 then
+		filtrar(personaje)
+		local atras = -cf.LookVector * (pavorRecula + HOLGURA)
+		local choque = workspace:Raycast(cf.Position, atras, rayo)
+		recula = if choque then math.clamp(choque.Distance - HOLGURA, 0, pavorRecula) else pavorRecula
+	end
 
-	-- El campo de visión, abierto corriendo deprisa (se quita en `deshacer`).
+	aplicar(CFrame.new(lado, sube + respira + caida, (if tropezando then trDelante else 0) + recula)
+		* CFrame.Angles(cabecea + cabeceo + respiraGiro + trCabeceo + retrasoCabeceo, retrasoGiro,
+			mece + inclinado + ladeo + trAlabeo))
+
+	-- El campo de visión, abierto corriendo deprisa y cerrado con el vértigo del pavor (se quita en `deshacer`).
 	local metaCampo = if rendimiento then 0 else CuerpoVista.campo(ritmo, rapidez)
 	campoMas += (metaCampo - campoMas) * (1 - math.exp(-dt * SUAVE_CAMPO))
 	if campoMas < 0.01 and metaCampo == 0 then
 		campoMas = 0
 	end
-	if campoMas > 0 then
-		Camara.get().FieldOfView += campoMas
-		campoSumado, campoTras = campoMas, Camara.get().FieldOfView
+	local sumaCampo = campoMas - pavorCampo
+	if sumaCampo ~= 0 then
+		local camara = Camara.get()
+		camara.FieldOfView += sumaCampo
+		campoSumado, campoTras = sumaCampo, camara.FieldOfView
 	end
 
 	-- Hacia dónde miras, para que los demás vean tu cabeza y tu linterna (BrazosVista), cada 0,2 s si ha cambiado.
@@ -584,7 +627,7 @@ local function paso(dt: number)
 	-- Vaho de noche fuera de casa, al soltar el aire (más seguido con miedo o cansado, y más cansado).
 	local ahora = os.clock()
 	if ahora >= proximoVaho then
-		proximoVaho = ahora + math.max(1, 3.2 - miedo * 1.6 - cansancio * CANSADO_VAHO)
+		proximoVaho = ahora + math.max(1, 3.2 - susto * 1.6 - cansancio * CANSADO_VAHO)
 		if workspace:GetAttribute("Fase") == "Noche" and not enCasa(cf.Position) and not rendimiento then
 			echarVaho(Camara.get().CFrame, 5 + math.floor(cansancio * VAHO_CANSADO + 0.5))
 		end

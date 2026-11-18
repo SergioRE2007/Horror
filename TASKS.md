@@ -216,6 +216,26 @@ Retoques a ojo:
 17. Números de correr (`correr.md`, "Números a ojo para mirar en Studio") y de la llegada al lobby (`lobby.md`,
    "Números a ojo").
 
+Inmersión, vuelta 1 (sin ver aún en Studio):
+- Aire: de noche con el generador, motas en el haz de la linterna, más en desván y sótano; haz azul bajo la ventana del vestíbulo (se apaga con cortinas); niebla y pinocha fuera. Si los haces se notan mucho, subir `Config.Aire.Haz.Transparencia`.
+- Oído: golpe tras una puerta suena sordo; escondido se apaga lo de fuera; `SoundService.AmbientReverb` cambia por zona.
+- Bichitos: ratas en sótano, desván, trastero y garaje que huyen de la linterna; polillas en bombillas; moscas en charcos (`bichitos.md`).
+- Huellas: barro tras el Golpeador, rojo tras una muerte, pisadas rojas en charcos; mirar si la punta apunta bien y si la textura se tiñe (`huellas.md`).
+
+Inmersión, vuelta 2 (sin ver aún en Studio):
+- Tormenta: de noche, `workspace:SetAttribute("TormentaPrueba", true)` y `Config.Tormenta.Cada = { 5, 8 }` (sin subirlo). Mirar fogonazo, sombra del marco, bicho negro en la ventana, trueno apagado dentro y claro fuera. Si la sombra no sale, bajar `Fogonazo.Atras` (`tormenta.md`).
+- Pavor: `game.Players.LocalPlayer:SetAttribute("PavorPrueba", 10)` en el cliente. Vista que se cierra, latido, linterna que tiembla; no repite antes de 15 s; con Rendimiento solo latido y temblor flojo (`pavor.md`).
+- Ojos: de noche fuera con linterna, `Config.Ojos.Entre = { 1, 2 }` (sin subirlo). Puntitos junto a un tronco que se apagan al mirarlos; los de bichos de verdad no (`ojos.md`).
+- Marcas: Golpeador en la puerta deja zarpazos; Raspador, rayas en el cristal; una muerte junto a una pared salpica sangre que se seca. Mirar orientación y si el hollín se tiñe de rojo (`marcas.md`).
+
+Inmersión, vuelta 3 (sin ver aún en Studio):
+- Cadáver: con 2 jugadores, un bicho mata a uno con la linterna encendida. El muñeco sale lejos del bicho, se dobla sin articulaciones al revés y se para; sin piezas sueltas ni nombre. Charco bajo el pecho en 8 s, linterna rodando y parpadeando hasta apagarse a los 40 s. Al revivir desaparece todo menos la sangre. Con Rendimiento se para a los 1,5 s (`cadaver.md`).
+- Puerta rota: bajar `Vida` del modelo de la puerta a 45, 20 y 0 (con `Abierta` a true). Rendija con luz, otro trozo cede, hoja colgando torcida, astillas que crujen, pomo rodando y polvo. Con la vida al máximo todo vuelve. Mirar si las astillas atraviesan el suelo y la mirilla de la puerta principal (`puerta-rota.md`).
+
+Inmersión, vuelta 4 (sin ver aún en Studio):
+- Adaptar: de noche, en casa sin generador, linterna a una pared y apagarla: casi negro y en ~10 s grises; al encenderla deslumbra. Atajo: `Players.LocalPlayer:SetAttribute("AdaptarPrueba", 0)` en el cliente. Con 2 clientes, linterna a la cara a menos de 25 studs. Nada en mirilla, muerto ni cinemáticas. Pesos a ojo en `Config.Adaptar.Luz` (`adaptar.md`).
+- Desorden: de noche, el Golpeador golpea ventana o puerta de cocina o comedor (o subir `Golpes` 1, 2, 3 desde el servidor). Caen 1-2 adornos, la vajilla se rompe y crujen los trozos, al tercer golpe cae un cuadro, el bicho vuelca sillas, al amanecer todo vuelve. Mirar que no atraviesen baldas y si basta `Config.Desorden.Empuje`. Probar con Rendimiento (`desorden.md`).
+
 ### 14.6 Animaciones en primera persona (pedido por el usuario, 03-11-2026: "que se vea cómo lo abres con las manos… todas las animaciones posibles", "que todo esté animado y sea inmersivo")
 - **Estado:** hecho sin Studio (`docs/sistemas/manos.md`): tus manos en todo lo que haces, los brazos y la mirada de los demás, cámara con cuerpo, vaho, entrada suave al escondite, vendedor que te mira. Falta verlo y retocar las poses en Studio.
 - **Segunda tanda (03 y 04-11-2026):** hecho: respiración contenida en el escondite, ver esconderse a los demás, la casa que reacciona más (mecedoras, vajilla, polvo, corriente), agacharse y asomarse (botón también en el móvil), manos en la pared, mirilla y cortinas (probados en Studio el 03-11-2026), y bichos con más vida mientras esperan y esconderse agachado debajo de las mesas con los bichos que huelen y gatean (`manos.md` y `bichos.md`; sin Studio). Tropezar y frenar al correr cansado: hecho en la 14.8.
@@ -281,6 +301,21 @@ Retoques a ojo:
   abierta del todo y las garras por los lados; la cámara iba bajo la barbilla mirando al cielo: arreglado), Cara y
   Armario. Falta: el susto gateando, Garras, Quieto, Finge, Llama, Rendimiento y los 5 sonidos (sonidos-pendientes.md,
   26-30: mientras suenan provisionales). Los brazos de la malla a veces salen como hojas planas estiradas: mirarlo.
+
+### 14.11 Inmersión: bucle de mejoras (pedido por el usuario, 17-11-2026: "mejorar la inmersión, interacciones, polvo en el aire, animaciones")
+- **Estado:** hecho sin Studio, en vueltas; falta verlo en Studio
+- Vuelta 1: Aire vivo, polvo siempre en la luz, haces de luna y niebla baja — hecho sin Studio (`docs/sistemas/aire.md`)
+- Vuelta 1: Oído, sonido tapado por las paredes y eco de cada sala — hecho sin Studio (`docs/sistemas/oido.md`)
+- Vuelta 1: Bichitos, ratas que huyen de la linterna, polillas y moscas — hecho sin Studio (`docs/sistemas/bichitos.md`)
+- Vuelta 1: Huellas de barro y de sangre — hecho sin Studio (`docs/sistemas/huellas.md`)
+- Vuelta 2: Tormenta seca, relámpagos que iluminan la casa y recortan a los bichos — hecho sin Studio (`docs/sistemas/tormenta.md`)
+- Vuelta 2: Pavor al ver un bicho, vértigo, manos que tiemblan y latido — hecho sin Studio (`docs/sistemas/pavor.md`)
+- Vuelta 2: Ojos en la oscuridad, la linterna los hace brillar entre los árboles — hecho sin Studio (`docs/sistemas/ojos.md`)
+- Vuelta 2: Marcas de la noche, arañazos en las puertas y sangre en las paredes — hecho sin Studio (`docs/sistemas/marcas.md`)
+- Vuelta 3: Cuerpos que caen de verdad, el compañero muerto se queda tirado — hecho sin Studio (`docs/sistemas/cadaver.md`)
+- Vuelta 3: Puertas que revientan, astillas y la hoja colgando de una bisagra — hecho sin Studio (`docs/sistemas/puerta-rota.md`)
+- Vuelta 4: Ojos que se acostumbran a la oscuridad (y deslumbran) — hecho sin Studio (`docs/sistemas/adaptar.md`)
+- Vuelta 4: La casa se desordena, adornos que caen y sillas que vuelca el bicho — hecho sin Studio (`docs/sistemas/desorden.md`)
 
 ## 15. Mejoras pedidas por el usuario (05-11-2026: "a mi parecer hay muchas cosas que mejorar aun")
 

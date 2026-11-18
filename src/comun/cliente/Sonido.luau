@@ -12,6 +12,9 @@
 -- Lo que falta (Id 0) o no existe: en la partida devuelve un Sound mudo (para que nada falle); en el lobby, nil.
 -- Límite de vida: tocar, en y bucle se destruyen solos si el audio no llega a cargar o a acabar (asset roto o
 -- moderado: no llega `Ended`), así no se acumulan Sounds huérfanos.
+-- Oído (solo la partida: juego/cliente/Sonido pasa OidoVista como `oido`; oido.md): los sonidos en 3D y los bucles
+-- colgados de algo se oyen tapados por las paredes que haya entre la cámara y ellos; los de Sonido.tocar
+-- (respiración, latido, interfaz), nunca.
 local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
@@ -19,6 +22,8 @@ local SoundService = game:GetService("SoundService")
 local Config = require(ReplicatedStorage.Shared.Config)
 
 type Datos = { Id: number | { number }, Volumen: number, Alcance: number? }
+-- Lo que sigue a los sonidos para taparlos (OidoVista en la partida).
+type Oido = { seguir: (Sound) -> () }
 
 -- Segundos que se espera, como mínimo, antes de dar por perdido un audio que no ha acabado (a ojo).
 local VIDA_MINIMA = 15
@@ -35,7 +40,7 @@ local LUGARES = {
 	lobby = { carpeta = "PlantillasLobby", tablas = { "SonidosLobby", "Sonidos" }, mudos = false, minimo = 6, bucle3D = true },
 }
 
-function Sonido.nuevo(lugar: string)
+function Sonido.nuevo(lugar: string, oido: Oido?)
 	local L = LUGARES[lugar]
 	assert(L, "lugar de Sonido desconocido: " .. tostring(lugar))
 
@@ -188,6 +193,9 @@ function Sonido.nuevo(lugar: string)
 		s.PlaybackSpeed = tono or 1
 		s.Parent = punto
 		s:Play()
+		if oido then
+			oido.seguir(s)
+		end
 		s.Ended:Once(function()
 			punto:Destroy()
 		end)
@@ -220,6 +228,11 @@ function Sonido.nuevo(lugar: string)
 		end
 		s.Parent = padre or SoundService
 		s:Play()
+		-- Oído: los colgados de algo, tapados por las paredes; de los que no tienen posición, solo el fondo (viento, casa),
+		-- que se apaga escondido. La respiración y el latido no.
+		if oido and ((padre and padre ~= SoundService) or Config.Oido.ApagarEscondido[nombre]) then
+			oido.seguir(s)
+		end
 		-- Un bucle dura lo que quiera el que lo pidió y no se borra nunca desde aquí: quien lo pide guarda la referencia y no
 		-- lo vuelve a crear, así que borrarlo por tardar en cargar (móvil lento) dejaba el ambiente mudo toda la partida.
 		-- Si tarda mucho solo se avisa; en cuanto cargue, suena solo (ya tiene Play).
