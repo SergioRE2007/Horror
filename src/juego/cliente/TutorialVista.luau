@@ -46,6 +46,13 @@ local function frase(paso: string): string
 	elseif paso == "Tronco" then
 		return Lang.t(nil, "Chop down a tree and carry a log.")
 	elseif paso == "Serrar" then
+		-- Sin el tronco en las manos (TutorialRecoger, del servidor): coger lo serrado del suelo o volver a por un tronco.
+		local recoger = yo:GetAttribute("TutorialRecoger")
+		if recoger == "Tablon" then
+			return Lang.t(nil, "Pick up a plank.")
+		elseif recoger == "Tronco" then
+			return Lang.t(nil, "Bring a log to the sawhorse.")
+		end
 		return Lang.t(nil, "Saw the log on the sawhorse.")
 	elseif paso == "Generador" then
 		return Lang.t(nil, "Start the generator in the shed.")
@@ -90,6 +97,17 @@ local function conTipo(etiqueta: string, tipo: string): { { any } }
 	return lista
 end
 
+-- Lo pesado de ese tipo que se puede coger: nadie lo lleva (Llevada, de Cargar) ni se está trabajando (Trabajo).
+local function sueltos(tipo: string): { { any } }
+	local lista = {}
+	for _, c in conTipo("Pesado", tipo) do
+		if not c[1]:GetAttribute("Llevada") and not c[1]:GetAttribute("Trabajo") then
+			table.insert(lista, c)
+		end
+	end
+	return lista
+end
+
 local function etiquetados(etiqueta: string, vale: ((Instance) -> boolean)?): { { any } }
 	local lista = {}
 	for _, cosa in CollectionService:GetTagged(etiqueta) do
@@ -114,7 +132,7 @@ local function objetivo(paso: string, desde: Vector3): (Instance?, Vector3?)
 			return nil -- lleva otra cosa: que la suelte él
 		end
 		-- Un tronco ya en el suelo o, si no, un árbol en pie.
-		local troncos = conTipo("Pesado", "Tronco")
+		local troncos = sueltos("Tronco")
 		if #troncos > 0 then
 			return masCerca(desde, troncos)
 		end
@@ -122,6 +140,27 @@ local function objetivo(paso: string, desde: Vector3): (Instance?, Vector3?)
 			return not arbol:GetAttribute("Talado")
 		end))
 	elseif paso == "Serrar" then
+		local recoger = yo:GetAttribute("TutorialRecoger")
+		if recoger == "Tablon" or recoger == "Tronco" then
+			if yo:GetAttribute("Cargando") then
+				return nil -- lleva otra cosa: que la suelte él
+			end
+			local lista = sueltos(recoger)
+			if recoger == "Tablon" then
+				for _, c in sueltos("TablonReforzado") do
+					table.insert(lista, c)
+				end
+			end
+			if #lista > 0 then
+				return masCerca(desde, lista)
+			end
+			if recoger == "Tronco" then -- ni un tronco en el suelo: al árbol en pie más cercano
+				return masCerca(desde, etiquetados("Arbol", function(arbol)
+					return not arbol:GetAttribute("Talado")
+				end))
+			end
+			return nil
+		end
 		return masCerca(desde, etiquetados("Caballete"))
 	elseif paso == "Generador" then
 		return masCerca(desde, etiquetados("Generador"))
@@ -313,9 +352,12 @@ local function pintarCartel()
 	cartel.Visible = true
 	numero.Text = Ui.mayusculas(Lang.t(nil, "Tutorial  {n}/{total}",
 		{ n = PasosTutorial.numero(paso), total = #PasosTutorial.LISTA }))
-	textoPaso.Text = frase(paso)
-	if paso ~= pasoAnterior then
-		if pasoAnterior then
+	local texto = frase(paso)
+	-- Cambia lo que pide dentro del mismo paso (Serrar: coger el tablón del suelo): también salta, para que se lea.
+	local otraFrase = paso == pasoAnterior and paso == "Serrar" and texto ~= textoPaso.Text
+	textoPaso.Text = texto
+	if paso ~= pasoAnterior or otraFrase then
+		if pasoAnterior and not otraFrase then
 			Sonido.tocar("Papel") -- paso hecho: como pasar la hoja de la libreta
 		end
 		pasoAnterior = paso
@@ -428,6 +470,10 @@ function TutorialVista.start()
 	construir()
 	yo:GetAttributeChangedSignal("Tutorial"):Connect(pintarCartel)
 	yo:GetAttributeChangedSignal("TutorialFalta"):Connect(pintarCartel)
+	yo:GetAttributeChangedSignal("TutorialRecoger"):Connect(function()
+		pintarCartel()
+		siguiente = 0 -- la flecha cambia de sitio enseguida (del caballete al tablón), sin esperar al repaso
+	end)
 	pintarCartel()
 	-- SALTAR también con la K (en el mando, la cruceta a la derecha), mientras se ve el cartel (no en las cinemáticas,
 	-- que apagan el HUD).

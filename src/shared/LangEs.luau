@@ -273,6 +273,8 @@ return {
 	["Run to the forest: press L3. Running is loud."] = "Corre al bosque: pulsa L3. Correr hace ruido.",
 	["Chop down a tree and carry a log."] = "Tala un árbol y carga un tronco.",
 	["Saw the log on the sawhorse."] = "Sierra el tronco en el caballete.",
+	["Pick up a plank."] = "Coge un tablón.",
+	["Bring a log to the sawhorse."] = "Lleva un tronco al caballete.",
 	["Start the generator in the shed."] = "Arranca el generador del cobertizo.",
 	["Stay close to the house. Night is coming."] = "No te alejes de la casa. Se acerca la noche.",
 	["Close the curtains downstairs: {n} left."] = "Cierra las cortinas de abajo: quedan {n}.",
