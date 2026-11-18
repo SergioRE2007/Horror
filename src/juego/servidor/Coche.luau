@@ -7,6 +7,8 @@
 --   Con todo puesto sale "Escape" (mantener E en la puerta del conductor): se van los bichos, la partida se da por
 --   terminada (Partida, con alHuir), los clientes ven la escena final (HuidaVista) y todos vuelven al lobby.
 --   Se guarda con la partida (exportar/importar): piezas montadas, gasolina y el portón.
+--   Día 1 y noche 1 (16.8, Llegada): tu coche está entero delante de la casa y este, escondido en ServerStorage
+--   (Coche.esconder): sale en el garaje cuando Llegada se lleva el destrozado de delante.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -49,6 +51,9 @@ local cerradoPorton: CFrame
 local estado: Recetas.Coche = Recetas.nuevoCoche()
 local enCurso: { [string]: number } = {} -- piezas que alguien está montando ahora (para no montar dos en un hueco)
 local huyendo = false
+local oculto = false -- en ServerStorage (Coche.esconder)
+local padre: Instance? = nil -- donde va cuando no está escondido (la casa)
+local cargado = false -- ya ha pasado por importar (una partida guardada): Llegada no pone la escena
 local alHuir: (() -> ())? = nil
 local promptReparar: ProximityPrompt
 local promptHuir: ProximityPrompt
@@ -203,6 +208,9 @@ local function huir(jugador: Player)
 	if huyendo or workspace:GetAttribute("Final") or Recetas.queFalta(estado, C) or not cerca(jugador, coche:FindFirstChild("Conducir") :: BasePart) then
 		return
 	end
+	if oculto then -- solo con el modo de pruebas ("Huir" el día 1): que la escena encuentre el coche
+		Coche.esconder(false)
+	end
 	huyendo = true
 	workspace:SetAttribute("Final", true) -- un solo final: el incendio de la Bestia ya no puede empezar
 	publicar()
@@ -281,7 +289,29 @@ end
 
 -- Deja el coche como en `t` (nil = sin arreglar, el de una partida nueva).
 function Coche.importar(t)
+	cargado = true
 	estado = Recetas.arreglarCoche(t, C)
+	publicar()
+end
+
+-- ¿Ha venido de una partida guardada (importar)? En una nueva no se llama antes del primer día (Partida).
+function Coche.cargada(): boolean
+	return cargado
+end
+
+-- El modelo del coche (Llegada saca de él sus copias de delante de la casa).
+function Coche.modelo(): Model
+	return coche
+end
+
+-- Escondido (en ServerStorage: no se ve, no choca y sus prompts no salen) o en su sitio del garaje (Llegada, 16.8).
+-- Las etiquetas siguen: Tutorial lee sus atributos igual.
+function Coche.esconder(si: boolean)
+	if si == oculto then
+		return
+	end
+	oculto = si
+	coche.Parent = if si then ServerStorage else padre
 	publicar()
 end
 
@@ -299,6 +329,7 @@ end
 
 function Coche.start()
 	coche = CollectionService:GetTagged("Coche")[1] :: Model
+	padre = coche.Parent
 	local modeloPorton = CollectionService:GetTagged("Porton")[1] :: Model
 	hojaPorton = modeloPorton:FindFirstChild("Hoja") :: BasePart
 	mandoPorton = modeloPorton:FindFirstChild("Mando") :: BasePart

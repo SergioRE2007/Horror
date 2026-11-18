@@ -19,6 +19,7 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 
 - Clave `partida_<dueño>_<ranura>` en `Config.Partida.Almacen`, con el mismo `Candado` que los jugadores. Al arrancar el servidor: `Viaje.leer`, echa a quien no venía en el coche, coge el candado (si otro servidor la tiene, espera `Guardado.Espera` y vuelven al lobby), deja el mundo como estaba y devuelve la noche para `Ciclo.start(noche)`.
 - Al amanecer (también al empezar y tras morir todos) hace una foto de todo y la guarda; cada `Guardado.Intervalo` vuelve a guardar la misma foto para renovar el candado. Lo del día no cuenta: si mueren todos se vuelve a la foto (`Partida.volverAlAmanecer`, lo llama `Director`) y si os vais queda la última foto (pedido por el usuario).
+- Morir todos: durante la espera de `Config.Ciclo.Reinicio` el ciclo está retenido (`Ciclo.retener`) y no cambia de fase solo, así que morir en los últimos segundos de la noche ya no cobra ni guarda la noche como superada. Probar en Studio: morir con la noche a punto de acabar (`Prueba` Orden "Saltar" tras morir) y ver que vuelve al día de esa noche sin "You survived the night".
 - Lo que se guarda (`FormatoPartida`, versión 1): noche, semilla (para las llaves, paso 7), casa (`[Clave] = vida, persiana, cristal, abierta, bloqueada`), árboles talados (`[Clave] = noche`), generador (gasolina, encendido, móvil del enchufe), objetos y pesados sueltos (`tipo`, `carga`, `sitio` = posición y giro), mochilas (`[UserId] = { cosas }`). `arreglar` limpia datos rotos o trucados (tipos que no existen, números imposibles, cosas caídas del mapa, como mucho `Sueltos` de cada clase) y es el sitio de los pasos entre versiones.
 - Desde el paso 8 (sin subir versión): `coche`, `refuerzo` en la casa y `final` (ver `taller.md`). `Coche.exportar/importar`.
 - Claves fijas que salen de la posición (`Mapa`: V/P/A + x_y_z redondeados): añadir cosas al mapa no descoloca lo guardado. Ventanas de arriba y de abajo comparten x y z: por eso lleva la y.
@@ -26,7 +27,8 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 - Mochilas: son de cada jugador dentro de la partida y se guardan aunque no venga esa vez. Lo que lleva el que se va cae al suelo y en la siguiente foto ya no es suyo (para no duplicar). Si vuelve en la misma sesión, mochila vacía (lo suyo está en el suelo).
 - Dueño que se va: aviso a los demás y, si no vuelve en `EsperaDueno` s, se acaba para todos con la última foto.
 - Cada guardado apunta en los datos del dueño `partidas["<ranura>"] = { noche, hora }` (atributo `Partidas` del jugador, en JSON): es lo que enseña el lobby.
-- Cuidados (de la revisión del código): `op` solo se pone cuando el candado ya es nuestro (un cierre a media carga borraría la partida); si el dueño no llega nunca (le falló el teletransporte), a los `EsperaDueno` s se acaba; tras volver al amanecer, los que se fueron recuperan su mochila de entonces; guardar y volver al lobby no frenan el ciclo ni el arranque.
+- Cuidados (de la revisión del código): `op` solo se pone cuando el candado ya es nuestro (un cierre a media carga borraría la partida); si el dueño no llega nunca (le falló el teletransporte), a los `EsperaDueno` s se acaba; tras volver al amanecer, los que se fueron recuperan su mochila de entonces; guardar y volver al lobby no frenan el ciclo ni el arranque. Si el servidor se cierra mientras coge el candado, lo suelta al acabar y `cargandoPartida` no baja hasta entonces, así `BindToClose` espera ese soltado (hasta `Guardado.Cierre` s, como `Datos.cargar`); antes bajaba antes y la ranura quedaba cogida `Guardado.Caduca` s (16.1).
+  - Probar en Studio: no se puede forzar en Studio (el cierre a media carga solo pasa publicado); revisar que arranca y guarda igual que antes.
 - Modo de pruebas: almacén de mentira en memoria (pasa por JSON). `ServerStorage.Prueba:Fire("Guardar")` hace la foto y la guarda ya; `("Cargar")` la relee y la pone. `Config.Test.Partidas` = las ranuras que enseña el lobby en Studio.
 
 ## Muerte y finales (14.9)
@@ -102,7 +104,7 @@ Con bloques grises. Números a ojo, en `Config` (`Partida`, `Coches`).
 
 - Sin probar (solo funciona publicado): reservar servidor, MemoryStore, teletransporte de ida y vuelta, DataStore real de la partida, dueño que se va con otros dentro. `Config.Lugares` sigue a 0.
 - Sin probar en Studio: volver al amanecer al morir todos (usa el mismo `aplicar` que Cargar), dos jugadores en el coche (el que no es dueño).
-- La cinemática de llegada a la casa (la de salida del lobby está hecha: `lobby.md`) y volver a una partida tras un corte (el dueño no puede volver a entrar a un servidor reservado: haría falta que el lobby lo mande de vuelta).
+- La cinemática de llegada a la casa: hecha en 16.8 (ver `taller.md`, "Llegada"), sin probar en Studio. Volver a una partida tras un corte (el dueño no puede volver a entrar a un servidor reservado: haría falta que el lobby lo mande de vuelta).
 - Para probar el lobby en el mismo Studio: `rojo serve lobby.project.json --port 34872` y Rojo → Connect (el lugar se genera entero por código).
 - Opcional (pedido por agentes en la 14.9, no hecho): `Muerte.vivo(jugador)` en vez de `table.find(Muerte.vivos(),
   jugador)` en Postura, Movil, Taller, Bengalas, Recursos, Generador, Mochila, Coche, Incendio y Preparativos, y en la

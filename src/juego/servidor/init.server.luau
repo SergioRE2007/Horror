@@ -35,6 +35,7 @@ require(Sistemas.Pistas).start()
 require(Sistemas.Vendedor).start()
 require(Sistemas.Taller).start()
 require(Sistemas.Coche).start()
+require(Sistemas.Llegada).start() -- llegada en coche y coche destrozado tras la noche 1 (16.8); después de Coche
 require(Sistemas.Director).start()
 require(Sistemas.Acechador).start()
 require(Sistemas.Bestia).start() -- final de la Bestia (12.2)

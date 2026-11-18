@@ -25,6 +25,15 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 - Con todo: "Escape" manteniendo E 2 s en la puerta del conductor. Se van los bichos, la partida se da por terminada (`Partida.terminada`, el Director ya no lanza ataques), todos se quedan quietos y ven la escena final (también los muertos) y vuelven al lobby.
 - Escena final (17 s, todo local; esconde interfaz, carteles y personajes y lo devuelve aunque falle): portón que sube y faros que parpadean al encenderse → el coche sale y coge la carretera → de lado, el bicho sale del bosque rugiendo y lo persigue → desde delante, lo tiene encima y el coche acelera → fundido a negro, "HAS ESCAPADO" con la raya roja.
 
+## Llegada y coche destrozado tras la noche 1 (`Llegada`, cliente `LlegadaCocheVista`, 16.8)
+
+- Día 1 y noche 1: tu coche entero aparcado en la carretera delante de la casa (`Config.Llegada.Sitio`; copia sin prompts, etiqueta `CocheLlegada`). El de verdad, escondido en `ServerStorage` (`Coche.esconder`).
+- Partida nueva (nunca cargada: `Coche.cargada`): escena de 9 s solo para los que están al empezar (atributo `LlegadaInicio` del Player). Desde la cuneta el coche viene con los faros encendidos → desde el porche frena y aparca → por detrás, se apagan motor y faros → fundido. Franjas negras, interfaz y personajes fuera, SALTAR (o espacio, Intro, B/A); todo vuelve aunque falle. Suena `MotorCoche` (la misma entrada que el lobby, `Config.Sonidos.MotorCoche = Config.SonidosLobby.MotorCoche`; Id 0 = mudo hasta grabarlo con ElevenLabs), no `Motor`, que es el generador. `EscenaLlegada` del workspace a `true` desde que arranca el servidor hasta que acaba (tope `Tope` s): el tutorial espera.
+- Al amanecer de la noche 1: delante, el coche destrozado (sin ruedas de delante, de morros y torcido, capó abierto, arañazos a los dos lados, humo). Al acercarte a `Ver` studs: "Tu coche está destrozado. Ya no hay forma de irse.". Cuando lo han visto todos (o ya es de noche), pasados `Minimo` s y sin nadie a menos de `Lejos`, se lo llevan al garaje: allí sale el de verdad y se arregla como siempre. Tope: el amanecer siguiente.
+- Partida guardada que ya pasó la noche 1: como antes (destrozado en el garaje, sin escena ni coche delante). Nada nuevo se guarda: sale de la noche.
+- Pruebas: `Prueba:Fire("Llegada")` repite la escena, `("Destrozar")` y `("Garaje")` los dos pasos.
+- Probar en Studio: `Config.Test.Nueva` a true → al jugar, escena entera y SALTAR; luego `Destrozar`, acercarse (aviso), alejarse al fondo de la casa pasado 1 min (o `Garaje`) y ver el coche en el garaje; `EscenaLlegada` vuelve a false y `CameraType` a Custom.
+
 ## Guardado
 
 - `FormatoPartida` sin subir versión: `coche = { piezas, gasolina, porton }` (lo viejo sale sin arreglar), `refuerzo` en la casa y `final = "Huida"`. Lo fabricado se guarda como lo demás (suelto o en la mochila).
