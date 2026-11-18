@@ -9,8 +9,8 @@
 --   No empieza mientras dura la escena de llegada en coche (atributo EscenaLlegada de workspace; con Config.Llegada
 --   activa, sin poner aún = Llegada no ha decidido: también espera). Si vuelve a haber escena, el cartel se esconde.
 -- Siguiente meta (16.5): quien ya no tiene tutorial recibe al empezar cada día (y al entrar) un aviso de una línea con
---   la siguiente meta (PasosTutorial.meta: llaves, piezas del coche, huir), y la misma frase en el atributo Meta del
---   Player, que enseña el móvil (MovilUi).
+--   la siguiente meta (PasosTutorial.meta: llenar el generador si no aguanta la noche, llaves, piezas del coche,
+--   huir), y la misma frase en el atributo Meta del Player, que enseña el móvil (MovilUi).
 --   El cliente (TutorialVista) pinta el cartel y la flecha; solo puede pedir saltarlo (remote Tutorial, "Saltar").
 --   Todo lo que da premio lo mira el servidor: el cliente no puede acabarlo antes de tiempo.
 -- En Studio solo sale con Config.Test.Tutorial (los datos de prueba nunca lo tienen hecho).
@@ -114,6 +114,31 @@ local function hayBidon(): boolean
 	return false
 end
 
+-- ¿Hay gasolina que echarle al generador? Un bidón con gasolina, o un bidón (aunque esté vacío) y el depósito de la
+-- granja con algo dentro para llenarlo.
+local function hayGasolina(): boolean
+	if hayBidon() then
+		return true
+	end
+	local hayLata = false
+	for _, pieza in CollectionService:GetTagged("Pesado") do
+		if pieza:GetAttribute("Tipo") == "Bidon" and pieza:IsDescendantOf(workspace) then
+			hayLata = true
+			break
+		end
+	end
+	if not hayLata then
+		return false
+	end
+	for _, dep in CollectionService:GetTagged("Deposito") do
+		local litros = dep:GetAttribute("Litros")
+		if type(litros) == "number" and litros > 0.05 and dep:IsDescendantOf(workspace) then
+			return true
+		end
+	end
+	return false
+end
+
 local function mirar()
 	if next(activos) == nil then
 		return
@@ -134,7 +159,7 @@ local function mirar()
 	local quedan = if type(fin) == "number" then fin - workspace:GetServerTimeNow() else math.huge
 	local cortinas, puerta = cortinasAbiertas()
 	local generador, gasolina = generadorEncendido()
-	local bidon = hayBidon()
+	local bidon = hayGasolina()
 	for jugador, a in activos do
 		if not jugador.Parent then
 			quitar(jugador)
@@ -183,8 +208,13 @@ local function textoMeta(jugador: Player): string?
 	end
 	local gasolina = if coche then coche:GetAttribute("Gasolina") else nil
 	local sinGasolina = (if type(gasolina) == "number" then gasolina else 0) < Config.Coche.Gasolina - 1e-3
-	local meta, n = PasosTutorial.meta(Casa.cerradas(), piezas, sinGasolina)
-	if meta == "Sotano" then
+	-- El generador no aguanta la noche: de día, por debajo del mínimo del tutorial y con gasolina a mano
+	local _, nivel = generadorEncendido()
+	local poca = Ciclo.fase() == "Dia" and nivel ~= nil and nivel < Config.Tutorial.Gasolina and hayGasolina()
+	local meta, n = PasosTutorial.meta(Casa.cerradas(), piezas, sinGasolina, poca)
+	if meta == "Generador" then
+		return Lang.t(jugador, "Next: fuel the generator before night. The farm has fuel.")
+	elseif meta == "Sotano" then
 		return Lang.t(jugador, "Next: find the basement key. It's somewhere on the farm.")
 	elseif meta == "Garaje" then
 		return Lang.t(jugador, "Next: find the garage key. It's somewhere at the sawmill.")
