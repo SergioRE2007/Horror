@@ -9,11 +9,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Bichos = require(script.Parent.Bichos)
 local Caza = require(script.Parent.Caza)
 local Ciclo = require(script.Parent.Ciclo)
 local Cuerpo = require(script.Parent.Cuerpo)
+local FinPartida = require(script.Parent.FinPartida)
 local Muerte = require(script.Parent.Muerte)
-local Partida = require(script.Parent.Partida)
 
 local Acechador = {}
 
@@ -205,11 +206,11 @@ local function ataque(a: Ataque)
 				Remotes.Acechador:FireAllClients("Luz", modelo)
 			end
 			local rr = raizDe(presa) :: BasePart
-			if not b:quieto() and (rr.Position - b.raiz.Position).Magnitude < A.Pillar + 2 then
+			if not b:quieto() and (rr.Position - b.raiz.Position).Magnitude < A.Pillar + A.MasPillar then
 				b.humanoide:MoveTo(b.raiz.Position)
 				b:mirarA(rr.Position)
 				Muerte.matar(presa, b:cabeza(), b.modelo)
-				task.wait(2.5)
+				task.wait(A.TrasPillar)
 				break
 			end
 			b.humanoide.WalkSpeed = A.Correr
@@ -287,7 +288,7 @@ end
 
 -- Cada medio segundo: ¿quién lleva un rato fuera a oscuras?
 local function vigilar()
-	local activo = oscuro() and not Partida.terminada() and not workspace:GetAttribute("Bestia") -- la noche final solo sale ella
+	local activo = oscuro() and not FinPartida.acabada() and not workspace:GetAttribute("Bestia") -- la noche final solo sale ella
 	for _, jugador in Players:GetPlayers() do
 		local r = raizDe(jugador)
 		local expuesto = activo and r ~= nil and not aSalvo(r.Position) and Muerte.vivo(jugador)
@@ -307,6 +308,7 @@ local function vigilar()
 end
 
 function Acechador.start()
+	Bichos.registrar("Acechador", Acechador)
 	Players.PlayerRemoving:Connect(function(jugador)
 		fuera[jugador] = nil
 		espera[jugador] = nil

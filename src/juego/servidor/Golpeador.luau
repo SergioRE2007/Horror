@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Bichos = require(script.Parent.Bichos)
 local Bichos3D = require(script.Parent.Bichos3D)
 local Casa = require(script.Parent.Casa)
 local Caza = require(script.Parent.Caza)
@@ -252,6 +253,7 @@ function Golpeador.quitar()
 end
 
 function Golpeador.start()
+	Bichos.registrar("Golpeador", Golpeador)
 	Caza.carpeta()
 	Sucesos.start() -- la orden de prueba "Suceso"
 end

@@ -26,12 +26,13 @@ local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Recompensas = require(ServerScriptService:WaitForChild("Comun").Recompensas)
 local Viaje = require(ServerScriptService:WaitForChild("Comun").Viaje)
+local Bestia = require(script.Parent.Bestia)
+local Bichos = require(script.Parent.Bichos)
 local Cargar = require(script.Parent.Cargar)
 local Ciclo = require(script.Parent.Ciclo)
-local Golpeador = require(script.Parent.Golpeador)
 local Mochila = require(script.Parent.Mochila)
 local Muerte = require(script.Parent.Muerte)
-local Raspador = require(script.Parent.Raspador)
+local Preparativos = require(script.Parent.Preparativos)
 
 local Incendio = {}
 
@@ -42,9 +43,6 @@ local SOTANO = Vector3.new(0, -8, 56)
 -- el fuego aún se está comiendo el tejado y las ventanas de lejos (IncendioVista).
 local ARDE = B.ArdeCasa
 
--- Bestia y Preparativos se cargan en start(): así no hay require en círculo si algún día piden algo a Incendio.
-local Bestia: any
-local Preparativos: any
 local ardiendo = false
 local alTerminar: (() -> ())? = nil
 local prompt: ProximityPrompt
@@ -70,8 +68,8 @@ end
 
 -- La escena final: como Coche.huir. Todos (también los muertos) cobran y ven la escena.
 local function terminar()
-	Golpeador.quitar()
-	Raspador.quitar()
+	-- Solo estos dos: los demás ya los quitó Bestia.quemar (a ella no: se está quemando).
+	Bichos.quitarSolo({ "Golpeador", "Raspador" })
 	if alTerminar then
 		local ok, fallo = pcall(alTerminar) -- que un fallo al guardar no deje sin premio ni escena
 		if not ok then
@@ -174,9 +172,6 @@ function Incendio.alTerminar(fn: () -> ())
 end
 
 function Incendio.start()
-	Bestia = require(script.Parent.Bestia) :: any
-	Preparativos = require(script.Parent.Preparativos) :: any
-
 	prompt = Instance.new("ProximityPrompt")
 	prompt.Style = Enum.ProximityPromptStyle.Custom
 	prompt.ActionText = "Light"

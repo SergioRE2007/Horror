@@ -16,8 +16,10 @@ local Dificultad = require(ReplicatedStorage.Shared.Dificultad)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local RepartoBichos = require(ReplicatedStorage.Shared.RepartoBichos)
 local Acechador = require(script.Parent.Acechador)
 local Bestia = require(script.Parent.Bestia)
+local Bichos = require(script.Parent.Bichos)
 local Casa = require(script.Parent.Casa)
 local Chimenea = require(script.Parent.Chimenea)
 local Ciclo = require(script.Parent.Ciclo)
@@ -32,6 +34,7 @@ local Trepador = require(script.Parent.Trepador)
 local Director = {}
 
 local G, R, T, I = Config.Golpeador, Config.Raspador, Config.Trepador, Config.Imitador
+local REINTENTO = Config.Director.Reintento
 local azar = Random.new()
 local turno = 0 -- sube con cada cambio de fase: los bucles de una noche anterior se paran solos
 local enUso: { [Model]: boolean } = {} -- ventanas y puertas con un ataque en marcha
@@ -75,22 +78,19 @@ local function hueco(mio: number, n: number, dif: Dificultad.Noche, retraso: num
 	esperar(rango(G.PrimerAtaque) + retraso, mio)
 	local ultimo: Model? = nil
 	while turno == mio and not Partida.terminada() do
-		if Bestia.activa() then -- la noche final: solo ella
-			esperar(2, mio)
-			continue
-		end
-		-- Qué bicho: los especiales, uno como mucho a la vez cada uno; si no, el Golpeador.
-		local function toca(que: string, desde: number, probabilidad: number, cuantos: number): boolean
-			return n >= desde and cuantos == 0 and (seguros[que] or azar:NextNumber() < probabilidad)
-		end
+		-- Qué bicho (shared/RepartoBichos, probado en Lune): los especiales, uno como mucho a la vez cada uno; si no, el
+		-- Golpeador. La noche final (Bestia.activa()), ninguno: solo ella.
 		local puerta = Casa.principal()
-		local que = "Golpeador"
-		if puerta and not enUso[puerta] and toca("Imitador", I.Noche, I.Probabilidad, Imitador.cuantos()) then
-			que = "Imitador"
-		elseif toca("Trepador", T.Noche, T.Probabilidad, Trepador.cuantos()) then
-			que = "Trepador"
-		elseif toca("Raspador", R.Noche, R.Probabilidad, Raspador.cuantos()) then
-			que = "Raspador"
+		local que = RepartoBichos.toca({
+			noche = n,
+			bestia = Bestia.activa(),
+			puertaLibre = puerta ~= nil and not enUso[puerta],
+			seguros = seguros,
+			cuantos = { Imitador = Imitador.cuantos(), Trepador = Trepador.cuantos(), Raspador = Raspador.cuantos() },
+		}, Config, azar)
+		if not que then
+			esperar(REINTENTO, mio)
+			continue
 		end
 		local el: Model? = nil
 		if que == "Imitador" then
@@ -98,7 +98,7 @@ local function hueco(mio: number, n: number, dif: Dificultad.Noche, retraso: num
 		elseif que ~= "Trepador" then
 			local lista = libres(que == "Raspador", ultimo)
 			if #lista == 0 then
-				esperar(2, mio)
+				esperar(REINTENTO, mio)
 				continue
 			end
 			el = lista[azar:NextInteger(1, #lista)]
@@ -125,7 +125,7 @@ local function hueco(mio: number, n: number, dif: Dificultad.Noche, retraso: num
 		if el then
 			enUso[el] = nil
 		end
-		esperar(math.max(G.IntervaloMin, rango(G.Intervalo) - G.MenosPorNoche * (n - 1)) * dif.ritmo, mio)
+		esperar(RepartoBichos.intervalo(n, dif.ritmo, G, azar), mio)
 	end
 end
 
@@ -158,12 +158,7 @@ function Director.start()
 		Recompensas.fase(fase, n)
 		turno += 1
 		if fase == "Dia" then
-			Golpeador.irse()
-			Raspador.irse()
-			Trepador.irse()
-			Imitador.irse()
-			Acechador.irse()
-			Bestia.irse()
+			Bichos.irseTodos() -- todos los bichos (registro común: Bichos)
 			-- En un final (la huida o el incendio) no: el personaje nuevo no estaría escondido ni quieto para la escena.
 			-- Si el incendio fracasa y quita Final ya de día, revive él a todos (Incendio).
 			if not workspace:GetAttribute("Final") then
@@ -270,12 +265,7 @@ function Director.start()
 			soltar()
 			return
 		end
-		Golpeador.quitar()
-		Raspador.quitar()
-		Trepador.quitar()
-		Imitador.quitar()
-		Acechador.quitar()
-		Bestia.quitar()
+		Bichos.quitarTodos()
 		Chimenea.apagar()
 		table.clear(enUso)
 		Partida.volverAlAmanecer()

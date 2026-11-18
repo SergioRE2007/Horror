@@ -10,6 +10,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Casa = require(script.Parent.Casa)
+local Bichos = require(script.Parent.Bichos)
 local Caza = require(script.Parent.Caza)
 local Cuerpo = require(script.Parent.Cuerpo)
 local Muerte = require(script.Parent.Muerte)
@@ -239,6 +240,11 @@ function Raspador.cuantos(): number
 		n += 1
 	end
 	return n
+end
+
+-- Solo se apunta en el registro común (Bichos): lo lanza el Director.
+function Raspador.start()
+	Bichos.registrar("Raspador", Raspador)
 end
 
 return Raspador

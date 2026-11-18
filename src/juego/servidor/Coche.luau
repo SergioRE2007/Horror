@@ -24,12 +24,11 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local Viaje = require(ServerScriptService:WaitForChild("Comun").Viaje)
 local Recompensas = require(ServerScriptService:WaitForChild("Comun").Recompensas)
+local Bichos = require(script.Parent.Bichos)
 local Cargar = require(script.Parent.Cargar)
 local Casa = require(script.Parent.Casa)
-local Golpeador = require(script.Parent.Golpeador)
 local Mochila = require(script.Parent.Mochila)
 local Muerte = require(script.Parent.Muerte)
-local Raspador = require(script.Parent.Raspador)
 
 local Coche = {}
 
@@ -214,15 +213,9 @@ local function huir(jugador: Player)
 	huyendo = true
 	workspace:SetAttribute("Final", true) -- un solo final: el incendio de la Bestia ya no puede empezar
 	publicar()
-	Golpeador.quitar()
-	Raspador.quitar()
-	-- Y los demás: si no, seguían cazando y mataban a los que esperan quietos la escena (igual que Bestia.quemar).
-	-- En diferido (Acechador -> Partida -> Coche sería un require en círculo); a estas alturas ya están cargados. Sin
+	-- Todos los bichos (también la Bestia): si no, seguían cazando y mataban a los que esperan quietos la escena. Sin
 	-- esperas hasta alHuir: el Director no llega a lanzar otro antes de que la partida esté terminada.
-	require(script.Parent.Trepador).quitar()
-	require(script.Parent.Imitador).quitar()
-	require(script.Parent.Acechador).quitar()
-	require(script.Parent.Bestia).quitar()
+	Bichos.quitarTodos()
 	if alHuir then
 		alHuir()
 	end
