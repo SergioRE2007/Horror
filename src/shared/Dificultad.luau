@@ -15,4 +15,15 @@ function Dificultad.de(jugadores: number, azar: number, tabla): Noche
 	}
 end
 
+-- Cuánto se multiplica lo que el Golpeador aguanta golpeando, dada la paciencia de la fila. La Paciencia alarga el
+-- margen del Raspador, el Trepador y el Generador (más = más fácil), pero en el Golpeador alargar el aguante son más
+-- golpes y más daño (más = más difícil). Por eso, con paciencia > 1 (jugando solo) golpea MENOS rato (1 / paciencia)
+-- y con paciencia <= 1 se queda como estaba. Así solo nunca aguanta más que con cuatro.
+function Dificultad.aguanteGolpeando(paciencia: number): number
+	if paciencia > 1 then
+		return 1 / paciencia
+	end
+	return paciencia
+end
+
 return Dificultad
