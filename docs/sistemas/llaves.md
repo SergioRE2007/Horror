@@ -16,9 +16,11 @@ Puertas con `Bloqueada` y `Llave` (el tipo de llave que la abre). De más cerca 
 
 - Objetos de mochila 1×1 con `Llave = true` (`LlaveSotano`, `LlaveGaraje`, `LlaveDesvan`, `LlaveRico`). Latón con un brillo flojo (`PointLight`, `Config.BrilloLlave`; pedido por el usuario).
 - Cada zona da 4 sitios posibles (`Mapa.llaves`, los pone `Lugares`); el sitio sale de `Azar.entero(semilla, orden, …)`: siempre el mismo en la misma partida y en cualquier servidor (no usa `Random`).
-- Si mueres con una llave, se cae donde mueres (pedido por el usuario).
+- Si mueres con una llave, se cae donde mueres (pedido por el usuario). Las cerillas también.
 - Si mueres escondido, cae a la salida del armario o de la cama (`Mochila.fueraDeEscondite`, atributo `Salida`): dentro no la cogía nadie y `repasar` no la repone (sigue en el mundo). Lo mismo con lo suelto cargado de partidas viejas.
 - `Llaves.repasar(semilla, mochilasGuardadas)` lo llama `Partida` al empezar una partida nueva, al cargar (`aplicar`) y al amanecer: la llave de una sala aún cerrada que no está suelta ni en la mochila de alguien que está vuelve a su sitio. A los que no han venido se les quitan las llaves de su mochila guardada (nadie se queda la llave fuera ni la duplica al volver). Las cuentas, en `Reparto` (sin Roblox, probado con Lune).
+- Al cargar, `Partida` pasa también los `esperados` (los UserIds del viaje y el dueño): en un servidor reservado recién arrancado aún no ha entrado casi nadie, y sin esto el grupo perdía sus llaves. Cuentan como que están y sus llaves guardadas cuentan como vistas (`Reparto.esperar`). Al amanecer ya no: el que no ha llegado pierde llaves y lo único. Al amanecer no se miran las mochilas de los que se han ido hoy (lo suyo ya está en el suelo). Modo de pruebas: `Prueba:Fire("Cargar", { UserIds })` carga con esos esperados.
+- Lo único del final (`Unica` en `Config.Objetos`: pistola, bengalas, cerillas) se quita igual al que no está y vuelve sin copiarse: pistola y bengalas a su sitio de `Mapa.objetos` (el primero de su tipo sin otro encima); las cerillas, delante de la caja fuerte (`Pistas.sitio(12)`), solo con la pista `Config.Bestia.PistaCerillas` leída y si no hay otras sueltas ni en mochilas de los que están o vienen. Así también vuelven si se cayeron del mapa (`Reparto.reponer`).
 - Se guarda todo con la partida sin cambiar el formato: sala abierta = `bloqueada` de la puerta, llave suelta = objeto suelto, llave en la mochila = mochila.
 
 ## Lugares (`Lugares`)

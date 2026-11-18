@@ -625,6 +625,64 @@ do
 	-- Mochilas rotas no rompen nada.
 	igual(#Reparto.faltan({ "LlaveRico" }, {}, { ["3"] = { cosas = "x" }, ["4"] = 5 }, {}, esLlave), 1, "mochilas rotas")
 
+	-- Lo único del final (pistola, bengalas, cerillas) y los que vienen a la sesión (esperados, al cargar).
+	local function esUnica(tipo)
+		return type(tipo) == "string" and Config.Objetos[tipo] ~= nil and Config.Objetos[tipo].Unica == true
+	end
+	local function cuenta(tipo)
+		return esLlave(tipo) or tipo == "Cerillas"
+	end
+	for _, tipo in { "Pistola", "Bengala", "Cerillas" } do
+		igual(esUnica(tipo), true, `{tipo} es única`)
+	end
+	igual(esUnica("Pila"), false, "una pila no es única")
+	igual(Config.Bestia.PistaCerillas >= 1 and Config.Bestia.PistaCerillas <= #cargar("src/shared/Historia"), true,
+		"la pista de las cerillas existe")
+	-- Cargar en un servidor recién arrancado: aún no ha entrado nadie, pero vienen 1 y 2. No se quita nada ni sale nada.
+	local guardadasE = {
+		["1"] = { cosas = { { tipo = "LlaveSotano" }, { tipo = "Pistola" }, { tipo = "Cerillas" } } },
+		["2"] = { cosas = { { tipo = "LlaveRico" }, { tipo = "Bengala" } } },
+	}
+	local estanE, vistasE = {}, {}
+	Reparto.esperar(guardadasE, { 1, 2 }, estanE, vistasE, cuenta)
+	local faltanE, quitadasE = Reparto.faltan({ "LlaveSotano", "LlaveRico" }, vistasE, guardadasE, estanE, esLlave, esUnica)
+	igual(#faltanE, 0, "esperados: sus llaves cuentan, no sale otra")
+	igual(#quitadasE, 0, "esperados: no se les quita nada único")
+	igual(#guardadasE["1"].cosas + #guardadasE["2"].cosas, 5, "esperados: sus mochilas se quedan enteras")
+	igual(vistasE.Cerillas, 1, "esperados: sus cerillas cuentan como vistas")
+	local _, ponerE = Reparto.reponer(quitadasE, "Cerillas", true, vistasE.Cerillas)
+	igual(ponerE, false, "esperados: con sus cerillas no salen otras")
+	-- Un esperado que ya está dentro no se cuenta dos veces.
+	local vistasD = { LlaveRico = 1 }
+	Reparto.esperar({ ["2"] = { cosas = { { tipo = "LlaveRico" } } } }, { 2 }, { ["2"] = true }, vistasD, cuenta)
+	igual(vistasD.LlaveRico, 1, "esperado ya dentro: no cuenta doble")
+	-- El ausente que no viene pierde llaves y lo único; lo único sale en la lista para volver a su sitio.
+	local guardadasA = {
+		["5"] = { cosas = { { tipo = "Pila" }, { tipo = "Pistola" }, { tipo = "LlaveGaraje" }, { tipo = "Bengala" },
+			{ tipo = "Bengala" }, { tipo = "Cerillas" } } },
+		["6"] = { cosas = { { tipo = "Pistola" }, { tipo = "LlaveGaraje" } } },
+	}
+	local faltanA, quitadasA = Reparto.faltan({ "LlaveGaraje" }, {}, guardadasA, { ["6"] = true }, esLlave, esUnica)
+	igual(#faltanA, 1, "ausente: su llave vuelve a su sitio")
+	igual(#guardadasA["5"].cosas, 1, "ausente: se queda solo lo que no es llave ni único")
+	igual(guardadasA["5"].cosas[1].tipo, "Pila", "ausente: la pila se queda")
+	table.sort(quitadasA)
+	igual(table.concat(quitadasA, ","), "Bengala,Bengala,Cerillas,Pistola", "ausente: lo único quitado, en la lista")
+	igual(#guardadasA["6"].cosas, 2, "presente: no se le toca nada")
+	-- Lo que vuelve al mapa: todo menos las cerillas, que van aparte (caja fuerte) y solo con la pista leída.
+	local aSuSitio, sinLeer = Reparto.reponer(quitadasA, "Cerillas", false, 0)
+	igual(#aSuSitio, 3, "pistola y bengalas vuelven a su sitio")
+	igual(table.find(aSuSitio, "Cerillas"), nil, "las cerillas no van a la entrada del mapa")
+	igual(sinLeer, false, "sin la pista de la caja fuerte leída no se reponen las cerillas")
+	igual(select(2, Reparto.reponer(quitadasA, "Cerillas", true, 0)), true, "con la pista leída y sin otras, sí")
+	igual(select(2, Reparto.reponer({}, "Cerillas", true, 1)), false, "con otras sueltas o en una mochila, no")
+	igual(select(2, Reparto.reponer({}, "Cerillas", true, 0)), true, "perdidas (caídas del mapa) con la pista leída, sí")
+	-- Sin esUnica (como antes) no se quita nada más que las llaves.
+	local guardadasV = { ["9"] = { cosas = { { tipo = "Pistola" }, { tipo = "LlaveSotano" } } } }
+	local _, quitadasV = Reparto.faltan({}, {}, guardadasV, {}, esLlave)
+	igual(#quitadasV, 0, "sin esUnica: nada único quitado")
+	igual(#guardadasV["9"].cosas, 1, "sin esUnica: solo la llave")
+
 	-- Se guardan: la llave suelta pasa por FormatoPartida y la puerta abierta también.
 	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos, coche = Config.Coche,
 		arreglarCoche = cargar("src/shared/Recetas").arreglarCoche }

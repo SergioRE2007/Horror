@@ -326,4 +326,9 @@ function Pistas.start()
 	publicar()
 end
 
+-- Dónde está la pista n (el papel), para dejar algo a su lado (Llaves: las cerillas de la caja fuerte, 12).
+function Pistas.sitio(n: number): CFrame?
+	return SITIOS[n]
+end
+
 return Pistas

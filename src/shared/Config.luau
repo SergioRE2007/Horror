@@ -295,9 +295,10 @@ Config.Objetos = {
 	Radiador = { Tam = { 2, 2 }, Nombre = "Radiator" },
 	-- Final de la Bestia (Config.Bestia, 12.2).
 	Cadena = { Tam = { 2, 1 }, Nombre = "Chain" }, -- para la reja del sótano
-	Pistola = { Tam = { 2, 1 }, Nombre = "Flare gun" }, -- la del rico, en el desván
-	Bengala = { Tam = { 1, 1 }, Nombre = "Flare" }, -- cada disparo gasta una
-	Cerillas = { Tam = { 1, 1 }, Nombre = "Matches" }, -- para prender el rastro de gasolina
+	-- Unica: no hay más que las del mapa; si se las lleva uno que no vuelve, vuelven a su sitio (Llaves.repasar).
+	Pistola = { Tam = { 2, 1 }, Nombre = "Flare gun", Unica = true }, -- la del rico, en el desván
+	Bengala = { Tam = { 1, 1 }, Nombre = "Flare", Unica = true }, -- cada disparo gasta una
+	Cerillas = { Tam = { 1, 1 }, Nombre = "Matches", Unica = true }, -- para prender el rastro de gasolina
 }
 
 -- Salas cerradas con llave (pedido por el usuario), de más cerca a más lejos (juego/servidor/Llaves). Cada llave sale
@@ -533,6 +534,7 @@ Config.Bestia = {
 	Luz = 22, -- alcance de esa luz
 	-- Incendio
 	Prender = 2, -- segundos con la cerilla en el rastro
+	PistaCerillas = 12, -- la pista que dice dónde hay más cerillas (la caja fuerte): sin leerla no se reponen
 	PorSala = 1.6, -- segundos que tarda el fuego en pasar de un punto al siguiente
 	Chillido = 1.5, -- segundos entre que ella se quema y la escena final
 	ArdeCasa = 5, -- segundos con la casa entera ardiendo (y su chillido dentro) antes de la escena final
