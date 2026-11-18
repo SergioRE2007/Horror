@@ -6,7 +6,8 @@
 --     Tutorial = el paso ("Mochila", "Hacha"…; nil = sin tutorial), TutorialFalta = cortinas (y puerta) que quedan
 --     por cerrar, TutorialPuerta = la puerta principal está abierta (16.5), TutorialGasolina = el paso del generador
 --     pide echarle un bidón (16.5).
---   No empieza mientras dura la escena de llegada en coche (atributo EscenaLlegada de workspace).
+--   No empieza mientras dura la escena de llegada en coche (atributo EscenaLlegada de workspace; con Config.Llegada
+--   activa, sin poner aún = Llegada no ha decidido: también espera). Si vuelve a haber escena, el cartel se esconde.
 -- Siguiente meta (16.5): quien ya no tiene tutorial recibe al empezar cada día (y al entrar) un aviso de una línea con
 --   la siguiente meta (PasosTutorial.meta: llaves, piezas del coche, huir), y la misma frase en el atributo Meta del
 --   Player, que enseña el móvil (MovilUi).
@@ -43,9 +44,19 @@ local activos: { [Player]: Activo } = {}
 local conMeta: { [Player]: true } = {} -- sin tutorial (acabado o saltado): reciben la siguiente meta
 local avisadoEn: { [Player]: number } = {} -- cuándo se le avisó la meta por última vez (para no repetirla)
 
--- Mientras se ve la escena de llegada en coche (la pone otro sistema en workspace), ni tutorial ni avisos.
+-- Mientras se ve la escena de llegada en coche (la pone Llegada en workspace), ni tutorial ni avisos. Con la llegada
+-- activa, hasta que Llegada la ponga a false (nil = aún no sabe si la partida es nueva): así no importa quién arranca
+-- antes ni cuándo llegan los datos del jugador (DatosListos).
 local function enEscena(): boolean
-	return workspace:GetAttribute("EscenaLlegada") == true
+	local escena = workspace:GetAttribute("EscenaLlegada")
+	if Config.Llegada.Activa then
+		-- Seguro: si Llegada fallara antes de decidir, que el tutorial no se quede esperando para siempre
+		if escena == nil and time() > Config.Llegada.SinDecidir then
+			return false
+		end
+		return escena ~= false
+	end
+	return escena == true
 end
 
 local function quitar(jugador: Player)
@@ -104,7 +115,18 @@ local function hayBidon(): boolean
 end
 
 local function mirar()
-	if next(activos) == nil or enEscena() then
+	if next(activos) == nil then
+		return
+	end
+	if enEscena() then -- el cartel y la flecha, fuera mientras dura (vuelven al acabar)
+		for jugador in activos do
+			if jugador.Parent and jugador:GetAttribute("Tutorial") ~= nil then
+				jugador:SetAttribute("Tutorial", nil)
+				jugador:SetAttribute("TutorialFalta", nil)
+				jugador:SetAttribute("TutorialPuerta", nil)
+				jugador:SetAttribute("TutorialGasolina", nil)
+			end
+		end
 		return
 	end
 	local fase, noche = Ciclo.fase()

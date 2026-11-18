@@ -62,6 +62,12 @@ local function cerrar()
 	end
 	panel.Visible = false
 	panel.Modal = false
+	-- En diferido: la misma B que lo cierra no debe agachar (PosturaVista mira AjustesAbierto en esa pulsación).
+	task.defer(function()
+		if not panel.Visible then
+			jugador:SetAttribute("AjustesAbierto", nil)
+		end
+	end)
 end
 
 local function abrir(conMando: boolean?)
@@ -72,6 +78,7 @@ local function abrir(conMando: boolean?)
 	pintar()
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
+	jugador:SetAttribute("AjustesAbierto", true) -- solo en este cliente: con él abierto, B no agacha (PosturaVista)
 	escalaPanel.Scale = 0.92
 	TweenService:Create(escalaPanel, TweenInfo.new(0.18, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	if conMando then

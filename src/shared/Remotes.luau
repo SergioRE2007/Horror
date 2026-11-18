@@ -47,6 +47,8 @@ local NOMBRES = {
 	"Postura", -- cliente -> servidor: ("Agachado", sí/no) o ("Asomar", -1 izquierda / 0 / 1 derecha); Postura lo publica en los atributos Agachado y Asomado
 	-- Correr y aguante (14.8).
 	"Correr", -- cliente -> servidor: (sí/no) quiero correr; Correr lo publica en los atributos Corriendo, Aguante, Agotado, Frena y Tropiezo
+	-- Llegada en coche (16.8).
+	"Llegada", -- cliente -> servidor: ("Saltar") he saltado la escena de llegada (juego/servidor/Llegada)
 }
 
 local Remotes = {}

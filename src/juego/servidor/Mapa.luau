@@ -65,6 +65,8 @@ Mapa.salas = {} :: { Vector3 }
 -- Dónde empiezan los objetos sueltos (Mochila) y las cosas pesadas (Cargar).
 Mapa.objetos = {} :: { { tipo: string, cf: CFrame } }
 Mapa.pesados = {} :: { { tipo: string, cf: CFrame } }
+-- El motor suelto delante de la casa: no está en `pesados`, lo pone Llegada al salir el coche destrozado (16.8).
+Mapa.motorSuelto = CFrame.new(20, 1.1, -52)
 -- Lámparas de la casa (las enciende Generador).
 Mapa.lamparas = {} :: { BasePart }
 -- Sitios donde puede salir cada llave: [zona de Config.Llaves] = { CFrame } (los pone Lugares; los elige Llaves).
@@ -3143,7 +3145,7 @@ local function construirCasa(mapa: Folder)
 		{ "Tronco", CFrame.new(10, 0.7, -47) * CFrame.Angles(0, 0.4, 0) }, { "Tronco", CFrame.new(-10, 0.7, -48) },
 		{ "Tablon", CFrame.new(14, 0.15, -45) * CFrame.Angles(0, -0.3, 0) }, { "Bidon", CFrame.new(-14, 1.2, -46) },
 		{ "Bidon", CFrame.new(-45.6, ABAJO + 1.2, 38.4) }, -- en el cobertizo, en la esquina de la entrada
-		{ "Motor", CFrame.new(20, 1.1, -52) },
+		-- el motor (Mapa.motorSuelto) lo pone Llegada con el coche destrozado
 	} do
 		table.insert(Mapa.pesados, { tipo = pesado[1], cf = pesado[2] })
 	end

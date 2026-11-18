@@ -29,7 +29,8 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 local TiendaUi = {}
 
 local jugador = Players.LocalPlayer
-local LEJOS = 16 -- studs del mostrador a los que se cierra sola
+-- Studs del mostrador a los que se cierra sola: algo menos que lo que acepta el servidor (Config.Lobby.TiendaLejos).
+local LEJOS = math.min(Config.Lobby.TiendaCerrar, Config.Lobby.TiendaLejos)
 local ESPERA_MOSTRADOR = 30 -- segundos máximos esperando a que llegue el mostrador (solo existe cerca, con streaming)
 local ROBUX = "\u{E002}" -- el símbolo de Robux (lo pintan todas las fuentes)
 local SEGURO = 4 -- segundos que dura el "¿COMPRAR?" del primer toque

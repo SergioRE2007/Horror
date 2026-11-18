@@ -48,7 +48,7 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 19 | `Config.SonidosLobby.Radio` (0,5) | Radio vieja de la tienda con interferencias | 15 | bucle | 3 | nada |
 | 20 | `Config.SonidosLobby.Campanilla` (0,6) | Campanilla al abrirse la puerta de la tienda | 2 | suelto | 3 | nada |
 | 21 | `Config.SonidosLobby.Sello` (0,6), **clave nueva** | Sello al estamparse ELEGIDA / EN USO / TUYO en la tienda | 0,6 | suelto | 3 | nada (solo `Papel` al cambiar de separador y al cerrar) |
-| 22 | `Config.SonidosLobby.MotorCoche` (0,8) | Motor de coche viejo al ralentí: el que llega al lobby tras un viaje (22 s) | 10 | bucle | 3 | el Arranque una vez al acercarse (hoy también Id 0: nada) |
+| 22 | `Config.SonidosLobby.MotorCoche` (0,8) | Motor de coche viejo al ralentí: el coche que llega (al lobby tras un viaje, 22 s, y a la casa en la llegada de la partida, 16.8) | 10 | bucle | 3 | lobby: el Arranque una vez al acercarse (hoy también Id 0: nada); partida: nada |
 | 23 | `Config.SonidosLobby.Arranque` (1) | El coche arranca y se va (cinemática de 7 s) | 7 | suelto | 3 | nada |
 | 24 | `Config.Sonidos.Mirilla` (0,5) | La tapita de latón de la mirilla | 0,6 | suelto | 3 | nada |
 | 25 | `Config.Sonidos.Papel` (0,75) | Papel de las pistas (y de la tienda y los coches) | — | — | — | ya hecho: 3 versiones que puso Claude |
@@ -74,6 +74,9 @@ Notas por fila:
   en bucle en la copia y le sube el tono con la velocidad (`PlaybackSpeed` 0,8 + 0,012 × studs/s: 0,8 parado, ~1,16 a
   30); al apagar el coche, volumen 0. Pedirlo a velocidad constante, sin arranque ni acelerones. Sin él (Id 0), la llegada
   usa el Arranque una vez a 16 s de la hora (`Sonido.hay`).
+  **Falta también en la partida** (16.8): la escena de llegada en coche (`juego/cliente/LlegadaCocheVista`) toca la
+  misma entrada (`Config.Sonidos.MotorCoche = Config.SonidosLobby.MotorCoche`) con el tono según lo que le queda por
+  frenar; con Id 0 la llegada va muda. Un solo audio vale para los dos lugares.
 - **25 Papel**: no generar más. Falta que Sergio elija en `sonidos-terror\miedo\escuchar.html`; si no le gusta ninguno,
   se pide otro.
 

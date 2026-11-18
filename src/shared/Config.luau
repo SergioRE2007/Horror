@@ -386,6 +386,7 @@ Config.Llegada = {
 	Recorrido = 110, -- studs de carretera que hace el coche en la escena
 	Espera = 8, -- segundos como mucho esperando a que tengan personaje antes de la escena
 	Tope = 30, -- segundos como mucho con EscenaLlegada puesto, aunque algo falle
+	SinDecidir = 60, -- si tras esto desde que arranca el servidor sigue sin decidirse (nil), el tutorial empieza igual
 	Ver = 30, -- a esta distancia del coche destrozado te llega el aviso
 	Minimo = 60, -- segundos tras el amanecer antes de llevárselo al garaje
 	Lejos = 55, -- y sin nadie a menos de esto
@@ -921,7 +922,8 @@ Config.Lobby = {
 	},
 	Relampago = { Cada = { 25, 70 }, Trueno = { 1.2, 5 } }, -- segundos entre relámpagos y del relámpago al trueno
 	Puerta = 7, -- studs: la puerta de la tienda se abre con alguien a menos de esto
-	TiendaLejos = 25, -- studs del mostrador a los que el servidor aún acepta una compra (el cliente la cierra a 16)
+	TiendaLejos = 25, -- studs del mostrador a los que el servidor aún acepta una compra
+	TiendaCerrar = 16, -- y a los que el cliente (TiendaUi) la cierra sola: menos que TiendaLejos, para no fallar compras
 	Polillas = 4, -- alrededor de cada luz que las tenga (con Rendimiento, ninguna)
 	Sombra = { Cada = { 60, 150 }, Lejos = { 50, 120 } }, -- algo que se mueve entre los árboles: cada cuánto y a qué distancia
 	-- Guía del jugador nuevo (16.7, a ojo): flecha grande y una línea. Altura = studs de la flecha sobre lo que señala;

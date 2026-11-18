@@ -3,7 +3,8 @@
 --   2. Desde el porche: frena y aparca delante de la casa.
 --   3. Por detrás del coche, mirando a la casa: se apaga el motor y los faros. Fundido a negro y vuelves a tu cámara.
 -- Empieza cuando el servidor pone el atributo LlegadaInicio de mi Player (la hora del servidor en que empezó: si llego
--- tarde, desde donde va). Se salta con SALTAR, espacio, Intro o el botón B/A del mando. Esconde toda la interfaz, los
+-- tarde, desde donde va). Se salta con SALTAR, espacio, Intro o el botón B/A del mando (y se le dice al servidor con el
+-- remote Llegada: cuando la han saltado todos, la acaba y el tutorial empieza). Esconde toda la interfaz, los
 -- personajes y el coche aparcado (CocheLlegada) y lo devuelve todo al acabar aunque algo falle (como HuidaVista).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -15,6 +16,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -278,6 +280,7 @@ local function escena(desde: number, devolver: { () -> () })
 		task.wait()
 	end
 	if salto then -- a negro deprisa
+		Remotes.Llegada:FireServer("Saltar") -- cuando la han saltado todos los que la ven, el servidor la acaba
 		RunService:UnbindFromRenderStep("Llegada")
 		local fundido = TweenService:Create(negro, TweenInfo.new(0.3), { BackgroundTransparency = 0 })
 		fundido:Play()

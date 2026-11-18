@@ -250,6 +250,12 @@ end
 -- Las leídas de lo guardado (ya arreglado por FormatoPartida); {} = partida nueva.
 function Pistas.importar(lista: { number }?)
 	table.clear(leidas)
+	-- Lo que había leído cada uno tampoco cuenta (Leida<n>, Sustos): sale de nuevo al leerla.
+	for _, jugador in game:GetService("Players"):GetPlayers() do
+		for n = 1, #Historia do
+			jugador:SetAttribute("Leida" .. n, nil)
+		end
+	end
 	for _, n in lista or {} do
 		if Historia[n] then
 			leidas[n] = true

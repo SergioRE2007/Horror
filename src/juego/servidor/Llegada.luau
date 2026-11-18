@@ -4,12 +4,16 @@
 --   etiqueta CocheLlegada y atributo Sitio). El de verdad, el que se arregla, está escondido (Coche.esconder).
 --   Partida nueva (nunca una cargada: Coche.cargada): escena de llegada (cliente LlegadaCocheVista) solo para los que
 --   están al empezar: atributo LlegadaInicio del Player = hora del servidor en que empieza. Mientras dura, EscenaLlegada
---   del workspace a true (el tutorial espera); siempre vuelve a false, como mucho a los Config.Llegada.Tope s.
+--   del workspace a true (el tutorial espera); ya está a true desde que arranca el servidor (antes de que nadie tenga
+--   los datos listos) hasta saber si la partida es nueva, y siempre vuelve a false, como mucho a los Config.Llegada.Tope s
+--   de empezar la escena. Quien la salta lo dice (remote Llegada, "Saltar": solo durante la escena, una vez cada uno);
+--   cuando la han saltado todos los que la ven, se acaba ya.
 --   Al amanecer de la noche 1 (visto en directo, no cargado): la copia se cambia por el coche destrozado (sin ruedas de
 --   delante, de morros, torcido, capó abierto, arañazos y humo). Cada uno, al acercarse (Ver studs), recibe un aviso de
 --   una línea. Cuando ya lo han visto todos (o ha anochecido), pasados Minimo s y sin nadie a menos de Lejos studs, "se
 --   lo llevan" al garaje: la copia se va y sale el de verdad (allí se arregla y de allí sale la huida). Tope: el
---   amanecer siguiente.
+--   amanecer siguiente. El motor suelto (Mapa.motorSuelto, el que se monta en el coche) sale con el destrozado: el día 1
+--   está dentro del coche entero. Una partida guardada lo trae en sus pesados (Cargar), como siempre.
 --   Una partida cargada de la noche 2 en adelante: como antes, el coche destrozado en el garaje y nada delante.
 -- Modo de pruebas: ServerStorage.Prueba:Fire("Llegada") repite la escena; ("Destrozar") y ("Garaje") los dos pasos.
 local CollectionService = game:GetService("CollectionService")
@@ -21,8 +25,10 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Cargar = require(script.Parent.Cargar)
 local Ciclo = require(script.Parent.Ciclo)
 local Coche = require(script.Parent.Coche)
+local Mapa = require(script.Parent.Mapa)
 
 local Llegada = {}
 
@@ -35,6 +41,7 @@ local estado = "" -- "entero", "destrozado" o "garaje"
 local destrozadoEn = 0 -- os.clock() del amanecer en que se destrozó
 local vistos: { [Player]: boolean } = {} -- a quién le ha llegado ya el aviso
 local vez = 0 -- cada vez que se pone EscenaLlegada (para el tope)
+local viendo: { [Player]: boolean } = {} -- los que ven la escena ahora (false = ya la ha saltado)
 local casa: Instance = workspace -- donde va la copia: con el coche de verdad (la casa), aunque esté escondido
 
 -- Donde aparca: en la carretera delante de la casa, mirando a ella (+z). El coche mira a su -z (Mapa).
@@ -43,10 +50,12 @@ local function sitio(): CFrame
 	return CFrame.lookAt(p, p + Vector3.new(0, 0, 1))
 end
 
-local function marcar(si: boolean)
+-- `sinTope`: la espera del principio (hasta saber si la partida es nueva): cargarla puede tardar más que Tope y el
+-- tutorial no debe empezar antes de la escena. Ciclo siempre arranca (Partida.start vuelve aunque falle).
+local function marcar(si: boolean, sinTope: boolean?)
 	vez += 1
 	workspace:SetAttribute("EscenaLlegada", si)
-	if si then
+	if si and not sinTope then
 		local mia = vez
 		task.delay(L.Tope, function()
 			if vez == mia then
@@ -204,6 +213,16 @@ local function destrozar()
 		otro.Parent = m
 	end
 	ponerFrente(m, cf)
+	-- El motor arrancado, en el suelo (si no hay ya uno suelto o montado: una partida del día 1 guardada antes lo traía).
+	local hayMotor = (Coche.modelo():GetAttribute("Motor") or 0) > 0
+	for _, pieza in CollectionService:GetTagged("Pesado") do
+		if pieza:GetAttribute("Tipo") == "Motor" and pieza:IsDescendantOf(workspace) then
+			hayMotor = true
+		end
+	end
+	if not hayMotor then
+		Cargar.nuevo("Motor", Mapa.motorSuelto)
+	end
 	estado = "destrozado"
 	destrozadoEn = os.clock()
 	table.clear(vistos)
@@ -262,12 +281,26 @@ local function escena()
 	if #quienes > 0 then
 		task.wait(0.5) -- que su cliente haya arrancado LlegadaCocheVista (si no, lo mira al arrancar)
 		local inicio = workspace:GetServerTimeNow()
+		table.clear(viendo)
 		for _, j in quienes do
 			if j.Parent then
 				j:SetAttribute("LlegadaInicio", inicio)
+				viendo[j] = true
 			end
 		end
-		task.wait(L.Segundos + 1)
+		-- Hasta que acaba o la han saltado todos los que siguen aquí.
+		local hasta = os.clock() + L.Segundos + 1
+		while os.clock() < hasta do
+			local alguien = false
+			for j, ve in viendo do
+				alguien = alguien or (ve and j.Parent ~= nil)
+			end
+			if not alguien then
+				break
+			end
+			task.wait(0.2)
+		end
+		table.clear(viendo)
 		for _, j in quienes do
 			if j.Parent then
 				j:SetAttribute("LlegadaInicio", nil)
@@ -277,13 +310,23 @@ local function escena()
 	marcar(false)
 end
 
+-- La ha saltado (LlegadaCocheVista): solo quien la está viendo y una vez.
+local function saltar(j: Player, que: unknown)
+	if que ~= "Saltar" or viendo[j] ~= true then
+		return
+	end
+	viendo[j] = false
+end
+
 function Llegada.start()
 	if not L.Activa then
+		Cargar.nuevo("Motor", Mapa.motorSuelto) -- sin llegada, el motor suelto desde el principio (como antes)
 		return
 	end
 	casa = Coche.modelo().Parent or workspace -- antes de esconderlo
-	-- Hasta saber si la partida es nueva (el primer día, después de cargarla), el tutorial espera.
-	marcar(true)
+	-- Hasta saber si la partida es nueva (el primer día, después de cargarla), el tutorial espera, sin tope.
+	marcar(true, true)
+	Remotes.Llegada.OnServerEvent:Connect(saltar)
 	local primera = true
 	local antes: { fase: string, noche: number }? = nil
 	Ciclo.alCambiar(function(fase, noche)
@@ -309,6 +352,7 @@ function Llegada.start()
 	end)
 	Players.PlayerRemoving:Connect(function(j)
 		vistos[j] = nil
+		viendo[j] = nil
 	end)
 	task.spawn(vigilar)
 	if not Prueba.activa() then
