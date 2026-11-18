@@ -16,6 +16,8 @@
 --   de golpe se pega a ella, la cara llenando la mirilla (Sobresalto y un golpe sordo en la puerta), y al rato da un
 --   golpecito junto a ella. Una vez por llamada; si vuelves a mirar en la misma, se queda doblado delante de la
 --   mirilla, mirándote, sin moverse. La pose sale de cuentas (cinemática inversa del cuello).
+-- Aturdido (el flash o el cepo: atributo Aturdido, BichoComun.aturdido): se echa atrás tapándose la cara con los brazos
+-- cruzados, la cabeza apartada y la boca abierta, temblando; en el cepo forcejea a tirones (ver ATURDE). Chilla al empezar.
 -- ImitadorVista.rugir(punto, modelo): para el susto al morir.
 -- Un solo bucle (Stepped) mientras haya alguno; solo cerca de la cámara.
 local CollectionService = game:GetService("CollectionService")
@@ -25,6 +27,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local BichoComun = require(script.Parent.BichoComun)
 local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
 
@@ -51,6 +54,25 @@ local TIRON = { 1.6, 4.5 } -- segundos entre tirones de la cabeza
 -- tono (más agudo que la llamada: más deprisa) y volumen.
 local GOLPECITO = { Cada = { 4, 8 }, Toques = 2, Tono = 1.18, Volumen = 0.4 }
 local CRISPA = { 5, 11 } -- segundos entre crispaciones de los dedos
+-- Aturdido (a ojo): se echa atrás por la cintura (Torso), ladea el cuello y aparta la cabeza (cabeceo, giro y ladeo,
+-- hacia el lado que toque), sube los brazos por delante (Brazo: hacia delante y hacia dentro, cruzados delante de la
+-- cara: no tiene codos), se le van los pies (Piernas: la del lado de la cara atrás, la otra adelante) y abre la boca;
+-- tiembla `Tiembla` radianes. Cada tirón del cepo (Tiron): se dobla hacia el pie, baja los brazos hacia él, tira de la
+-- pierna hacia atrás y se retuerce. Chilla al empezar con este tono.
+local ATURDE = {
+	Torso = 0.32,
+	Cuello = 0.3,
+	Cabeza = Vector3.new(-0.4, 0.85, 0.35),
+	Brazo = { 2.2, 0.42 },
+	Piernas = { -0.16, 0.08 },
+	Boca = 0.95,
+	Tiembla = 0.06,
+	Tiron = { Torso = -0.6, Cabeza = -0.35, Brazo = 1.1, Pierna = -0.4, Giro = 0.3 },
+	Chilla = 0.9,
+	-- Recién salido de debajo de un mueble (hasta que vuelve a andar) no sube los brazos: a medio subir, por delante,
+	-- atravesaban el tablero (banco del gateo, con el flash). Segundos en dejar de subirlos o en volver a poder.
+	Junto = 0.3,
+}
 -- La mirilla (segundos desde que empiezas a mirar y studs).
 local MIRILLA = {
 	Radio = 9, -- studs de la cámara a los que tiene que estar
@@ -168,6 +190,8 @@ type Bicho = {
 	soplo: number, -- os.clock del próximo vaho al hablar
 	vaho: ParticleEmitter?,
 	mirilla: Mirilla?,
+	junto: boolean, -- ha gateado y aún no ha vuelto a andar: sigue junto al mueble
+	libre: number, -- 0..1 (lineal): aturdido, cuánto puede subir los brazos (junto al mueble, nada)
 }
 
 local jugador = Players.LocalPlayer
@@ -883,6 +907,38 @@ end
 
 ---------------------------------------------------------------- cada fotograma
 
+-- Aturdido: encima de la pose que ya lleva este fotograma, por `cuanto` (0..1); los brazos, también por `brazos`.
+local function aturdir(b: Bicho, at: BichoComun.Aturdido, cuanto: number, brazos: number)
+	local k = at.peso * cuanto
+	if k <= 0.001 then
+		return
+	end
+	local m = b.motores
+	local tiembla = ATURDE.Tiembla * at.temblor
+	local tiron = math.abs(at.tiron)
+	local tira = if at.tiron >= 0 then 1 else -1 -- la pierna de la que tira (1 derecha, -1 izquierda)
+	local T = ATURDE.Tiron
+	local lado = at.lado
+	m.Torso.Transform = m.Torso.Transform:Lerp(CFrame.Angles(ATURDE.Torso + T.Torso * tiron + tiembla,
+		T.Giro * at.tiron, tiembla * 0.6), k)
+	-- (el cuello, con lo que tenga estirado)
+	m.Cuello.Transform = m.Cuello.Transform:Lerp(CFrame.new(m.Cuello.Transform.Position)
+		* CFrame.Angles(0, 0, -lado * ATURDE.Cuello), k)
+	local c = ATURDE.Cabeza
+	m.Cabeza.Transform = m.Cabeza.Transform:Lerp(CFrame.fromEulerAnglesYXZ(c.X + T.Cabeza * tiron + tiembla * 1.5,
+		lado * c.Y + tiembla, lado * c.Z - tiembla), k)
+	for _, s in LADOS do
+		local brazo = m[if s < 0 then "BrazoI" else "BrazoD"]
+		brazo.Transform = brazo.Transform:Lerp(CFrame.Angles(ATURDE.Brazo[1] - T.Brazo * tiron + tiembla * 2 * s, 0,
+			-s * ATURDE.Brazo[2] * (1 - tiron)), k * brazos)
+		local pierna = m[if s < 0 then "PiernaI" else "PiernaD"]
+		local x = (if s == lado then ATURDE.Piernas[1] else ATURDE.Piernas[2]) + (if s == tira then T.Pierna * tiron else 0)
+		pierna.Transform = pierna.Transform:Lerp(CFrame.Angles(x, 0, 0), k)
+	end
+	m.Mandibula.Transform = m.Mandibula.Transform:Lerp(CFrame.Angles(-(ATURDE.Boca + 0.12 * math.abs(at.temblor)
+		+ 0.15 * tiron), 0, 0), k)
+end
+
 local function animar(dt: number)
 	local ahora = os.clock()
 	local servidor = workspace:GetServerTimeNow()
@@ -915,6 +971,12 @@ local function animar(dt: number)
 		local v = b.raiz.AssemblyLinearVelocity
 		local rapidez = Vector3.new(v.X, 0, v.Z).Magnitude
 		local paso = math.min(1, rapidez / 8)
+		if b.gateo or modelo:GetAttribute("Gatea") ~= nil then
+			b.junto = true
+		elseif rapidez > 1 then
+			b.junto = false
+		end
+		b.libre = if b.junto then math.max(0, b.libre - dt / ATURDE.Junto) else math.min(1, b.libre + dt / ATURDE.Junto)
 		b.quietud += ((if rapidez < 1 then 1 else 0) - b.quietud) * math.min(1, dt * 3)
 		b.fase += dt * rapidez * 0.45
 		local s = math.sin(b.fase)
@@ -922,6 +984,11 @@ local function animar(dt: number)
 		b.estirado += ((if abierto then 1 else 0) - b.estirado) * math.min(1, dt * 3)
 		local chillando = ahora - b.chillido < 2
 		local t = ahora - b.llamada
+		-- Aturdido (flash o cepo): chilla al empezar; la pose de dolor, al final (encima de todo).
+		local aturdido = BichoComun.aturdido(modelo, ahora)
+		if aturdido and aturdido.nuevo then
+			Sonido.en("Chillido", b.cabeza.Position, ATURDE.Chilla)
+		end
 		-- Esperando en la puerta principal (o, sin ella cargada, delante de la mirilla mientras miras). Gateando no: su vida
 		-- de espera (tirones, golpecitos, crispaciones) se pausa y vuelve suave al levantarse.
 		local enPuerta = b.quietud > 0.6 and not abierto and not b.gateo
@@ -959,7 +1026,7 @@ local function animar(dt: number)
 			local sube = math.min(1, t / 0.25, (LLAMADA - t) / 0.25)
 			brazoD = sube * (alcance - 0.14 + 0.14 * toque(t, 1) ^ 0.6)
 		end
-		if enPuerta and cerca and t > LLAMADA + 1.5 and ahora > b.proximoGolpecito and not b.mirilla then
+		if enPuerta and cerca and t > LLAMADA + 1.5 and ahora > b.proximoGolpecito and not b.mirilla and not aturdido then
 			b.proximoGolpecito = ahora + rango(GOLPECITO.Cada)
 			b.golpecito = ahora
 			b.mano = if azar:NextNumber() < 0.7 then 1 else -1
@@ -1038,6 +1105,10 @@ local function animar(dt: number)
 			end
 			m[nombre].Transform = if gp and gp[nombre] then gp[nombre] else pose
 		end
+		if aturdido then
+			-- (saliendo de debajo del mueble, al final: si no, rozaría el tablero)
+			aturdir(b, aturdido, (1 - gm) ^ 2, suave(b.libre))
+		end
 
 		local lado = if s >= 0 then 1 else -1
 		if rapidez > 2 and lado ~= b.pisada then
@@ -1081,7 +1152,8 @@ local function preparar(modelo: Instance)
 		c1i = c1i, pose = {}, fase = 0, pisada = 1, llamada = -math.huge, chillido = -math.huge, agarra = -math.huge, estirado = 0, quietud = 0,
 		oreja = if azar:NextNumber() < 0.5 then -1 else 1, ladeo = 0, extra = 0, tiron = 0, proximoTiron = ahora,
 		escucha = 0, oido = 0, golpecito = -math.huge, proximoGolpecito = ahora + rango(GOLPECITO.Cada), mano = 1, crispa = -math.huge,
-		proximaCrispa = ahora + rango(CRISPA), crispaLado = 1, armado = false, soplo = 0, vaho = nil, mirilla = nil }
+		proximaCrispa = ahora + rango(CRISPA), crispaLado = 1, armado = false, soplo = 0, vaho = nil, mirilla = nil,
+		junto = false, libre = 1 }
 	if not conexion then
 		conexion = RunService.Stepped:Connect(function(_, dt)
 			animar(dt)
