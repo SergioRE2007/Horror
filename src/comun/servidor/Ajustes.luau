@@ -2,12 +2,15 @@
 -- adornos animados; lo leen los módulos de efectos del cliente con jugador:GetAttribute("Rendimiento").
 -- Vale en los dos lugares. Se guarda en los datos del jugador (campo `rendimiento` de Formato) y se publica en el
 -- atributo "Rendimiento" del Player al cargar. El cliente lo cambia con el remote Ajustes ("Rendimiento", activo):
--- solo un booleano, como mucho uno cada MINIMO segundos. Detalle en docs/sistemas/ajustes.md.
+-- solo un booleano, como mucho uno cada MINIMO segundos. Al entrar, un cliente táctil sin teclado sugiere
+-- ("Sugerir", true) y solo vale si el jugador nunca lo eligió (Formato.sugerirRendimiento, 16.9). Detalle en
+-- docs/sistemas/ajustes.md.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Datos = require(script.Parent.Datos)
+local Formato = require(script.Parent.Formato)
 
 local Ajustes = {}
 
@@ -30,7 +33,7 @@ local function alEntrar(jugador: Player)
 end
 
 local function cambiar(jugador: Player, que: unknown, valor: unknown)
-	if que ~= "Rendimiento" or type(valor) ~= "boolean" then
+	if (que ~= "Rendimiento" and que ~= "Sugerir") or type(valor) ~= "boolean" then
 		return
 	end
 	local ahora = os.clock()
@@ -39,7 +42,12 @@ local function cambiar(jugador: Player, que: unknown, valor: unknown)
 	end
 	ultimo[jugador] = ahora
 	Datos.editar(jugador, function(datos)
-		datos.rendimiento = valor
+		if que == "Sugerir" then
+			Formato.sugerirRendimiento(datos, valor) -- no hace nada si ya lo eligió (o ya se sugirió)
+		else
+			datos.rendimiento = valor
+			datos.rendimientoElegido = true
+		end
 	end)
 	publicar(jugador) -- se guarda con el siguiente guardado normal (o al salir)
 end
