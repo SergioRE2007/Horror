@@ -14,3 +14,4 @@ require(Sistemas.CochesUi).start()
 require(Sistemas.SalidaVista).start() -- la cinemática del coche que se va
 require(Sistemas.LlegadaVista).start() -- el coche que llega a la plaza del que se fue
 require(Sistemas.TiendaUi).start()
+require(Sistemas.GuiaLobby).start() -- flecha y una línea para el jugador nuevo (16.7)

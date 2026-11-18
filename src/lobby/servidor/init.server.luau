@@ -19,3 +19,4 @@ require(Comun.Ajustes).start() -- Rendimiento (14.4)
 local Sistemas = script
 require(Sistemas.Gasolinera).start() -- el mapa, antes que los coches
 require(Sistemas.Coches).start()
+require(Sistemas.GuiaLobby).start() -- qué guía enseña a cada jugador nuevo (16.7)
