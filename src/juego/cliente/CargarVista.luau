@@ -31,7 +31,7 @@ local USOS: { [string]: { etiquetas: { string }, texto: string, textos: { [strin
 }
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local aviso: TextLabel
 local boton: TextButton?
 local botonUsar: TextButton?
@@ -115,8 +115,8 @@ local function buscar(): Instance?
 				continue
 			end
 			local d = (mando.Position - raiz.Position).Magnitude
-			local hacia = mando.Position - camara.CFrame.Position
-			local delante = hacia.Magnitude > 0.1 and (d < 3.5 or hacia.Unit:Dot(camara.CFrame.LookVector) > 0.55) -- muy cerca, vale de lado
+			local hacia = mando.Position - Camara.get().CFrame.Position
+			local delante = hacia.Magnitude > 0.1 and (d < 3.5 or hacia.Unit:Dot(Camara.get().CFrame.LookVector) > 0.55) -- muy cerca, vale de lado
 			if d < distancia and delante and sirve(el, raiz, tipo) then
 				mejor, distancia = el, d
 			end

@@ -55,7 +55,7 @@ type Capa = { prioridad: number, fn: (dt: number) -> Pose?, gesto: boolean }
 type Cosa = { crear: () -> Model, enMano: CFrame, modelo: Model?, partes: { BasePart }, rel: { CFrame } }
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 
 local VELOCIDAD = 14 -- del muelle: cuanto más, más deprisa llega la mano
 local L1, L2 = 1.2, 1.15 -- brazo y antebrazo, de junta a junta (todos los avatares igual)
@@ -270,7 +270,7 @@ end
 
 -- Dónde está el hombro de ese lado, en el mundo.
 function Manos.hombro(lado: string): Vector3
-	return camara.CFrame * HOMBRO[lado]
+	return Camara.get().CFrame * HOMBRO[lado]
 end
 
 -- La palma yendo hacia `punto` desde su hombro (si está más lejos de lo que llega el brazo, se queda estirada hacia
@@ -284,7 +284,7 @@ function Manos.hacia(lado: string, punto: Vector3, palma: string?): CFrame
 	if d.Magnitude > alcance then
 		punto = h + d.Unit * alcance
 	end
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local dedos = if d.Magnitude > 0.05 then d.Unit else cf.LookVector
 	if palma == "dentro" then
 		return Manos.palma(punto, dedos, cf.RightVector * SIGNO[lado])
@@ -298,7 +298,7 @@ end
 
 -- En el espacio de la cámara (para lo que se lleva delante: linterna, móvil).
 function Manos.delante(rel: CFrame): CFrame
-	return camara.CFrame * rel
+	return Camara.get().CFrame * rel
 end
 
 -- Registra algo que se puede llevar en la mano: `crear` hace el modelo (piezas sueltas; se quedan donde las deje) y
@@ -344,12 +344,12 @@ function Manos.mano(lado: string): CFrame?
 	if not b or not visible or (b.rel.Position - REPOSO[lado].Position).Magnitude < 0.35 then
 		return nil
 	end
-	return camara.CFrame * b.rel
+	return Camara.get().CFrame * b.rel
 end
 
 -- Dónde descansa esa mano (abajo, fuera de la vista), en el mundo. Para bajarla poco a poco al soltar algo.
 function Manos.reposo(lado: string): CFrame
-	return camara.CFrame * REPOSO[lado]
+	return Camara.get().CFrame * REPOSO[lado]
 end
 
 -- La prioridad de la capa que movió esa mano en el último fotograma (nil si ninguna: estaba abajo). Para que una capa
@@ -411,10 +411,10 @@ function Manos.escondidas(): boolean
 		or jugador:GetAttribute("MochilaAbierta") then
 		return true
 	end
-	if camara.CameraType ~= Enum.CameraType.Custom then
+	if Camara.get().CameraType ~= Enum.CameraType.Custom then
 		return true
 	end
-	return (camara.CFrame.Position - cabeza.Position).Magnitude > 2.5 -- en tercera persona (no debería pasar)
+	return (Camara.get().CFrame.Position - cabeza.Position).Magnitude > 2.5 -- en tercera persona (no debería pasar)
 end
 
 local function apuntar(p: BasePart, cf: CFrame)
@@ -442,7 +442,7 @@ end
 -- Coloca un brazo con su palma en `mano` (mundo).
 local function colocar(lado: string, b: Brazo, mano: CFrame)
 	local s = SIGNO[lado]
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local hombro = cf * HOMBRO[lado]
 	-- La muñeca, detrás de la palma (en su +Z).
 	local largoMano = (b.mano.arriba - b.mano.abajo).Magnitude / 2
@@ -549,7 +549,7 @@ local function paso(dt: number)
 	table.sort(poses, function(a, b)
 		return a.prioridad > b.prioridad
 	end)
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local andando = hum ~= nil and hum.MoveDirection.Magnitude > 0.1 and hum.WalkSpeed > 0
 	if andando then
 		balanceo += dt * (4 + (hum :: Humanoid).WalkSpeed * 0.35)
@@ -638,7 +638,7 @@ local function paso(dt: number)
 	end
 	visible = alguna
 	if alguna then
-		modelo.Parent = camara
+		modelo.Parent = Camara.get()
 		workspace:BulkMoveTo(piezas, sitios, Enum.BulkMoveMode.FireCFrameChanged)
 	elseif modelo.Parent then
 		modelo.Parent = nil

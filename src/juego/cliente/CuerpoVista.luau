@@ -53,7 +53,7 @@ local PosturaVista = require(script.Parent.PosturaVista)
 local CuerpoVista = {}
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local ZANCADA = 7 -- studs entre paso y paso (como Pasos)
 local SUBE = 0.07 -- studs que sube y baja la cabeza al andar a 16
 local LADO = 0.045
@@ -250,7 +250,7 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 
 local function enJuego(raiz: BasePart): boolean
-	if camara.CameraType ~= Enum.CameraType.Custom then
+	if Camara.get().CameraType ~= Enum.CameraType.Custom then
 		return false
 	end
 	if jugador:GetAttribute("Muerto") or jugador:GetAttribute("Escondido") or jugador:GetAttribute("MochilaAbierta") then
@@ -259,7 +259,7 @@ local function enJuego(raiz: BasePart): boolean
 	local cabeza = jugador.Character and jugador.Character:FindFirstChild("Head") :: BasePart?
 	-- La cámara está desplazada lo que haya puesto la postura (agachado o asomado): se compara con ese sitio.
 	local desvio = raiz.CFrame:VectorToWorldSpace(aplicado)
-	return cabeza ~= nil and (camara.CFrame.Position - cabeza.Position - desvio).Magnitude < 2.5
+	return cabeza ~= nil and (Camara.get().CFrame.Position - cabeza.Position - desvio).Magnitude < 2.5
 end
 
 -- Lo libre hacia un lado desde `desde`, hasta P.Asomar.
@@ -275,7 +275,7 @@ local function hueco(raiz: BasePart, signo: number, alturaOjo: number): number
 	local lado = raiz.CFrame.RightVector * (signo * (P.Asomar + HOLGURA))
 	-- Y desde donde va de verdad la cámara: ATRAS studs detrás, hacia donde miras. Asomándote junto a una esquina que
 	-- acaba justo a tu altura, la cabeza ya ha pasado el borde pero la cámara aún no, y se metería en la pared.
-	return math.min(libreDesde(ojo, lado), libreDesde(ojo - camara.CFrame.LookVector * ATRAS, lado))
+	return math.min(libreDesde(ojo, lado), libreDesde(ojo - Camara.get().CFrame.LookVector * ATRAS, lado))
 end
 
 -- Lo que hay que bajar la vista (desde los ojos de pie, a la altura `ojoPie`) para no meter la cámara en lo que haya
@@ -303,19 +303,19 @@ end
 local function deshacer()
 	local giro, tras = giroAplicado, camaraTras
 	giroAplicado, camaraTras = nil, nil
-	if giro and tras and camara.CameraType == Enum.CameraType.Custom then
-		camara.CFrame = tras * giro:Inverse() * tras:Inverse() * camara.CFrame
+	if giro and tras and Camara.get().CameraType == Enum.CameraType.Custom then
+		Camara.get().CFrame = tras * giro:Inverse() * tras:Inverse() * Camara.get().CFrame
 	end
 	-- El campo de visión: solo si sigue como lo dejamos (si otro lo ha cambiado, es suyo).
 	local sumado, campoDejado = campoSumado, campoTras
 	campoSumado, campoTras = 0, nil
-	if campoDejado and math.abs(camara.FieldOfView - campoDejado) < 0.01 then
-		camara.FieldOfView -= sumado
+	if campoDejado and math.abs(Camara.get().FieldOfView - campoDejado) < 0.01 then
+		Camara.get().FieldOfView -= sumado
 	end
 	-- Lo nuestro que se llevó un vistazo en su campo "de antes": al volver la cámara, si lo ha dejado tal cual, se quita.
-	if deuda and camara.CameraType == Enum.CameraType.Custom and jugador:GetAttribute("Vistazo") == nil then
-		if math.abs(camara.FieldOfView - deudaEn) < 0.01 then
-			camara.FieldOfView -= deuda
+	if deuda and Camara.get().CameraType == Enum.CameraType.Custom and jugador:GetAttribute("Vistazo") == nil then
+		if math.abs(Camara.get().FieldOfView - deudaEn) < 0.01 then
+			Camara.get().FieldOfView -= deuda
 		end
 		deuda = nil
 	end
@@ -343,14 +343,14 @@ end
 local function filtrar(personaje: Model)
 	if filtroDe ~= personaje then
 		filtroDe = personaje -- los rayos no ven tu cuerpo ni lo que cuelga de la cámara (sin una tabla por fotograma)
-		rayo.FilterDescendantsInstances = { personaje, camara }
+		rayo.FilterDescendantsInstances = { personaje, Camara.get() }
 	end
 end
 
 -- Le suma `giro` a la cámara (por la derecha, en su espacio) y lo apunta para deshacerlo.
 local function aplicar(giro: CFrame)
-	camara.CFrame *= giro
-	giroAplicado, camaraTras = giro, camara.CFrame
+	Camara.get().CFrame *= giro
+	giroAplicado, camaraTras = giro, Camara.get().CFrame
 end
 
 -- Antes de la cámara de Roblox: agacharse y asomarse en el CameraOffset (ver la cabecera).
@@ -400,7 +400,7 @@ local function postura(dt: number)
 		-- Y nunca dentro de lo de arriba: donde está la cabeza y donde va la cámara (ATRAS detrás), al momento.
 		local foco = raiz.CFrame:PointToWorldSpace(Vector3.new(lateral, 0, 0))
 		bajado = math.max(bajado, techoEn(foco, raiz.Position.Y, ojoPie),
-			techoEn(foco - camara.CFrame.LookVector * ATRAS, raiz.Position.Y, ojoPie))
+			techoEn(foco - Camara.get().CFrame.LookVector * ATRAS, raiz.Position.Y, ojoPie))
 	end
 	if bajado < 1e-3 then
 		bajado = 0
@@ -446,7 +446,7 @@ local function paso(dt: number)
 	end
 	-- Asomado, la cabeza se ladea hacia ese lado (a la derecha, lo de arriba de la imagen va a la derecha). Solo con la
 	-- cámara de Roblox; si ha sido de otro un rato (una cinemática, un vistazo, el escondite), vuelve suave sin saltar.
-	pesoLadeo = if camara.CameraType == Enum.CameraType.Custom then math.min(1, pesoLadeo + dt * VUELVE_LADEO) else 0
+	pesoLadeo = if Camara.get().CameraType == Enum.CameraType.Custom then math.min(1, pesoLadeo + dt * VUELVE_LADEO) else 0
 	local ladeo = -asomo * math.rad(P.Giro) * pesoLadeo * pesoLadeo * (3 - 2 * pesoLadeo)
 	if not personaje or not hum or not raiz or not enJuego(raiz) then
 		fuerza, inclinado, caida, velCaida = 0, 0, 0, 0
@@ -469,7 +469,7 @@ local function paso(dt: number)
 		topeVisto = tope
 		velCaida += TOPE
 	end
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local v = raiz.AssemblyLinearVelocity
 	local plano = Vector3.new(v.X, 0, v.Z)
 	local rapidez = plano.Magnitude
@@ -563,8 +563,8 @@ local function paso(dt: number)
 		campoMas = 0
 	end
 	if campoMas > 0 then
-		camara.FieldOfView += campoMas
-		campoSumado, campoTras = campoMas, camara.FieldOfView
+		Camara.get().FieldOfView += campoMas
+		campoSumado, campoTras = campoMas, Camara.get().FieldOfView
 	end
 
 	-- Hacia dónde miras, para que los demás vean tu cabeza y tu linterna (BrazosVista), cada 0,2 s si ha cambiado.
@@ -586,7 +586,7 @@ local function paso(dt: number)
 	if ahora >= proximoVaho then
 		proximoVaho = ahora + math.max(1, 3.2 - miedo * 1.6 - cansancio * CANSADO_VAHO)
 		if workspace:GetAttribute("Fase") == "Noche" and not enCasa(cf.Position) and not rendimiento then
-			echarVaho(camara.CFrame, 5 + math.floor(cansancio * VAHO_CANSADO + 0.5))
+			echarVaho(Camara.get().CFrame, 5 + math.floor(cansancio * VAHO_CANSADO + 0.5))
 		end
 	end
 end
@@ -620,7 +620,7 @@ function CuerpoVista.start()
 	end
 	-- Un vistazo apunta el campo de visión de antes (con lo nuestro dentro) para devolverlo al acabar: ver `deshacer`.
 	jugador:GetAttributeChangedSignal("Vistazo"):Connect(function()
-		if jugador:GetAttribute("Vistazo") ~= nil and campoTras and math.abs(camara.FieldOfView - campoTras) < 0.01 then
+		if jugador:GetAttribute("Vistazo") ~= nil and campoTras and math.abs(Camara.get().FieldOfView - campoTras) < 0.01 then
 			deuda, deudaEn = campoSumado, campoTras
 		end
 	end)

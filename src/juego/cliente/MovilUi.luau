@@ -34,7 +34,7 @@ local MENOR = 0.75 -- el teléfono en el móvil: a 640 × 360 su borde derecho a
 local CERRADO = UDim2.new(X, 0, 1, ALTO + 40)
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local telefono: Frame
 local mapa: Frame
 local mundo: Frame
@@ -135,9 +135,9 @@ local function actualizar(dt: number)
 		return
 	end
 	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	local centro = if raiz then raiz.Position else camara.CFrame.Position
+	local centro = if raiz then raiz.Position else Camara.get().CFrame.Position
 	mundo.Position = UDim2.new(0.5, -centro.X * ESCALA, 0.5, -centro.Z * ESCALA)
-	local mira = camara.CFrame.LookVector
+	local mira = Camara.get().CFrame.LookVector
 	flecha.Rotation = math.deg(math.atan2(mira.X, -mira.Z))
 	for _, otro in Players:GetPlayers() do
 		if otro == jugador then

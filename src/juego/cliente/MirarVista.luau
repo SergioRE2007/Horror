@@ -42,7 +42,7 @@ local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui")
 local MirarVista = {}
 
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local azar = Random.new()
 local cfg = Config.Casa
 
@@ -439,13 +439,13 @@ end
 -- ===== Lo que se ve encima (círculo, bandas, negro) =====
 
 local function radioMirilla(): number
-	local tam = camara.ViewportSize
+	local tam = Camara.get().ViewportSize
 	return MIRILLA_RADIO * math.min(tam.X, tam.Y)
 end
 
 -- Con este radio lo negro queda fuera de la pantalla.
 local function radioGrande(): number
-	return camara.ViewportSize.Magnitude * 0.62
+	return Camara.get().ViewportSize.Magnitude * 0.62
 end
 
 local function radio(v: Vistazo, r: number)
@@ -644,13 +644,13 @@ local function lente(v: Vistazo)
 	color.Saturation = -0.35
 	color.Contrast = 0.14
 	color.Brightness = 0.05 -- el ojo se acostumbra a lo oscuro
-	color.Parent = camara
+	color.Parent = Camara.get()
 	table.insert(v.efectos, color)
 	if not poco() then
 		local borroso = Instance.new("BlurEffect")
 		borroso.Name = "MirarBorroso"
 		borroso.Size = MIRILLA_BLUR
-		borroso.Parent = camara
+		borroso.Parent = Camara.get()
 		table.insert(v.efectos, borroso)
 	end
 end
@@ -750,7 +750,7 @@ local function devolverHud(v: Vistazo, esperar: boolean)
 		local hasta = os.clock() + 180
 		repeat
 			task.wait(0.25)
-		until camara.CameraType == Enum.CameraType.Custom or os.clock() > hasta
+		until Camara.get().CameraType == Enum.CameraType.Custom or os.clock() > hasta
 		hud.Enabled = true
 	end)
 end
@@ -772,7 +772,7 @@ end
 
 -- Esa mano abajo, fuera de la vista (más o menos donde la deja Manos sin capa), en el mundo.
 local function abajo(lado: string): CFrame
-	return camara.CFrame * CFrame.new(if lado == "der" then 0.8 else -0.8, -2.4, -0.5) * CFrame.Angles(math.rad(-80), 0, 0)
+	return Camara.get().CFrame * CFrame.new(if lado == "der" then 0.8 else -0.8, -2.4, -0.5) * CFrame.Angles(math.rad(-80), 0, 0)
 end
 
 -- Al pulsar: la derecha va a la tapita (o a la cortina) y, al llegar, la aparta; la izquierda baja (con la linterna, si
@@ -827,7 +827,7 @@ local function bichos(v: Vistazo): (number, boolean, boolean)
 	if not carpeta then
 		return math.huge, false, false
 	end
-	local cf = camara.CFrame
+	local cf = Camara.get().CFrame
 	local mirilla = v.el.tipo == "Mirilla"
 	local cono = if mirilla then 0.62 else 0.8
 	local cerca, visto, pegado = math.huge, false, false
@@ -876,14 +876,14 @@ end
 -- ===== La cámara, fotograma a fotograma =====
 
 local function poner(v: Vistazo, cf: CFrame)
-	camara.CFrame = cf
-	camara.Focus = cf * CFrame.new(0, 0, -4)
+	Camara.get().CFrame = cf
+	Camara.get().Focus = cf * CFrame.new(0, 0, -4)
 	v.ultimo = cf
 end
 
 local function campo(v: Vistazo, valor: number)
-	camara.FieldOfView = valor
-	v.fovPuesto = camara.FieldOfView
+	Camara.get().FieldOfView = valor
+	v.fovPuesto = Camara.get().FieldOfView
 end
 
 local function girar(v: Vistazo, dx: number, dy: number)
@@ -954,12 +954,12 @@ local function entrar(v: Vistazo, t: number)
 		return -- la mano va a la tapita (o a la cortina); la cámara aún es tuya
 	end
 	if not v.camara then
-		if camara.CameraType ~= Enum.CameraType.Custom then
+		if Camara.get().CameraType ~= Enum.CameraType.Custom then
 			limpiar(v, "nada") -- otra cosa se ha quedado con la cámara mientras tanto
 			return
 		end
 		v.camara = true
-		v.desde = camara.CFrame
+		v.desde = Camara.get().CFrame
 		-- La cabeza parte de la cámara de verdad (agachado, con el vaivén de CuerpoVista…). Lo que esté apartada de
 		-- ojos() (avatares sin escala automática, el vaivén) se suma al volver, para acabar donde la recoge la de Roblox.
 		local hum, raiz = cuerpo()
@@ -970,7 +970,7 @@ local function entrar(v: Vistazo, t: number)
 		-- Cuanto más lejos, más tarda la cabeza en llegar (de lejos era un salto).
 		local hasta = if mirilla then pegadoMirilla(el) else ranura(v)
 		v.acercar = math.min(ACERCAR_MAX, T.acercar + (hasta.Position - v.desde.Position).Magnitude * ACERCAR_STUD)
-		camara.CameraType = Enum.CameraType.Scriptable
+		Camara.get().CameraType = Enum.CameraType.Scriptable
 		esconderHud(v)
 		crearCapa(v)
 	end
@@ -1161,13 +1161,13 @@ local function pasoVistazo(v: Vistazo, dt: number)
 	-- otros módulos (CasaVista, BestiaVista, la reja, Sustos, la mochila) solo la giran, y casi todos ni la tocan en
 	-- Scriptable: no la mueven. Si al final nadie la lleva, vigilarAbandonada la devuelve.
 	local ultimo = v.ultimo
-	if v.camara and (camara.CameraType ~= Enum.CameraType.Scriptable
-		or (ultimo and (camara.CFrame.Position - ultimo.Position).Magnitude > 0.5)) then
+	if v.camara and (Camara.get().CameraType ~= Enum.CameraType.Scriptable
+		or (ultimo and (Camara.get().CFrame.Position - ultimo.Position).Magnitude > 0.5)) then
 		-- Solo para depurar en Studio, con el atributo MirarDepurar del Workspace (ojo: execute_luau de Studio devuelve
 		-- la cámara a Custom si un script la cambia).
 		if RunService:IsStudio() and workspace:GetAttribute("MirarDepurar") then
-			print("[MirarVista] otro coge la cámara:", camara.CameraType.Name,
-				if ultimo then (camara.CFrame.Position - ultimo.Position).Magnitude else -1)
+			print("[MirarVista] otro coge la cámara:", Camara.get().CameraType.Name,
+				if ultimo then (Camara.get().CFrame.Position - ultimo.Position).Magnitude else -1)
 		end
 		limpiar(v, "cine")
 		return
@@ -1214,10 +1214,10 @@ pedirSalir = function(v: Vistazo, motivo: string)
 	v.fase = "salir"
 	v.t0 = os.clock()
 	v.motivo = motivo
-	v.desde = camara.CFrame
-	v.mirada = camara.CFrame.LookVector
+	v.desde = Camara.get().CFrame
+	v.mirada = Camara.get().CFrame.LookVector
 	-- Cada cosa vuelve desde donde estaba (si sales a medio acercarte, sin saltos).
-	v.fovDesde = camara.FieldOfView
+	v.fovDesde = Camara.get().FieldOfView
 	v.radioDesde = v.radioAhora
 	v.cierreDesde = v.cierre
 	ContextActionService:UnbindAction(SALIR)
@@ -1228,9 +1228,9 @@ end
 
 -- La cámara vuelve a la de Roblox, con el campo de visión de antes (si nadie ha puesto otro).
 local function aCustom(v: Vistazo)
-	camara.CameraType = Enum.CameraType.Custom
-	if v.fovPuesto and math.abs(camara.FieldOfView - v.fovPuesto) < 0.01 then
-		camara.FieldOfView = v.fovAntes
+	Camara.get().CameraType = Enum.CameraType.Custom
+	if v.fovPuesto and math.abs(Camara.get().FieldOfView - v.fovPuesto) < 0.01 then
+		Camara.get().FieldOfView = v.fovAntes
 	end
 end
 
@@ -1239,14 +1239,14 @@ end
 -- dura menos) y al acabar la ponen en Custom ellas mismas.
 local function vigilarAbandonada(v: Vistazo)
 	task.spawn(function()
-		local antes, quieta = camara.CFrame, os.clock()
+		local antes, quieta = Camara.get().CFrame, os.clock()
 		local hasta = os.clock() + 180
 		while os.clock() < hasta do
 			task.wait(0.25)
-			if activo ~= nil or camara.CameraType ~= Enum.CameraType.Scriptable then
+			if activo ~= nil or Camara.get().CameraType ~= Enum.CameraType.Scriptable then
 				return -- otra vez mirando, o ya la lleva la de Roblox
 			end
-			local ahora = camara.CFrame
+			local ahora = Camara.get().CFrame
 			if ahora ~= antes then
 				antes, quieta = ahora, os.clock()
 			elseif os.clock() - quieta >= ABANDONADA then
@@ -1281,12 +1281,12 @@ limpiar = function(v: Vistazo, como: string)
 	end
 	if v.camara then
 		pcall(function()
-			if not deOtro and camara.CameraType == Enum.CameraType.Scriptable then
-				camara.CameraType = Enum.CameraType.Custom
+			if not deOtro and Camara.get().CameraType == Enum.CameraType.Scriptable then
+				Camara.get().CameraType = Enum.CameraType.Custom
 			end
 			-- El campo de visión de antes, salvo que otro haya puesto el suyo (el susto pone 60).
-			if v.fovPuesto and math.abs(camara.FieldOfView - v.fovPuesto) < 0.01 then
-				camara.FieldOfView = v.fovAntes
+			if v.fovPuesto and math.abs(Camara.get().FieldOfView - v.fovPuesto) < 0.01 then
+				Camara.get().FieldOfView = v.fovAntes
 			end
 			-- El ratón suelto (la cámara de Roblox lo vuelve a fijar en primera persona; escondido hace falta para SALIR).
 			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
@@ -1307,8 +1307,8 @@ limpiar = function(v: Vistazo, como: string)
 	local ultimo = v.ultimo
 	if como == "fuera" and v.camara and ultimo then
 		task.delay(2.5, function()
-			if activo == nil and camara.CameraType == Enum.CameraType.Scriptable
-				and (camara.CFrame.Position - ultimo.Position).Magnitude < 0.05 then
+			if activo == nil and Camara.get().CameraType == Enum.CameraType.Scriptable
+				and (Camara.get().CFrame.Position - ultimo.Position).Magnitude < 0.05 then
 				aCustom(v)
 			end
 		end)
@@ -1390,12 +1390,12 @@ empezar = function(el: Elemento, forzar: boolean?)
 		return
 	end
 	local hum, raiz = cuerpo()
-	if not hum or not raiz or not manosLibres() or camara.CameraType ~= Enum.CameraType.Custom
+	if not hum or not raiz or not manosLibres() or Camara.get().CameraType ~= Enum.CameraType.Custom
 		or elementos[el.modelo] ~= el or not el.punto:IsDescendantOf(workspace)
 		or (not forzar and not sePuede(el, raiz)) then
 		return
 	end
-	local ojo = camara.CFrame
+	local ojo = Camara.get().CFrame
 	local v: Vistazo = {
 		el = el,
 		fase = "entrar",
@@ -1412,9 +1412,9 @@ empezar = function(el: Elemento, forzar: boolean?)
 		desde = ojo,
 		ajuste = Vector3.zero,
 		ultimo = nil,
-		fovAntes = camara.FieldOfView,
+		fovAntes = Camara.get().FieldOfView,
 		fovPuesto = nil,
-		fovDesde = camara.FieldOfView,
+		fovDesde = Camara.get().FieldOfView,
 		radioAhora = 0,
 		radioDesde = 0,
 		motivo = "normal",
@@ -1598,7 +1598,7 @@ end
 local function repasar()
 	local _, raiz = cuerpo()
 	local libre = raiz ~= nil and activo == nil and os.clock() >= descanso and manosLibres()
-		and camara.CameraType == Enum.CameraType.Custom
+		and Camara.get().CameraType == Enum.CameraType.Custom
 	for _, el in elementos do
 		local quiere = false
 		-- Sin la hoja o el mando (el punto sin padre daría su posición de dentro, cerca del origen), nada.

@@ -27,7 +27,7 @@ local EquipoVista = {}
 
 local L = Config.Linterna
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local COLOR_LUZ = Color3.fromRGB(255, 236, 205) -- la de serie
 
 -- Color de la luz de cada uno: el cosmético que lleva puesto (atributo "PuestoLinterna", lo pone Comun.Tienda).
@@ -90,9 +90,9 @@ local function sinAtravesar(donde: CFrame): CFrame
 	local personaje = jugador.Character
 	if personaje ~= filtroDe then
 		filtroDe = personaje
-		filtroHaz.FilterDescendantsInstances = if personaje then { camara, personaje } else { camara }
+		filtroHaz.FilterDescendantsInstances = if personaje then { Camara.get(), personaje } else { Camara.get() }
 	end
-	local desde = camara.CFrame.Position
+	local desde = Camara.get().CFrame.Position
 	local hacia = donde.Position - desde
 	if hacia.Magnitude < 1e-3 then
 		return donde
@@ -131,11 +131,11 @@ local function actualizarLuces()
 			-- poco abajo a la derecha.
 			luz.punto.Parent = workspace.Terrain
 			local enMano = Manos.dondeCosa("Linterna")
-			luz.punto.WorldCFrame = sinAtravesar(if enMano then camara.CFrame * enMano * CFrame.new(0, 0, -0.66)
-				else camara.CFrame * CFrame.new(0.6, -0.5, -0.5))
+			luz.punto.WorldCFrame = sinAtravesar(if enMano then Camara.get().CFrame * enMano * CFrame.new(0, 0, -0.66)
+				else Camara.get().CFrame * CFrame.new(0.6, -0.5, -0.5))
 			-- En las cinemáticas (la cámara la lleva un script) se apaga, solo aquí: si no, saldría de la cámara de cine.
 			-- Vuelve sola al acabar. Escondido o muerto ya la apaga el servidor.
-			luz.foco.Enabled = camara.CameraType == Enum.CameraType.Custom
+			luz.foco.Enabled = Camara.get().CameraType == Enum.CameraType.Custom
 		else
 			-- La de los demás, desde su mano izquierda (BrazosVista le levanta el brazo y le pone la linterna); sin mano
 			-- (R6), desde la cabeza.
@@ -149,7 +149,7 @@ local function actualizarLuces()
 			-- En las cinemáticas (Huida, Incendio) los demás se esconden: su haz saldría de una mano que no se ve. Mirando
 			-- por la mirilla o las cortinas (Vistazo) o desde el escondite (Escondido) la cámara también es de script, y
 			-- ahí sí se ve a los demás con su luz.
-			luz.foco.Enabled = not (camara.CameraType == Enum.CameraType.Scriptable and jugador:GetAttribute("Vistazo") == nil
+			luz.foco.Enabled = not (Camara.get().CameraType == Enum.CameraType.Scriptable and jugador:GetAttribute("Vistazo") == nil
 				and typeof(jugador:GetAttribute("Escondido")) ~= "CFrame")
 		end
 		local pila = otro:GetAttribute("Pila") or 1
@@ -227,7 +227,7 @@ local function pedirFlash()
 	end
 	-- El remote va siempre: si no sale, el servidor avisa de por qué. El gesto, solo si sale (si no, se veía la cámara
 	-- en la cara sin flash, o soltando el tablón que llevas).
-	Remotes.Flash:FireServer(camara.CFrame.LookVector)
+	Remotes.Flash:FireServer(Camara.get().CFrame.LookVector)
 	if saleFoto() then
 		ultimaFoto = os.clock()
 		ManosGestos.foto() -- las dos manos suben la cámara a la cara

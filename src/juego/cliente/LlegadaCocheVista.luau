@@ -24,7 +24,7 @@ local LlegadaCocheVista = {}
 
 local L = Config.Llegada
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 local enMarcha = false
 
 local LLEGAR = 6.4 -- segundos hasta que se para
@@ -205,9 +205,9 @@ local function escena(desde: number, devolver: { () -> () })
 	alAcabar(function()
 		jugador:SetAttribute("EscenaFinal", nil)
 	end)
-	camara.CameraType = Enum.CameraType.Scriptable
+	Camara.get().CameraType = Enum.CameraType.Scriptable
 	alAcabar(function()
-		camara.CameraType = Enum.CameraType.Custom
+		Camara.get().CameraType = Enum.CameraType.Custom
 	end)
 
 	local salto = false
@@ -253,17 +253,17 @@ local function escena(desde: number, devolver: { () -> () })
 		if t < PLANO2 then
 			-- Desde la cuneta, por delante: viene, pasa de largo y lo sigue.
 			local ojo = (sitio * CFrame.new(8, 3, 62)).Position
-			camara.CFrame = CFrame.lookAt(ojo, coche)
+			Camara.get().CFrame = CFrame.lookAt(ojo, coche)
 		elseif t < PLANO3 then
 			-- Desde el porche, acercándose un poco: frena y aparca.
 			local a = math.clamp((t - PLANO2) / (PLANO3 - PLANO2), 0, 1)
 			local ojo = (sitio * CFrame.new(-7, 6.5, -21 + a * 3)).Position
-			camara.CFrame = CFrame.lookAt(ojo, coche)
+			Camara.get().CFrame = CFrame.lookAt(ojo, coche)
 		else
 			-- Por detrás del coche, mirando a la casa.
 			local a = math.clamp((t - PLANO3) / (fin - PLANO3), 0, 1)
 			local ojo = (sitio * CFrame.new(3.2, 6 + a * 0.4, 17 - a * 4)).Position
-			camara.CFrame = CFrame.lookAt(ojo, (sitio * CFrame.new(0, 5.5, -32)).Position)
+			Camara.get().CFrame = CFrame.lookAt(ojo, (sitio * CFrame.new(0, 5.5, -32)).Position)
 		end
 		-- Fundidos: sale del negro al empezar y entra al final.
 		if t < 0.8 then

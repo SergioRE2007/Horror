@@ -21,7 +21,7 @@ local BengalasVista = {}
 
 local B = Config.Bestia
 local jugador = Players.LocalPlayer
-local camara = workspace.CurrentCamera
+local Camara = require(script.Parent.Camara)
 
 local VELOCIDAD = Config.Bestia.Vuela
 local ARDE = Config.Bestia.Arde
@@ -119,7 +119,7 @@ local function colocarPistola()
 	end
 	retroceso = math.max(0, retroceso - 0.12)
 	local balanceo = math.sin(os.clock() * 1.6) * 0.012
-	local base = camara.CFrame * EN_MANO * CFrame.new(0, balanceo, retroceso * 0.25)
+	local base = Camara.get().CFrame * EN_MANO * CFrame.new(0, balanceo, retroceso * 0.25)
 		* CFrame.Angles(retroceso * 0.5, 0, 0)
 	for _, p in m:GetChildren() do
 		local rel = p:GetAttribute("Rel")
@@ -145,7 +145,7 @@ end
 -- ¿Puede tener la pistola en la mano ahora mismo? En las cinemáticas (la cámara la lleva un script) tampoco: como las
 -- manos (Manos), se guarda, que si no se quedaba flotando delante de la cámara de cine.
 local function libre(): boolean
-	return camara.CameraType == Enum.CameraType.Custom
+	return Camara.get().CameraType == Enum.CameraType.Custom
 		and not jugador:GetAttribute("Muerto") and not jugador:GetAttribute("Escondido")
 		and not jugador:GetAttribute("Cargando") and not jugador:GetAttribute("MochilaAbierta")
 		and not jugador:GetAttribute("Trabajando")
@@ -168,7 +168,7 @@ local function sacar()
 	pistola = crearPistola()
 	retroceso = 1 -- sube desde abajo al sacarla
 	colocarPistola()
-	;(pistola :: Model).Parent = camara
+	;(pistola :: Model).Parent = Camara.get()
 	RunService:BindToRenderStep("PistolaBengalas", Enum.RenderPriority.Camera.Value + 2, colocarPistola)
 	mira.Visible = true
 end
@@ -186,7 +186,7 @@ local function disparar()
 	end
 	ultimoDisparo = os.clock()
 	retroceso = 1
-	Remotes.Bengala:FireServer(camara.CFrame.Position, camara.CFrame.LookVector)
+	Remotes.Bengala:FireServer(Camara.get().CFrame.Position, Camara.get().CFrame.LookVector)
 end
 
 local function encenderBucle()
@@ -302,7 +302,7 @@ local function alDisparo(quien: Player, origen: Vector3, impacto: Vector3, norma
 		if boca then
 			desde = boca.WorldPosition
 		else
-			desde = camara.CFrame * Vector3.new(0.5, -0.4, -1.5)
+			desde = Camara.get().CFrame * Vector3.new(0.5, -0.4, -1.5)
 		end
 	end
 	-- Sonido del disparo: el suyo si ya existe en Config.Sonidos (aún no hay; pendiente de ElevenLabs).
@@ -415,7 +415,7 @@ function BengalasVista.start()
 	for _, atributo in { "Muerto", "Escondido", "Cargando", "MochilaAbierta", "Trabajando" } do
 		jugador:GetAttributeChangedSignal(atributo):Connect(mirarLibre)
 	end
-	camara:GetPropertyChangedSignal("CameraType"):Connect(mirarLibre)
+	Camara.alCambiar("CameraType", mirarLibre)
 	UserInputService.InputBegan:Connect(function(entrada, procesado)
 		if procesado then
 			return
