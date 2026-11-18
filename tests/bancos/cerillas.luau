@@ -1,6 +1,6 @@
 -- Banco de las cerillas del final: están en la caja fuerte del rico (pista 12, docs/historia.md: "En la caja, las
 -- cerillas"), no sueltas por la casa. Lee el código (no hace falta el Roblox de mentira):
---   Mapa no deja ningunas Cerillas entre los objetos sueltos;
+--   ningún Mapa*.luau deja Cerillas entre los objetos sueltos;
 --   Config.Bestia.PistaCerillas es la 12 y Pistas, al leerla por primera vez (antes de apuntarla), da Cerillas y avisa;
 --   las frases nuevas están en LangEs y la vieja ("It must...") ya no está en ningún sitio.
 -- Ejecutar desde la raíz: lune run tests/bancos/cerillas.luau (lo corre regressions.luau).
@@ -12,7 +12,14 @@ local function bien(cond: any, que: string)
 	cuentas += 1
 end
 
-local mapa = fs.readFile("src/juego/servidor/Mapa.luau")
+-- Todo lo que construye el mapa (Mapa, MapaAnexos, MapaBosque...): las cerillas vivían en construirFinal (MapaAnexos).
+local SERVIDOR = "src/juego/servidor/"
+local mapa = ""
+for _, archivo in fs.readDir(SERVIDOR) do
+	if string.match(archivo, "^Mapa.*%.luau$") then
+		mapa ..= fs.readFile(SERVIDOR .. archivo)
+	end
+end
 local pistas = fs.readFile("src/juego/servidor/Pistas.luau")
 local incendio = fs.readFile("src/juego/servidor/Incendio.luau")
 local config = fs.readFile("src/shared/Config.luau")
@@ -32,11 +39,20 @@ bien(da and da > apunta, "da las cerillas al leer la caja fuerte")
 bien(string.find(leer, 'Lang.t(jugador, "There are matches inside the safe.")', 1, true), "avisa de las cerillas")
 bien(string.find(pistas, "require(script.Parent.Mochila)", 1, true), "Pistas carga Mochila")
 
--- Sin require circular: Mochila (ni lo que carga) no carga Pistas.
-for _, nombre in { "Mochila", "Cargar", "Mapa", "Muerte", "Fachada", "Lugares" } do
-	local fuente = fs.readFile(`src/juego/servidor/{nombre}.luau`)
-	bien(not string.find(fuente, "require(script.Parent.Pistas)", 1, true), `{nombre} no carga Pistas`)
+-- Sin require circular: ni Mochila ni nada de lo que carga (siguiendo los require hasta el fondo) carga Pistas.
+local vistos, pendientes = {}, { "Mochila" }
+while #pendientes > 0 do
+	local nombre = table.remove(pendientes) :: string
+	if not vistos[nombre] then
+		vistos[nombre] = true
+		local fuente = fs.readFile(`{SERVIDOR}{nombre}.luau`)
+		bien(not string.find(fuente, "require(script.Parent.Pistas)", 1, true), `{nombre} no carga Pistas`)
+		for otro in string.gmatch(fuente, "require%(script%.Parent%.([%w_]+)%)") do
+			table.insert(pendientes, otro)
+		end
+	end
 end
+bien(vistos.MapaAnexos and vistos.Mapa and vistos.Cargar, "se han seguido los require de Mochila (Mapa, MapaAnexos...)")
 
 -- Textos: frases enteras con su español.
 bien(string.find(incendio, '"She must be locked in the basement first."', 1, true), "Incendio la llama ella")

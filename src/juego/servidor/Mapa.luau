@@ -1224,7 +1224,7 @@ local function construirCasa(mapa: Folder)
 	MapaAnexos.construirCobertizo()
 	MapaAnexos.construirCaballete()
 	MapaAnexos.construirSotano()
-	MapaAnexos.construirFinal() -- reja, palanca y trampilla del sótano; cadenas, pistola y cerillas (12.2)
+	MapaAnexos.construirFinal() -- reja, palanca y trampilla del sótano; cadenas y pistola (12.2)
 	MapaAnexos.construirGaraje()
 	Fachada.vestir({ ABAJO = ABAJO, ARRIBA = ARRIBA, ALTO = ALTO, TEJADO = TEJADO, TORRE = TORRE })
 	-- Mecedora en el porche, mirando al camino (no choca: el porche es para correr).
