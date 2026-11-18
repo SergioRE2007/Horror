@@ -17,6 +17,7 @@ local Lang = require(ReplicatedStorage.Shared.Lang)
 local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Recetas = require(ReplicatedStorage.Shared.Recetas)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Cargar = require(script.Parent.Cargar)
 local Caza = require(script.Parent.Caza)
 local Mochila = require(script.Parent.Mochila)
@@ -208,7 +209,7 @@ function Taller.start()
 		vestirTrampa(pieza)
 	end
 	Remotes.Taller.OnServerEvent:Connect(function(jugador, que, n)
-		if que == "Hacer" then
+		if que == "Hacer" and Limite.pasa(jugador, "Taller", Config.Limites.Taller) then
 			hacer(jugador, n)
 		end
 	end)

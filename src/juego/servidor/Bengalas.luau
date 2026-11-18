@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Bestia = require(script.Parent.Bestia)
 local Caza = require(script.Parent.Caza)
 local Mochila = require(script.Parent.Mochila)
@@ -24,7 +25,6 @@ local Bengalas = {}
 local B = Config.Bestia
 local CERCA_CABEZA = Config.Bestia.CercaCabeza
 
-local ultimo: { [Player]: number } = {}
 local filtroMundo = RaycastParams.new()
 filtroMundo.FilterType = Enum.RaycastFilterType.Exclude
 filtroMundo.RespectCanCollide = true -- sin chocar con zonas invisibles ni prompts
@@ -138,11 +138,10 @@ local function disparar(jugador: Player, origen: unknown, hacia: unknown)
 	if table.find(Muerte.vivos(), jugador) == nil or jugador:GetAttribute("Escondido") then
 		return
 	end
-	local ahora = os.clock()
-	if ahora - (ultimo[jugador] or -math.huge) < B.Recarga or not Mochila.primera(jugador, "Pistola") then
+	-- Sin pistola ni se cuenta; con ella cuenta cada intento, también los fallidos: los avisos no se pueden pedir en ráfaga.
+	if not Mochila.primera(jugador, "Pistola") or not Limite.pasa(jugador, "Bengala", B.Recarga) then
 		return
 	end
-	ultimo[jugador] = ahora -- también los intentos fallidos: los avisos no se pueden pedir en ráfaga
 	if jugador:GetAttribute("Cargando") or jugador:GetAttribute("MochilaAbierta") or jugador:GetAttribute("Trabajando") then
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Your hands are full."))
 		return
@@ -174,9 +173,6 @@ local function disparar(jugador: Player, origen: unknown, hacia: unknown)
 end
 
 function Bengalas.start()
-	Players.PlayerRemoving:Connect(function(jugador)
-		ultimo[jugador] = nil
-	end)
 	Remotes.Bengala.OnServerEvent:Connect(disparar)
 end
 

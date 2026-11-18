@@ -8,15 +8,13 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Datos = require(script.Parent.Datos)
 local Formato = require(script.Parent.Formato)
+local Limite = require(script.Parent.Limite)
 
 local Ajustes = {}
-
-local MINIMO = 0.25 -- segundos entre dos cambios del mismo jugador (a ojo: pulsar rápido no satura nada)
-
-local ultimo: { [Player]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 local function publicar(jugador: Player)
 	local datos = Datos.leer(jugador)
@@ -36,11 +34,9 @@ local function cambiar(jugador: Player, que: unknown, valor: unknown)
 	if (que ~= "Rendimiento" and que ~= "Sugerir") or type(valor) ~= "boolean" then
 		return
 	end
-	local ahora = os.clock()
-	if ahora - (ultimo[jugador] or -math.huge) < MINIMO then
+	if not Limite.pasa(jugador, "Ajustes", Config.Limites.Ajustes) then
 		return -- el cliente solo enseña el atributo: si se pierde una pulsación, el botón sigue diciendo la verdad
 	end
-	ultimo[jugador] = ahora
 	Datos.editar(jugador, function(datos)
 		if que == "Sugerir" then
 			Formato.sugerirRendimiento(datos, valor) -- no hace nada si ya lo eligió (o ya se sugirió)

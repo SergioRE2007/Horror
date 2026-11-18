@@ -12,6 +12,7 @@ local StarterPlayer = game:GetService("StarterPlayer")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 
 local Muerte = {}
 
@@ -211,7 +212,10 @@ end
 -- servidor manda el mapa alrededor de él y no del cuerpo. Sin el mapa por partes no cambia nada.
 local function mirar(jugador: Player, objetivo: unknown)
 	if not jugador:GetAttribute("Muerto") or typeof(objetivo) ~= "Instance" or not objetivo:IsA("Player")
-		or objetivo.Parent ~= Players or objetivo == jugador or not vivo(objetivo) then
+		or objetivo.Parent ~= Players or objetivo == jugador then
+		return
+	end
+	if not Limite.pasa(jugador, "Mirar", Config.Limites.Mirar) or not vivo(objetivo) then
 		return
 	end
 	local raiz = objetivo.Character and objetivo.Character:FindFirstChild("HumanoidRootPart")

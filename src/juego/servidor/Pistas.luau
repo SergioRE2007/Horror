@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Historia = require(ReplicatedStorage.Shared.Historia)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Casa = require(script.Parent.Casa)
 
 local Pistas = {}
@@ -52,7 +53,6 @@ local SALA = { [9] = "LlaveSotano", [10] = "LlaveDesvan", [11] = "LlaveRico", [1
 local MANCHADAS = { [4] = true, [6] = true, [9] = true } -- con una mancha de sangre en una esquina (Moderate)
 
 local leidas: { [number]: boolean } = {}
-local ultimo: { [Player]: number } = {}
 
 local function pieza(nombre: string, tamano: Vector3, cf: CFrame, color: Color3, material: Enum.Material, padre: Instance): Part
 	local p = Instance.new("Part")
@@ -221,11 +221,9 @@ function Pistas.leer(jugador: Player, n: number, donde: BasePart)
 	if SALA[n] and table.find(Casa.cerradas(), SALA[n]) then
 		return -- desde fuera, a través de la pared
 	end
-	local ahora = os.clock()
-	if ahora - (ultimo[jugador] or 0) < 0.3 then
+	if not Limite.pasa(jugador, "Pista", Config.Limites.Pista) then
 		return
 	end
-	ultimo[jugador] = ahora
 	leidas[n] = true
 	jugador:SetAttribute("Leida" .. n, true) -- lo que ha leído él (Sustos: el espejo no destapa el giro antes de tiempo)
 	Remotes.Pista:FireClient(jugador, n, cuantas())
@@ -271,9 +269,6 @@ function Pistas.start()
 		construir(n, cf, carpeta)
 	end
 	carpeta.Parent = workspace:WaitForChild("Mapa")
-	game:GetService("Players").PlayerRemoving:Connect(function(jugador)
-		ultimo[jugador] = nil
-	end)
 end
 
 return Pistas

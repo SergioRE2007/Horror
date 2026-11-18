@@ -16,6 +16,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Rejilla = require(ReplicatedStorage.Shared.Rejilla)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local Cargar = require(script.Parent.Cargar)
 local Mapa = require(script.Parent.Mapa)
@@ -220,8 +221,7 @@ end
 -- la mochila entera a todos. A mano no se llega (son dos clics por movimiento). Lo que llega antes no se hace, pero al
 -- rato se le vuelve a pasar la suya (una vez) para que deshaga lo que adelantó: dos de verdad pueden llegar pegados
 -- tras un tirón de la red.
-local CADA_PEDIDO = 0.05
-local ultimoPedido: { [Player]: number } = {}
+local CADA_PEDIDO = Config.Limites.Mochila
 local resincronizar: { [Player]: boolean } = {}
 
 local function pedir(jugador: Player, que: unknown, id: unknown, x: unknown, y: unknown, girada: unknown)
@@ -230,8 +230,7 @@ local function pedir(jugador: Player, que: unknown, id: unknown, x: unknown, y: 
 		return
 	end
 	if que ~= "Abrir" then
-		local ahora = os.clock()
-		if ahora - (ultimoPedido[jugador] or -math.huge) < CADA_PEDIDO then
+		if not Limite.pasa(jugador, "Mochila", CADA_PEDIDO) then
 			if not resincronizar[jugador] then
 				resincronizar[jugador] = true
 				task.delay(CADA_PEDIDO, function()
@@ -241,7 +240,6 @@ local function pedir(jugador: Player, que: unknown, id: unknown, x: unknown, y: 
 			end
 			return
 		end
-		ultimoPedido[jugador] = ahora
 	end
 	if que == "Abrir" then
 		abrir(jugador, id == true)
@@ -476,7 +474,7 @@ function Mochila.start()
 		for _, cosa in pendientes[jugador] or {} do
 			table.insert(cosas, cosa)
 		end
-		pendientes[jugador], caidos[jugador], ultimoPedido[jugador] = nil, nil, nil
+		pendientes[jugador], caidos[jugador] = nil, nil
 		local raiz = raizDe(jugador)
 		local punto = if raiz then raiz.Position else ultimaPos[jugador]
 		ultimaPos[jugador] = nil

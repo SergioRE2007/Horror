@@ -16,6 +16,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Casa = require(script.Parent.Casa)
 local Caza = require(script.Parent.Caza)
 local Mochila = require(script.Parent.Mochila)
@@ -24,7 +25,6 @@ local Muerte = require(script.Parent.Muerte)
 local Equipo = {}
 
 local L, F = Config.Linterna, Config.Flash
-local ultimoFlash: { [Player]: number } = {}
 local cristales: { Instance } = {}
 local filtro = RaycastParams.new()
 filtro.FilterType = Enum.RaycastFilterType.Exclude
@@ -94,13 +94,10 @@ end
 
 -- Como mucho un cambio cada 0,25 s (a ojo): un cliente con trampas la hacía parpadear para todos cientos de veces por
 -- segundo (una luz estroboscópica). Así no pasa de dos destellos por segundo.
-local ultimaLinterna: { [Player]: number } = {}
 local function alternarLinterna(jugador: Player)
-	local ahora = os.clock()
-	if ahora - (ultimaLinterna[jugador] or -math.huge) < 0.25 then
+	if not Limite.pasa(jugador, "Linterna", Config.Limites.Linterna) then
 		return
 	end
-	ultimaLinterna[jugador] = ahora
 	if not puedeUsar(jugador) or jugador:GetAttribute("Cambiando") then
 		return
 	end
@@ -121,6 +118,10 @@ local function flash(jugador: Player, hacia: unknown)
 	if typeof(hacia) ~= "Vector3" or hacia.Magnitude ~= hacia.Magnitude or hacia.Magnitude < 0.1 or hacia.Magnitude > 1e6 then
 		return
 	end
+	-- Los avisos de abajo salen antes de la recarga: que no se puedan pedir en ráfaga (cuenta también lo fallido).
+	if not Limite.pasa(jugador, "Flash", Config.Limites.Flash) then
+		return
+	end
 	local cabeza = cabezaDe(jugador)
 	if not cabeza or not puedeUsar(jugador) or jugador:GetAttribute("Cambiando") then
 		return
@@ -134,15 +135,16 @@ local function flash(jugador: Player, hacia: unknown)
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Your hands are full."))
 		return
 	end
-	local ahora = os.clock()
-	if ahora - (ultimoFlash[jugador] or -math.huge) < F.Recarga * Stats.valor(jugador, "Recarga") then
+	-- La recarga de verdad: solo empieza a contar si el flash sale (sin carrete no).
+	local recarga = F.Recarga * Stats.valor(jugador, "Recarga")
+	if Limite.restante(jugador, "FlashRecarga", recarga) > 0 then
 		return
 	end
 	if (camara.carga or 0) <= 0 then
 		cambiar(jugador, "Carrete")
 		return
 	end
-	ultimoFlash[jugador] = ahora
+	Limite.pasa(jugador, "FlashRecarga", recarga)
 	camara.carga -= 1
 	jugador:SetAttribute("Fotos", camara.carga)
 	Remotes.Flash:FireAllClients(jugador)
@@ -203,16 +205,13 @@ end
 
 -- Hacia dónde mira cada uno, arriba o abajo (CuerpoVista lo manda; BrazosVista inclina su cabeza y su linterna en
 -- los demás clientes). Solo se ve: no cambia nada del juego. Como mucho unas 6 veces por segundo y redondeado.
-local ultimaMirada: { [Player]: number } = {}
 local function mirada(jugador: Player, inclinacion: unknown)
 	if type(inclinacion) ~= "number" or inclinacion ~= inclinacion then
 		return
 	end
-	local ahora = os.clock()
-	if ahora - (ultimaMirada[jugador] or -math.huge) < 0.15 then
+	if not Limite.pasa(jugador, "Mirada", Config.Limites.Mirada) then
 		return
 	end
-	ultimaMirada[jugador] = ahora
 	local v = math.floor(math.clamp(inclinacion, -1.4, 1.4) * 20 + 0.5) / 20
 	if jugador:GetAttribute("Mirada") ~= v then
 		jugador:SetAttribute("Mirada", v)
@@ -226,11 +225,6 @@ function Equipo.start()
 			table.insert(cristales, cristal)
 		end
 	end
-	Players.PlayerRemoving:Connect(function(jugador)
-		ultimoFlash[jugador] = nil
-		ultimaMirada[jugador] = nil
-		ultimaLinterna[jugador] = nil
-	end)
 	Remotes.Mirada.OnServerEvent:Connect(mirada)
 	Remotes.Linterna.OnServerEvent:Connect(alternarLinterna)
 	Remotes.Flash.OnServerEvent:Connect(flash)

@@ -23,6 +23,7 @@ local Stats = require(ReplicatedStorage.Shared.Stats)
 local CorrerReglas = require(ReplicatedStorage.Shared.CorrerReglas)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Mapa = require(script.Parent.Mapa)
 local Muerte = require(script.Parent.Muerte)
 
@@ -436,6 +437,9 @@ local function usar(jugador: Player, objetivo: unknown)
 	local agarre = agarres[jugador]
 	local raiz = raizDe(jugador)
 	if not agarre or not raiz or typeof(objetivo) ~= "Instance" or jugador:GetAttribute("Trabajando") then
+		return
+	end
+	if not Limite.pasa(jugador, "Usar", Config.Limites.Usar) then
 		return
 	end
 	local pieza = agarre.pieza

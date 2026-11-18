@@ -12,10 +12,9 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Clases = require(script.Parent.Clases)
 local Comprar = require(script.Parent.Comprar)
 local Datos = require(script.Parent.Datos)
+local Limite = require(script.Parent.Limite)
 
 local Tienda = {}
-
-local ultimo: { [Player]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 local TIPOS = {}
 for _, cosa in Config.Cosmeticos do
@@ -59,11 +58,9 @@ local function pedir(jugador: Player, accion: unknown, a: unknown, b: unknown)
 	if type(accion) ~= "string" or (a ~= nil and type(a) ~= "string") or (b ~= nil and type(b) ~= "string") then
 		return
 	end
-	local ahora = os.clock()
-	if ahora - (ultimo[jugador] or -math.huge) < 0.3 then
+	if not Limite.pasa(jugador, "Tienda", Config.Limites.Tienda) then
 		return
 	end
-	ultimo[jugador] = ahora
 	if not cercaDelMostrador(jugador) then
 		return
 	end

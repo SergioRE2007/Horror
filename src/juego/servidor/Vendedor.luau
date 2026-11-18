@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Mochila = require(script.Parent.Mochila)
 local Muerte = require(script.Parent.Muerte)
 
@@ -71,7 +72,7 @@ function Vendedor.start()
 		preparar(modelo)
 	end
 	Remotes.Vendedor.OnServerEvent:Connect(function(jugador, que, i)
-		if que == "Cambiar" then
+		if que == "Cambiar" and Limite.pasa(jugador, "Vendedor", Config.Limites.Vendedor) then
 			cambiar(jugador, i)
 		end
 	end)

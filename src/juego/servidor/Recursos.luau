@@ -7,13 +7,13 @@
 --   Caballete: con un tronco en las manos, R (Cargar.alUsar "Tronco"): se sierra y salen tablones al lado.
 -- Las animaciones van en el cliente (TrabajoVista) con el remote Trabajo.
 local CollectionService = game:GetService("CollectionService")
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Cargar = require(script.Parent.Cargar)
 local Ciclo = require(script.Parent.Ciclo)
 local Mochila = require(script.Parent.Mochila)
@@ -24,7 +24,6 @@ local Recursos = {}
 local T = Config.Talar
 local azar = Random.new()
 local originales: { [Model]: Model } = {} -- copia de cada árbol entero para que vuelva a crecer
-local ultimo: { [Player]: number } = {}
 
 local function plano(v: Vector3): Vector3
 	return Vector3.new(v.X, 0, v.Z)
@@ -132,11 +131,9 @@ local function hachazo(jugador: Player, modelo: Model)
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "You need an axe."))
 		return
 	end
-	local ahora = os.clock()
-	if ahora - (ultimo[jugador] or -math.huge) < T.Cada then
+	if not Limite.pasa(jugador, "Hachazo", T.Cada) then
 		return
 	end
-	ultimo[jugador] = ahora
 	local golpes = (modelo:GetAttribute("Golpes") or 0) + Stats.valor(jugador, "Hachazo")
 	modelo:SetAttribute("Golpes", golpes)
 	Remotes.Trabajo:FireAllClients(jugador, "Hachazo", modelo:FindFirstChild("Tronco"), 0)
@@ -257,9 +254,6 @@ function Recursos.start()
 		if fase == "Dia" then
 			rebrotar(noche)
 		end
-	end)
-	Players.PlayerRemoving:Connect(function(jugador)
-		ultimo[jugador] = nil
 	end)
 end
 

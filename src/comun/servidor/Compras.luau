@@ -20,6 +20,7 @@ local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local Datos = require(script.Parent.Datos)
+local Limite = require(script.Parent.Limite)
 local Recibos = require(script.Parent.Recibos)
 
 local Compras = {}
@@ -36,7 +37,6 @@ type Encargo = {
 }
 
 local encargos: { [string]: Encargo } = {}
-local ultimo: { [Player]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 local function avisar(jugador: Player, frase: string, huecos: { [string]: any }?)
 	Remotes.Aviso:FireClient(jugador, Lang.t(jugador, frase, huecos))
@@ -191,11 +191,9 @@ local function pedir(jugador: Player, que: unknown, a: unknown)
 	if type(que) ~= "string" then
 		return
 	end
-	local ahora = os.clock()
-	if ahora - (ultimo[jugador] or -math.huge) < 1 then
+	if not Limite.pasa(jugador, "Compra", Config.Limites.Compra) then
 		return
 	end
-	ultimo[jugador] = ahora
 	if que == "Monedas" then
 		local paquete = type(a) == "number" and C.Monedas[a]
 		if paquete then

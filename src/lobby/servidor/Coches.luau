@@ -21,6 +21,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Stats = require(ReplicatedStorage.Shared.Stats)
+local Limite = require(ServerScriptService:WaitForChild("Comun").Limite)
 local Viaje = require(ServerScriptService:WaitForChild("Comun").Viaje)
 
 local Coches = {}
@@ -35,8 +36,7 @@ local MARGEN = 0.5 -- segundos entre dos coches por el carril
 type Coche = { modelo: Model, asientos: { Seat }, orden: { Player }, prompt: ProximityPrompt, saliendo: boolean }
 local coches: { Coche } = {}
 -- Último cambio de Ranura o Nueva de cada jugador: como mucho uno cada 0,2 s (cada uno se replica a todos). Arrancar no
--- cuenta: solo vale una vez por salida y no se debe perder.
-local ultimo: { [Player]: number } = setmetatable({}, { __mode = "k" }) :: any
+-- cuenta: solo vale una vez por salida y no se debe perder (Limite "Coche", Config.Limites.Coche).
 
 local function avisar(jugadores: { Player }, texto: string)
 	for _, jugador in jugadores do
@@ -178,11 +178,9 @@ end
 
 local function pedir(jugador: Player, que: unknown, valor: unknown)
 	if que ~= "Arrancar" then
-		local ahora = os.clock()
-		if ahora - (ultimo[jugador] or -math.huge) < 0.2 then
+		if not Limite.pasa(jugador, "Coche", Config.Limites.Coche) then
 			return
 		end
-		ultimo[jugador] = ahora
 	end
 	for _, c in coches do
 		if c.orden[1] ~= jugador or c.saliendo then
