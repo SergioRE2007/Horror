@@ -625,6 +625,12 @@ local function caseta()
 	end)
 end
 
+-- Para Lugares (la granja): forra por dentro uno de sus edificios (con la forma de PuebloPlano.Edificio) con su ctx.
+function PuebloInteriores.forrar(ctx, e, padre: Instance, capas: { Capa }, suelo: string, techo: string?)
+	C = ctx
+	forrar(e, padre, capas, suelo, techo)
+end
+
 function PuebloInteriores.construir(ctx)
 	C = ctx
 	tienda()
