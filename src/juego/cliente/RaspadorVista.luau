@@ -21,10 +21,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
+-- (Después de Sonido: el Random de BichoComun tiene en los bancos de Lune la semilla que tenía el de esta Vista.)
+local BichoComun = require(script.Parent.BichoComun)
 
 local RaspadorVista = {}
 
@@ -122,7 +123,7 @@ local HOLGURA = 0.04 -- studs que se quedan por encima del suelo
 local CODOS = 20 -- sitios del codo que se prueban (brazo3D)
 
 local jugador = Players.LocalPlayer
-local azar = Random.new()
+local azar = BichoComun.azar
 local carpeta: Instance? = nil
 local filtro = RaycastParams.new()
 filtro.FilterType = Enum.RaycastFilterType.Exclude
@@ -195,59 +196,24 @@ type Bicho = {
 local bichos: { [Model]: Bicho } = {}
 local conexion: RBXScriptConnection? = nil
 
-local vahoPunto: Attachment? = nil
-local vahoEmisor: ParticleEmitter? = nil
-
-local function rango(r: { number }): number
-	return azar:NextNumber(r[1], r[2])
-end
-
-local function acercar(actual: number, meta: number, dt: number, rapidez: number): number
-	return actual + (meta - actual) * math.min(1, dt * rapidez)
-end
-
-local function suave(u: number): number
-	return u * u * (3 - 2 * u)
-end
+local rango = BichoComun.rango
+local acercar = BichoComun.acercar
+local suave = BichoComun.suaveSinTope
+local dentroDeCasa = BichoComun.dentroDeCasa
+local duraGateo = BichoComun.duraGateo
 
 local function crispacion(t: number): number
-	if t < 0 or t > 0.45 then
-		return 0
-	end
-	local x = t / 0.06
-	return x * math.exp(1 - x)
+	return BichoComun.crispacion(t, 0.45, 0.06)
 end
 
-local function dentroDeCasa(p: Vector3): boolean
-	local c = Config.Casa
-	return math.abs(p.X) < c.MedioX and math.abs(p.Z) < c.MedioZ and p.Y < 28
-end
-
--- El vaho contra el cristal: sale despacio de la boca y se abre hacia los lados.
+-- El vaho contra el cristal: sale despacio de la boca y se abre hacia los lados (de noche apenas se ve: con la linterna o
+-- la luz de dentro).
+local VAHO_COMO: BichoComun.Vaho = {
+	Transparencia = 0.8, Tam = { 0.15, 0.9 }, Vida = { 1.4, 2.2 }, Rapidez = { 0.4, 0.9 }, Abre = 65, Giro = 20, Sube = 0.35,
+	Freno = 2,
+}
 local function echarVaho(boca: CFrame)
-	if not vahoEmisor then
-		local a = Instance.new("Attachment")
-		a.Name = "VahoRaspador"
-		a.Parent = workspace.Terrain
-		local e = Instance.new("ParticleEmitter")
-		e.Texture = "rbxasset://textures/particles/smoke_main.dds"
-		e.LightInfluence = 1 -- de noche apenas se ve: con la linterna o la luz de dentro
-		e.Color = ColorSequence.new(Color3.fromRGB(215, 220, 228))
-		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 1) })
-		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 0.9) })
-		e.Lifetime = NumberRange.new(1.4, 2.2)
-		e.Speed = NumberRange.new(0.4, 0.9)
-		e.SpreadAngle = Vector2.new(65, 65)
-		e.Rotation = NumberRange.new(0, 360)
-		e.RotSpeed = NumberRange.new(-20, 20)
-		e.Acceleration = Vector3.new(0, 0.35, 0)
-		e.Drag = 2
-		e.Rate = 0
-		e.Parent = a
-		vahoPunto, vahoEmisor = a, e
-	end
-	;(vahoPunto :: Attachment).WorldCFrame = CFrame.lookAt(boca.Position, boca.Position + boca.LookVector) * CFrame.Angles(-math.pi / 2, 0, 0)
-	;(vahoEmisor :: ParticleEmitter):Emit(VAHO)
+	BichoComun.echarVaho("VahoRaspador", VAHO_COMO, boca.Position, boca.LookVector, VAHO)
 end
 
 -- La cabeza del jugador vivo y sin esconder más cercano a `desde` (si `delante`, solo los que tiene delante).
@@ -404,11 +370,6 @@ local function mirarCara(mira: Vector3, ladeo: number): CFrame
 	local x = Vector3.new(0, 1, 0):Cross(z)
 	x = if x.Magnitude < 1e-4 then Vector3.xAxis else x.Unit
 	return CFrame.fromMatrix(Vector3.zero, x, z:Cross(x), z) * CFrame.Angles(0, 0, ladeo)
-end
-
-local function duraGateo(): number
-	local reglas = Config.Postura
-	return if reglas and reglas.Gatear then reglas.Gatear else 2
 end
 
 -- El tablero que tapa al escondido en `punto`: la zona Debajo en la que está (Mapa, HUECOS) y su mueble. Las piezas de
@@ -1084,14 +1045,7 @@ local function preparar(modelo: Instance)
 end
 
 local function cercano(punto: Vector3, maximo: number): Bicho?
-	local mejor, distancia = nil, maximo
-	for _, b in bichos do
-		local d = (b.raiz.Position - punto).Magnitude
-		if d < distancia then
-			mejor, distancia = b, d
-		end
-	end
-	return mejor
+	return BichoComun.cercano(bichos, punto, maximo)
 end
 
 -- Abre la boca del todo (el susto al morir). Devuelve el Raspador que tenga la cabeza cerca de `punto`, si hay.

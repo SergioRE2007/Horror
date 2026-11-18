@@ -1,7 +1,8 @@
 # Sucesos al azar del Golpeador (14.10)
 
 Pedido por el usuario: "que no sea siempre igual". El servidor decide (`juego/servidor/GolpeadorSucesos.luau`, tiradas en
-`GolpeadorTiradas.luau`) y lo pone en atributos del modelo; el cliente (`GolpeadorVista`) lo anima. Nunca injustos:
+`GolpeadorTiradas.luau`) y lo pone en atributos del modelo; el cliente (`GolpeadorVista`, las poses en
+`GolpeadorVistaSucesos` y el susto en `GolpeadorVistaMuerte` desde 16.19) lo anima. Nunca injustos:
 durante un suceso no pilla a nadie y ninguno pilla a través de paredes.
 
 - Aguante según jugadores (16.2): la `Paciencia` de `Config.Dificultad` alarga el margen del Raspador, el Trepador y el

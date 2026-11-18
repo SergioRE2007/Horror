@@ -25,10 +25,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
+-- (Después de Sonido: el Random de BichoComun tiene en los bancos de Lune la semilla que tenía el de esta Vista.)
+local BichoComun = require(script.Parent.BichoComun)
 
 local TrepadorVista = {}
 
@@ -117,7 +118,7 @@ for _, paso in GATEO.Pasos do
 end
 
 local jugador = Players.LocalPlayer
-local azar = Random.new()
+local azar = BichoComun.azar
 local filtroGateo = RaycastParams.new()
 filtroGateo.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -215,66 +216,29 @@ type Bicho = {
 local bichos: { [Model]: Bicho } = {}
 local conexion: RBXScriptConnection? = nil
 
-local vahoPunto: Attachment? = nil
-local vahoEmisor: ParticleEmitter? = nil
-
-local function rango(r: { number }): number
-	return azar:NextNumber(r[1], r[2])
-end
-
-local function acercar(actual: number, meta: number, dt: number, rapidez: number): number
-	return actual + (meta - actual) * math.min(1, dt * rapidez)
-end
-
-local function suave(u: number): number
-	return u * u * (3 - 2 * u)
-end
+local rango = BichoComun.rango
+local acercar = BichoComun.acercar
+local suave = BichoComun.suaveSinTope
+local dentroDeCasa = BichoComun.dentroDeCasa
+local duraGateo = BichoComun.duraGateo
 
 -- Una crispación: sube de golpe y se apaga (0..1).
 local function crispacion(t: number): number
-	if t < 0 or t > 0.4 then
-		return 0
-	end
-	local x = t / 0.05
-	return x * math.exp(1 - x)
+	return BichoComun.crispacion(t, 0.4, 0.05)
 end
 
--- Como CuerpoVista: dentro de la casa no se ve el vaho.
-local function dentroDeCasa(p: Vector3): boolean
-	local c = Config.Casa
-	return math.abs(p.X) < c.MedioX and math.abs(p.Z) < c.MedioZ and p.Y < 28
-end
-
--- El vaho: bocanadas cortas que salen de la boca hacia delante y se deshacen (las partículas se quedan donde salen).
+-- El vaho: bocanadas cortas que salen de la boca hacia donde mira la cara y se deshacen (de noche apenas se ve: con la
+-- linterna o la luz de una ventana).
+local VAHO_COMO: BichoComun.Vaho = {
+	Transparencia = 0.8, Tam = { 0.15, 0.8 }, Vida = { 0.9, 1.4 }, Rapidez = { 1.5, 2.5 }, Abre = 25, Giro = 25, Sube = 0.5,
+	Freno = 1.8,
+}
 local function echarVaho(b: Bicho, cuantas: number)
 	local boca = b.cabeza.CFrame * BOCA
 	if dentroDeCasa(boca.Position) then
 		return
 	end
-	if not vahoEmisor then
-		local a = Instance.new("Attachment")
-		a.Name = "VahoTrepador"
-		a.Parent = workspace.Terrain
-		local e = Instance.new("ParticleEmitter")
-		e.Texture = "rbxasset://textures/particles/smoke_main.dds"
-		e.LightInfluence = 1 -- de noche apenas se ve: con la linterna o la luz de una ventana
-		e.Color = ColorSequence.new(Color3.fromRGB(215, 220, 228))
-		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 1) })
-		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 0.8) })
-		e.Lifetime = NumberRange.new(0.9, 1.4)
-		e.Speed = NumberRange.new(1.5, 2.5)
-		e.SpreadAngle = Vector2.new(25, 25)
-		e.Rotation = NumberRange.new(0, 360)
-		e.RotSpeed = NumberRange.new(-25, 25)
-		e.Acceleration = Vector3.new(0, 0.5, 0)
-		e.Drag = 1.8
-		e.Rate = 0
-		e.Parent = a
-		vahoPunto, vahoEmisor = a, e
-	end
-	-- Sale por el eje Y del punto: hacia donde mira la cara.
-	;(vahoPunto :: Attachment).WorldCFrame = CFrame.lookAt(boca.Position, boca.Position + boca.LookVector) * CFrame.Angles(-math.pi / 2, 0, 0)
-	;(vahoEmisor :: ParticleEmitter):Emit(cuantas)
+	BichoComun.echarVaho("VahoTrepador", VAHO_COMO, boca.Position, boca.LookVector, cuantas)
 end
 
 -- La cabeza del jugador vivo y a la vista (sin esconder) más cercano a `desde`, si hay alguno a menos de `maximo`.
@@ -352,11 +316,6 @@ local function crujir(b: Bicho, ahora: number, volumen: number)
 	fuerte("Crujido", b.raiz.Position, azar:NextNumber(0.75, 0.95), volumen)
 end
 
-local function duraGateo(): number
-	local reglas = Config.Postura
-	return if reglas and reglas.Gatear then reglas.Gatear else 2
-end
-
 -- Studs (por el suelo, hacia delante) del marco al tablero que tapa al escondido, en cada carril: rayos hacia arriba
 -- cada BORDE_PASO y, al dar con algo, BORDE_AFINA mitades entre ese rayo y el de antes. Lo que quede más bajo que un
 -- escondite (el asiento de una silla) no cuenta. Si no da con nada en ningún carril, el borde recto a GATEO.Borde de
@@ -427,24 +386,15 @@ local function bordeEntre(bordes: { number }, desde: number, hasta: number): num
 	return menor - CARRIL / 2
 end
 
+-- Cada tirón del gateo: de golpe y frenando.
+local function frenando(k: number): number
+	return 1 - (1 - k) ^ 3
+end
+
 -- Por dónde va el gateo en `u` (segundos de un gateo de 2 s): cuánto se ha colado (0..1), cuánto olfatea (0..1, entre
 -- tirones) y el empujón de cada tirón (0..1). Simple (Rendimiento): seguido, sin olfatear.
 local function avanceGateo(u: number, simple: boolean): (number, number, number)
-	if simple then
-		return suave(math.clamp((u - GATEO.Cae) / (1.75 - GATEO.Cae), 0, 1)), 0, 0
-	end
-	local a = 0
-	for _, tiron in GATEO.Tirones do
-		if u >= tiron[2] then
-			a = tiron[3]
-		elseif u > tiron[1] then
-			local k = (u - tiron[1]) / (tiron[2] - tiron[1])
-			return a + (tiron[3] - a) * (1 - (1 - k) ^ 3), 0, math.sin(math.pi * k)
-		else
-			break
-		end
-	end
-	return a, if u > GATEO.Cae then 1 else 0, 0
+	return BichoComun.avanceGateo(u, simple, GATEO, frenando)
 end
 
 -- Lo que lleva echado atrás en `u` (0..1): de golpe, como quien se aparta de un salto, y frenando.
@@ -1034,14 +984,7 @@ local function preparar(modelo: Instance)
 end
 
 local function cercano(punto: Vector3, maximo: number): Bicho?
-	local mejor, distancia = nil, maximo
-	for _, b in bichos do
-		local d = (b.raiz.Position - punto).Magnitude
-		if d < distancia then
-			mejor, distancia = b, d
-		end
-	end
-	return mejor
+	return BichoComun.cercano(bichos, punto, maximo)
 end
 
 -- Una nube de hollín negro (al bajar cae al hogar; al salir, revienta hacia el salón).

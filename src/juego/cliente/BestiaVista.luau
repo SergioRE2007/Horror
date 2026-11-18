@@ -29,6 +29,8 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local MuebleRayo = require(script.Parent.MuebleRayo)
 local Sonido = require(script.Parent.Sonido)
+-- (Después de Sonido: el Random de BichoComun tiene en los bancos de Lune la semilla que tenía el de esta Vista.)
+local BichoComun = require(script.Parent.BichoComun)
 
 local BestiaVista = {}
 
@@ -206,21 +208,14 @@ type Bicho = {
 }
 local jugador = Players.LocalPlayer
 local bichos: { [Model]: Bicho } = {}
-local azar = Random.new()
+local azar = BichoComun.azar
 local conexion: RBXScriptConnection? = nil
 local temblor = 0 -- fuerza del temblor de la cámara (baja sola)
 local temblando = false -- los dos pasos del temblor están atados
 local aplicado: CFrame? = nil -- el giro del temblor puesto en este fotograma (se deshace en el siguiente)
 
-local function rango(r: { number }): number
-	return azar:NextNumber(r[1], r[2])
-end
-
--- Suave al empezar y al acabar.
-local function suave(k: number): number
-	k = math.clamp(k, 0, 1)
-	return k * k * (3 - 2 * k)
-end
+local rango = BichoComun.rango
+local suave = BichoComun.suave -- suave al empezar y al acabar
 
 -- Deja de gatear del todo: los chorretones vuelven a verse y se apaga la luz de la cara.
 local function terminarGateo(b: Bicho)
@@ -249,34 +244,16 @@ local function olvidar(modelo: Model)
 end
 
 local function puedeVaho(distancia: number): boolean
-	return distancia < VAHO_LEJOS and workspace:GetAttribute("Fase") == "Noche" and jugador:GetAttribute("Rendimiento") ~= true
+	return BichoComun.puedeVaho(distancia, VAHO_LEJOS)
 end
 
 -- Vaho caliente por la boca: más grande que el de las personas (las partículas se quedan donde salen).
+local VAHO_COMO: BichoComun.Vaho = {
+	Transparencia = 0.75, Tam = { 0.35, 1.8 }, Vida = { 1.2, 2 }, Rapidez = { 1.5, 2.6 }, Abre = 25, Sube = 0.8, Freno = 1.8,
+	Delante = true,
+}
 local function vahoDe(b: Bicho): ParticleEmitter
-	if b.vaho and b.vaho.Parent then
-		return b.vaho
-	end
-	local a = Instance.new("Attachment")
-	a.Name = "Vaho"
-	a.Position = Vector3.new(0, -0.55, -1.6) -- delante de la boca
-	local e = Instance.new("ParticleEmitter")
-	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
-	e.LightInfluence = 1 -- de noche, apenas: solo se ve con la linterna
-	e.Color = ColorSequence.new(Color3.fromRGB(215, 220, 228))
-	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.75), NumberSequenceKeypoint.new(1, 1) })
-	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 1.8) })
-	e.Lifetime = NumberRange.new(1.2, 2)
-	e.Speed = NumberRange.new(1.5, 2.6)
-	e.SpreadAngle = Vector2.new(25, 25)
-	e.EmissionDirection = Enum.NormalId.Front
-	e.Acceleration = Vector3.new(0, 0.8, 0)
-	e.Drag = 1.8
-	e.Rate = 0
-	e.Parent = a
-	a.Parent = b.cabeza
-	b.vaho = e
-	return e
+	return BichoComun.vahoDe(b, Vector3.new(0, -0.55, -1.6), VAHO_COMO) -- delante de la boca
 end
 
 -- Resopla (o gruñe bajo, `grave`): el resoplido propio si algún día se hace (Config.Sonidos.Resoplido, con
@@ -397,9 +374,7 @@ local techo = RaycastParams.new()
 techo.FilterType = Enum.RaycastFilterType.Exclude
 techo.RespectCanCollide = true -- la zona invisible de debajo del tablero no cuenta: solo lo que choca
 
-local function plano(v: Vector3): Vector3
-	return Vector3.new(v.X, 0, v.Z)
-end
+local plano = BichoComun.plano
 
 -- 0..1: lo que ha avanzado a los `k` (parte del tiempo): a tirones.
 local function tirones(k: number): number
@@ -1311,14 +1286,7 @@ local function preparar(modelo: Instance)
 end
 
 local function cercano(punto: Vector3, maximo: number): Bicho?
-	local mejor, distancia = nil, maximo
-	for _, b in bichos do
-		local d = (b.raiz.Position - punto).Magnitude
-		if d < distancia then
-			mejor, distancia = b, d
-		end
-	end
-	return mejor
+	return BichoComun.cercano(bichos, punto, maximo)
 end
 
 -- Abre la boca del todo unos segundos (el susto al morir). Devuelve la Bestia con la cabeza cerca de `punto`, si hay.
