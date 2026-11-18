@@ -288,14 +288,40 @@ function Ui.mancha(padre: GuiObject): Frame
 	return mancha
 end
 
--- Aviso de una sola línea abajo en el centro que se va solo.
-local avisoActual: TextLabel? = nil
-function Ui.aviso(texto: string, segundos: number?)
-	if avisoActual then
-		avisoActual:Destroy()
+-- Avisos de una sola línea abajo en el centro que se van solos (docs/sistemas/movil.md). Nunca hay más de uno en
+-- pantalla y no se pisan: al amanecer llegan a la vez el del amanecer y el del premio y antes uno borraba al otro.
+--   misma frase que la que se ve: solo se alarga su tiempo (pulsar E en una puerta cerrada no la hace parpadear);
+--   otra distinta: espera en una cola corta a que la de ahora lleve MINIMO_AVISO a la vista y entonces la de ahora se
+--   funde en 0,2 s y sale la siguiente; la que pide sus segundos (morir: 5) se ve entera antes de dejar paso.
+local MINIMO_AVISO = 1.4 -- s que se ve un aviso antes de dejar paso al siguiente (a ojo)
+local DURACION_AVISO = 3.5 -- s que se ve si nadie dice otra cosa
+local COLA_AVISOS = 3 -- avisos esperando como mucho; si llega otro, se olvida el más viejo
+type Aviso = {
+	texto: string,
+	desde: number, -- cuándo salió
+	hasta: number, -- cuándo empieza a irse si no hay nadie esperando
+	minimo: number, -- lo que se ve como poco aunque haya cola
+	saliendo: boolean,
+	revivir: boolean, -- se repitió mientras se fundía: vuelve a verse
+}
+local avisoActual: Aviso? = nil
+local colaAvisos: { { texto: string, segundos: number? } } = {}
+local VISIBLE = { TextTransparency = 0, TextStrokeTransparency = 0.4 }
+local OCULTO = { TextTransparency = 1, TextStrokeTransparency = 1 }
+
+local mostrarAviso: (texto: string, segundos: number?, entrada: number) -> ()
+
+local function siguienteAviso()
+	if avisoActual == nil and #colaAvisos > 0 then
+		local s = table.remove(colaAvisos, 1)
+		mostrarAviso(s.texto, s.segundos, 0.25) -- encadenado: entra algo más rápido
 	end
+end
+
+function mostrarAviso(texto: string, segundos: number?, entrada: number)
 	local tactil = Ui.tactil()
 	local t = Ui.texto(texto, {
+		Name = "Aviso",
 		AnchorPoint = Vector2.new(0.5, 1),
 		-- Encima del botón SALIR del escondite; en el móvil, más arriba aún: abajo están los botones del equipo.
 		Position = UDim2.fromScale(0.5, if tactil then 0.64 else 0.76),
@@ -310,16 +336,87 @@ function Ui.aviso(texto: string, segundos: number?)
 	})
 	Ui.queQuepa(t, 26) -- y si aun así no cabe (otros idiomas), la letra encoge
 	t.Parent = Ui.hud()
-	avisoActual = t
-	TweenService:Create(t, TweenInfo.new(0.4), { TextTransparency = 0, TextStrokeTransparency = 0.4 }):Play()
-	task.delay(segundos or 3.5, function()
-		if t.Parent then
-			local fuera = TweenService:Create(t, TweenInfo.new(1), { TextTransparency = 1, TextStrokeTransparency = 1 })
+	local ahora = os.clock()
+	local a: Aviso = {
+		texto = texto,
+		desde = ahora,
+		hasta = ahora + (segundos or DURACION_AVISO),
+		minimo = math.max(MINIMO_AVISO, segundos or 0),
+		saliendo = false,
+		revivir = false,
+	}
+	avisoActual = a
+	TweenService:Create(t, TweenInfo.new(entrada), VISIBLE):Play()
+	task.spawn(function()
+		while true do
+			-- A la vista hasta su hora, o hasta cumplir el mínimo si alguien espera.
+			while t.Parent do
+				local reloj = os.clock()
+				if reloj >= a.hasta or (#colaAvisos > 0 and reloj >= a.desde + a.minimo) then
+					break
+				end
+				task.wait(0.05)
+			end
+			-- Se funde: en 1 s si se va sola, en 0,2 s si hay otra esperando (también si llega mientras se funde).
+			a.saliendo = true
+			local rapido = #colaAvisos > 0
+			local fuera = TweenService:Create(t, TweenInfo.new(if rapido then 0.2 else 1), OCULTO)
 			fuera:Play()
-			fuera.Completed:Wait()
-			t:Destroy()
+			local fin = os.clock() + (if rapido then 0.2 else 1)
+			while t.Parent and os.clock() < fin and not a.revivir do
+				task.wait(0.03)
+				if not rapido and #colaAvisos > 0 then
+					rapido = true
+					fuera:Cancel()
+					fuera = TweenService:Create(t, TweenInfo.new(0.2), OCULTO)
+					fuera:Play()
+					fin = math.min(fin, os.clock() + 0.2)
+				end
+			end
+			a.saliendo = false
+			if not (a.revivir and t.Parent) then
+				break
+			end
+			-- Se repitió la frase mientras se iba: vuelve a verse entera y sigue contando.
+			a.revivir = false
+			fuera:Cancel()
+			TweenService:Create(t, TweenInfo.new(0.15), VISIBLE):Play()
 		end
+		t:Destroy()
+		if avisoActual == a then
+			avisoActual = nil
+		end
+		siguienteAviso()
 	end)
+end
+
+function Ui.aviso(texto: string, segundos: number?)
+	local a = avisoActual
+	if a and a.texto == texto then
+		-- La misma frase: no se rehace, solo dura más (y si se estaba yendo sin nadie detrás, vuelve).
+		a.hasta = math.max(a.hasta, os.clock() + (segundos or DURACION_AVISO))
+		if a.saliendo and #colaAvisos == 0 then
+			a.revivir = true
+		end
+		return
+	end
+	for _, s in colaAvisos do
+		if s.texto == texto then
+			-- Ya espera: no se repite, pero se queda con los segundos más largos que se pidan.
+			if segundos and segundos > (s.segundos or DURACION_AVISO) then
+				s.segundos = segundos
+			end
+			return
+		end
+	end
+	if a == nil then
+		mostrarAviso(texto, segundos, 0.4)
+		return
+	end
+	if #colaAvisos >= COLA_AVISOS then
+		table.remove(colaAvisos, 1)
+	end
+	table.insert(colaAvisos, { texto = texto, segundos = segundos })
 end
 
 return Ui
