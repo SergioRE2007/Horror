@@ -352,17 +352,22 @@ function Partida.start(): number
 	-- `op` solo cuando ya es nuestra: un cierre a media carga no debe escribir nada (borraría la partida).
 	cargandoPartida = true
 	local cargado, estado, guardado = pcall(Candado.cargar, opciones)
-	cargandoPartida = false
 	if not cargado then
 		warn("[Partida] " .. tostring(estado))
 		estado, guardado = "fallo", nil
 	end
 	if estado == "ok" and cerrando then
 		-- El servidor se cierra mientras la cogía: soltarla tal cual estaba (si no, la ranura quedaba cogida hasta
-		-- que el candado caducara, Config.Guardado.Caduca).
-		Candado.guardar(opciones, guardado, true, Config.Guardado.Intentos)
+		-- que el candado caducara, Config.Guardado.Caduca). `cargandoPartida` baja después, para que BindToClose
+		-- espere a este soltado (como Datos.cargar); con pcall, para que un error no lo deje esperando hasta el tope.
+		local soltado, motivo = pcall(Candado.guardar, opciones, guardado, true, Config.Guardado.Intentos)
+		if not soltado then
+			warn("[Partida] " .. tostring(motivo))
+		end
+		cargandoPartida = false
 		return 1
 	end
+	cargandoPartida = false
 	if estado ~= "ok" then
 		acabar(if estado == "ocupado" then "This game is open in another server. Try again later."
 			else "The game could not be loaded. Try again later.")
