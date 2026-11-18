@@ -95,6 +95,9 @@ local function crear(cf: CFrame): Caza.Bicho
 		Vista = T.Vista,
 		VioEsconderse = T.VioEsconderse,
 		Fuera = Config.Postura.FueraTrepador,
+		-- La escalera del vestíbulo no: a cuatro patas lleva la raíz casi a ras de suelo (HipHeight 0,7) y se queda
+		-- contra cada peldaño (subiría a empujones, uno cada 0,6 s), y las patas abiertas atraviesan la barandilla.
+		SubeEscalera = false,
 	})
 end
 
