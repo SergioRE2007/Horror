@@ -1441,6 +1441,70 @@ do
 	igual(PR.alcanceOido(oido, false, true, true), math.min(oido, Config.Postura.VerCubierto), "correr: cubierto manda")
 end
 
+do -- Linde del mundo (Mapa.linde): todo lo que se usa queda dentro de la pared, y la pared no llega al borde del suelo
+	-- PuebloPlano usa Vector3 (sus lados): se carga aquí con el de Lune antes de que Linde lo pida.
+	local ruta = "src/juego/servidor/PuebloPlano"
+	cargados[ruta] = cargados[ruta] or luau.load(fs.readFile(ruta .. ".luau"),
+		{ debugName = ruta, environment = { Vector3 = require("@lune/roblox").Vector3 } })()
+	local Linde = cargar("src/juego/servidor/Linde")
+	local Plano = cargados[ruta]
+	local function dentro(x: number, z: number, holgura: number, que: string)
+		igual(Linde.dentro(x, z) and Linde.distancia(x, z) >= holgura, true, `linde: {que} ({x}, {z}) dentro`)
+	end
+	-- La casa, el coche de la huida por la carretera hasta el pueblo, y los sitios de Lugares con su radio.
+	dentro(0, 0, 300, "la casa")
+	for z = -73, -530, -19 do
+		dentro(0, z, 40, "la carretera")
+	end
+	for nombre, zona in { Granja = { 205, 75, 55 }, Aserradero = { -232, -86, 45 }, Torre = { 90, 285, 70 } } do
+		for _, d in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 0.7, 0.7 }, { -0.7, -0.7 }, { 0.7, -0.7 }, { -0.7, 0.7 } } do
+			dentro(zona[1] + d[1] * zona[3], zona[2] + d[2] * zona[3], 25, nombre)
+		end
+	end
+	-- El pueblo con su cinturón de pinos (PuebloCalle.bosque: hasta 55 studs de los edificios).
+	local x1, x2, z1, z2 = Linde.pueblo()
+	for _, e in Plano.edificios do
+		dentro(e.x, e.z, 55, e.nombre)
+	end
+	for _, esquina in { { x1 - 55, z1 - 55 }, { x2 + 55, z1 - 55 }, { x1 - 55, z2 + 55 }, { x2 + 55, z2 + 55 } } do
+		dentro(esquina[1], esquina[2], 3, "el cinturón del pueblo")
+	end
+	-- Fuera: el llano pelado de antes y lo que hay más allá del pueblo.
+	for _, p in { { 470, 0 }, { -470, 0 }, { 0, 470 }, { 0, -640 }, { 160, -500 }, { -110, -500 } } do
+		igual(Linde.dentro(p[1], p[2]), false, `linde: ({p[1]}, {p[2]}) fuera`)
+	end
+	-- El contorno, cerrado y lejos del borde del suelo (±800) con su bosque de fuera (50 studs).
+	local tramos = Linde.tramos()
+	igual(#tramos >= 30 and tramos[#tramos].b == tramos[1].a, true, "linde: contorno cerrado con bastantes lados")
+	for _, t in tramos do
+		local largo = math.sqrt((t.b.x - t.a.x) ^ 2 + (t.b.z - t.a.z) ^ 2)
+		igual(largo > 1 and largo < 250 and math.abs(t.a.x) < 740 and math.abs(t.a.z) < 740, true, "linde: tramo razonable")
+	end
+	-- Los árboles de la linde: por dentro, pegados a la pared, sin pisar el pueblo ni la carretera; por fuera, fuera.
+	local semilla = 7
+	local azar = {
+		NextNumber = function(_, a: number, b: number)
+			semilla = (semilla * 1103515245 + 12345) % 2147483648
+			return a + (b - a) * semilla / 2147483648
+		end,
+	}
+	local de, fu = Linde.sitios(azar, 17, 5, 4, 52, true), Linde.sitios(azar, 21, 6, 6, 50, false)
+	igual(#de > 250 and #de < 600 and #fu > 150 and #fu < 600, true, `linde: cuántos árboles ({#de} dentro, {#fu} fuera)`)
+	local mal = 0
+	for _, s in de do
+		local d = Linde.distancia(s.x, s.z)
+		if not Linde.dentro(s.x, s.z) or d < 4 or d > 52 or Linde.carretera(s.x, s.z) or Linde.enPueblo(s.x, s.z, 55) then
+			mal += 1
+		end
+	end
+	for _, s in fu do
+		if Linde.dentro(s.x, s.z) or Linde.distancia(s.x, s.z) < 6 then
+			mal += 1
+		end
+	end
+	igual(mal, 0, "linde: árboles en su franja")
+end
+
 -- Bancos (tests/bancos, 14.8): módulos del cliente con un Roblox de mentira (tests/bancos/_roblox.luau) y cuentas,
 -- cada uno en su propio proceso de Lune (no se pisan lo que tocan), todos a la vez (process.exec cede): el del gateo
 -- (~30 s, sus cinco bichos a la vez) marca el paso. Los que empiezan por "_" son ayudas, no bancos.

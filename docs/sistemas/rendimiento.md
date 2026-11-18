@@ -11,6 +11,7 @@
 | **Total** | **12.293** | **3.064** (475 mallas distintas) |
 
 - Pinos: 515 en total (231 del bosque y 284 alrededor del pueblo), 3 piezas cada uno (tronco invisible que choca, corteza y ramas).
+- Linde del mundo (después de medir esto): ~400 pinos más (3 piezas) y ~350 troncos de fuera de una pieza, sin choque ni sombra (`bosque.md`).
 - Luces: 55 (25 con sombras, casi todas en la casa y apagadas hasta el generador). Partículas en el mapa: 0.
 - Texturas: 940 SurfaceAppearance (804 en la casa) con 245 texturas de color distintas, y 50 MaterialVariant. Es lo que más
   memoria gasta en un móvil.

@@ -18,6 +18,14 @@ Con bloques grises y animaciones sencillas pero que se noten (pedido por el usua
 - `Movil` (pedido por el usuario): el móvil es un objeto de la mochila (se empieza con uno). Mirarlo gasta batería (150 s la carga entera); se puede mirar escondido, no con las manos ocupadas. Atributos del jugador: `MovilAbierto`, `Bateria` (nil = no lleva) y `Donde` (x, z de cada jugador, para el mapa de los demás: de lejos su personaje puede no llegar al cliente).
 - Modo de pruebas nuevo: `ServerStorage.Prueba:Fire("Romper", punto)` rompe la ventana o puerta de fuera más cerca.
 
+## Linde del mundo (noviembre de 2026)
+
+Antes el bosque acababa a ~420 de la casa y luego había llanura hasta el borde del suelo (±800): corriendo recto se caía al vacío y, sin reaparecer solo, se quedaba muerto hasta el amanecer. Números a ojo.
+
+- `Linde` (sin Roblox, probado con Lune): contorno de 44 lados, círculo de 455 alrededor de la casa que en el sur se abre y rodea el pueblo (edificios, cementerio y calle) a 62 studs, más allá de su cinturón de pinos (55). Granja, aserradero, torre, carretera y el coche de la huida quedan dentro.
+- `Mapa.linde` (carpeta `Bosque.Linde`, con su propio `Random`: no mueve pinos ni talables guardados): ~400 pinos espesos de 4 a 52 studs por dentro de la pared (sin pisar los del bosque, la carretera ni el pueblo), paredes invisibles de 40 de alto y, por fuera, ~350 troncos altos sin choque (una pieza cada uno, sin sombra) para que desde la pared solo se vea bosque y niebla.
+- Grupo de colisión `Linde`: no choca con `Default` (los bichos la cruzan: el Acechador que nace a la espalda llega igual), sí con `Personajes` y `Cargado`. Agachado la para la raíz, que sigue en `Personajes` (el resto del cuerpo, en `Agachado`, no choca con nada, como siempre). Las paredes llevan `PathfindingModifier` con `PassThrough` y no tienen `CanQuery` (no tapan rayos ni vistas). Lo que se tira (`Default`) sí la cruza.
+
 ## Cliente (`src/juego/cliente`)
 
 - `TrabajoVista`: herramientas de bloques delante de la cámara (las tuyas) o del pecho (las de los demás). Hachazo con astillas, temblor del árbol y un corte de madera clara que se ahonda; golpe contra el suelo y astillas al partirse. Sierra que va y viene con serrín. Martillo con un clavo nuevo en cada golpe; el tablón se funde al final. Chorro de gasolina. Generador: la cuerda sale y vuelve con cada tirón; encendido tiembla, echa humo y suena; indicador de gasolina en el frente (rojo con poca).
