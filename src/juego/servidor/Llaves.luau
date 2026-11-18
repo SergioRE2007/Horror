@@ -1,7 +1,7 @@
 -- Llaves de las salas cerradas (pedido por el usuario): sótano, garaje, desván y habitación del rico (Config.Llaves).
 -- Cada llave sale, con la semilla de la partida, en uno de los sitios de su zona (Mapa.llaves, los pone Lugares), con
 -- un brillo flojo (Mochila.dejar). Con ella en la mochila, la puerta de su sala se abre y la llave se gasta (Casa).
--- Si mueres con una llave, se cae donde mueres.
+-- Si mueres con una llave, se cae donde mueres (si estabas escondido, a la salida del escondite).
 -- Se guarda todo con la partida (Partida): la sala abierta (Casa, "bloqueada") y la llave, suelta o en una mochila.
 -- Partida llama a repasar al empezar, al cargar y al amanecer: la llave de una sala aún cerrada que ya no está en
 -- ningún sitio (se cayó del mapa, o la llevaba en su mochila guardada alguien que no ha venido) vuelve a su sitio.
@@ -64,12 +64,15 @@ local function soltarAlMorir(jugador: Player)
 	if not raiz then
 		return
 	end
+	-- Si muere escondido, a la puerta del armario o al lado de la cama: dentro no las cogía nadie.
+	local alrededor = Mochila.fueraDeEscondite(raiz.Position)
 	local i = 0
 	for _, l in Config.Llaves do
 		while Mochila.sacar(jugador, l.Llave) do
 			i += 1
 			local angulo = i * 2.4
-			Mochila.dejar(l.Llave, nil, CFrame.new(raiz.Position + Vector3.new(math.cos(angulo) * 1.5, 0.5, math.sin(angulo) * 1.5)))
+			local punto = alrededor + Vector3.new(math.cos(angulo) * 1.5, 0.5, math.sin(angulo) * 1.5)
+			Mochila.dejar(l.Llave, nil, CFrame.new(Mochila.sitioLibre(alrededor, punto)))
 		end
 	end
 end

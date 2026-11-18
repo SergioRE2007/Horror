@@ -1276,6 +1276,24 @@ do -- Caza.borde: por dónde se mete el bicho debajo de un mueble (sacada del te
 	igual(c3, V3.new(0, 0, 3), "debajo: la cara, en la boca del hueco")
 end
 
+do -- Mochila.dentroDeCaja: lo que cae dentro de un armario o cama sale a su Salida (sacada del texto: Mochila necesita Roblox)
+	local roblox = require("@lune/roblox")
+	local V3, CF = roblox.Vector3, roblox.CFrame
+	local fuente = fs.readFile("src/juego/servidor/Mochila.luau")
+	local i = string.find(fuente, "function Mochila.dentroDeCaja(", 1, true)
+	local _, f = string.find(fuente, "\r?\nend\r?\n", i)
+	local dentro = luau.load("local Mochila = {}\n" .. string.sub(fuente, i, f) .. "\nreturn Mochila.dentroDeCaja",
+		{ debugName = "Mochila.dentroDeCaja", environment = { math = math } })()
+	-- Un armario de 4,6 × 8 × 3 girado 90°: lo ancho va a lo largo de Z.
+	local armario = CF.new(10, 4, -5) * CF.Angles(0, math.pi / 2, 0)
+	local tam = V3.new(4.6, 8, 3)
+	igual(dentro(armario, tam, V3.new(10, 3, -5), 0.5), true, "escondite: el centro del armario, dentro")
+	igual(dentro(armario, tam, V3.new(10, 3, -7.1), 0.5), true, "escondite: a lo ancho girado, dentro")
+	igual(dentro(armario, tam, V3.new(12.2, 3, -5), 0.5), false, "escondite: a 2,2 del centro por lo estrecho, fuera")
+	igual(dentro(armario, tam, V3.new(11.9, 3, -5), 0.5), true, "escondite: casi en la puerta cuenta con el margen")
+	igual(dentro(armario, tam, V3.new(10, 9, -5), 0.5), false, "escondite: encima del armario, fuera")
+end
+
 do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y workspace:Raycast no los ve)
 	local roblox = require("@lune/roblox")
 	local V3, CF = roblox.Vector3, roblox.CFrame
