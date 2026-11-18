@@ -6,7 +6,8 @@
 --     salasCerca: las más cerca de su misma planta, en orden, sin la que ya está y sin pasar de n;
 --     otraSala: la ronda al azar nunca repite la sala de la que viene; mirada: de frente, a un lado y a otro.
 --     cruzaPuerta: solo abre la puerta cuya hoja cruza (de frente sí; de lado, por delante o por detrás no; el tramo
---     corto se alarga a Puerta.Tramo); ojos: la cabeza, o 0,2 studs antes de la pared si se le mete en ella.
+--     corto se alarga y el largo se recorta a Puerta.Tramo); ojos: la cabeza, o 0,2 studs antes de la pared si se le
+--     mete en ella.
 --   En el texto: la Bestia, el Acechador y Caza.cazar pillan con Caza.alcanza (rayo), no solo por distancia, y la ronda
 --   elige con otraSala; Caza abre solo la puerta que cruza, nunca una de fuera desde fuera (la Bestia la revienta) y
 --   ve y oye desde ojosDe.
@@ -143,6 +144,11 @@ comprueba(not cruza(V3.new(-4, 3, 3), V3.new(-4, 0, -3)), "cruzaPuerta: por la p
 comprueba(cruza(V3.new(2 + P.Margen / 2, 3, -3), V3.new(2 + P.Margen / 2, 0, 3)), "cruzaPuerta: rozando el marco, con el margen, sí")
 comprueba(not cruza(V3.new(1, 3, -2), V3.new(1, 0, -2)), "cruzaPuerta: parado, no")
 comprueba(not cruza(V3.new(-3, 3, 0), V3.new(3, 0, 0)), "cruzaPuerta: por el plano de la hoja, a lo largo, no")
+comprueba(cruza(V3.new(0, 3, -30), V3.new(0, 0, 30)), "cruzaPuerta: recta larga sin máximo, la cuenta")
+comprueba(not CB.cruzaPuerta(V3.new(0, 3, -30), V3.new(0, 0, 30), V3.new(0, 4, 0), V3.new(0, 0, 1), 4, P.Margen, P.Tramo,
+	P.Tramo), "cruzaPuerta: recta larga, puerta lejos: no")
+comprueba(CB.cruzaPuerta(V3.new(0, 3, -3), V3.new(0, 0, 30), V3.new(0, 4, 0), V3.new(0, 0, 1), 4, P.Margen, P.Tramo,
+	P.Tramo), "cruzaPuerta: recta larga, puerta delante: sí")
 -- Una hoja girada (normal en diagonal) lejos del origen.
 local nd = V3.new(1, 0, 1).Unit
 local cd = V3.new(10, 4, 10)
@@ -182,6 +188,8 @@ comprueba(string.find(caza, "abrirPuertasCerca(self, destino)", 1, true), "Caza.
 comprueba(string.find(caza, "abrirPuertasCerca(self, ruta.puntos[ruta.i])", 1, true), "Caza.pasoHacia: con el punto del camino")
 comprueba(string.find(caza, "abrirPuertasCerca(self, punto)", 1, true), "Caza.ir: con el punto de la escalera")
 comprueba(string.find(caza, "CazaBusqueda.cruzaPuerta(", 1, true), "Caza: abre con cruzaPuerta")
+comprueba(string.find(caza, "hacia = raiz + plano(hacia - raiz).Unit * PUERTA.Tramo", 1, true)
+	and string.find(caza, "local largo = if hacia then PUERTA.Tramo else 0", 1, true), "Caza: recorta el tramo a Puerta.Tramo")
 comprueba(string.find(caza, "Atacable", 1, true) and string.find(caza, "not Caza.dentroDeCasa(raiz)", 1, true),
 	"Caza: las de fuera, nunca desde fuera")
 comprueba(string.find(caza, "local ojos = ojosDe(self)", 1, true), "Caza.elegirPresa: mira desde ojosDe")

@@ -91,9 +91,11 @@ end
 
 -- ¿Cruza la hoja de una puerta quien va de `desde` hacia `hacia`? Todo en planta. La hoja: su centro, su normal (a
 -- cualquiera de los dos lados) y su ancho, con `margen` de más a cada lado. El tramo se alarga hasta `minimo` studs en
--- la misma dirección: el siguiente punto del camino puede quedar justo antes de la hoja. Parado (sin tramo), no.
+-- la misma dirección: el siguiente punto del camino puede quedar justo antes de la hoja. Con `maximo`, se recorta a
+-- esos studs: andando en recta hacia un punto lejano (sin camino) solo cuenta la hoja que tiene delante, no una que
+-- quede a 30 studs en esa recta. Parado (sin tramo), no.
 function CazaBusqueda.cruzaPuerta(desde: Vector3, hacia: Vector3, centro: Vector3, normal: Vector3, ancho: number,
-	margen: number, minimo: number): boolean
+	margen: number, minimo: number, maximo: number?): boolean
 	local n = plano(normal)
 	local tramo = plano(hacia - desde)
 	local largo = tramo.Magnitude
@@ -103,6 +105,8 @@ function CazaBusqueda.cruzaPuerta(desde: Vector3, hacia: Vector3, centro: Vector
 	n = n.Unit
 	if largo < minimo then
 		tramo = tramo.Unit * minimo
+	elseif maximo and largo > maximo then
+		tramo = tramo.Unit * maximo
 	end
 	local a = plano(desde - centro)
 	local sa, sb = a:Dot(n), (a + tramo):Dot(n)

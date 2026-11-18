@@ -19,7 +19,7 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   guardada y congelada (`puertasSinLlave`): cada vez que una puerta deja de estar bloqueada (con llave, al importar o
   con el modo de pruebas "Abrir") hay que vaciarla (`puertasSinLlave = nil`).
   Puertas que abre: antes de cada `MoveTo` (`pasoHacia` y `Caza.ir`), solo la cerrada cuya hoja cruza el tramo de la
-  raíz a ese punto, alargado a `Config.Caza.Puerta.Tramo` (6) y con `Margen` (0,5) a cada lado del `Ancho`
+  raíz a ese punto, alargado o recortado a `Config.Caza.Puerta.Tramo` (6; sin el recorte, andando en recta sin camino abría puertas lejanas) y con `Margen` (0,5) a cada lado del `Ancho`
   (`CazaBusqueda.cruzaPuerta`, números a ojo). Antes abría todas las de menos de 5,5 studs: encerrarse no servía y
   rondando el vestíbulo abría la de la calle. Las de fuera (`Atacable`, la principal) nunca desde fuera: solo las
   rompen los ataques, y la Bestia (`Opciones.RompePuertas` = `reventar`: dos golpes y `Casa.romper`, como al llegar)

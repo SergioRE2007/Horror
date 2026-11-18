@@ -468,14 +468,19 @@ function Caza.mirarA(self: Bicho, punto: Vector3)
 end
 
 -- Abre de un golpe las puertas cerradas que va a cruzar. Con `hacia` (el punto al que anda en este paso), solo las que
--- cruza el tramo de la raíz a ese punto, alargado a PUERTA.Tramo (CazaBusqueda.cruzaPuerta): antes abría todas las de
--- menos de 5,5 studs, y encerrarse en un cuarto no servía y rondando el vestíbulo abría la de la calle. Sin `hacia`
+-- cruza el tramo de la raíz a ese punto, alargado o recortado a PUERTA.Tramo (CazaBusqueda.cruzaPuerta): antes abría
+-- todas las de menos de 5,5 studs, y encerrarse en un cuarto no servía y rondando el vestíbulo abría la de la calle. Sin `hacia`
 -- (b:abrirPuertas() de la Bestia en la escalera del sótano), todas las de cerca, como siempre. Las que dan fuera
 -- (Atacable) nunca desde fuera: esas solo las rompen los ataques, o quien tenga Opciones.RompePuertas si las cruza.
+-- El recorte importa sin camino (MoveTo en recta hacia el destino, p. ej. el Trepador tras alguien de arriba): sin él
+-- abría de golpe todas las puertas cerradas de esa recta, aunque estuvieran a 30 studs.
 local PUERTA = Config.Caza.Puerta
 local function abrirPuertasCerca(self: Bicho, hacia: Vector3?)
 	local raiz = self.raiz.Position
-	local largo = if hacia then math.max(PUERTA.Tramo, plano(hacia - raiz).Magnitude) else 0
+	if hacia and plano(hacia - raiz).Magnitude > PUERTA.Tramo then
+		hacia = raiz + plano(hacia - raiz).Unit * PUERTA.Tramo
+	end
+	local largo = if hacia then PUERTA.Tramo else 0
 	local fuera: boolean? = nil -- si está fuera de la casa: solo se mira si hace falta
 	for _, puerta in Casa.puertas() do
 		local hoja = puerta:FindFirstChild("Hoja") :: BasePart
@@ -489,7 +494,8 @@ local function abrirPuertasCerca(self: Bicho, hacia: Vector3?)
 			local normal = if tam.X < tam.Z then hoja.CFrame.RightVector else hoja.CFrame.LookVector
 			local ancho = (puerta:GetAttribute("Ancho") or math.max(tam.X, tam.Z)) :: number
 			if plano(d).Magnitude > largo + ancho / 2 + PUERTA.Margen
-				or not CazaBusqueda.cruzaPuerta(raiz, hacia, hoja.Position, normal, ancho, PUERTA.Margen, PUERTA.Tramo)
+				or not CazaBusqueda.cruzaPuerta(raiz, hacia, hoja.Position, normal, ancho, PUERTA.Margen, PUERTA.Tramo,
+					PUERTA.Tramo)
 			then
 				continue
 			end
