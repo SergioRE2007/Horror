@@ -48,6 +48,17 @@ Propuesta de Claude hecha sin poder ver el juego (sesión en la nube, 03-11-2026
 El tutorial solo cubre la partida. Lo del lobby (llegar al coche, y tras la primera partida la tienda con su primera clase
 gratis) lo hace una guía aparte, con su flecha y una línea: ver `lobby.md`.
 
+## Teclas del equipo la primera vez
+
+Propuesta de Claude (sesión en la nube, 18-11-2026), **pendiente de probar en Studio**. Va aparte del tutorial (sale a todos, lo hayan hecho o no): `juego/cliente/PistasControles`, solo cliente.
+
+- Un aviso de una línea (`Ui.aviso`) con la tecla según el dispositivo (teclado, mando o táctil, como `TutorialVista.frase`; en el móvil, el nombre del botón):
+  - Linterna (F / L1 / LINTERNA): al ponerse el sol o ya de noche, `TrasSol` s después para no pisar el aviso del sol; si la lleva (pila o pilas) y está apagada.
+  - Flash (clic / R2 / FLASH): la primera noche desde `Config.Raspador.Noche`, si tiene fotos.
+  - Pistola de bengalas (Q / R1 / BENGALA): al pasar de no tenerla a tenerla.
+- Cada uno, una vez por sesión como mucho y solo si aún no ha usado esa cosa (encender la linterna, hacer una foto, pulsar Q/R1 o sacarla). Nunca muerto, escondido, en una cinemática o con el HUD apagado: espera a que vuelva. Entre dos, `Entre` s. Números a ojo en `Config.Tutorial.PistaControles`.
+- La decisión (`PistasControles.decidir`) se prueba con Lune en `tests/bancos/pistas-controles.luau`.
+
 ## Por decidir con Sergio
 
 - Si le convence el orden y las frases; si quiere un paso de clavar tablones (ahora no: al empezar no hay nada roto que reparar) o de la linterna.

@@ -81,3 +81,4 @@ arrancar(Sistemas.AmbienteMiedo)
 arrancar(Sistemas.ClaseVista)
 arrancar(Sistemas.RevivirUi)
 arrancar(Sistemas.TutorialVista) -- los primeros minutos (14.2)
+arrancar(Sistemas.PistasControles) -- la tecla de la linterna, el flash y la pistola, la primera vez
