@@ -677,6 +677,14 @@ do
 	igual(select(2, Reparto.reponer(quitadasA, "Cerillas", true, 0)), true, "con la pista leída y sin otras, sí")
 	igual(select(2, Reparto.reponer({}, "Cerillas", true, 1)), false, "con otras sueltas o en una mochila, no")
 	igual(select(2, Reparto.reponer({}, "Cerillas", true, 0)), true, "perdidas (caídas del mapa) con la pista leída, sí")
+	-- Bengalas gastadas: tras la noche de la Bestia vuelven las que falten; un día normal, solo si no queda ninguna.
+	local BB = Config.Bestia.Bengalas
+	igual(Reparto.bengalas(0, BB, true), BB, "noche final fallida sin bengalas: vuelven todas")
+	igual(Reparto.bengalas(1, BB, true), BB - 1, "noche final fallida con 1: vuelven las que faltan")
+	igual(Reparto.bengalas(BB, BB, true), 0, "noche final con todas: no vuelve ninguna")
+	igual(Reparto.bengalas(BB + 2, BB, true), 0, "con de más (modo de pruebas): nunca negativo")
+	igual(Reparto.bengalas(0, BB, false), BB, "día normal sin ninguna en la partida: vuelven todas")
+	igual(Reparto.bengalas(2, BB, false), 0, "día normal con 2: no vuelven")
 	-- Sin esUnica (como antes) no se quita nada más que las llaves.
 	local guardadasV = { ["9"] = { cosas = { { tipo = "Pistola" }, { tipo = "LlaveSotano" } } } }
 	local _, quitadasV = Reparto.faltan({}, {}, guardadasV, {}, esLlave)
