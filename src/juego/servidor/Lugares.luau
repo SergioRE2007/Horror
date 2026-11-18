@@ -120,16 +120,30 @@ local function edificio(nombre: string, cx: number, cz: number, ancho: number, l
 	return modelo
 end
 
--- Granja (llave del sótano): casa, granero con paja y el campo.
+-- Sangre seca y arañazos para lo que cuentan los escondites (las imágenes de la casa; Moderate como máximo).
+local SECA = Color3.fromRGB(135, 95, 90)
+local GOTAS = "rbxassetid://100856467107255"
+
+-- Granja (llave del sótano): casa, granero con paja y el campo. Un escondite en cada uno (fuera de la casa, al
+-- anochecer solo se corre o se esconde: Acechador).
 local function granja()
-	edificio("CasaGranja", 196, 52, 16, 12, 10, "O", false)
+	local cocina = edificio("CasaGranja", 196, 52, 16, 12, 10, "O", false)
 	bloque("Mesa", Vector3.new(5, 3, 3), CFrame.new(197, 2.5, 52), COLOR.Mueble)
 	bloque("Encimera", Vector3.new(2, 3.5, 8), CFrame.new(202.5, 2.75, 52), COLOR.Mueble)
 	objeto("Lata", Vector3.new(202.5, 4.7, 49.5))
 	objeto("Lata", Vector3.new(202.5, 4.7, 54))
 	llave("Granja", Vector3.new(197.5, 4.2, 52))
+	-- El armario de la cocina, contra la pared norte en el rincón de la puerta (ni tapa la puerta ni la mesa de la
+	-- pista). Lo que pasó: a alguien lo sacaron de él a rastras hacia la puerta (arañazos de uñas por el suelo, que
+	-- acaban en el umbral) y dejó unas gotas delante.
+	Mapa.conPadre(cocina, function()
+		Mapa.armario(Vector3.new(192.6, 5, 48.05), Vector3.zAxis)
+		Mapa.mancha(Vector3.new(190.6, 1.06, 51.3), Vector3.yAxis, 2.6, Mapa.MARCAS.Aranazos, Color3.fromRGB(130, 80, 75), 0.12, 4.4)
+		Mapa.mancha(Vector3.new(192.9, 1.07, 50.5), Vector3.yAxis, 1.5, GOTAS, SECA, 0.6)
+		Mapa.mancha(Vector3.new(188.9, 1.08, 52.4), Vector3.yAxis, 1.1, GOTAS, SECA, 2.1)
+	end)
 
-	edificio("Granero", 228, 80, 20, 24, 14, "O", false)
+	local granero = edificio("Granero", 228, 80, 20, 24, 14, "O", false)
 	bloque("Paja", Vector3.new(4, 3, 6), CFrame.new(232, 2.5, 88), Color3.fromRGB(120, 108, 72), Enum.Material.Fabric)
 	bloque("Paja", Vector3.new(4, 3, 6), CFrame.new(235, 2.5, 74), Color3.fromRGB(120, 108, 72), Enum.Material.Fabric)
 	bloque("Paja", Vector3.new(4, 3, 4), CFrame.new(235, 5.5, 74), Color3.fromRGB(120, 108, 72), Enum.Material.Fabric)
@@ -140,6 +154,33 @@ local function granja()
 	pesado("Bidon", CFrame.new(220, 2.2, 89))
 	llave("Granja", Vector3.new(232, 4.2, 88))
 	llave("Granja", Vector3.new(224.5, 4.7, 90.5))
+	-- El armario de los aperos, contra la pared norte (lejos de la puerta, la paja y el banco): algo arañó el costado
+	-- queriendo abrirlo y quien estaba dentro sangró (gotas secas delante); la horca, apoyada al lado, con la punta
+	-- oscura.
+	Mapa.conPadre(granero, function()
+		local aperos = CFrame.lookAt(Vector3.new(227, 5, 70.05), Vector3.new(227, 5, 75))
+		Mapa.armario(aperos.Position, aperos.LookVector, "Aperos")
+		Mapa.mancha((aperos * CFrame.new(2.33, 0.6, -0.4)).Position, aperos.RightVector, 1.6, Mapa.MARCAS.Aranazos,
+			Color3.fromRGB(120, 76, 70), 0.15, 2.6)
+		Mapa.mancha(Vector3.new(227.4, 1.07, 73.2), Vector3.yAxis, 1.7, GOTAS, SECA, 1.3)
+		Mapa.mancha(Vector3.new(226.1, 1.08, 74.6), Vector3.yAxis, 0.9, GOTAS, SECA, 0.2)
+		-- La horca (no choca), de pie contra la pared a la izquierda del armario, un poco inclinada.
+		local horca = CFrame.new(223.6, 3.6, 69.1) * CFrame.Angles(math.rad(-6), 0, math.rad(8))
+		local madera, hierro = Color3.fromRGB(78, 64, 50), Color3.fromRGB(52, 48, 44)
+		for _, p in {
+			bloque("Horca", Vector3.new(0.18, 5.2, 0.18), horca, madera, Enum.Material.Wood, granero),
+			bloque("Horca", Vector3.new(0.9, 0.12, 0.12), horca * CFrame.new(0, 2.65, 0), hierro, Enum.Material.CorrodedMetal, granero),
+			bloque("Horca", Vector3.new(0.08, 1.1, 0.08), horca * CFrame.new(-0.4, 3.25, 0), hierro, Enum.Material.CorrodedMetal, granero),
+			bloque("Horca", Vector3.new(0.08, 1.1, 0.08), horca * CFrame.new(0, 3.25, 0), hierro, Enum.Material.CorrodedMetal, granero),
+			bloque("Horca", Vector3.new(0.08, 1.1, 0.08), horca * CFrame.new(0.4, 3.25, 0), hierro, Enum.Material.CorrodedMetal, granero),
+			bloque("Horca", Vector3.new(0.1, 0.5, 0.1), horca * CFrame.new(0, 3.55, 0), Color3.fromRGB(70, 14, 12), Enum.Material.SmoothPlastic,
+				granero), -- la sangre seca de la punta del medio
+		} do
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+		end
+	end)
 
 	CollectionService:AddTag(bloque("Campo", Vector3.new(36, 0.2, 26), CFrame.new(197, 0.1, 104), COLOR.Tierra, Enum.Material.Ground), "EnMapa")
 	for i = 0, 7 do
