@@ -20,6 +20,9 @@
 --   en medio), cambia de sala y no hace caso a los ruidos un rato (como la `parada` de la Bestia).
 --   Persigue: mientras caza, el atributo Persigue del modelo lleva el UserId de su presa (nil sin presa) para el
 --   cliente (PavorVista: el latido; AmbienteMiedo: la tensión). El Imitador mientras finge, nunca.
+--   Pillar solo sin nada en medio (Caza.alcanza; también la Bestia y el Acechador): ni a través de una pared ni de una
+--   puerta cerrada. Al perderte de vista te busca (CazaBusqueda): sigue hacia donde iba, mira a un lado y a otro y
+--   recorre las salas de al lado antes de volver a la ronda (que no repite la sala en la que acaba de estar).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
@@ -28,6 +31,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local PosturaReglas = require(ReplicatedStorage.Shared.PosturaReglas)
 local Casa = require(script.Parent.Casa)
+local CazaBusqueda = require(script.Parent.CazaBusqueda)
 local Mapa = require(script.Parent.Mapa)
 local Muerte = require(script.Parent.Muerte)
 local Ruidos = require(script.Parent.Ruidos)
@@ -86,6 +90,7 @@ export type Bicho = typeof(setmetatable({} :: {
 	oido: number, -- el número del último ruido al que fue a mirar (Ruidos)
 	parado: Parado?, -- desde dónde y cuándo no avanza hacia donde va sin presa (nil: no se está mirando)
 	sordoHasta: number, -- os.clock hasta el que no hace caso a los ruidos (tras atascarse)
+	rastro: CazaBusqueda.Rastro?, -- dónde vio por última vez a quien persigue y hacia dónde iba (para buscarle)
 }, Caza))
 
 -- Yendo sin presa a `destino` (una sala o un ruido): dónde estaba (`punto`) y lo más cerca que estaba (`mejor`) a la
@@ -374,6 +379,7 @@ function Caza.nuevo(modelo: Model, humanoide: Humanoid, o: Opciones): Bicho
 		oido = 0,
 		parado = nil,
 		sordoHasta = -math.huge,
+		rastro = nil,
 	}, Caza)
 	vivos[b] = true
 	return b
@@ -503,6 +509,29 @@ function Caza.pasoHacia(self: Bicho, destino: Vector3)
 		rutas[camino] = nil -- acabado: el próximo paso calcula otro
 	end
 	self.humanoide:MoveTo(destino)
+end
+
+-- ¿Pilla a `presa` desde aquí? Su cabeza o su raíz a menos de `distancia` de la raíz del bicho y sin nada en medio:
+-- si no, pillaba a través de las paredes (de 1 stud) a quien oye al otro lado o tras una puerta cerrada. El rayo sale
+-- de la raíz y no de la cabeza, que va por delante y se mete en la pared cuando la tiene de frente (un rayo que nace
+-- dentro de una pieza no la ve). Las hojas de las puertas abiertas no tapan (CanQuery, Casa.publicar). Basta con que
+-- no haya nada en medio para la vista (libre) o nada que choque (despejado): las paredes y las puertas cerradas tapan
+-- las dos cosas, pero lo que no choca (hierba, adornos sueltos) no salva a nadie.
+local function aLaVista(desde: Vector3, parte: BasePart?, ignorar: { Instance }): boolean
+	return parte ~= nil and (libre(desde, parte.Position, ignorar) or despejado(desde, parte.Position, ignorar))
+end
+
+function Caza.alcanza(self: Bicho, presa: Player, distancia: number): boolean
+	local suCabeza = cabezaDe(presa)
+	local suRaiz = raizDe(presa)
+	local desde = self.raiz.Position
+	local cabezaCerca = suCabeza ~= nil and (suCabeza.Position - desde).Magnitude < distancia
+	local raizCerca = suRaiz ~= nil and (suRaiz.Position - desde).Magnitude < distancia
+	if not (cabezaCerca or raizCerca) then
+		return false
+	end
+	local ignorar = sinBichos(presa.Character)
+	return aLaVista(desde, suCabeza, ignorar) or aLaVista(desde, suRaiz, ignorar)
 end
 
 function Caza.cerca(self: Bicho, destino: Vector3, distancia: number): boolean
@@ -802,19 +831,6 @@ function Caza.aPorDebajo(self: Bicho, presa: Player, bajo: Debajo, paso: ((Bicho
 	return nil
 end
 
--- Una sala de ronda al azar que no sea `ahora` (si hay más de una).
-local function otraSala(ahora: Vector3?): Vector3
-	local salas = Mapa.salas
-	if not ahora or #salas < 2 then
-		return salas[azar:NextInteger(1, #salas)]
-	end
-	local i = azar:NextInteger(1, #salas - 1)
-	if salas[i] == ahora then
-		i = #salas -- así sale cada una de las otras igual de a menudo
-	end
-	return salas[i]
-end
-
 -- Yendo sin presa a `destino`: true si en PARADA s no se ha acercado más de 1 stud ni se ha movido de donde estaba (y
 -- ahora va parado): no tiene camino o algo le tapa y empujaba la pared. Un destino nuevo, acercarse o moverse empiezan
 -- la cuenta otra vez.
@@ -834,12 +850,105 @@ local function atascado(self: Bicho, destino: Vector3): boolean
 	return true
 end
 
+-- Búsqueda al perder de vista a quien perseguía (CazaBusqueda, Config.Caza.Busca, a ojo). Antes, al llegar a donde le
+-- vio sin verle, elegía una sala al azar de toda la casa: bastaba doblar una esquina para que se fuera a la otra punta.
+local BUSCA = Config.Caza.Busca
+
+-- Un punto de la búsqueda: a dónde va y, si al llegar se para a mirar a un lado y a otro, hacia dónde (de frente).
+type PuntoBusca = { punto: Vector3, mirar: Vector3? }
+type Busca = {
+	puntos: { PuntoBusca },
+	i: number, -- el punto al que va
+	desde: number, -- os.clock desde el que va a ese punto (Busca.Limite)
+	mirando: number?, -- os.clock desde el que está parado mirando
+}
+
+-- Mientras le ve: dónde y hacia dónde iba el bicho (si va parado, lo de antes).
+local function apuntarRastro(self: Bicho, punto: Vector3)
+	local antes = self.rastro
+	local dir = CazaBusqueda.rumbo(self.raiz.AssemblyLinearVelocity, BUSCA.Rumbo)
+	self.rastro = { punto = punto, dir = dir or (antes and antes.dir), hora = os.clock() }
+end
+
+-- Al llegar a `llegada` (donde le vio por última vez) sin verle: si el rastro es reciente, sigue hacia donde iba (y si
+-- hay pared, se para Busca.Margen antes: no empuja la pared), mira a un lado y a otro, y luego las Busca.Salas salas
+-- de al lado de esa planta. nil: rastro viejo (vuelve a la ronda).
+local function planBusca(self: Bicho, llegada: Vector3): Busca?
+	local rastro = self.rastro
+	self.rastro = nil
+	if not rastro or not CazaBusqueda.vigente(rastro, os.clock(), BUSCA.Memoria) then
+		return nil
+	end
+	local puntos: { PuntoBusca } = {}
+	local base = llegada
+	local dir = rastro.dir
+	if dir then
+		filtroChoque.FilterDescendantsInstances = sinPersonajes()
+		local golpe = workspace:Raycast(self.raiz.Position, dir * BUSCA.Adelante, filtroChoque)
+		-- Desde donde está él (el rayo sale de ahí), no desde `llegada`: si se quedó algo antes, se metería en la pared.
+		local avance = CazaBusqueda.avance(BUSCA.Adelante, if golpe then golpe.Distance else nil, BUSCA.Margen)
+		base = self:suelo() + dir * avance
+		table.insert(puntos, { punto = base, mirar = dir })
+	else
+		table.insert(puntos, { punto = llegada, mirar = plano(self.raiz.CFrame.LookVector) })
+	end
+	for _, sala in CazaBusqueda.salasCerca(Mapa.salas, base, BUSCA.Salas, BUSCA.Planta, 4) do
+		table.insert(puntos, { punto = sala })
+	end
+	return { puntos = puntos, i = 1, desde = os.clock(), mirando = nil }
+end
+
+-- Un paso de la búsqueda. Devuelve la sala a la que acaba de llegar (para no repetirla en la ronda), si llega a una.
+local function buscar(self: Bicho, busca: Busca): Vector3?
+	local p = busca.puntos[busca.i]
+	if not p then
+		return nil
+	end
+	local ahora = os.clock()
+	if busca.mirando then
+		self.humanoide:MoveTo(self.raiz.Position)
+		local t = ahora - busca.mirando
+		if t < BUSCA.Mirar then
+			self:mirarA(self.raiz.Position + CazaBusqueda.mirada(p.mirar :: Vector3, t, BUSCA.Mirar, BUSCA.Giro))
+			return nil
+		end
+		busca.mirando = nil
+		busca.i += 1
+		busca.desde = ahora
+		return nil
+	end
+	local llega = self:cerca(p.punto, 4)
+	if llega or ahora - busca.desde > BUSCA.Limite then
+		if p.mirar then
+			busca.mirando = ahora
+			self.humanoide:MoveTo(self.raiz.Position)
+			return nil
+		end
+		busca.i += 1
+		busca.desde = ahora
+		if llega then
+			if self.alCazar then
+				self.alCazar(self, "Sala", nil, p.punto) -- como al llegar a una sala de ronda (el Golpeador: Olfatea)
+			end
+			return p.punto
+		end
+		return nil
+	end
+	-- Al sitio hacia el que iba, corriendo; por las salas de al lado, andando (escuchando).
+	self.humanoide.WalkSpeed = if busca.i == 1 then self.o.Correr else self.o.Andar
+	self:pasoHacia(p.punto)
+	return nil
+end
+
 -- Caza durante `duracion` segundos. `soloFuera`: en el bosque, solo a los que están fuera de la casa.
 function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 	local fin = os.clock() + duracion
 	local ultimoVisto: Vector3? = nil
 	local ronda: Vector3? = nil
 	self.parado = nil
+	local busca: Busca? = nil
+	local ultimaSala: Vector3? = nil -- la última sala que miró: la ronda al azar no la repite
+	self.rastro = nil
 	while self.modelo and os.clock() < fin and not self.prisa do
 		local presa, destino, bajo = self:elegirPresa(soloFuera)
 		publicarPresa(self, presa)
@@ -856,7 +965,9 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			self.humanoide:MoveTo(self.raiz.Position)
 		elseif presa and destino and bajo then
 			-- Le huele debajo de un mueble: al borde, y allí gatea a por él.
+			busca = nil
 			ultimoVisto = destino
+			apuntarRastro(self, destino)
 			self.humanoide.WalkSpeed = self.o.Correr
 			local que = self:aPorDebajo(presa, bajo)
 			if que == "Pilla" then
@@ -864,8 +975,10 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			end
 			if que then
 				ultimoVisto = nil
+				self.rastro = nil
 			end
 		elseif presa and destino then
+			busca = nil
 			ultimoVisto = destino
 			self.humanoide.WalkSpeed = self.o.Correr
 			-- Un suceso propio al verle (el Golpeador: Quieto), entero antes de seguir: mientras, no le pilla.
@@ -874,22 +987,20 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 				if typeof(tras) == "Vector3" then
 					ultimoVisto = tras
 				end
+				apuntarRastro(self, ultimoVisto :: Vector3)
 			else
+				apuntarRastro(self, destino)
 				local escondido = Muerte.escondite(presa) ~= nil
 				local suCabeza = cabezaDe(presa)
-				-- Sin nada en medio: si no, pillaba a través de las paredes (de 1 stud) a quien oye al otro lado. El rayo
-				-- sale de la raíz y no de la cabeza, que va por delante y se mete en la pared cuando la tiene de frente (un
-				-- rayo que nace dentro de una pieza no la ve). Las hojas de las puertas abiertas no tapan (CanQuery,
-				-- Casa.publicar).
 				local alcanza = if escondido or not suCabeza then self:cerca(destino, 5)
-					else (suCabeza.Position - self.raiz.Position).Magnitude < self.o.Pillar
-						and libre(self.raiz.Position, suCabeza.Position, sinBichos(presa.Character))
+					else self:alcanza(presa, self.o.Pillar)
 				if alcanza then
 					self.humanoide:MoveTo(self.raiz.Position)
 					self:mirarA(if suCabeza then suCabeza.Position else destino) -- de cara a su víctima: el susto le ve la cara
 					Muerte.matar(presa, self:cabeza(), self.modelo)
 					task.wait(self.o.Espera or ESPERA)
 					ultimoVisto = nil
+					self.rastro = nil
 				else
 					self:pasoHacia(destino)
 				end
@@ -898,9 +1009,17 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			self.humanoide.WalkSpeed = self.o.Correr
 			self:pasoHacia(ultimoVisto)
 			if self:cerca(ultimoVisto, 4) then
+				-- Ha llegado y no le ve: le busca por ahí (si el rastro es reciente) antes de volver a la ronda.
+				busca = if soloFuera then nil else planBusca(self, ultimoVisto)
 				ultimoVisto = nil
+				ronda = nil
 			else
 				yendo = ultimoVisto
+			end
+		elseif busca then
+			ultimaSala = buscar(self, busca) or ultimaSala
+			if busca.i > #busca.puntos then
+				busca = nil
 			end
 		elseif soloFuera then
 			break -- en el bosque, si no ve a nadie, se olvida
@@ -909,12 +1028,13 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			if ronda and self:cerca(ronda, 4) then
 				local llegada = ronda
 				ronda = nil
+				ultimaSala = llegada
 				if self.alCazar then
 					self.alCazar(self, "Sala", nil, llegada) -- un suceso propio al llegar (el Golpeador: Olfatea)
 				end
 			end
 			if not ronda then
-				ronda = Mapa.salas[azar:NextInteger(1, #Mapa.salas)]
+				ronda = CazaBusqueda.otraSala(Mapa.salas, ultimaSala, azar)
 			end
 			-- Un suceso propio de ronda (el Golpeador: Armario, Garras); si lo hace, este paso ya está.
 			if not (self.alCazar and self.alCazar(self, "Ronda", nil, ronda)) then
@@ -927,10 +1047,12 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 		elseif atascado(self, yendo) then
 			-- No avanza: a otra sala y sordo un rato (el ruido sin camino le volvía a llevar contra la misma pared).
 			ultimoVisto = nil
-			ronda = otraSala(ronda)
+			busca = nil
+			ronda = CazaBusqueda.otraSala(Mapa.salas, ronda, azar)
 			self.sordoHasta = os.clock() + SORDO
 		end
-		task.wait(0.25)
+		-- Mirando a un lado y a otro, más a menudo: si no, gira a saltos.
+		task.wait(if busca and busca.mirando then 0.1 else 0.25)
 	end
 	publicarPresa(self, nil)
 end

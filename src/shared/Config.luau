@@ -205,7 +205,7 @@ Config.Acechador = {
 	Frena = 2.5, -- segundos quieto al darle la linterna...
 	Inmune = 2.5, -- ...y después, segundos en que no le vuelve a frenar
 	Pillar = 5,
-	MasPillar = 2, -- studs de más al pillar mientras se te echa encima (corriendo se pasa de largo)
+	MasPillar = 2, -- studs de más al echarse encima (corriendo se pasa de largo; sin pared en medio: Caza.alcanza)
 	TrasPillar = 2.5, -- segundos quieto tras pillarte
 	Max = 2, -- como mucho, a la vez en el mapa
 }
@@ -230,6 +230,18 @@ Config.Director = {
 Config.Caza = {
 	Parada = 2, -- s sin acercarse a donde va (sala o ruido) ni moverse (sin camino, algo en medio): cambia de sala
 	SordoTrasParada = 3, -- s que no hace caso a los ruidos tras atascarse (si no, volvía al mismo ruido sin camino)
+	-- Cuando te pierde de vista (servidor/CazaBusqueda).
+	Busca = {
+		Memoria = 6, -- s que le vale el rastro: si tarda más en llegar a donde te vio, vuelve a la ronda sin buscar
+		Adelante = 12, -- studs que sigue en la dirección que llevaba al llegar a donde te vio
+		Margen = 2, -- studs antes de la pared en que se para si la hay en esa dirección
+		Mirar = 1.5, -- s parado mirando a un lado y a otro
+		Giro = 70, -- grados que gira la vista a cada lado
+		Salas = 2, -- salas de al lado (de esa planta) que recorre antes de volver a la ronda
+		Planta = 6, -- studs de alto para contar una sala como de la misma planta
+		Limite = 8, -- s como mucho yendo a cada punto de la búsqueda (si no llega, al siguiente)
+		Rumbo = 2, -- studs/s a los que tiene que ir para apuntar hacia dónde iba
+	},
 }
 
 -- Linterna con pilas (juego/servidor/Equipo): la F, o el botón en el móvil. Con poca pila parpadea.

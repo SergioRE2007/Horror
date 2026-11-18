@@ -2,7 +2,7 @@
 -- lune run tests/bancos/caza-atasco.luau (lo corre tests/regressions.luau).
 --   atascado: rondando o yendo a un ruido, si en Config.Caza.Parada s no se acerca ni se mueve, se ha atascado; andando
 --   (aunque sea dando un rodeo), acercándose o con un destino nuevo, no.
---   otraSala: nunca la sala de ahora, y salen todas las demás.
+--   otraSala (la de CazaBusqueda, que usa Caza también al atascarse): nunca la sala de ahora, y salen todas las demás.
 --   publicarPresa: el atributo Persigue con el UserId de la presa, nil sin ella, solo si cambia, y nunca en el Imitador
 --   mientras finge (sin Abierto).
 -- Sacadas del texto: Caza necesita Roblox (Casa, Mapa, Muerte...). Si algo no se cumple, termina con error.
@@ -52,8 +52,8 @@ local trozos = "local Caza = {}\n"
 	.. "local PARADA, SORDO = ...\n"
 	.. "local function plano(v) return Vector3.new(v.X, 0, v.Z) end\n"
 	.. trozo("local function publicarPresa(", "function Caza.quitar(")
-	.. trozo("local function otraSala(", "-- Caza durante")
-	.. "return { atascado = atascado, otraSala = otraSala, publicarPresa = publicarPresa }"
+	.. trozo("local function atascado(", "-- Búsqueda al perder de vista")
+	.. "return { atascado = atascado, publicarPresa = publicarPresa }"
 local C = luau.load(trozos, {
 	debugName = "Caza.atascos",
 	environment = {
@@ -66,6 +66,10 @@ local C = luau.load(trozos, {
 		math = math,
 	},
 })(PARADA, SORDO)
+local CB = luau.load(fs.readFile("src/juego/servidor/CazaBusqueda.luau"), {
+	debugName = "CazaBusqueda",
+	environment = { Vector3 = V3 },
+})()
 
 -- Un bicho de mentira: dónde está y lo deprisa que va.
 local bicho: any = { raiz = { Position = V3.new(0, 3, 0), AssemblyLinearVelocity = V3.zero }, parado = nil }
@@ -135,7 +139,7 @@ end
 for _, ahora in salas do
 	local vistas = {}
 	for _ = 1, 200 do
-		local s = C.otraSala(ahora)
+		local s = CB.otraSala(salas, ahora, azar)
 		comprueba(s ~= ahora, "otraSala: nunca la de ahora")
 		vistas[s] = true
 	end
@@ -145,7 +149,7 @@ for _, ahora in salas do
 	end
 	comprueba(n == #salas - 1, "otraSala: salen todas las demás")
 end
-comprueba(table.find(salas, C.otraSala(nil)) ~= nil, "otraSala: sin sala de ahora, una cualquiera")
+comprueba(table.find(salas, CB.otraSala(salas, nil, azar)) ~= nil, "otraSala: sin sala de ahora, una cualquiera")
 
 -- publicarPresa: Persigue con el UserId, nil sin presa, solo si cambia; el Imitador fingiendo, nunca.
 local function modelo(nombre: string): any

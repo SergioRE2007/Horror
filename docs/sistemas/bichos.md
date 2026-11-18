@@ -22,6 +22,17 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   acercarse ni moverse 1 stud (sin camino: empujaba la pared el resto de la caza), olvida el ruido, va a otra sala y no
   oye ruidos `SordoTrasParada` (3 s). Mientras caza, el modelo lleva `Persigue` = UserId de su presa (nil sin ella; el
   Imitador fingiendo, nunca) para el latido y la tensión del cliente (banco `caza-atasco`).
+- Pillar sin paredes en medio (`Caza.alcanza`): cabeza o raíz a menos de la distancia de pillar y un rayo desde la raíz
+  del bicho sin nada que tape la vista o sin nada que choque (paredes y puertas cerradas tapan; hierba y adornos que no
+  chocan, no). La usan `Caza.cazar`, la Bestia (`Pillar + 1,5`) y el Acechador (`Pillar + MasPillar`): antes estos dos
+  pillaban solo por distancia, a través de puertas cerradas y paredes. Si no alcanza, sigue yendo hacia él.
+- Búsqueda al perderte (`CazaBusqueda`, `Config.Caza.Busca`, números a ojo; banco `caza-busqueda`): mientras persigue
+  guarda `rastro` (dónde te vio, hacia dónde iba él si iba a más de 2 studs/s, cuándo). Al llegar a donde te vio sin
+  verte, si el rastro es de hace menos de 6 s: sigue 12 studs en esa dirección (cortado 2 antes de la pared, para no
+  empujarla), se para 1,5 s mirando a un lado y a otro (70°) y recorre las 2 salas de `Mapa.salas` más cerca de su
+  planta (8 s como mucho por punto) antes de volver a la ronda. Al sitio hacia el que iba, corriendo; por las salas,
+  andando; al llegar a cada sala salta el suceso "Sala" (el Golpeador: Olfatea). Verte, oírte u olerte manda siempre.
+  La ronda al azar ya no repite la sala de la que viene (`CazaBusqueda.otraSala`). La Bestia tiene su propia ronda.
 - Modo de pruebas: `ServerStorage.Prueba:Fire("Trepador" | "Imitador" | "Acechador" | "Fuego")`. "Imitador" va con apagón; "Acechador" sale a por el primer jugador (que debe estar en el bosque).
 
 ## Cliente (`src/juego/cliente`)
