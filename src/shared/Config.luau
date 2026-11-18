@@ -247,6 +247,9 @@ Config.Caza = {
 	Prorroga = 8, -- s como mucho que sigue cazando, acabado su tiempo, mientras tenga presa a la vista
 	SalirMax = 10, -- s que sigue hacia la ventana por la que se va mientras alguien le vea (luego sale igual)
 	VerLejos = 160, -- studs hasta los que cuenta que alguien le ve (más lejos, de noche, no se distingue)
+	-- Aparecer y perderse en el bosque sin verse (sitioSinVer, perderse).
+	Candidatos = 6, -- sitios que prueba para aparecer: el primero que nadie ve (si los ven todos, el más apartado)
+	PerderseMax = 12, -- s que sigue alejándose de la casa al irse mientras alguien le vea (luego se quita igual)
 }
 
 -- Linterna con pilas (juego/servidor/Equipo): la F, o el botón en el móvil. Con poca pila parpadea.

@@ -25,6 +25,8 @@
 --   recorre las salas de al lado antes de volver a la ronda (que no repite la sala en la que acaba de estar).
 --   Sigilo: quieto casi no se te oye, tras una pared o una puerta a la mitad, y con la linterna encendida agacharte
 --   no te esconde de la vista (Config.Postura.OirQuieto, OirPared).
+--   Ni aparecer ni esfumarse a la vista: llegan desde el sitio que nadie ve (Caza.llegadas y Caza.sitioSinVer) y al
+--   irse al bosque se alejan hasta que nadie les vea antes de quitarse (Caza.perderse; en la casa, Caza.salir).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
@@ -560,6 +562,13 @@ local LLEGAR_MAS = Config.Caza.LlegarMas
 local SALIR_MAX = Config.Caza.SalirMax
 local VER_LEJOS = Config.Caza.VerLejos
 local IR_SALIDA = 25 -- s andando hacia la salida antes de mirar si le ven (lo de siempre)
+-- Aparecer y perderse en el bosque sin verse (sitioSinVer, perderse). A ojo.
+local CANDIDATOS = Config.Caza.Candidatos
+local PERDERSE_MAX = Config.Caza.PerderseMax
+local CABEZA = 1.9 -- de los pies a lo alto de la cabeza, en `Altura` (de los pies al centro de la raíz)
+local ANCHO_CUERPO = 3 -- studs de ancho del hueco que necesita para aparecer (Caza.cabe)
+local EMPATE = 2 -- studs: si los ven todos, uno más apartado solo gana si lo está por más (si no, el de antes)
+local SEGUIR_FUERA = 40 -- studs por delante a los que apunta mientras se pierde
 
 -- ¿Se ve `hasta` desde `desde`? Los cristales de las ventanas y lo casi transparente no tapan: el rayo sigue tras
 -- ellos (hasta 4 veces).
@@ -585,26 +594,86 @@ local function seVe(desde: Vector3, hasta: Vector3, ignorar: { Instance }): bool
 	return false
 end
 
--- ¿No le ve nadie vivo, ni a él ni el sitio `punto` (a ras de suelo) donde va a aparecer? Rayo desde la cabeza de cada
--- uno; a más de VER_LEJOS, de noche, no se distingue.
-function Caza.nadieVe(self: Bicho, punto: Vector3): boolean
+-- ¿Ve alguien vivo lo que hay `alto` studs por encima de `punto`? Rayo desde la cabeza de cada uno (seVe); a más de
+-- VER_LEJOS, de noche, no se distingue.
+local function seVePunto(punto: Vector3, alto: number): boolean
 	local ignorar = sinPersonajes()
-	local raiz = self.raiz.Position
-	local alto = punto + Vector3.new(0, self.o.Altura, 0)
+	local mira = punto + Vector3.new(0, alto, 0)
 	for _, jugador in Players:GetPlayers() do
 		local cabeza = if Muerte.vivo(jugador) then cabezaDe(jugador) else nil
-		if not cabeza then
-			continue
-		end
-		local ojos = cabeza.Position
-		if (raiz - ojos).Magnitude < VER_LEJOS and seVe(ojos, raiz, ignorar) then
-			return false
-		end
-		if (alto - ojos).Magnitude < VER_LEJOS and seVe(ojos, alto, ignorar) then
-			return false
+		if cabeza and (mira - cabeza.Position).Magnitude < VER_LEJOS and seVe(cabeza.Position, mira, ignorar) then
+			return true
 		end
 	end
-	return true
+	return false
+end
+
+-- ¿Se ve a un bicho de `alto` (Opciones.Altura) plantado en `punto`, a ras de suelo? Su raíz o su cabeza, que asoma
+-- tras las matas, las rocas y los troncos caídos.
+local function seVeCuerpo(punto: Vector3, alto: number): boolean
+	return seVePunto(punto, alto) or seVePunto(punto, alto * CABEZA)
+end
+
+-- ¿No le ve nadie vivo, ni a él ni el sitio `punto` (a ras de suelo) donde va a aparecer?
+function Caza.nadieVe(self: Bicho, punto: Vector3): boolean
+	return not seVePunto(self.raiz.Position, 0) and not seVePunto(punto, self.o.Altura)
+end
+
+-- Dónde aparecer sin que se vea (antes se creaban de golpe delante de quien estuviese fuera, hasta en el cono de la
+-- linterna). De `candidatos` (a ras de suelo, por orden de preferencia), el primero en el que nadie vivo
+-- vería a un bicho de `alto` (seVeCuerpo); si se ven todos, el más apartado del vivo que tenga más cerca (a igualdad,
+-- por menos de EMPATE, el de antes). Devuelve el sitio y si nadie lo ve.
+function Caza.sitioSinVer(candidatos: { Vector3 }, alto: number): (Vector3, boolean)
+	local mejor, mejorLejos = candidatos[1], -math.huge
+	for _, sitio in candidatos do
+		if not seVeCuerpo(sitio, alto) then
+			return sitio, true
+		end
+		local cerca = math.huge
+		for _, jugador in Players:GetPlayers() do
+			local cabeza = if Muerte.vivo(jugador) then cabezaDe(jugador) else nil
+			if cabeza then
+				cerca = math.min(cerca, (sitio - cabeza.Position).Magnitude)
+			end
+		end
+		if cerca > mejorLejos + EMPATE then
+			mejor, mejorLejos = sitio, cerca
+		end
+	end
+	return mejor, false
+end
+
+-- ¿Cabe de pie en `pie` (a ras de suelo) un bicho de `alto`? Nada que choque en su sitio: ni un tronco, ni una roca, ni
+-- una pared o un techo (un rayo que nace dentro de una pieza no la ve; esto sí). Lo que no choca (hierba, copas, la
+-- linde, que no es para ellos) no estorba.
+local filtroHueco = OverlapParams.new()
+filtroHueco.FilterType = Enum.RaycastFilterType.Exclude
+filtroHueco.RespectCanCollide = true
+function Caza.cabe(pie: Vector3, alto: number): boolean
+	filtroHueco.FilterDescendantsInstances = sinPersonajes()
+	local total = alto * CABEZA
+	local caja = CFrame.new(pie + Vector3.new(0, 0.5 + total / 2, 0))
+	return #workspace:GetPartBoundsInBox(caja, Vector3.new(ANCHO_CUERPO, total, ANCHO_CUERPO), filtroHueco) == 0
+end
+
+-- Por dónde llega desde el bosque a `fuera` (la ventana, la puerta o el pie de la pared; `normal` hacia fuera y `lado`
+-- a lo largo de la pared), para Caza.sitioSinVer: `primero` (el sitio de siempre) y, detrás, hasta CANDIDATOS sitios
+-- más hondos (90-100 studs) y a un lado o al otro (25-40), alternando. Solo los que tienen hueco para un bicho de
+-- `alto` (Caza.cabe); si no cabe en ninguno, `primero` igual.
+function Caza.llegadas(primero: Vector3, fuera: Vector3, normal: Vector3, lado: Vector3, alto: number): { Vector3 }
+	local lista = {}
+	if Caza.cabe(primero, alto) then
+		table.insert(lista, primero)
+	end
+	local signo = if azar:NextNumber() < 0.5 then 1 else -1
+	for _ = 2, CANDIDATOS do
+		local sitio = fuera + normal * azar:NextNumber(90, 100) + lado * signo * azar:NextNumber(25, 40)
+		signo = -signo
+		if Caza.cabe(sitio, alto) then
+			table.insert(lista, sitio)
+		end
+	end
+	return if #lista > 0 then lista else { primero }
 end
 
 -- Anda hasta `destino` como irA y, si no llega (atascado en el bosque o contra algo), no ataca desde lejos: lo pone en
@@ -657,6 +726,31 @@ function Caza.salir(self: Bicho, dentro: Vector3, velocidad: number)
 	local hasta = os.clock() + SALIR_MAX
 	while self.modelo and os.clock() < hasta and not self:cerca(dentro, 3) and not self:nadieVe(dentro) do
 		self:pasoHacia(dentro)
+		task.wait(0.25)
+	end
+	if self.modelo then
+		self.humanoide:MoveTo(self.raiz.Position)
+	end
+end
+
+-- Se va al bosque sin esfumarse a la vista: anda hasta `lejos` como irA (hasta `limite` s) y, si al acabar alguien le
+-- ve (seVeCuerpo: atascado, o con alguien fuera), sigue alejándose de la casa en esa misma dirección hasta que nadie le
+-- vea o pasen PERDERSE_MAX s. Solo entonces se le puede quitar (lo quita quien lo llama).
+function Caza.perderse(self: Bicho, lejos: Vector3, velocidad: number, limite: number)
+	self:irA(lejos, velocidad, limite)
+	local afuera = plano(lejos)
+	if afuera.Magnitude < 1 then
+		afuera = plano(self.raiz.CFrame.LookVector)
+	end
+	afuera = if afuera.Magnitude > 0.01 then afuera.Unit else Vector3.zAxis
+	local hasta = os.clock() + PERDERSE_MAX
+	local meta = self:suelo() + afuera * SEGUIR_FUERA
+	while self.modelo and os.clock() < hasta and seVeCuerpo(self:suelo(), self.o.Altura) do
+		if self:cerca(meta, 6) then
+			meta = self:suelo() + afuera * SEGUIR_FUERA -- la meta, siempre por delante
+		end
+		self.humanoide.WalkSpeed = velocidad
+		self:pasoHacia(meta)
 		task.wait(0.25)
 	end
 	if self.modelo then
