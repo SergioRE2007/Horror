@@ -166,7 +166,7 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 		if i == 1 and apagon then
 			-- Se va la luz justo al llamar (solo si estaba encendida). Solo aquí se da el apagón por hecho: si se va sin
 			-- llamar (caza fuera o se encuentra la puerta abierta), le toca al siguiente Imitador de la noche.
-			if alApagar then
+			if alApagar and Generador.encendido() then
 				alApagar()
 			end
 			task.delay(1.5, function()
