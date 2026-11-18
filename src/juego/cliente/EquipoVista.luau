@@ -71,7 +71,7 @@ local function nuevaLuz(otro: Player): Luz
 	foco.Brightness = L.Brillo
 	foco.Range = (haz(otro))
 	foco.Angle = L.Angulo * 2
-	foco.Shadows = true
+	foco.Shadows = otro == jugador and not jugador:GetAttribute("Rendimiento") -- solo la propia y sin Rendimiento
 	foco.Face = Enum.NormalId.Front
 	foco.Parent = punto
 	return { punto = punto, foco = foco }
@@ -164,6 +164,8 @@ local function actualizarLuces()
 				brillo *= 0.75 + 0.25 * math.noise(ahora * 30, 3.1)
 			end
 		end
+		-- Rendimiento puede cambiar con la linterna encendida (y la sombra de la propia es la única que cuesta de verdad).
+		luz.foco.Shadows = otro == jugador and not jugador:GetAttribute("Rendimiento")
 		local rango, masBrillo = haz(otro)
 		luz.foco.Brightness = brillo * masBrillo
 		luz.foco.Color = colorDe(otro)

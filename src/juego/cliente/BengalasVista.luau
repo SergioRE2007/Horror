@@ -207,6 +207,16 @@ local function encenderBucle()
 	end)
 end
 
+-- Con Rendimiento (ajuste del jugador) las bengalas llevan la mitad de partículas y su luz no hace sombra.
+local function poco(): boolean
+	return jugador:GetAttribute("Rendimiento") == true
+end
+
+-- Cantidad (Rate o Emit) de partículas: entera sin Rendimiento y la mitad con él.
+local function cantidad(n: number): number
+	return if poco() then n / 2 else n
+end
+
 local function particulas(padre: Instance, humo: boolean, chispas: number): (ParticleEmitter, ParticleEmitter)
 	local h = Instance.new("ParticleEmitter")
 	h.Texture = "rbxasset://textures/particles/smoke_main.dds"
@@ -223,7 +233,7 @@ local function particulas(padre: Instance, humo: boolean, chispas: number): (Par
 	h.Rotation = NumberRange.new(0, 360)
 	h.RotSpeed = NumberRange.new(-30, 30)
 	h.LightInfluence = 1
-	h.Rate = if humo then 14 else 0
+	h.Rate = if humo then cantidad(14) else 0
 	h.Parent = padre
 	local c = Instance.new("ParticleEmitter")
 	c.Texture = "rbxasset://textures/particles/sparkles_main.dds"
@@ -236,7 +246,7 @@ local function particulas(padre: Instance, humo: boolean, chispas: number): (Par
 	c.SpreadAngle = Vector2.new(180, 180)
 	c.Acceleration = Vector3.new(0, -25, 0)
 	c.Drag = 2
-	c.Rate = chispas
+	c.Rate = cantidad(chispas)
 	c.Parent = padre
 	return h, c
 end
@@ -259,7 +269,7 @@ local function crearBola(desde: Vector3): (Part, Viva, ParticleEmitter, Particle
 	luz.Color = LUZ
 	luz.Brightness = BRILLO
 	luz.Range = RADIO
-	luz.Shadows = true
+	luz.Shadows = not poco() -- las sombras dinámicas son lo más caro de una luz
 	luz.Parent = bola
 	local humo, chispas = particulas(bola, true, 40)
 	bola.Parent = workspace.Terrain
@@ -315,15 +325,15 @@ local function alDisparo(quien: Player, origen: Vector3, impacto: Vector3, norma
 		end
 		if acierto then
 			-- Revienta en el bicho: un golpe de chispas y se apaga enseguida.
-			chispas:Emit(60)
+			chispas:Emit(cantidad(60))
 			viva.luz.Brightness = BRILLO * 2.2
 			apagar(bola, viva, humo, chispas, 0.8, nil)
 		elseif normal then
 			-- Se queda ardiendo pegada donde dio.
 			bola.Position = impacto + normal * 0.18
-			chispas:Emit(25)
-			chispas.Rate = 18
-			humo.Rate = 10
+			chispas:Emit(cantidad(25))
+			chispas.Rate = cantidad(18)
+			humo.Rate = cantidad(10)
 			local fuego = Sonido.bucle("Fuego", bola)
 			fuego.Volume *= 0.5
 			fuego.RollOffMode = Enum.RollOffMode.InverseTapered

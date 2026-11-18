@@ -72,17 +72,8 @@ local function momento(): (number, number)
 	return k, hora
 end
 
-local function pintar()
-	local k, hora = momento()
-	Lighting.ClockTime = hora
-	Lighting.Brightness = mezcla(DIA.Brightness, NOCHE.Brightness, k)
-	Lighting.Ambient = DIA.Ambient:Lerp(NOCHE.Ambient, k)
-	Lighting.OutdoorAmbient = DIA.OutdoorAmbient:Lerp(NOCHE.OutdoorAmbient, k)
-	atmosfera.Density = mezcla(DIA.Densidad, NOCHE.Densidad, k)
-	atmosfera.Color = DIA.Niebla:Lerp(NOCHE.Niebla, k)
-	atmosfera.Decay = atmosfera.Color
-	color.Brightness = mezcla(DIA.Brillo, NOCHE.Brillo, k)
-	Lighting.ExposureCompensation = mezcla(DIA.Exposicion, NOCHE.Exposicion, k)
+-- Lo de las lámparas del mapa: su brillo según cuánto de noche es (k) y los parpadeos (factor).
+local function pintarLamparas(k: number)
 	local proporcion = mezcla(DIA.Lamparas, NOCHE.Lamparas, k)
 	for luz, base in lamparas do
 		if luz.Parent then
@@ -92,6 +83,19 @@ local function pintar()
 			Ambiente.factor[luz] = nil
 		end
 	end
+end
+
+local function pintar(k: number, hora: number)
+	Lighting.ClockTime = hora
+	Lighting.Brightness = mezcla(DIA.Brightness, NOCHE.Brightness, k)
+	Lighting.Ambient = DIA.Ambient:Lerp(NOCHE.Ambient, k)
+	Lighting.OutdoorAmbient = DIA.OutdoorAmbient:Lerp(NOCHE.OutdoorAmbient, k)
+	atmosfera.Density = mezcla(DIA.Densidad, NOCHE.Densidad, k)
+	atmosfera.Color = DIA.Niebla:Lerp(NOCHE.Niebla, k)
+	atmosfera.Decay = atmosfera.Color
+	color.Brightness = mezcla(DIA.Brillo, NOCHE.Brillo, k)
+	Lighting.ExposureCompensation = mezcla(DIA.Exposicion, NOCHE.Exposicion, k)
+	pintarLamparas(k)
 	if viento then
 		viento.Volume = Config.Sonidos.Viento.Volumen * (1 + k)
 	end
@@ -162,8 +166,24 @@ function Ambiente.start()
 		faseAntes = fase
 		avisado = false
 	end)
-	RunService.RenderStepped:Connect(function()
-		pintar()
+	-- La hora corre en minutos, no en fotogramas: la iluminación se pinta unas 10 veces por segundo (rendimiento.md) y
+	-- más seguido (30) mientras cambia deprisa (atardecer y amanecer: 0 < k < 1). Los parpadeos de las bombillas (Efectos
+	-- y DetallesVista, cortes de 30 a 140 ms) sí se ven a 10 Hz, así que las lámparas se repintan cada fotograma mientras
+	-- haya alguno. El aviso del atardecer se mira cada fotograma, aparte.
+	local desdePintar = math.huge
+	local habiaParpadeo = false
+	RunService.RenderStepped:Connect(function(dt)
+		desdePintar += dt
+		local k, hora = momento()
+		local cadaCuanto = if k > 0 and k < 1 then 1 / 30 else 1 / 10
+		if desdePintar >= cadaCuanto then
+			desdePintar = 0
+			pintar(k, hora)
+			habiaParpadeo = next(Ambiente.factor) ~= nil
+		elseif habiaParpadeo or next(Ambiente.factor) ~= nil then
+			habiaParpadeo = next(Ambiente.factor) ~= nil
+			pintarLamparas(k)
+		end
 		local fin = workspace:GetAttribute("FaseFin")
 		if not avisado and workspace:GetAttribute("Fase") == "Dia" and fin
 			and fin - workspace:GetServerTimeNow() < Config.Ciclo.Aviso then
