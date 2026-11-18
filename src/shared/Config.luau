@@ -981,7 +981,17 @@ Config.Pavor = {
 	-- su fuerza) y, al dejarte, se apaga en Latido.Apaga s; al empezar, un golpe flojo (`Sobresalto`, su volumen por
 	-- esto) y un respingo flojo de las manos (`Respingo`) como mucho cada `Cada` s; la respiración más deprisa (`Respira`,
 	-- como la de arriba) y las manos tiemblan algo (`Manos`). Con Rendimiento, solo el latido y el golpe.
-	Persigue = { Cada = 10, Sobresalto = 0.35, Respingo = 0.3, Latido = 1, Respira = 0.95, Manos = 0.35 },
+	-- `Tunel`: lo fuerte de la visión de túnel perseguido (1: del todo; ver uno es Tunel.Ver).
+	Persigue = { Cada = 10, Sobresalto = 0.35, Respingo = 0.3, Latido = 1, Respira = 0.95, Manos = 0.35, Tunel = 1 },
+	-- Visión de túnel y color apagado (PavorCuentas.tunel): bordes negros que se cierran y la imagen sin color, para quien
+	-- juega sin cascos. Ver un bicho la pone mientras le dura el latido, con fuerza `Ver` (por lo cerca); perseguido,
+	-- entera (Persigue.Tunel). `Bordes`: lo negro del borde del todo (0..1); `Ancho`: parte de la pantalla, por cada
+	-- lado, que se oscurece (flojo, del todo); `Color`: la Saturation del ColorCorrection (PavorOjos) del todo;
+	-- `Contraste`: el suyo; `Entra`/`Sale`: s en llegar del todo y en irse; `Latir`: golpes del corazón por segundo y
+	-- `Golpe`: lo que se cierran de más en cada uno (del todo y perseguido; viéndolo solo, menos). Con Rendimiento, solo
+	-- los bordes por `Rendimiento`, quietos y sin color. A ojo.
+	Tunel = { Bordes = 0.92, Ancho = { 0.1, 0.3 }, Color = -0.35, Contraste = 0.12, Entra = 0.4, Sale = 2, Latir = 1.6,
+		Golpe = 0.2, Ver = 0.55, Rendimiento = 0.5 },
 	-- Pillan a un compañero (Remotes.Muerte de otro). Si lo ves (a menos de `Lejos` studs, en pantalla y sin paredes;
 	-- su cuerpo y el bicho no tapan), el susto de ver un bicho con la fuerza como poco `Minimo`. Si no lo ves pero está
 	-- a menos de `Oido` studs (tras una pared), solo el latido con fuerza `OidoLatido` y un golpe flojo (`OidoSobresalto`,
