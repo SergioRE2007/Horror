@@ -29,7 +29,7 @@ la respiración va más deprisa y las manos tiemblan algo; al empezar, un golpe 
 `Persigue.Cada` = 10 s. Mismas excepciones de abajo; con Rendimiento, solo latido y golpe.
 
 **Pillan a un compañero** (`Remotes.Muerte` de otro jugador; `Companero`, a ojo): si lo ves (su cabeza o su torso a menos
-de `Lejos` = 45 studs, en pantalla y sin paredes; su cuerpo y el bicho que le pilla no tapan), el susto de ver un bicho
+de `Lejos` = 45 studs, en pantalla y sin paredes; su cuerpo, el bicho que le pilla y el muñeco de `workspace.Cadaveres` no tapan), el susto de ver un bicho
 con la fuerza como poco `Minimo` = 0,8: vértigo, golpe, latido y manos con la linterna temblando. Si no lo ves pero está
 a menos de `Oido` = 22 studs (tras una pared), solo el latido (`OidoLatido`) y un golpe flojo (como mucho uno cada
 `SobresaltoCada`). Mismas excepciones; MuerteVista sigue poniendo el charco y CadaverVista el grito.

@@ -13,7 +13,7 @@
 --      manos; nada si persigue a otro, con el Imitador fingiendo, escondido o en una cinemática; con Rendimiento solo
 --      latido y golpe. En AmbienteMiedo, la tensión entera en ~1 s.
 --   6. Pillan a un compañero (Remotes.Muerte de otro jugador): visto a 5 y a 30 studs, el susto entero (fuerza como poco
---      Companero.Minimo); tras una pared a 15, solo latido y golpe flojo; tras una pared a 30 y a la vista a 60, nada;
+--      Companero.Minimo), también con el muñeco opaco de CadaverVista ya puesto en Cadaveres; tras una pared a 15, solo latido y golpe flojo; tras una pared a 30 y a la vista a 60, nada;
 --      escondido o si te pillan a ti, nada; con Rendimiento, sin vértigo.
 local crearMundo = require("./_roblox")
 
@@ -841,6 +841,21 @@ do
 	comprobar(sobresaltos == 1 and sonando() == 1, "compañero visto a 5: golpe y latido")
 	cerca(cuerpo.campoMax, C.Vertigo.Campo, 0.6, "compañero visto a 5: vértigo entero")
 	comprobar(manos.max > 0.8, "compañero visto a 5: las manos tiemblan")
+	limpiar()
+
+	-- Visto a 5 con el muñeco de CadaverVista ya puesto (si su conexión a Muerte va antes): una copia opaca en
+	-- workspace.Cadaveres justo donde el cuerpo. No tapa: el susto entero igual.
+	local cadaveres = g.Instance.new("Folder")
+	cadaveres.Name = "Cadaveres"
+	cadaveres.Parent = g.workspace
+	local muneco = g.Instance.new("Model")
+	muneco.Name = "Cadaver"
+	muneco.Parent = cadaveres
+	m.caja(CFrame.new(Vector3.new(0, 3, -5)), Vector3.new(2.5, 6, 1.5), { Name = "Muneco", Parent = muneco })
+	caeDelante(5)
+	comprobar(sobresaltos == 1 and sonando() == 1, "compañero visto a 5 con su muñeco delante: golpe y latido")
+	cerca(cuerpo.campoMax, C.Vertigo.Campo, 0.6, "compañero visto a 5 con su muñeco delante: vértigo entero")
+	cadaveres:Destroy()
 	limpiar()
 
 	-- Visto a 30: más fuerte que un bicho a 30 (como poco Minimo).

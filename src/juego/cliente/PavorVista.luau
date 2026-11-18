@@ -93,8 +93,18 @@ local function puedeSentir(): boolean
 	return (Camara.get().CFrame.Position - cabeza.Position).Magnitude < 4
 end
 
--- Si de `desde` a `punto` no hay nada que tape (el bicho mismo no tapa, ni `otro` si lo hay; los cristales tampoco).
-local function sinParedes(desde: Vector3, punto: Vector3, bicho: Instance, otro: Instance?): boolean
+-- Si lo que ha chocado cuelga de alguna de `noTapan`.
+local function deAlguno(parte: Instance, noTapan: { Instance }): boolean
+	for _, cosa in noTapan do
+		if parte:IsDescendantOf(cosa) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Si de `desde` a `punto` no hay nada que tape (lo que cuelga de `noTapan` no tapa; los cristales tampoco).
+local function sinParedes(desde: Vector3, punto: Vector3, noTapan: { Instance }): boolean
 	local origen = desde
 	for _ = 1, RAYOS do
 		local hacia = punto - origen
@@ -102,7 +112,7 @@ local function sinParedes(desde: Vector3, punto: Vector3, bicho: Instance, otro:
 			return true
 		end
 		local choque = workspace:Raycast(origen, hacia, rayo)
-		if not choque or choque.Instance:IsDescendantOf(bicho) or (otro and choque.Instance:IsDescendantOf(otro)) then
+		if not choque or deAlguno(choque.Instance, noTapan) then
 			return true
 		end
 		if choque.Instance.Transparency < CRISTAL then
@@ -138,7 +148,7 @@ local function seVe(bicho: Instance, desde: Vector3): number?
 	for _, parte in { cabeza, raiz } do
 		if parte and parte:IsA("BasePart") then
 			local d = (parte.Position - desde).Magnitude
-			if d <= C.Lejos and enPantalla(parte.Position) and sinParedes(desde, parte.Position, bicho) then
+			if d <= C.Lejos and enPantalla(parte.Position) and sinParedes(desde, parte.Position, { bicho }) then
 				return d
 			end
 		end
@@ -261,10 +271,18 @@ local function companeroCae(quien: any, cabeza: any, modelo: any)
 	if d ~= d or d > K.Lejos then
 		return
 	end
-	-- Su cuerpo y el bicho que le pilla no tapan (sin cuerpo, `quien` no es de workspace: no quita nada).
-	local suyo: Instance = pj or quien
+	-- Su cuerpo, el bicho que le pilla y los muñecos de CadaverVista no tapan: el muñeco se crea en este mismo evento,
+	-- justo donde el cuerpo, y Roblox no asegura quién escucha antes (sin cuerpo, `quien` no es de workspace: no quita nada).
+	local noTapan: { Instance } = { pj or quien }
+	if bicho then
+		table.insert(noTapan, bicho)
+	end
+	local cadaveres = workspace:FindFirstChild("Cadaveres")
+	if cadaveres then
+		table.insert(noTapan, cadaveres)
+	end
 	for _, punto in puntos do
-		if enPantalla(punto) and sinParedes(desde, punto, suyo, bicho) then
+		if enPantalla(punto) and sinParedes(desde, punto, noTapan) then
 			if bicho then
 				vistos[bicho] = ahora -- el bicho ya está visto: no asusta otra vez en la siguiente mirada
 			end
