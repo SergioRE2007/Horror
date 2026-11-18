@@ -107,6 +107,18 @@ function PosturaReglas.alcanceVista(vista: number, agachado: boolean, cubierto: 
 	return vista
 end
 
+-- Hasta dónde ve un bicho a un jugador según por dónde le pille (los bichos ven de frente: colarse a su espalda sirve).
+-- `vista` es la de siempre, `cosAngulo` el coseno entre hacia dónde mira el bicho y hacia el jugador (en el plano) y
+-- `recienVisto` si le vio u oyó hace menos de Config.Postura.Memoria s. Dentro de ±`campo` grados (Config.Postura.Campo
+-- si no) o recién visto, entera; fuera del cono, solo Config.Postura.VerEspalda. Se aplica antes que alcanceVista (que
+-- agachado o cubierto siguen mandando). Un coseno raro (NaN) cuenta como de frente: como antes, nunca a ciegas.
+function PosturaReglas.vistaDeLado(vista: number, cosAngulo: number, recienVisto: boolean, campo: number?): number
+	if recienVisto or not (cosAngulo < math.cos(math.rad(campo or Config.Postura.Campo))) then
+		return vista
+	end
+	return math.min(vista, Config.Postura.VerEspalda)
+end
+
 -- Hasta dónde le oye, con `oido` lo de siempre (de pie). Corriendo (atributo Corriendo, 14.8, pedido por el usuario:
 -- correr hace ruido, riesgo y premio) se le oye desde Config.Correr.Oido; agachado o debajo de algo no se corre.
 function PosturaReglas.alcanceOido(oido: number, agachado: boolean, cubierto: boolean, corriendo: boolean?): number
