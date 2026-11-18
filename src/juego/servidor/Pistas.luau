@@ -3,15 +3,20 @@
 -- (E): el servidor comprueba que el jugador está vivo y cerca, la apunta como encontrada y le dice al cliente que la
 -- enseñe (Remotes.Pista, PistasUi). El cliente nunca pide nada: no hay remote de vuelta.
 -- Las encontradas se guardan con la partida (Partida: exportar/importar, FormatoPartida.pistas). Las de la habitación
--- del rico solo se alcanzan con su llave. Pistas.leida(n) es para el final (12.2: plano de la reja, cerillas).
+-- del rico solo se alcanzan con su llave. Pistas.leida(n) es para el final (12.2: plano de la reja).
+-- La 12 es la caja fuerte del rico: la primera vez que alguien la abre en la partida, dentro están las cerillas del
+-- final (Config.Bestia.PistaCerillas; van a su mochila o a sus pies). Como va con la primera lectura, recargar o volver
+-- a abrirla no da más.
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Historia = require(ReplicatedStorage.Shared.Historia)
+local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 local Casa = require(script.Parent.Casa)
+local Mochila = require(script.Parent.Mochila)
 
 local Pistas = {}
 
@@ -224,9 +229,14 @@ function Pistas.leer(jugador: Player, n: number, donde: BasePart)
 	if not Limite.pasa(jugador, "Pista", Config.Limites.Pista) then
 		return
 	end
+	local cerillas = n == Config.Bestia.PistaCerillas and not leidas[n]
 	leidas[n] = true
 	jugador:SetAttribute("Leida" .. n, true) -- lo que ha leído él (Sustos: el espejo no destapa el giro antes de tiempo)
 	Remotes.Pista:FireClient(jugador, n, cuantas())
+	if cerillas then
+		Mochila.dar(jugador, "Cerillas") -- si no le caben, a sus pies
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "There are matches inside the safe."))
+	end
 end
 
 -- ¿Alguien ha leído ya la pista n en esta partida?

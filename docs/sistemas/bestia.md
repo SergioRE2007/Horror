@@ -13,7 +13,7 @@ Pedido por el usuario: la Bestia es el origen de todos los bichos, y el rico la 
 
 1. **Gasolina:** hay 6 cruces en el suelo (escalera del vestíbulo, salón, dormitorio de abajo, pasillo, cocina y dormitorio grande). Con un bidón en las manos, R junto a la cruz. Cada cruz gasta 1/3 de bidón. Si le queda para otra cruz, el bidón sigue en las manos; vacío, se deja en el suelo (14.1, pedido por el usuario). Con las 6 llenas sale un rastro de la escalera al porche.
 2. **Reja:** se hace en el banco del sótano con 4 chatarras y 2 cadenas. La receta solo sale después de leer la pista 9, que está en el sótano (hace falta su llave). Se lleva con R a su marco, al pie de la escalera del sótano.
-3. **Pistola y bengalas:** la pistola y 3 bengalas están en el desván, delante del baúl del rico. Las cerillas, en la encimera de la cocina.
+3. **Pistola y bengalas:** la pistola y 3 bengalas están en el desván, delante del baúl del rico. Las cerillas, dentro de la caja fuerte del rico: la primera vez que alguien la abre (pista 12) le van a la mochila (o a sus pies) con el aviso "Dentro de la caja fuerte hay unas cerillas." (`Config.Bestia.PistaCerillas`).
 4. **Trampilla:** del sótano al patio. Se abre desde abajo y se queda abierta.
 
 Lo preparado se guarda con la partida. Si mueren todos, se vuelve al amanecer: lo hecho ese día se pierde. Excepción (14.1, pedido por el usuario): al pulsar "Wait for her" se hace la foto de la partida y se guarda, así que morir esa noche vuelve a ese momento (de día, con todo preparado y las mochilas de entonces).
@@ -36,7 +36,7 @@ Lo preparado se guarda con la partida. Si mueren todos, se vuelve al amanecer: l
   - Echar gasolina en las 6 cruces con bidones de verdad.
   - Abrir el sótano con su llave, leer la pista 9 y hacer la reja en el banco.
   - Montar la reja.
-  - Coger del desván la pistola y las 3 bengalas, y de la cocina las cerillas.
+  - Coger del desván la pistola y las 3 bengalas, y de la caja fuerte del rico las cerillas.
   - "Wait for her".
   - Bengala que le da y la hace cojear.
   - Llevarla al sótano y bajar la reja: queda atrapada.
