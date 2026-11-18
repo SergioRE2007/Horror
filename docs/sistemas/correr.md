@@ -160,7 +160,7 @@ Antes: en Edit, que Rojo ha sincronizado (`game.ServerScriptService:FindFirstChi
    la cámara se mece más y suena el latido; esperando 10 s antes, nada de eso. Con un bicho a ~10 studs del armario,
    contener dura ~5 s en vez de 12 y a veces se escapa un jadeo (respingo, bordes y latido). Debajo de una mesa
    (`Cubierto`): jadeos de MuerteVista, sin los resoplidos de CorrerVista a la vez. Con Rendimiento, sin mecerse de más.
-10. **Tutorial** (`Config.Test.Tutorial = true`, sin subirlo): tras coger el hacha sale "TUTORIAL 3/9" con la flecha al
+10. **Tutorial** (`Config.Test.Tutorial = true`, sin subirlo): tras coger el hacha sale "TUTORIAL 4/10" con la flecha al
    árbol más cercano; corriendo un momento pasa a talar. En el móvil la flecha va al botón CORRER y el texto dice
    "tap RUN"; con mando, "press L3". Que quepa en español.
 11. **Rendimiento** (Ajustes): corriendo, campo de visión 70, sin balanceo, braceo ni temblor de más; el tropiezo sí.

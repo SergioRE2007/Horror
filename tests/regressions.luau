@@ -1039,16 +1039,32 @@ end
 do
 	local PT = cargar("src/shared/PasosTutorial")
 	local function vista(cambios)
-		local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, mochila = false, hacha = false, cargando = nil,
-			generador = false, cortinas = 3 }
+		local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, nota = true, mochila = false, hacha = false,
+			cargando = nil, generador = false, cortinas = 3 }
 		for clave, valor in cambios do
 			v[clave] = valor
 		end
 		return v
 	end
+	-- La nota de la cocina (la pista 1) va antes que todo; leída, se pasa a la mochila.
+	local nueva = PT.nuevo()
+	igual(nueva.paso, "Nota", "tutorial: empieza por la nota de la cocina")
+	PT.avanzar(nueva, vista({ nota = false }))
+	igual(nueva.paso, "Nota", "tutorial: sin leerla, sigue en la nota")
+	PT.avanzar(nueva, vista({ nota = false, mochila = true, hacha = true }))
+	igual(nueva.paso, "Nota", "tutorial: lo de después hecho no salta la nota")
+	PT.avanzar(nueva, vista({ nota = true, mochila = true, hacha = true }))
+	igual(nueva.paso, "Correr", "tutorial: leída, sigue por lo que falte")
+	local leyendo = PT.nuevo()
+	PT.avanzar(leyendo, vista({ nota = true }))
+	PT.avanzar(leyendo, vista({ nota = false }))
+	igual(leyendo.paso, "Mochila", "tutorial: leída una vez, no vuelve a la nota")
+	local deNoche = PT.nuevo()
+	PT.avanzar(deNoche, vista({ nota = false, fase = "Noche" }))
+	igual(deNoche.paso, "Cortinas", "tutorial: de noche la nota se deja, como lo demás del día")
 	local e = PT.nuevo()
 	igual(PT.avanzar(e, vista({})), false, "tutorial: empieza sin acabar")
-	igual(e.paso, "Mochila", "tutorial: primero la mochila")
+	igual(e.paso, "Mochila", "tutorial: con la nota leída, la mochila")
 	PT.avanzar(e, vista({ mochila = true }))
 	igual(e.paso, "Hacha", "tutorial: luego el hacha")
 	PT.avanzar(e, vista({ hacha = true }))
@@ -1099,8 +1115,10 @@ do
 	PT.avanzar(tarde, vista({ fase = "Noche", noche = 4, cortinas = 0 }))
 	igual(tarde.paso, "Amanecer", "tutorial: entrar de noche con todo cerrado")
 	igual(PT.avanzar(tarde, vista({ fase = "Dia", noche = 5, quedan = 5 })), true, "tutorial: amanecer visto ya de tarde")
-	igual(PT.numero("Cortinas"), 8, "tutorial: número del paso")
-	igual(PT.numero("Correr"), 3, "tutorial: correr va tras el hacha")
+	igual(PT.numero("Nota"), 1, "tutorial: la nota es el primero")
+	igual(PT.DIA[1], "Nota", "tutorial: la nota abre los del día")
+	igual(PT.numero("Cortinas"), 9, "tutorial: número del paso")
+	igual(PT.numero("Correr"), 4, "tutorial: correr va tras el hacha")
 	igual(#PT.LISTA, #PT.DIA + 3, "tutorial: los del día y los tres de la noche")
 	igual(PT.numero("Nada"), 0, "tutorial: paso que no existe")
 end
