@@ -15,6 +15,7 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   recta. Antes, con tres bichos, 12-20 `ComputeAsync` por segundo (banco `pulido-4`). `Casa.puertas()` da una lista
   guardada y congelada (`puertasSinLlave`): cada vez que una puerta deja de estar bloqueada (con llave, al importar o
   con el modo de pruebas "Abrir") hay que vaciarla (`puertasSinLlave = nil`).
+- Las dos plantas: todos los que cazan con `Caza.cazar` (Golpeador, Raspador, Imitador) rondan, persiguen y van a por lo último visto también arriba, subiendo la escalera del vestíbulo como la Bestia (`Caza.ir`); antes arriba se estaba a salvo de todos menos de ella. El Trepador no (`SubeEscalera = false`: a cuatro patas se queda contra cada peldaño) y solo ronda su planta.
 - Modo de pruebas: `ServerStorage.Prueba:Fire("Trepador" | "Imitador" | "Acechador" | "Fuego")`. "Imitador" va con apagón; "Acechador" sale a por el primer jugador (que debe estar en el bosque).
 
 ## Cliente (`src/juego/cliente`)
