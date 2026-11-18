@@ -1566,7 +1566,7 @@ return function(opciones: Opciones?)
 	clase("SunRaysEffect", "PostEffect", { props = { Intensity = 0.25, Spread = 1 } })
 	clase("Atmosphere", "Instance", { props = { Density = 0.3, Offset = 0, Color = Color3.fromRGB(199, 199, 199),
 		Decay = Color3.fromRGB(106, 112, 125), Glare = 0, Haze = 0 } })
-	clase("Sky", "Instance", { props = { StarCount = 3000, CelestialBodiesShown = true } })
+	clase("Sky", "Instance", { props = { StarCount = 3000, CelestialBodiesShown = true, MoonAngularSize = 11, SunAngularSize = 21 } })
 	clase("Clouds", "Instance", { props = { Cover = 0.5, Density = 0.7, Enabled = true, Color = BLANCO } })
 
 	-- Valores, eventos y remotos.
@@ -2263,7 +2263,7 @@ return function(opciones: Opciones?)
 		DEF[nombre].servicio = true
 	end
 	servicio("Workspace", {
-		props = { Gravity = 196.2, FallenPartsDestroyHeight = -500, StreamingEnabled = false },
+		props = { Gravity = 196.2, FallenPartsDestroyHeight = -500, StreamingEnabled = false, GlobalWind = Vector3.zero },
 		get = {
 			CurrentCamera = function()
 				return camara
