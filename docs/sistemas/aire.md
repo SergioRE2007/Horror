@@ -22,7 +22,10 @@ Números en `Config.Aire`, a ojo.
   veía, motas incluidas (`AireVista.fuerzaHaz`): no hay luna que lo haga.
 - **Niebla baja**: fuera y de noche, partículas grandes y planas (`Squash` negativo) a ras de suelo en un radio de ~40
   alrededor de la cámara, que se arrastran despacio hacia donde sopla el viento. Con tormenta van más deprisa:
-  `AireVista.empuje(nublado)`, en rampa hasta `Config.Cielo.Tormenta.Viento` (x1,8, el de las nubes).
+  `AireVista.empuje(nublado)`, en rampa hasta `Config.Cielo.Tormenta.Viento` (x1,8, el de las nubes). Las noches de
+  niebla cerrada (`AireVista.neblina`, lo pone `CieloVista`, cielo.md) es más espesa y más alta:
+  `AireVista.nieblaBaja(k, neblina)` da el `Rate` por `Config.Cielo.Niebla.Baja` (x2,5) y la caja `Niebla.Alto` (x1,8)
+  veces más alta, en rampa. Con Rendimiento no hay niebla baja, tampoco la de más.
 - **Pinocha**: fuera, en las rachas y con un pino a menos de `Pinocha.Cerca` (etiqueta `Pino` en el tronco de cada pino de
   `Mapa`), cae pinocha fina dando vueltas y de lado con el viento. Con tormenta, más de lado (el mismo empuje) y desde
   una racha más baja (`AireVista.umbralPinocha`: de `Pinocha.Racha` a `RachaTormenta`).

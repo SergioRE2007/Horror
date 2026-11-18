@@ -10,6 +10,11 @@
 --     la nube se aclara por dentro y vuelve igual.
 --   Viento: workspace.GlobalWind sigue a AireVista.viento (las nubes se arrastran hacia donde va la niebla baja), más
 --     fuerte con tormenta. Ningún emisor usa WindAffectsDrag: no mueve partículas.
+--   Noches de niebla cerrada (CieloVista.hayNiebla, Config.Cielo.Niebla): desde la noche 3, algunas noches sin
+--     tormenta (nunca las dos a la vez) se cierra una niebla que pierde el bosque a pocos metros. Llega en rampa
+--     (Niebla.Rampa s) al anochecer y se levanta desde Niebla.Abre hacia el amanecer. Se publica en Ambiente.neblina y
+--     AireVista.neblina (0 a 1): Ambiente espesa la Atmosphere y AireVista la niebla baja. Sin estrellas y con las nubes
+--     de Nubes.Niebla. En Studio se fuerza con el atributo NieblaPrueba del workspace (como TormentaPrueba).
 --   Luz: Ambiente.nublado y AireVista.nublado (0 a 1, la tormenta en rampa). Con él Ambiente baja la luz de fuera y
 --     las luces de luna de las ventanas (que de día no son azules), y AireVista apaga los haces de luna; con 0, nada.
 -- Con Rendimiento (se mira en cada repaso: cambia en marcha), sin nubes y con la mitad de estrellas. Un solo bucle de
@@ -52,10 +57,13 @@ function CieloVista.suave(x: number): number
 	return x * x * (3 - 2 * x)
 end
 
--- Las nubes con `noche` (0 a 1, la rampa de la luz) y `tormenta` (0 a 1, ya suavizada).
-function CieloVista.nubes(noche: number, tormenta: number, cfg: any): Nubes
+-- Las nubes con `noche` (0 a 1, la rampa de la luz), `tormenta` (0 a 1, ya suavizada) y `neblina` (la noche de niebla,
+-- 0 a 1; de día no cuenta).
+function CieloVista.nubes(noche: number, tormenta: number, cfg: any, neblina: number?): Nubes
 	local n = cfg.Nubes
-	return mezclaNubes(mezclaNubes(n.Dia, n.Noche, math.clamp(noche, 0, 1)), n.Tormenta, math.clamp(tormenta, 0, 1))
+	local k = math.clamp(noche, 0, 1)
+	local deNoche = mezclaNubes(mezclaNubes(n.Dia, n.Noche, k), n.Niebla, math.clamp(neblina or 0, 0, 1) * k)
+	return mezclaNubes(deNoche, n.Tormenta, math.clamp(tormenta, 0, 1))
 end
 
 -- Las nubes con un destello `d` (0 a 1) encima: se aclaran por dentro. Con d = 0, las mismas.
@@ -69,10 +77,10 @@ function CieloVista.conDestello(base: Nubes, d: number, cfg: any): Nubes
 	return { Cover = base.Cover, Density = math.clamp(base.Density + D.Densidad * k, 0, 1), Color = color }
 end
 
--- Cuántas estrellas: ninguna de día ni con tormenta; de noche, Estrellas (con Rendimiento, su parte). De 25 en 25
--- (StarCount no cambia en cada repaso por una sola estrella).
-function CieloVista.estrellas(noche: number, tormenta: number, poco: boolean, cfg: any): number
-	local k = math.clamp(noche, 0, 1) * (1 - math.clamp(tormenta, 0, 1))
+-- Cuántas estrellas: ninguna de día, con tormenta ni con niebla (`neblina`); de noche, Estrellas (con Rendimiento, su
+-- parte). De 25 en 25 (StarCount no cambia en cada repaso por una sola estrella).
+function CieloVista.estrellas(noche: number, tormenta: number, poco: boolean, cfg: any, neblina: number?): number
+	local k = math.clamp(noche, 0, 1) * (1 - math.clamp(tormenta, 0, 1)) * (1 - math.clamp(neblina or 0, 0, 1))
 	local n = cfg.Estrellas * k * k * (if poco then cfg.EstrellasRendimiento else 1)
 	return math.floor(n / 25 + 0.5) * 25
 end
@@ -81,6 +89,20 @@ end
 -- cielo empieza a abrirse (Tormenta.Abre).
 function CieloVista.objetivoTormenta(fase: string?, p: number, hay: boolean, cfg: any): number
 	return if fase == "Noche" and hay and p < cfg.Tormenta.Abre then 1 else 0
+end
+
+-- ¿Hay niebla cerrada esta noche? Desde Niebla.Desde, con su Probabilidad y nunca si hay tormenta (la misma cuenta que
+-- TormentaVista.hay, con Config.Tormenta). La misma en todos los clientes: semilla de TormentaVista con otra tirada.
+function CieloVista.hayNiebla(noche: number, inicio: number, cfg: any): boolean
+	if noche < cfg.Desde or TormentaVista.hay(noche, inicio, Config.Tormenta) then
+		return false
+	end
+	return Random.new(TormentaVista.semilla(noche, inicio) + 104729):NextNumber() < cfg.Probabilidad
+end
+
+-- Lo que toca de niebla (0 o 1), como objetivoTormenta: solo de noche, si la hay, hasta que se levanta (Niebla.Abre).
+function CieloVista.objetivoNiebla(fase: string?, p: number, hay: boolean, cfg: any): number
+	return if fase == "Noche" and hay and p < cfg.Niebla.Abre then 1 else 0
 end
 
 -- Un paso de la rampa: `actual` va hacia `objetivo` a 1/rampa por segundo.
@@ -96,10 +118,11 @@ local cieloMio: Sky? = nil -- el nuestro, si lo hemos tenido que crear
 local nubes: Clouds? = nil
 local nubesMias: Clouds? = nil
 local tormenta: number? = nil -- en rampa, de 0 a 1 (sin suavizar); nil hasta el primer repaso
+local niebla: number? = nil -- igual, la noche de niebla
 local base: Nubes? = nil -- las nubes del último repaso, sin destello
 
 -- Lo que el banco puede mirar.
-CieloVista.estado = { tormenta = 0, noche = 0 }
+CieloVista.estado = { tormenta = 0, neblina = 0, noche = 0 }
 
 local function poco(): boolean
 	return jugador:GetAttribute("Rendimiento") == true
@@ -173,6 +196,18 @@ local function hayTormenta(fase: string?): boolean
 	return type(noche) == "number" and type(inicio) == "number" and TormentaVista.hay(noche, inicio, Config.Tormenta)
 end
 
+-- ¿Hay niebla esta noche? Nunca con tormenta (tampoco la forzada con TormentaPrueba); en Studio, NieblaPrueba la fuerza.
+local function hayNiebla(fase: string?, conTormenta: boolean): boolean
+	if fase ~= "Noche" or conTormenta then
+		return false
+	end
+	if workspace:GetAttribute("NieblaPrueba") == true and RunService:IsStudio() then
+		return true
+	end
+	local noche, inicio = workspace:GetAttribute("Noche"), workspace:GetAttribute("FaseInicio")
+	return type(noche) == "number" and type(inicio) == "number" and CieloVista.hayNiebla(noche, inicio, CFG.Niebla)
+end
+
 -- Las nubes de `base` con el destello de ahora (cada fotograma mientras dura).
 local function pintarNubes()
 	local b = base
@@ -187,20 +222,30 @@ local function pintarNubes()
 	c.Color = Color3.fromRGB(n.Color[1], n.Color[2], n.Color[3])
 end
 
--- Lo de cada repaso: la rampa de la tormenta, estrellas, viento, nubes y lo que lee Ambiente.
+-- Lo de cada repaso: las rampas de la tormenta y la niebla, estrellas, viento, nubes y lo que leen Ambiente y AireVista.
+-- Quien entra tarde lo ve ya puesto (la primera vez, sin rampa).
 local function repasar(dt: number)
 	local fase, p, noche = momento()
-	local objetivo = CieloVista.objetivoTormenta(fase, p, hayTormenta(fase), CFG)
-	local t = if tormenta == nil then objetivo else CieloVista.acercar(tormenta, objetivo, math.min(dt, 1), CFG.Rampa)
+	local conTormenta = hayTormenta(fase)
+	local paso = math.min(dt, 1)
+	local objetivo = CieloVista.objetivoTormenta(fase, p, conTormenta, CFG)
+	local t = if tormenta == nil then objetivo else CieloVista.acercar(tormenta, objetivo, paso, CFG.Rampa)
 	tormenta = t
 	local cerrado = CieloVista.suave(t)
+	local objetivoN = CieloVista.objetivoNiebla(fase, p, hayNiebla(fase, conTormenta), CFG)
+	local n = if niebla == nil then objetivoN else CieloVista.acercar(niebla, objetivoN, paso, CFG.Niebla.Rampa)
+	niebla = n
+	local neblina = CieloVista.suave(n)
 	CieloVista.estado.tormenta = cerrado
+	CieloVista.estado.neblina = neblina
 	CieloVista.estado.noche = noche
 	Ambiente.nublado = cerrado
 	AireVista.nublado = cerrado
+	Ambiente.neblina = neblina
+	AireVista.neblina = neblina
 
 	local sky = asegurarCielo()
-	local estrellas = CieloVista.estrellas(noche, cerrado, poco(), CFG)
+	local estrellas = CieloVista.estrellas(noche, cerrado, poco(), CFG, neblina)
 	if sky.StarCount ~= estrellas then
 		sky.StarCount = estrellas
 	end
@@ -208,7 +253,7 @@ local function repasar(dt: number)
 	local rumbo, fuerza = AireVista.viento()
 	workspace.GlobalWind = rumbo * (fuerza * CFG.Viento * mezcla(1, CFG.Tormenta.Viento, cerrado))
 
-	base = CieloVista.nubes(noche, cerrado, CFG)
+	base = CieloVista.nubes(noche, cerrado, CFG, neblina)
 	pintarNubes()
 end
 

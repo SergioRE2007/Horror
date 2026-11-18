@@ -8,6 +8,10 @@
 --   el relámpago aclara las nubes un instante, Rendimiento quita las nubes y Ambiente apaga Bloom/SunRays/DepthOfField.
 --   Quien entra tarde en una noche de tormenta la ve ya cerrada; un Sky o unas nubes que lleguen tarde mandan sobre los
 --   nuestros; TormentaPrueba solo vale en Studio.
+--   Noches de niebla cerrada: nunca a la vez que la tormenta (con la TormentaVista de verdad, muchas noches), la misma
+--   semilla da lo mismo, ninguna antes de Desde; la rampa sin saltos, la densidad de la Atmosphere dentro de su rango y
+--   de día ninguna niebla; en marcha (NieblaPrueba en Studio) se cierra en Niebla.Rampa s, sin estrellas, se lo dice a
+--   AireVista (niebla baja más espesa y alta), la tormenta la quita y se levanta desde Abre. Quien entra tarde la ve.
 --   Luces de luna de las ventanas (etiqueta Luna): de día grises (no azules), de noche su azul; con el cielo cerrado,
 --   apagadas a su parte (y CieloVista se lo dice también a AireVista); el fogonazo del relámpago, entero. El destello de
 --   la pantalla (ColorCorrection) solo con lo que se vea del cielo (Ambiente.cieloVisto); la luz de fuera, entera.
@@ -27,6 +31,17 @@ local function cerca(a: number, b: number, e: number?): boolean
 end
 local function finito(x: number): boolean
 	return x == x and x > -math.huge and x < math.huge
+end
+
+-- Una semilla de TormentaVista con la que CieloVista.hayNiebla da `con` (su tirada, + 104729, contra Probabilidad).
+local PROB_NIEBLA = 0.35 -- se comprueba abajo que es la de Config
+local function semillaNiebla(g: any, con: boolean): number
+	for s = 1, 10000 do
+		if (g.Random.new(s + 104729):NextNumber() < PROB_NIEBLA) == con then
+			return s
+		end
+	end
+	error("semillaNiebla: ninguna")
 end
 
 -- Un mundo con Mapa, fase y Noche; Ambiente de verdad y una TormentaVista falsa que dice lo que `hay.valor`.
@@ -55,10 +70,14 @@ local function montar(opciones: { studio: boolean?, conCielo: boolean?, fase: st
 	g.workspace:SetAttribute("Fase", opciones.fase)
 	g.workspace:SetAttribute("FaseInicio", ahora - opciones.p * largo)
 	g.workspace:SetAttribute("FaseFin", ahora + (1 - opciones.p) * largo)
-	local hay = { valor = false, llamadas = {} :: { any } }
+	-- `semilla`: la que da TormentaVista.semilla; por defecto una con la que no hay niebla (semillaNiebla).
+	local hay = { valor = false, llamadas = {} :: { any }, semilla = 0 }
+	hay.semilla = semillaNiebla(g, false)
 	local TormentaFalsa = { hay = function(noche: number, inicio: number, cfg: any): boolean
 		table.insert(hay.llamadas, { noche, inicio, cfg })
 		return hay.valor
+	end, semilla = function(): number
+		return hay.semilla
 	end }
 	local bucles = {} :: { [string]: any } -- los bucles pedidos, por nombre (el viento)
 	local SonidoMudo = { bucle = function(nombre: string)
@@ -151,6 +170,59 @@ for _ = 1, 400 do
 end
 comprobar(x == 1 and cerca(Cielo.acercar(0, 1, CFG.Rampa / 2, CFG.Rampa), 0.5), "cuentas: la rampa tarda Rampa s")
 comprobar(Cielo.suave(0) == 0 and Cielo.suave(1) == 1 and cerca(Cielo.suave(0.5), 0.5), "cuentas: suave de 0 a 1")
+
+-- Niebla cerrada: las cuentas. ------------------------------------------------------------------------------------------
+local NB = CFG.Niebla
+comprobar(NB.Probabilidad == PROB_NIEBLA, "banco: PROB_NIEBLA es la de Config")
+comprobar(igualNubes(Cielo.nubes(1, 0, CFG, 1), N.Niebla), "niebla: de noche, las nubes de niebla")
+comprobar(igualNubes(Cielo.nubes(0, 0, CFG, 1), N.Dia), "niebla: de día no cuenta")
+comprobar(igualNubes(Cielo.nubes(1, 0, CFG, 0), N.Noche), "niebla: sin niebla, las de noche")
+comprobar(N.Niebla.Cover > N.Noche.Cover and N.Niebla.Cover < N.Tormenta.Cover, "Config: con niebla, más tapado (sin tormenta)")
+comprobar(Cielo.estrellas(1, 0, false, CFG, 1) == 0, "niebla: ninguna estrella")
+comprobar(Cielo.estrellas(1, 0, false, CFG, 0) == CFG.Estrellas, "niebla: sin ella, todas")
+comprobar(Cielo.objetivoNiebla("Noche", 0.5, true, CFG) == 1 and Cielo.objetivoNiebla("Noche", 0.5, false, CFG) == 0
+	and Cielo.objetivoNiebla("Dia", 0.5, true, CFG) == 0 and Cielo.objetivoNiebla("Noche", NB.Abre + 0.01, true, CFG) == 0,
+	"niebla: solo de noche, si la hay, hasta Abre")
+comprobar(NB.Densidad > 0.36 and NB.Densidad < 1 and NB.Baja > 1 and NB.Alto > 1 and NB.Rampa > CFG.Rampa,
+	"Config: la niebla, más densa, la baja más espesa y alta y la rampa más lenta que la tormenta")
+-- La rampa: suavizada, sin saltos (la derivada de suave, como mucho 1,5 × paso) y tarda Rampa s.
+local xn, antesN, saltoN = 0, 0, 0
+for _ = 1, 600 do
+	xn = Cielo.acercar(xn, 1, 0.1, NB.Rampa)
+	local sn = Cielo.suave(xn)
+	saltoN = math.max(saltoN, sn - antesN)
+	antesN = sn
+end
+comprobar(xn == 1 and saltoN <= 1.5 * 0.1 / NB.Rampa + 1e-9, `niebla: la rampa sin saltos ({saltoN})`)
+comprobar(cerca(Cielo.acercar(0, 1, NB.Rampa / 2, NB.Rampa), 0.5), "niebla: la rampa tarda Rampa s")
+
+-- Con la TormentaVista de verdad: nunca tormenta y niebla la misma noche, la misma semilla da lo mismo y ninguna antes
+-- de Desde. Un mundo aparte (los módulos se cargan una vez por mundo).
+do
+	local mT = crearMundo({})
+	local mudo = { bucle = function() return mT.global.Instance.new("Sound") end, tocar = function() end, en = function() end }
+	mT.cargar("src/juego/cliente/Ambiente", { Sonido = mudo })
+	local TV = mT.cargar("src/juego/cliente/TormentaVista", { CasaVista = {}, Sonido = mudo })
+	local CV = mT.cargar("src/juego/cliente/CieloVista")
+	local niebla, tormentas, total = 0, 0, 0
+	for i = 1, 3000 do
+		local nocheN, inicio = 1 + i % 12, 1_700_000_000 + i * 977
+		local conN = CV.hayNiebla(nocheN, inicio, NB)
+		local conT = TV.hay(nocheN, inicio, Config.Tormenta)
+		comprobar(not (conN and conT), `niebla: nunca con tormenta (noche {nocheN})`)
+		comprobar(CV.hayNiebla(nocheN, inicio, NB) == conN, "niebla: la misma semilla, lo mismo")
+		if nocheN < NB.Desde then
+			comprobar(not conN, "niebla: ninguna antes de Desde")
+		else
+			total += 1
+			niebla += if conN then 1 else 0
+			tormentas += if conT then 1 else 0
+		end
+	end
+	-- Sin tormenta, cerca de Probabilidad (a ojo: ±0,06 en unas 2500 noches).
+	local parte = niebla / math.max(1, total - tormentas)
+	comprobar(niebla > 0 and math.abs(parte - NB.Probabilidad) < 0.06, `niebla: de las noches sin tormenta, ~Probabilidad ({parte})`)
+end
 
 -- En marcha: de día. ---------------------------------------------------------------------------------------------------
 local m, g, L, Ambiente = A.m, A.g, A.L, A.Ambiente
@@ -265,6 +337,59 @@ m.correr(CFG.Rampa + 1, 1 / 10)
 comprobar(Cielo.estado.tormenta == 1 and sky[1].StarCount == 0, "TormentaPrueba en Studio: cielo cerrado")
 g.workspace:SetAttribute("TormentaPrueba", nil)
 
+-- Niebla cerrada en marcha (NieblaPrueba en Studio): se cierra en rampa, sin estrellas y AireVista lo sabe.
+m.correr(CFG.Rampa + 1, 1 / 10) -- que se vaya la tormenta forzada
+local atm = nil
+for _, h in L:GetChildren() do
+	if h:IsA("Atmosphere") then
+		atm = h
+	end
+end
+local AireN = m.cargar("src/juego/cliente/AireVista")
+local densSin = atm.Density
+comprobar(Cielo.estado.neblina == 0 and Ambiente.neblina == 0 and atm.Haze == 2 and cerca(atm.Offset, 0.1),
+	"sin niebla cerrada, la Atmosphere de siempre")
+g.workspace:SetAttribute("NieblaPrueba", true)
+local saltoM, antesM = 0, 0
+local function mirarNiebla()
+	saltoM = math.max(saltoM, math.abs(Ambiente.neblina - antesM))
+	antesM = Ambiente.neblina
+	nan = nan or not (finito(atm.Density) and finito(atm.Haze))
+end
+m.correr(NB.Rampa / 2, 1 / 10, mirarNiebla)
+comprobar(Ambiente.neblina > 0.2 and Ambiente.neblina < 0.8, `NieblaPrueba: llega en rampa ({Ambiente.neblina})`)
+comprobar(atm.Density > densSin and atm.Density < NB.Densidad, "a medias, la Atmosphere se va espesando")
+m.correr(NB.Rampa / 2 + 1, 1 / 10, mirarNiebla)
+comprobar(not nan and saltoM <= 1.5 * 0.2 / NB.Rampa, `niebla en marcha: sin saltos ({saltoM})`)
+comprobar(Cielo.estado.neblina == 1 and Ambiente.neblina == 1 and AireN.neblina == 1, "niebla cerrada del todo (y AireVista lo sabe)")
+comprobar(Cielo.estado.tormenta == 0 and Ambiente.nublado == 0, "niebla sin tormenta")
+comprobar(cerca(atm.Density, NB.Densidad, 1e-4) and cerca(atm.Haze, NB.Haze, 1e-4) and cerca(atm.Offset, NB.Offset, 1e-4),
+	"niebla: Density, Haze y Offset de Config.Cielo.Niebla")
+comprobar(cerca(atm.Color.R * 255, NB.Color[1], 1) and cerca(atm.Color.B * 255, NB.Color[3], 1) and atm.Color.B > atm.Color.R,
+	"niebla: gris azulado")
+comprobar(sky[1].StarCount == 0 and comoNubes(nube, N.Niebla), "niebla: sin estrellas y las nubes tapadas")
+-- La tormenta manda: con las dos forzadas, solo tormenta.
+g.workspace:SetAttribute("TormentaPrueba", true)
+m.correr(math.max(CFG.Rampa, NB.Rampa) + 1, 1 / 10)
+comprobar(Cielo.estado.tormenta == 1 and Cielo.estado.neblina == 0 and Ambiente.neblina == 0, "con tormenta, nunca niebla")
+g.workspace:SetAttribute("TormentaPrueba", nil)
+m.correr(math.max(CFG.Rampa, NB.Rampa) + 1, 1 / 10)
+comprobar(Cielo.estado.neblina == 1 and Cielo.estado.tormenta == 0, "sin tormenta, vuelve la niebla")
+-- Se levanta desde Abre (hacia el amanecer).
+ahora = g.workspace:GetServerTimeNow()
+g.workspace:SetAttribute("FaseInicio", ahora - (NB.Abre + 0.005) * A.largo)
+g.workspace:SetAttribute("FaseFin", ahora + (1 - NB.Abre - 0.005) * A.largo)
+m.correr(2, 1 / 10)
+comprobar(Cielo.estado.neblina < 1 and Cielo.estado.neblina > 0, "pasado Abre, la niebla se empieza a levantar")
+g.workspace:SetAttribute("NieblaPrueba", nil)
+-- La niebla baja de AireVista: más espesa y más alta.
+local NA = Config.Aire.Niebla
+local r0, a0 = AireN.nieblaBaja(1, 0)
+local r1, a1 = AireN.nieblaBaja(1, 1)
+comprobar(r0 == NA.Rate and a0 == NA.Alto, "niebla baja: sin niebla cerrada, la de siempre")
+comprobar(cerca(r1, NA.Rate * NB.Baja) and cerca(a1, NA.Alto * NB.Alto), "niebla baja: con ella, más espesa y alta")
+comprobar(AireN.nieblaBaja(0, 1) == 0, "niebla baja: de día, nada")
+
 -- Se abre antes de amanecer (después del último relámpago).
 A.hay.valor = true
 m.correr(CFG.Rampa + 1, 1 / 10)
@@ -299,11 +424,28 @@ nubesTarde.Parent = B.g.workspace.Terrain
 B.m.correr(0.3, 1 / 60)
 local nb = nubesDe(B.g)
 comprobar(#nb == 1 and nb[1] == nubesTarde and comoNubes(nubesTarde, N.Tormenta), "unas nubes que llegan tarde: se usan esas")
--- TormentaPrueba fuera de Studio: nada.
+-- TormentaPrueba y NieblaPrueba fuera de Studio: nada.
 B.hay.valor = false
 B.g.workspace:SetAttribute("TormentaPrueba", true)
-B.m.correr(CFG.Rampa + 1, 1 / 10)
+B.g.workspace:SetAttribute("NieblaPrueba", true)
+B.m.correr(math.max(CFG.Rampa, CFG.Niebla.Rampa) + 1, 1 / 10)
 comprobar(B.Cielo.estado.tormenta == 0, "TormentaPrueba fuera de Studio: nada")
+comprobar(B.Cielo.estado.neblina == 0, "NieblaPrueba fuera de Studio: nada")
+
+-- Quien entra tarde en una noche de niebla (la de verdad, por la semilla): ya cerrada, sin rampa.
+local Dn = montar({ studio = false, fase = "Noche", p = 0.4 })
+Dn.hay.semilla = semillaNiebla(Dn.g, true)
+Dn.Cielo.start()
+Dn.m.correr(0.3, 1 / 60)
+local atmD = nil
+for _, h in Dn.L:GetChildren() do
+	if h:IsA("Atmosphere") then
+		atmD = h
+	end
+end
+comprobar(Dn.Cielo.estado.neblina == 1 and Dn.Ambiente.neblina == 1 and cerca(atmD.Density, CFG.Niebla.Densidad, 1e-4),
+	"entrar tarde: la niebla ya puesta")
+comprobar(Dn.Cielo.estado.tormenta == 0 and cielos(Dn.L)[1].StarCount == 0, "entrar tarde con niebla: sin tormenta ni estrellas")
 
 -- El sol, el alba y el ocaso (Ambiente.valores; Config.Cielo.Sol y Alba). ---------------------------------------------
 --   La exposición no sube con sol > Pleno (atardecer sin pico de luz antes de "NIGHT n") y no baja de la de noche al
@@ -403,6 +545,21 @@ end
 for _, v in recorrido("Noche", 1) do
 	comprobar(v.franja == 0 and v.Glare == 0, "franja: con el cielo cubierto, amanecer gris")
 end
+-- Niebla cerrada en Ambiente.valores: la densidad, de la de día y noche a la de Niebla, nunca fuera; de día, ninguna.
+for i = 0, 1000 do
+	for _, nb in { 0, 0.25, 0.5, 1 } do
+		local v = Amb.valores("Noche", i / 1000, 0, nb)
+		comprobar(v.Densidad >= 0.36 - EPS and v.Densidad <= NB.Densidad + EPS and v.Haze >= 2 - EPS
+			and v.Haze <= NB.Haze + EPS and v.Offset >= NB.Offset - EPS and v.Offset <= 0.1 + EPS,
+			`niebla: densidad dentro de rango ({v.Densidad} a {i / 1000})`)
+		local d = Amb.valores("Dia", i / 1000 * 0.8, 0, nb)
+		comprobar(d.neblina == 0 and cerca(d.Densidad, 0.38, EPS) and d.Haze == 2, "niebla: de día, ninguna")
+	end
+end
+local llena = Amb.valores("Noche", 0.5, 0, 1)
+comprobar(cerca(llena.Densidad, NB.Densidad, EPS) and cerca(llena.Haze, NB.Haze, EPS) and llena.neblina == 1,
+	"niebla: a media noche, la de Config")
+
 -- Con franja, la niebla del ocaso y la del alba tiran a cálido (más rojo que azul, al revés que la de noche).
 local ocaso = Amb.valores("Dia", (SOL.Pone - 6.5) / 12)
 comprobar(ocaso.franja > 0.9 and ocaso.Niebla.R > ocaso.Niebla.B, "franja: niebla del ocaso rojiza")

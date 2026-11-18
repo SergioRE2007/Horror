@@ -1601,6 +1601,7 @@ Config.Cielo = {
 		Dia = { Cover = 0.8, Density = 0.55, Color = { 150, 153, 158 } }, -- gris y casi cerrado
 		Noche = { Cover = 0.56, Density = 0.42, Color = { 104, 111, 132 } }, -- rotas: la luna y algunas estrellas entre ellas
 		Tormenta = { Cover = 0.94, Density = 0.86, Color = { 64, 66, 76 } }, -- cerrado, bajo y pesado
+		Niebla = { Cover = 0.84, Density = 0.5, Color = { 92, 98, 112 } }, -- la noche de niebla: tapado, la luna velada
 	},
 	-- Con cada relámpago (Ambiente.destello, de 0 a 1) la nube se aclara por dentro: el color va hacia Color en esta
 	-- parte (Mezcla) y se hace algo menos densa. Vuelve igual en cuanto acaba.
@@ -1612,6 +1613,22 @@ Config.Cielo = {
 		Viento = 1.8, -- el viento de las nubes, por esto
 		Lunas = 0.25, -- con el cielo cerrado, el brillo de las luces de luna de las ventanas por esto (el fogonazo, entero)
 		Haz = 0.15, -- ...y lo que se ve de los haces de luna (AireVista) por esto: la sala queda a oscuras
+	},
+	-- Noches de niebla cerrada (CieloVista.hayNiebla): otro tiempo de noche, nunca a la vez que la tormenta. Lo ven todos
+	-- igual (semilla de TormentaVista con otra tirada). La niebla (Ambiente.neblina, de 0 a 1 en rampa) lleva la
+	-- Atmosphere de la noche hacia lo de aquí: el bosque se pierde a pocos metros. Sin estrellas y con las nubes de
+	-- Nubes.Niebla. La niebla baja de AireVista, más espesa y más alta. A ojo.
+	Niebla = {
+		Desde = 3, -- noche desde la que puede haber niebla
+		Probabilidad = 0.35, -- de las noches sin tormenta desde Desde, cuántas tienen niebla
+		Rampa = 40, -- s que tarda en cerrarse o levantarse
+		Abre = 0.9, -- parte de la noche desde la que se levanta (hacia el amanecer)
+		Densidad = 0.58, -- Atmosphere.Density (la noche normal, 0,36)
+		Color = { 46, 53, 66 }, -- gris azulado algo más claro que el de la noche (30, 36, 52): ni lechoso ni negro
+		Haze = 2.6, -- Atmosphere.Haze (de serie, 2)
+		Offset = 0, -- Atmosphere.Offset (de serie, 0,1): el cielo del horizonte también se pierde
+		Baja = 2.5, -- la niebla baja de AireVista: Rate por esto...
+		Alto = 1.8, -- ...y su caja, tantas veces más alta (con Rendimiento no hay niebla baja)
 	},
 	-- El viento que se oye (Sonidos.Viento, Ambiente.vientoSonido). Su volumen de noche por: la racha de AireVista.viento
 	-- (Rachas: con racha 0 y con racha 1; el tono, de 0,96 a 1,04), el cielo cerrado (Tormenta, con nublado 1) y el sitio

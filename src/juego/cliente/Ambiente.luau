@@ -2,8 +2,9 @@
 -- Día gris y apagado con bruma de bosque; noche casi negra con niebla azulada. Las transiciones, al final del día
 -- (atardecer) y al final de la noche (amanecer): la exposición sigue al sol (no a la fase) y una franja cálida tiñe la
 -- niebla y la luz de fuera con el sol en el horizonte (Config.Cielo.Sol y Alba, docs/sistemas/cielo.md).
--- También: viento de fondo (a rachas, más fuerte con tormenta y sordo dentro de casa: Ambiente.vientoSonido), el aviso
--- de que se pone el sol, "NOCHE n" grande al anochecer y el aviso del amanecer.
+-- También: viento de fondo (a rachas, más fuerte con tormenta y sordo dentro de casa: Ambiente.vientoSonido), las
+-- noches de niebla cerrada (Ambiente.neblina, Config.Cielo.Niebla), el aviso de que se pone el sol, "NOCHE n" grande al
+-- anochecer y el aviso del amanecer.
 local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -66,6 +67,9 @@ Ambiente.cieloVisto = 1
 -- Cielo cerrado (CieloVista, cielo.md): de 0 a 1, la tormenta en rampa. Baja la luz de fuera
 -- (Config.Cielo.Tormenta.Luz) y las luces de luna de las ventanas (Tormenta.Lunas); con 0, nada.
 Ambiente.nublado = 0
+-- Noche de niebla cerrada (CieloVista, cielo.md): de 0 a 1, en rampa. Lleva la Atmosphere de la noche hacia la de
+-- Config.Cielo.Niebla (más densa, más clara y sin horizonte); de día no cuenta (va por la noche k).
+Ambiente.neblina = 0
 local semillas: { [Light]: number } = {} -- cada bombilla tiembla a su aire
 local contador = 0
 local CONTRASTE = 0.1
@@ -86,6 +90,9 @@ local BLANCO = Color3.new(1, 1, 1)
 local AMANECER = Color3.fromRGB(table.unpack(ALBA.Amanecer))
 local ATARDECER = Color3.fromRGB(table.unpack(ALBA.Atardecer))
 local TINTE = Color3.fromRGB(table.unpack(ALBA.Tinte))
+local NIEBLA = Config.Cielo.Niebla
+local NIEBLA_COLOR = Color3.fromRGB(table.unpack(NIEBLA.Color))
+local HAZE, OFFSET = 2, 0.1 -- los de la Atmosphere sin niebla cerrada
 
 local function mezcla(a: number, b: number, k: number): number
 	return a + (b - a) * k
@@ -147,21 +154,26 @@ function Ambiente.franja(hora: number, nublado: number?): (number, boolean)
 	return 0.5 * (1 + math.cos(math.pi * d)) * (1 - math.clamp(nublado or 0, 0, 1)), tarde
 end
 
--- Lo que pinta el cielo según la noche (k), la hora y lo cubierto que esté (para la franja), sin tocar nada y antes de
--- la tormenta y el relámpago (eso lo pone pintar encima). Se rellena siempre la misma tabla.
+-- Lo que pinta el cielo según la noche (k), la hora, lo cubierto que esté (para la franja) y la niebla cerrada
+-- (`neblina`, 0 a 1, solo de noche: va por k), sin tocar nada y antes de la tormenta y el relámpago (eso lo pone pintar
+-- encima). Se rellena siempre la misma tabla.
 local valores = {} :: { [string]: any }
-local function calcular(k: number, hora: number, nublado: number?): { [string]: any }
+local function calcular(k: number, hora: number, nublado: number?, neblina: number?): { [string]: any }
 	local sol = Ambiente.sol(hora)
 	local w, tarde = Ambiente.franja(hora, nublado)
 	local calido = if tarde then ATARDECER else AMANECER
-	local niebla = DIA.Niebla:Lerp(NOCHE.Niebla, k)
+	local n = math.clamp(neblina or 0, 0, 1) * k
+	local niebla = DIA.Niebla:Lerp(NOCHE.Niebla, k):Lerp(NIEBLA_COLOR, n)
 	valores.k, valores.hora, valores.sol, valores.franja = k, hora, sol, w
 	valores.Brightness = mezcla(DIA.Brightness, NOCHE.Brightness, k * pesoLuna(hora))
 	-- La exposición sigue al sol: no sube hasta que baja de Pleno ni cae hasta que sale (sin ella la luna sale negra).
 	valores.Exposicion = mezcla(NOCHE.Exposicion, DIA.Exposicion, math.min(1, sol / SOL.Pleno))
 	valores.Ambient = DIA.Ambient:Lerp(NOCHE.Ambient, k)
 	valores.OutdoorAmbient = DIA.OutdoorAmbient:Lerp(NOCHE.OutdoorAmbient, k):Lerp(calido, w * ALBA.Ambiente)
-	valores.Densidad = mezcla(DIA.Densidad, NOCHE.Densidad, k)
+	valores.Densidad = mezcla(mezcla(DIA.Densidad, NOCHE.Densidad, k), NIEBLA.Densidad, n)
+	valores.Haze = mezcla(HAZE, NIEBLA.Haze, n)
+	valores.Offset = mezcla(OFFSET, NIEBLA.Offset, n)
+	valores.neblina = n
 	valores.Niebla = niebla:Lerp(calido, w * ALBA.Niebla) -- hacia el sol, más cálida
 	valores.Decay = niebla:Lerp(calido, w * ALBA.Niebla * 0.5) -- lejos del sol, menos
 	valores.Glare = w * ALBA.Glare
@@ -172,9 +184,9 @@ local function calcular(k: number, hora: number, nublado: number?): { [string]: 
 end
 
 -- Lo mismo a partir de la fase y lo que lleva de ella (lo usa tests/bancos/cielo.luau).
-function Ambiente.valores(fase: string?, p: number, nublado: number?): { [string]: any }
+function Ambiente.valores(fase: string?, p: number, nublado: number?, neblina: number?): { [string]: any }
 	local k, hora = Ambiente.hora(fase, p)
-	return calcular(k, hora, nublado)
+	return calcular(k, hora, nublado, neblina)
 end
 
 -- Cuánto de noche (0 a 1) y la hora, de los atributos del Ciclo.
@@ -287,7 +299,7 @@ local function pintarViento(s: Sound, k: number)
 end
 
 local function pintar(k: number, hora: number)
-	local v = calcular(k, hora, cubierto())
+	local v = calcular(k, hora, cubierto(), Ambiente.neblina)
 	Lighting.ClockTime = hora
 	Lighting.Brightness = v.Brightness
 	Lighting.Ambient = v.Ambient
@@ -303,6 +315,8 @@ local function pintar(k: number, hora: number)
 	atmosfera.Color = v.Niebla
 	atmosfera.Decay = v.Decay
 	atmosfera.Glare = v.Glare
+	atmosfera.Haze = v.Haze
+	atmosfera.Offset = v.Offset
 	color.Brightness = v.Brillo
 	color.Saturation = v.Saturacion
 	color.TintColor = v.Tinte
@@ -362,9 +376,9 @@ function Ambiente.start()
 	Lighting.EnvironmentDiffuseScale = 0.3
 	Lighting.EnvironmentSpecularScale = 0.3
 	atmosfera = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
-	atmosfera.Offset = 0.1
+	atmosfera.Offset = OFFSET
 	atmosfera.Glare = 0
-	atmosfera.Haze = 2
+	atmosfera.Haze = HAZE
 	atmosfera.Parent = Lighting
 	color = Instance.new("ColorCorrectionEffect")
 	color.Saturation = SATURACION
