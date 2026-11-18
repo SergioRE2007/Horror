@@ -18,6 +18,12 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   recta. Antes, con tres bichos, 12-20 `ComputeAsync` por segundo (banco `pulido-4`). `Casa.puertas()` da una lista
   guardada y congelada (`puertasSinLlave`): cada vez que una puerta deja de estar bloqueada (con llave, al importar o
   con el modo de pruebas "Abrir") hay que vaciarla (`puertasSinLlave = nil`).
+  Puertas que abre: antes de cada `MoveTo` (`pasoHacia` y `Caza.ir`), solo la cerrada cuya hoja cruza el tramo de la
+  raíz a ese punto, alargado a `Config.Caza.Puerta.Tramo` (6) y con `Margen` (0,5) a cada lado del `Ancho`
+  (`CazaBusqueda.cruzaPuerta`, números a ojo). Antes abría todas las de menos de 5,5 studs: encerrarse no servía y
+  rondando el vestíbulo abría la de la calle. Las de fuera (`Atacable`, la principal) nunca desde fuera: solo las
+  rompen los ataques, y la Bestia (`Opciones.RompePuertas` = `reventar`: dos golpes y `Casa.romper`, como al llegar)
+  si su camino la cruza. `b:abrirPuertas()` sin punto (la Bestia en la escalera del sótano) abre las de cerca.
   Atascos (`Caza.cazar`): sin presa, si yendo a la sala de ronda o a un ruido pasa `Config.Caza.Parada` (2 s) sin
   acercarse ni moverse 1 stud (sin camino: empujaba la pared el resto de la caza), olvida el ruido, va a otra sala y no
   oye ruidos `SordoTrasParada` (3 s). Mientras caza, el modelo lleva `Persigue` = UserId de su presa (nil sin ella; el
@@ -26,6 +32,9 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   del bicho sin nada que tape la vista o sin nada que choque (paredes y puertas cerradas tapan; hierba y adornos que no
   chocan, no). La usan `Caza.cazar`, la Bestia (`Pillar + 1,5`) y el Acechador (`Pillar + MasPillar`): antes estos dos
   pillaban solo por distancia, a través de puertas cerradas y paredes. Si no alcanza, sigue yendo hacia él.
+  Ver y oír, igual (`ojosDe` en `elegirPresa`): el rayo sale de los ojos, que son la cabeza o, si entre la raíz y ella
+  hay algo que choca, 0,2 studs antes (`CazaBusqueda.ojos`). La cabeza va 1,5-3 studs por delante y, de frente a una
+  pared, se le metía dentro: te veía y te oía al otro lado. El cono de la vista sigue saliendo de la raíz.
 - Búsqueda al perderte (`CazaBusqueda`, `Config.Caza.Busca`, números a ojo; banco `caza-busqueda`): mientras persigue
   guarda `rastro` (dónde te vio, hacia dónde iba él si iba a más de 2 studs/s, cuándo). Al llegar a donde te vio sin
   verte, si el rastro es de hace menos de 6 s: sigue 12 studs en esa dirección (cortado 2 antes de la pared, para no

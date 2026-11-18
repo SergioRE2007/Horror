@@ -5,8 +5,11 @@
 --     avance: se para Busca.Margen antes de la pared y nunca va hacia atrás;
 --     salasCerca: las más cerca de su misma planta, en orden, sin la que ya está y sin pasar de n;
 --     otraSala: la ronda al azar nunca repite la sala de la que viene; mirada: de frente, a un lado y a otro.
+--     cruzaPuerta: solo abre la puerta cuya hoja cruza (de frente sí; de lado, por delante o por detrás no; el tramo
+--     corto se alarga a Puerta.Tramo); ojos: la cabeza, o 0,2 studs antes de la pared si se le mete en ella.
 --   En el texto: la Bestia, el Acechador y Caza.cazar pillan con Caza.alcanza (rayo), no solo por distancia, y la ronda
---   elige con otraSala.
+--   elige con otraSala; Caza abre solo la puerta que cruza, nunca una de fuera desde fuera (la Bestia la revienta) y
+--   ve y oye desde ojosDe.
 -- Si algo no se cumple, termina con error.
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
@@ -119,6 +122,45 @@ local mf = CB.mirada(frente, B.Mirar, B.Mirar, B.Giro)
 comprueba(mf:Dot(frente) > 0.999, "mirada: acaba de frente")
 comprueba(CB.mirada(V3.zero, 0, B.Mirar, B.Giro).Magnitude > 0.99, "mirada: sin dirección no da cero")
 
+-- cruzaPuerta: una hoja de 4 de ancho en el origen, mirando hacia +Z (su plano, el de Z = 0).
+local P = Config.Caza.Puerta
+comprueba(type(P) == "table" and type(P.Tramo) == "number" and P.Tramo > 0, "Config.Caza.Puerta.Tramo")
+comprueba(type(P.Margen) == "number" and P.Margen >= 0 and P.Margen < 2, "Config.Caza.Puerta.Margen")
+local function cruza(desde: any, hacia: any, minimo: number?): boolean
+	return CB.cruzaPuerta(desde, hacia, V3.new(0, 4, 0), V3.new(0, 0, 1), 4, P.Margen, minimo or P.Tramo)
+end
+comprueba(cruza(V3.new(0, 3, -3), V3.new(0, 0, 3)), "cruzaPuerta: de frente, sí")
+comprueba(cruza(V3.new(0, 3, 3), V3.new(0, 0, -3)), "cruzaPuerta: de frente desde el otro lado, sí")
+comprueba(cruza(V3.new(-1, 3, -2), V3.new(1.5, 0, 2)), "cruzaPuerta: en diagonal por el hueco, sí")
+comprueba(cruza(V3.new(0, 3, -3), V3.new(0, 0, -2)), "cruzaPuerta: el siguiente punto antes de la hoja, alargado, sí")
+comprueba(not cruza(V3.new(0, 3, -3), V3.new(0, 0, -2), 0), "cruzaPuerta: y sin alargar, no llega")
+comprueba(not cruza(V3.new(0, 3, -3 - P.Tramo), V3.new(0, 0, -2 - P.Tramo)), "cruzaPuerta: lejos de la hoja, no")
+comprueba(not cruza(V3.new(-5, 3, -1), V3.new(5, 0, -1)), "cruzaPuerta: de lado (pasa por delante, paralelo), no")
+comprueba(not cruza(V3.new(-5, 3, 1), V3.new(5, 0, 1)), "cruzaPuerta: de lado por el otro, no")
+comprueba(not cruza(V3.new(0, 3, -3), V3.new(0, 0, -9)), "cruzaPuerta: alejándose de la hoja, no")
+comprueba(not cruza(V3.new(4, 3, -3), V3.new(4, 0, 3)), "cruzaPuerta: por la pared de al lado de la hoja, no")
+comprueba(not cruza(V3.new(-4, 3, 3), V3.new(-4, 0, -3)), "cruzaPuerta: por la pared del otro lado, no")
+comprueba(cruza(V3.new(2 + P.Margen / 2, 3, -3), V3.new(2 + P.Margen / 2, 0, 3)), "cruzaPuerta: rozando el marco, con el margen, sí")
+comprueba(not cruza(V3.new(1, 3, -2), V3.new(1, 0, -2)), "cruzaPuerta: parado, no")
+comprueba(not cruza(V3.new(-3, 3, 0), V3.new(3, 0, 0)), "cruzaPuerta: por el plano de la hoja, a lo largo, no")
+-- Una hoja girada (normal en diagonal) lejos del origen.
+local nd = V3.new(1, 0, 1).Unit
+local cd = V3.new(10, 4, 10)
+local ld = V3.new(-nd.Z, 0, nd.X)
+comprueba(CB.cruzaPuerta(cd - nd * 2, cd + nd * 2, cd, nd, 4, P.Margen, P.Tramo), "cruzaPuerta: hoja girada, de frente, sí")
+comprueba(not CB.cruzaPuerta(cd - nd * 2 + ld * 4, cd + nd * 2 + ld * 4, cd, nd, 4, P.Margen, P.Tramo),
+	"cruzaPuerta: hoja girada, por la pared, no")
+comprueba(CB.cruzaPuerta(cd - nd * 2, cd + nd * 2, cd, -nd, 4, P.Margen, P.Tramo), "cruzaPuerta: da igual el lado de la normal")
+
+-- ojos: la raíz en el origen y la cabeza 2,5 por delante.
+local raiz, cabeza = V3.new(0, 3, 0), V3.new(0, 3, -2.5)
+local o1 = CB.ojos(raiz, cabeza, nil)
+comprueba(o1 == cabeza, "ojos: sin nada en medio, la cabeza")
+local o2 = CB.ojos(raiz, cabeza, V3.new(0, 3, -1))
+comprueba(casi(o2.X, 0) and casi(o2.Y, 3) and casi(o2.Z, -0.8), "ojos: con la pared en medio, 0,2 antes de ella")
+comprueba((o2 - raiz).Magnitude < (V3.new(0, 3, -1) - raiz).Magnitude, "ojos: del lado de la raíz, no dentro de la pared")
+comprueba(CB.ojos(raiz, cabeza, V3.new(0, 3, -0.1)) == raiz, "ojos: pared pegada a la raíz, en la raíz (nunca detrás)")
+
 -- En el texto: pillar con rayo.
 local function quitarComentarios(t: string): string
 	return (string.gsub(t, "%-%-[^\n]*", ""))
@@ -134,5 +176,18 @@ comprueba(string.find(caza, "self:alcanza(presa, self.o.Pillar)", 1, true), "Caz
 comprueba(string.find(caza, "CazaBusqueda.otraSala(Mapa.salas", 1, true), "Caza.cazar: la ronda no repite sala")
 comprueba(not string.find(caza, "Mapa.salas[azar:NextInteger", 1, true), "Caza.cazar: ya no elige sala a ciegas")
 comprueba(string.find(caza, "planBusca(self, ultimoVisto)", 1, true), "Caza.cazar: busca al llegar a donde le vio")
+-- En el texto: puertas y ojos.
+comprueba(not string.find(caza, "abrirPuertasCerca(self)", 1, true), "Caza: ya no abre todas las de cerca al andar")
+comprueba(string.find(caza, "abrirPuertasCerca(self, destino)", 1, true), "Caza.pasoHacia: con el destino directo")
+comprueba(string.find(caza, "abrirPuertasCerca(self, ruta.puntos[ruta.i])", 1, true), "Caza.pasoHacia: con el punto del camino")
+comprueba(string.find(caza, "abrirPuertasCerca(self, punto)", 1, true), "Caza.ir: con el punto de la escalera")
+comprueba(string.find(caza, "CazaBusqueda.cruzaPuerta(", 1, true), "Caza: abre con cruzaPuerta")
+comprueba(string.find(caza, "Atacable", 1, true) and string.find(caza, "not Caza.dentroDeCasa(raiz)", 1, true),
+	"Caza: las de fuera, nunca desde fuera")
+comprueba(string.find(caza, "local ojos = ojosDe(self)", 1, true), "Caza.elegirPresa: mira desde ojosDe")
+comprueba(not string.find(caza, "local ojos = self:cabeza()", 1, true), "Caza.elegirPresa: ya no desde la cabeza a secas")
+comprueba(string.find(caza, "CazaBusqueda.ojos(raiz, cabeza,", 1, true), "Caza.ojosDe: con CazaBusqueda.ojos")
+comprueba(string.find(bestia, "RompePuertas = reventar", 1, true), "Bestia: revienta las de fuera que cruza")
+comprueba(string.find(bestia, "reventar(b, puerta)", 1, true), "Bestia: y la principal al llegar, igual")
 
 print(`caza-busqueda: {cuentas} comprobaciones`)

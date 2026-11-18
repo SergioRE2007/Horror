@@ -3,6 +3,7 @@
 --   Mientras persigue a alguien guarda un rastro (dónde le vio por última vez, hacia dónde iba él y cuándo). Al llegar
 --   ahí sin verle, si el rastro es reciente, sigue unos studs en esa dirección (sin meterse en la pared), se para a
 --   mirar a un lado y a otro y recorre las salas de al lado de esa misma planta antes de volver a la ronda.
+--   También las cuentas de qué puerta cruza al andar (cruzaPuerta) y desde dónde mira (ojos), que usa Caza.
 local CazaBusqueda = {}
 
 export type Rastro = {
@@ -86,6 +87,48 @@ function CazaBusqueda.mirada(dir: Vector3, t: number, total: number, giro: numbe
 	local a = math.sin(math.clamp(t / total, 0, 1) * 2 * math.pi) * math.rad(giro)
 	local c, s = math.cos(a), math.sin(a)
 	return Vector3.new(f.X * c + f.Z * s, 0, f.Z * c - f.X * s)
+end
+
+-- ¿Cruza la hoja de una puerta quien va de `desde` hacia `hacia`? Todo en planta. La hoja: su centro, su normal (a
+-- cualquiera de los dos lados) y su ancho, con `margen` de más a cada lado. El tramo se alarga hasta `minimo` studs en
+-- la misma dirección: el siguiente punto del camino puede quedar justo antes de la hoja. Parado (sin tramo), no.
+function CazaBusqueda.cruzaPuerta(desde: Vector3, hacia: Vector3, centro: Vector3, normal: Vector3, ancho: number,
+	margen: number, minimo: number): boolean
+	local n = plano(normal)
+	local tramo = plano(hacia - desde)
+	local largo = tramo.Magnitude
+	if n.Magnitude < 0.01 or largo < 0.01 then
+		return false
+	end
+	n = n.Unit
+	if largo < minimo then
+		tramo = tramo.Unit * minimo
+	end
+	local a = plano(desde - centro)
+	local sa, sb = a:Dot(n), (a + tramo):Dot(n)
+	-- De un lado del plano de la hoja al otro (o desde el mismo plano, hacia un lado).
+	if not ((sa <= 0 and sb > 0) or (sa >= 0 and sb < 0)) then
+		return false
+	end
+	local corte = a + tramo * (sa / (sa - sb))
+	local lado = Vector3.new(-n.Z, 0, n.X)
+	return math.abs(corte:Dot(lado)) <= ancho / 2 + margen
+end
+
+-- Desde dónde mira un bicho: de su cabeza, salvo que entre la raíz y la cabeza haya algo (`golpe`, dónde choca un
+-- rayo de la una a la otra): la cabeza va por delante de la raíz y, pegada a una pared, se mete en ella; un rayo que
+-- nace dentro de una pieza no la ve, y veía y oía a través. Entonces, OJOS_ANTES studs antes del golpe (nunca por
+-- detrás de la raíz).
+local OJOS_ANTES = 0.2
+function CazaBusqueda.ojos(raiz: Vector3, cabeza: Vector3, golpe: Vector3?): Vector3
+	if not golpe then
+		return cabeza
+	end
+	local d = golpe - raiz
+	if d.Magnitude <= OJOS_ANTES then
+		return raiz
+	end
+	return golpe - d.Unit * OJOS_ANTES
 end
 
 return CazaBusqueda

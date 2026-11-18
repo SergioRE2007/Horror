@@ -27,6 +27,9 @@
 --   recorre las salas de al lado antes de volver a la ronda (que no repite la sala en la que acaba de estar).
 --   Sigilo: quieto casi no se te oye, tras una pared o una puerta a la mitad, y con la linterna encendida agacharte
 --   no te esconde de la vista (Config.Postura.OirQuieto, OirPared).
+--   Puertas: solo abre la que va a cruzar en ese paso (CazaBusqueda.cruzaPuerta), y las que dan fuera (Atacable) nunca
+--   desde fuera: esas las rompen los ataques, o la Bestia (Opciones.RompePuertas). Ve y oye desde los ojos (ojosDe):
+--   la cabeza, o justo antes de la pared si la cabeza se le mete en ella.
 --   Ni aparecer ni esfumarse a la vista: llegan desde el sitio que nadie ve (Caza.llegadas y Caza.sitioSinVer) y al
 --   irse al bosque se alejan hasta que nadie les vea antes de quitarse (Caza.perderse; en la casa, Caza.salir).
 local CollectionService = game:GetService("CollectionService")
@@ -57,6 +60,9 @@ export type Opciones = {
 	Espera: number?, -- s quieto tras pillar a alguien (ESPERA si no); el Golpeador, lo que dura su susto (14.10)
 	Campo: number?, -- grados a cada lado en los que ve con su Vista entera (Config.Postura.Campo si no)
 	SubeEscalera: boolean?, -- false: no sube la escalera del vestíbulo (Caza.ir) y solo ronda su planta
+	-- Cómo revienta (bicho, puerta) una puerta de las que dan fuera (Atacable) si su camino la cruza desde fuera y está
+	-- cerrada; sin ella, desde fuera no las abre (la Bestia: sus dos golpes y Casa.romper).
+	RompePuertas: ((any, Model) -> ())?,
 }
 
 -- Alguien debajo de un mueble, visto por un bicho: por dónde se mete a por él.
@@ -461,14 +467,49 @@ function Caza.mirarA(self: Bicho, punto: Vector3)
 	self.raiz.CFrame = CFrame.lookAt(self.raiz.Position, Vector3.new(punto.X, self.raiz.Position.Y, punto.Z))
 end
 
--- Abre de un golpe las puertas cerradas que tenga delante.
-local function abrirPuertasCerca(self: Bicho)
+-- Abre de un golpe las puertas cerradas que va a cruzar. Con `hacia` (el punto al que anda en este paso), solo las que
+-- cruza el tramo de la raíz a ese punto, alargado a PUERTA.Tramo (CazaBusqueda.cruzaPuerta): antes abría todas las de
+-- menos de 5,5 studs, y encerrarse en un cuarto no servía y rondando el vestíbulo abría la de la calle. Sin `hacia`
+-- (b:abrirPuertas() de la Bestia en la escalera del sótano), todas las de cerca, como siempre. Las que dan fuera
+-- (Atacable) nunca desde fuera: esas solo las rompen los ataques, o quien tenga Opciones.RompePuertas si las cruza.
+local PUERTA = Config.Caza.Puerta
+local function abrirPuertasCerca(self: Bicho, hacia: Vector3?)
+	local raiz = self.raiz.Position
+	local largo = if hacia then math.max(PUERTA.Tramo, plano(hacia - raiz).Magnitude) else 0
+	local fuera: boolean? = nil -- si está fuera de la casa: solo se mira si hace falta
 	for _, puerta in Casa.puertas() do
 		local hoja = puerta:FindFirstChild("Hoja") :: BasePart
-		local d = hoja.Position - self.raiz.Position
-		if math.abs(d.Y) < 7 and plano(d).Magnitude < 5.5 and not Casa.estado(puerta).abierta then
-			Casa.abrirPuerta(puerta)
+		local d = hoja.Position - raiz
+		if math.abs(d.Y) >= 7 or Casa.estado(puerta).abierta then
+			continue
 		end
+		if hacia then
+			-- La normal de la hoja es su lado más fino (en Mapa, el Z; así vale aunque alguna se haga girada).
+			local tam = hoja.Size
+			local normal = if tam.X < tam.Z then hoja.CFrame.RightVector else hoja.CFrame.LookVector
+			local ancho = (puerta:GetAttribute("Ancho") or math.max(tam.X, tam.Z)) :: number
+			if plano(d).Magnitude > largo + ancho / 2 + PUERTA.Margen
+				or not CazaBusqueda.cruzaPuerta(raiz, hacia, hoja.Position, normal, ancho, PUERTA.Margen, PUERTA.Tramo)
+			then
+				continue
+			end
+		elseif plano(d).Magnitude >= 5.5 then
+			continue
+		end
+		if puerta:GetAttribute("Atacable") then
+			if fuera == nil then
+				fuera = not Caza.dentroDeCasa(raiz)
+			end
+			if fuera then
+				local romper = self.o.RompePuertas
+				if romper and hacia then
+					romper(self, puerta) -- espera mientras la revienta: una por paso
+					return
+				end
+				continue
+			end
+		end
+		Casa.abrirPuerta(puerta)
 	end
 end
 
@@ -481,12 +522,12 @@ function Caza.pasoHacia(self: Bicho, destino: Vector3)
 		self.humanoide:MoveTo(self.raiz.Position)
 		return
 	end
-	abrirPuertasCerca(self)
 	local suelo = self:suelo()
 	local altura = Vector3.new(0, self.o.Altura, 0)
 	local camino = caminoDe(self, self.o.AltoCamino or 8)
 	if math.abs(destino.Y - suelo.Y) < 3 and libre(self.raiz.Position, destino + altura, sinBichos()) then
 		rutas[camino] = nil -- al volver a ir por camino, uno nuevo desde donde esté
+		abrirPuertasCerca(self, destino) -- antes de cada MoveTo, con el punto al que anda: solo la que cruza
 		self.humanoide:MoveTo(destino)
 		return
 	end
@@ -514,11 +555,13 @@ function Caza.pasoHacia(self: Bicho, destino: Vector3)
 			ruta.i += 1
 		end
 		if ruta.i <= #ruta.puntos then
+			abrirPuertasCerca(self, ruta.puntos[ruta.i])
 			self.humanoide:MoveTo(ruta.puntos[ruta.i])
 			return
 		end
 		rutas[camino] = nil -- acabado: el próximo paso calcula otro
 	end
+	abrirPuertasCerca(self, destino)
 	self.humanoide:MoveTo(destino)
 end
 
@@ -830,7 +873,7 @@ function Caza.ir(self: Bicho, destino: Vector3)
 	end
 	local punto, recto = Caza.tramoEscalera(self:suelo(), destino)
 	if recto then
-		abrirPuertasCerca(self)
+		abrirPuertasCerca(self, punto)
 		self:subirRecta(punto)
 	else
 		self:pasoHacia(punto)
@@ -915,6 +958,17 @@ local function debajoDe(self: Bicho, jugador: Player, p: Vector3): Debajo?
 	return c
 end
 
+-- Desde dónde ve y oye (CazaBusqueda.ojos): de la cabeza, o 0,2 studs antes de lo que haya entre la raíz y ella. La
+-- cabeza va 1,5-3 studs por delante de la raíz y, de frente a una pared, se mete en ella: el rayo nacía dentro, no la
+-- veía, y te veía y te oía al otro lado (lo mismo que se arregló en Caza.alcanza). Sin bichos ni personajes en medio.
+local function ojosDe(self: Bicho): Vector3
+	local raiz = self.raiz.Position
+	local cabeza = self:cabeza()
+	filtroChoque.FilterDescendantsInstances = sinPersonajes()
+	local golpe = workspace:Raycast(raiz, cabeza - raiz, filtroChoque)
+	return CazaBusqueda.ojos(raiz, cabeza, if golpe then golpe.Position else nil)
+end
+
 -- A quién va a por: el más cercano que ve (o que oye muy cerca), el escondido al que vio esconderse o el que huele
 -- debajo de un mueble. Ve de frente (a su espalda solo de cerca); agachado se le ve y se le oye menos, y debajo de algo
 -- solo muy de cerca (PosturaReglas).
@@ -924,7 +978,7 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 	local dt = math.clamp(ahora - self.olido, 0, MAX_DT)
 	self.olido = ahora
 	local mejor, destino, mejorDistancia, mejorDebajo = nil, nil, math.huge, nil
-	local ojos = self:cabeza()
+	local ojos = ojosDe(self) -- para el rayo de vista y oído y la distancia; el cono (mira) sale de la raíz
 	local suelo = self:suelo()
 	for _, jugador in Players:GetPlayers() do -- Muerte.vivo y no Muerte.vivos(): sin hacer otra lista en cada vuelta
 		if not Muerte.vivo(jugador) then

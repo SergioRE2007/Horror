@@ -2,7 +2,8 @@
 --   Bestia.soltar(): empieza la noche final. Los demás bichos se van y el Director no lanza ninguno más mientras
 --   Bestia.activa(). A los Config.Bestia.Espera s sale del borde del bosque delante de la puerta principal, ruge, la
 --   revienta y entra. Dentro caza como los demás (Caza): persigue a quien ve, le saca del escondite si le vio esconderse
---   y pilla. Corre más que el jugador: sin bengalas te pilla.
+--   y pilla. Corre más que el jugador: sin bengalas te pilla. Si persiguiendo desde fuera su camino cruza una puerta
+--   de fuera cerrada, también la revienta (reventar, Opciones.RompePuertas): los demás no las abren desde fuera.
 --   Bestia.herir(s): una bengala; cojea esos segundos (más lenta) y ruge. El flash de la cámara no la para.
 --   Bestia.encerrar(dentro): la reja ha caído; si está dentro del sótano queda atrapada: no sale (si se cuela, vuelve),
 --   solo pilla a quien esté dentro con ella; a quien ve fuera cerca, va hacia él y golpea la reja. Si no, ronda el sótano.
@@ -74,6 +75,30 @@ local actual: Estado? = nil
 -- Piel gris oscura casi negra, tirante, con heridas abiertas; hueso amarillento; sangre seca y fresca.
 local PIEL, OSCURA, HUESO = Color3.fromRGB(46, 43, 42), Color3.fromRGB(24, 22, 22), Color3.fromRGB(150, 138, 108)
 local CARNE, SANGRE, SECA = Color3.fromRGB(96, 24, 22), Color3.fromRGB(70, 6, 6), Color3.fromRGB(38, 8, 6)
+
+-- Revienta de dos golpes una puerta de las que dan fuera, si sigue cerrada: la principal al llegar (llegar) y, como
+-- Opciones.RompePuertas, la que cruce su camino desde fuera persiguiendo a alguien (Caza ya no las abre desde fuera).
+local function reventar(b: Caza.Bicho, puerta: Model)
+	local estado = Casa.estado(puerta)
+	local centro = puerta:GetAttribute("Centro") :: CFrame?
+	if not estado or estado.abierta or not centro or not b.modelo then
+		return
+	end
+	b.humanoide:MoveTo(b.raiz.Position)
+	b.humanoide.AutoRotate = false
+	b:mirarA(centro.Position)
+	for _ = 1, 2 do
+		if not b.modelo then
+			break
+		end
+		Remotes.Bestia:FireAllClients("Golpe", b.modelo)
+		task.wait(1)
+	end
+	if b.modelo then
+		Casa.romper(puerta)
+	end
+	b.humanoide.AutoRotate = true
+end
 
 local function crear(cf: CFrame): Caza.Bicho
 	local m, raiz = Cuerpo.nuevo("Bestia", cf)
@@ -183,6 +208,7 @@ local function crear(cf: CFrame): Caza.Bicho
 		-- Con 8 el camino no cabía por la escalera del sótano y daba la vuelta por la trampilla del patio.
 		AltoCamino = B.AltoCamino,
 		Fuera = FUERA_MUEBLE,
+		RompePuertas = reventar,
 	})
 end
 
@@ -286,17 +312,7 @@ local function llegar(b: Caza.Bicho, puerta: Model)
 	if b.prisa or b:elegirPresa(false) or not b.modelo or not b:cerca(fuera, 6) then
 		return
 	end
-	local estado = Casa.estado(puerta)
-	if estado and not estado.abierta then
-		b.humanoide.AutoRotate = false
-		b:mirarA(centro.Position)
-		for _ = 1, 2 do
-			Remotes.Bestia:FireAllClients("Golpe", b.modelo)
-			task.wait(1)
-		end
-		Casa.romper(puerta)
-		b.humanoide.AutoRotate = true
-	end
+	reventar(b, puerta)
 	local normal = plano(centro.LookVector).Unit
 	local pie = dentro + Vector3.new(0, ALTURA, 0)
 	if b.modelo then
