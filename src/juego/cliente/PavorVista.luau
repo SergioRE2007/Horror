@@ -20,8 +20,14 @@
 -- Compañero: si pillan a otro jugador (Remotes.Muerte) y lo ves (a menos de Config.Pavor.Companero.Lejos, en pantalla y
 -- sin paredes; su cuerpo y el bicho no tapan), el susto de ver un bicho con fuerza como poco Companero.Minimo. Si no lo
 -- ves pero está cerca (Companero.Oido, tras una pared), solo el latido y un golpe flojo. Las mismas excepciones.
+-- Visión de túnel (Config.Pavor.Tunel), para quien juega sin cascos: bordes negros que se cierran (dos degradados en
+-- Ui.hud(), con ZIndex 0: debajo de avisos y botones) y la imagen sin color (un ColorCorrectionEffect propio, PavorOjos,
+-- en Lighting). Ver un bicho la pone mientras le dura el latido; perseguido, más fuerte y entera mientras dure. Late con
+-- el corazón (los bordes se cierran un pelo en cada golpe), entra en Tunel.Entra s y sale en Tunel.Sale s. Las mismas
+-- excepciones, y al dejar de poder sentir se quita de golpe. Con Rendimiento, solo los bordes, flojos y quietos.
 -- Las cuentas, en PavorCuentas (banco tests/bancos/pavor.luau). Un solo RenderStep antes de la cámara: mira los bichos
 -- cada Config.Pavor.Cada s y, si no hay pavor ni latido, no hace nada más.
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -34,6 +40,7 @@ local ManosGestos = require(script.Parent.ManosGestos)
 local PavorCuentas = require(script.Parent.PavorCuentas)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Sonido = require(script.Parent.Sonido)
+local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
 local PavorVista = {}
 
@@ -62,7 +69,17 @@ local ultimoSobresalto = -math.huge
 local persigue = false
 local persigueFin = -math.huge
 local ultimoPersigue = -math.huge
-local puesto = false -- si hay algo puesto en CuerpoVista o Manos (para quitarlo una vez)
+-- El susto de ver uno para la visión de túnel: desde cuándo y con qué fuerza (dura lo que su latido).
+local sustoDesde = -math.huge
+local sustoFuerza = 0
+-- La visión de túnel: lo que tiene ahora (0..1, suavizado), sus bordes, el ColorCorrection y lo último puesto en ellos.
+local tunelVa = 0
+local tunelMarco: Frame? = nil
+local tunelLados: UIGradient? = nil
+local tunelArriba: UIGradient? = nil
+local tunelOjos: ColorCorrectionEffect? = nil
+local tunelOscuro, tunelAncho = -1, -1
+local puesto = false -- si hay algo puesto en CuerpoVista, Manos o la visión de túnel (para quitarlo una vez)
 local rayo = RaycastParams.new()
 rayo.FilterType = Enum.RaycastFilterType.Exclude
 rayo.IgnoreWater = true
@@ -176,6 +193,13 @@ local function ponerLatido(f: number)
 	l.Volume = latidoBase * C.Latido.Volumen * f
 end
 
+-- Un susto de fuerza `f` para la visión de túnel: desde ahora, con lo más fuerte entre lo que quede y lo nuevo.
+local function marcarSusto(f: number, ahora: number)
+	local queda = PavorCuentas.latido(ahora - sustoDesde, sustoFuerza) * sustoFuerza
+	sustoFuerza = math.max(queda, f)
+	sustoDesde = ahora
+end
+
 -- Empieza o acaba una persecución (`si`: alguno te persigue ahora).
 local function perseguido(si: boolean, ahora: number)
 	if si == persigue then
@@ -226,9 +250,10 @@ local function asustar(distancia: number, ahora: number, minimo: number?)
 		s.Volume *= C.Sobresalto * (0.6 + 0.4 * f)
 		pcall(ManosGestos.sobresalto, C.Manos * f)
 	end
-	-- El latido, desde ahora (si ya sonaba, sigue: con la fuerza mayor).
+	-- El latido, desde ahora (si ya sonaba, sigue: con la fuerza mayor), y la visión de túnel mientras dure.
 	ponerLatido(f)
 	latidoDesde = ahora
+	marcarSusto(f, ahora)
 end
 
 -- Los rayos no chocan contigo ni con lo que cuelga de la cámara (las manos).
@@ -294,6 +319,7 @@ local function companeroCae(quien: any, cabeza: any, modelo: any)
 	if d <= K.Oido then
 		ponerLatido(K.OidoLatido)
 		latidoDesde = ahora
+		marcarSusto(K.OidoLatido, ahora)
 		if ahora - ultimoSobresalto >= C.SobresaltoCada then
 			ultimoSobresalto = ahora
 			local s = Sonido.tocar("Sobresalto")
@@ -333,15 +359,97 @@ local function mirar(ahora: number)
 	perseguido(teSigue, ahora)
 end
 
+-- El degradado de un borde: negro `oscuro` en el filo, que se aclara hasta nada a `ancho` de la pantalla (por cada lado).
+local function degradado(oscuro: number, ancho: number): NumberSequence
+	local a = math.clamp(ancho, 0.02, 0.45)
+	local filo, medio = 1 - oscuro, 1 - oscuro * 0.4
+	return NumberSequence.new({
+		NumberSequenceKeypoint.new(0, filo),
+		NumberSequenceKeypoint.new(a * 0.45, medio),
+		NumberSequenceKeypoint.new(a, 1),
+		NumberSequenceKeypoint.new(1 - a, 1),
+		NumberSequenceKeypoint.new(1 - a * 0.45, medio),
+		NumberSequenceKeypoint.new(1, filo),
+	})
+end
+
+-- Pone la visión de túnel con lo de ahora (tunelVa) y la persecución `sigue`.
+local function ponerTunel(sigue: number, ahora: number, rendimiento: boolean)
+	local marco, lados, arriba, ojos = tunelMarco, tunelLados, tunelArriba, tunelOjos
+	if not marco or not lados or not arriba or not ojos then
+		return
+	end
+	local oscuro, ancho, saturacion, contraste = PavorCuentas.tunel(tunelVa, sigue, if rendimiento then nil else ahora)
+	if rendimiento then
+		oscuro *= C.Tunel.Rendimiento
+		saturacion, contraste = 0, 0
+	end
+	marco.Visible = oscuro > 0.005
+	if marco.Visible and (math.abs(oscuro - tunelOscuro) > 0.003 or math.abs(ancho - tunelAncho) > 0.002) then
+		tunelOscuro, tunelAncho = oscuro, ancho
+		lados.Transparency = degradado(oscuro, ancho)
+		arriba.Transparency = degradado(oscuro * 0.85, ancho) -- arriba y abajo, algo menos: que no parezca una caja
+	end
+	ojos.Enabled = saturacion < -0.002 or contraste > 0.002
+	ojos.Saturation = saturacion
+	ojos.Contrast = contraste
+end
+
+-- Quita la visión de túnel de golpe.
+local function quitarTunel()
+	tunelVa = 0
+	if tunelMarco then
+		tunelMarco.Visible = false
+	end
+	if tunelOjos then
+		tunelOjos.Enabled = false
+	end
+end
+
 local function quitar()
 	if puesto then
 		puesto = false
 		CuerpoVista.ponerPavor(0, 0, 0, 0)
 		Manos.pavor(0)
+		quitarTunel()
 	end
 end
 
-local function paso()
+-- Los bordes (dos degradados en Ui.hud(), debajo de todo) y el ColorCorrection de la visión de túnel, apagados.
+local function crearTunel()
+	local marco = Instance.new("Frame")
+	marco.Name = "PavorTunel"
+	marco.Size = UDim2.fromScale(1, 1)
+	marco.BackgroundTransparency = 1
+	marco.ZIndex = 0 -- debajo de avisos, carteles y botones del móvil
+	marco.Visible = false
+	local function borde(nombre: string, giro: number): UIGradient
+		local b = Instance.new("ImageLabel")
+		b.Name = nombre
+		b.Size = UDim2.fromScale(1, 1)
+		b.BackgroundTransparency = 1
+		b.Image = "rbxasset://textures/ui/TopBar/WhiteOverlayAsset.png"
+		b.ImageColor3 = Color3.new(0, 0, 0)
+		b.ZIndex = 0
+		local d = Instance.new("UIGradient")
+		d.Rotation = giro
+		d.Transparency = NumberSequence.new(1)
+		d.Parent = b
+		b.Parent = marco
+		return d
+	end
+	tunelLados = borde("Lados", 0)
+	tunelArriba = borde("Arriba", 90)
+	marco.Parent = Ui.hud()
+	tunelMarco = marco
+	local ojos = Instance.new("ColorCorrectionEffect")
+	ojos.Name = "PavorOjos"
+	ojos.Enabled = false
+	ojos.Parent = Lighting
+	tunelOjos = ojos
+end
+
+local function paso(dt: number)
 	local ahora = os.clock()
 	local siente = puedeSentir()
 	if siente and ahora >= proximaMirada then
@@ -370,6 +478,7 @@ local function paso()
 		vertigoDesde = nil
 		persigue, persigueFin = false, -math.huge -- al volver, si aún te persigue, empieza otra (el golpe, con Cada)
 		quitar()
+		tunelVa = 0 -- la visión de túnel, de golpe (al volver entra otra vez desde 0)
 		return
 	end
 	-- Lo que queda de la persecución: entera mientras te persigue y se apaga al dejarte.
@@ -384,12 +493,17 @@ local function paso()
 			l.Volume = latidoBase * C.Latido.Volumen * latidoFuerza * k
 		end
 	end
-	if nivel <= 0 and vertigo <= 0 and sigue <= 0 then
+	-- La visión de túnel: hacia lo de ahora (el susto de verlo mientras dura su latido, o la persecución).
+	local susto = PavorCuentas.latido(ahora - sustoDesde, sustoFuerza) * sustoFuerza
+	tunelVa = PavorCuentas.acercarTunel(tunelVa, PavorCuentas.tunelMeta(susto, sigue), dt)
+	if nivel <= 0 and vertigo <= 0 and sigue <= 0 and tunelVa <= 0 then
 		quitar()
 		return
 	end
 	puesto = true
-	if jugador:GetAttribute("Rendimiento") == true then
+	local rendimiento = jugador:GetAttribute("Rendimiento") == true
+	ponerTunel(sigue, ahora, rendimiento)
+	if rendimiento then
 		CuerpoVista.ponerPavor(0, 0, 0, 0)
 		Manos.pavor(nivel * C.Temblor.Rendimiento) -- de la persecución, solo el latido
 	else
@@ -397,6 +511,11 @@ local function paso()
 		CuerpoVista.ponerPavor(C.Vertigo.Campo * vertigo, C.Vertigo.Recula * vertigo, respira, nivel)
 		Manos.pavor(math.max(nivel, sigue * C.Persigue.Manos))
 	end
+end
+
+-- La visión de túnel de ahora (0..1, suavizada), para quien la quiera leer (y el banco).
+function PavorVista.tunel(): number
+	return tunelVa
 end
 
 -- El pavor que queda ahora (0..1), para quien lo quiera leer (y el banco).
@@ -408,6 +527,7 @@ function PavorVista.nivel(): number
 end
 
 function PavorVista.start()
+	crearTunel()
 	-- Solo en Studio, para probarlo sin esperar a un bicho: poner al jugador el atributo PavorPrueba = distancia en studs
 	-- (desde execute_luau en el cliente) hace el susto de ver uno a esa distancia.
 	if RunService:IsStudio() then

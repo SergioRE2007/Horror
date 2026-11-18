@@ -1,4 +1,4 @@
-# Pavor al ver un bicho: vértigo, manos que tiemblan y latido
+# Pavor al ver un bicho: vértigo, manos que tiemblan, latido y visión de túnel
 
 Pedido por el usuario: "mejorar la inmersión del juego, tema interacciones y todo eso… mejorar las animaciones". Todo
 en el cliente y solo de adorno: `src/juego/cliente/PavorVista.luau` (registrado en `init.client.luau` después de
@@ -33,6 +33,13 @@ de `Lejos` = 45 studs, en pantalla y sin paredes; su cuerpo, el bicho que le pil
 con la fuerza como poco `Minimo` = 0,8: vértigo, golpe, latido y manos con la linterna temblando. Si no lo ves pero está
 a menos de `Oido` = 22 studs (tras una pared), solo el latido (`OidoLatido`) y un golpe flojo (como mucho uno cada
 `SobresaltoCada`). Mismas excepciones; MuerteVista sigue poniendo el charco y CadaverVista el grito.
+
+**Visión de túnel** (`Tunel`, a ojo; para quien juega sin cascos): bordes negros que se cierran (dos degradados en
+`Ui.hud()` con ZIndex 0, debajo de avisos y botones) y la imagen sin color (`ColorCorrectionEffect` propio `PavorOjos`
+en `Lighting`, Saturation hasta -0,35 y algo más de contraste). Ver un bicho la pone mientras dura su latido (`Ver` por lo
+cerca); perseguido, entera y latiendo más (los bordes se cierran un pelo en cada golpe, `Latir` = 1,6 por segundo). Entra
+en `Entra` = 0,4 s y sale en `Sale` = 2 s; cuentas en `PavorCuentas.tunelMeta`, `acercarTunel` y `tunel`. Mismas
+excepciones (al esconderte se quita de golpe); con Rendimiento, solo los bordes, flojos y quietos.
 
 Un susto nuevo durante el pavor lo sube si es más fuerte, nunca lo baja. El mismo bicho no vuelve a asustar hasta que lo
 pierdes de vista `Olvida` = 15 s.
@@ -70,10 +77,13 @@ pierdes de vista `Olvida` = 15 s.
 5. Con el Imitador en la puerta (sin abrir) y por la mirilla: nada de esto.
 6. Esconderse con el latido sonando: se corta y queda el de MuerteVista.
 7. Activar Rendimiento en Ajustes: sin el vértigo, solo latido y temblor flojo.
-8. Dejar que te vea un Golpeador y huir sin mirarlo: su modelo lleva `Persigue` con tu UserId, el latido suena
+8. Visión de túnel: con `PavorPrueba` = 8, los bordes se cierran un poco y el color se apaga, y vuelve en unos segundos.
+   Perseguido, bordes más cerrados que laten y la imagen casi gris; al perderte se abren en ~2 s. No tapa avisos ni el
+   botón del móvil; escondido no sale; con Rendimiento, solo bordes flojos.
+9. Dejar que te vea un Golpeador y huir sin mirarlo: su modelo lleva `Persigue` con tu UserId, el latido suena
    seguido mientras corre detrás y se apaga al perderte; el zumbido de `AmbienteMiedo` sube en ~1 s. Escondido, solo
    el latido de MuerteVista. El Imitador fingiendo en la puerta: nada.
-9. Con 2 jugadores, que un Golpeador pille a uno delante del otro: el que mira nota la vista que se cierra, golpe,
+10. Con 2 jugadores, que un Golpeador pille a uno delante del otro: el que mira nota la vista que se cierra, golpe,
    latido y linterna temblando. Con una pared en medio y cerca: solo latido. Lejos: nada. Escondido: nada de esto.
-10. A ojo para retocar en `Config.Pavor`: lo fuerte del vértigo (`Vertigo.Campo`, `Recula`), lo que tiembla
-   (`Temblor.Giro`) y el retraso (`Retraso.Max`).
+11. A ojo para retocar en `Config.Pavor`: lo fuerte del vértigo (`Vertigo.Campo`, `Recula`), lo que tiembla
+   (`Temblor.Giro`), el retraso (`Retraso.Max`) y la visión de túnel (`Tunel.Bordes`, `Ancho`, `Color`).
