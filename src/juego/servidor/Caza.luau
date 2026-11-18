@@ -37,6 +37,7 @@ export type Opciones = {
 	AltoCamino: number?, -- alto con el que calcula los caminos (8 si no); la Bestia, agachada, para caber al sótano
 	Fuera: number?, -- studs fuera del mueble donde se para a gatear (FUERA si no); más si el bicho es más grande
 	Espera: number?, -- s quieto tras pillar a alguien (ESPERA si no); el Golpeador, lo que dura su susto (14.10)
+	Campo: number?, -- grados a cada lado en los que ve con su Vista entera (Config.Postura.Campo si no)
 }
 
 -- Alguien debajo de un mueble, visto por un bicho: por dónde se mete a por él.
@@ -537,7 +538,8 @@ local function debajoDe(self: Bicho, jugador: Player, p: Vector3): Debajo?
 end
 
 -- A quién va a por: el más cercano que ve (o que oye muy cerca), el escondido al que vio esconderse o el que huele
--- debajo de un mueble. Agachado se le ve y se le oye menos, y debajo de algo solo muy de cerca (PosturaReglas).
+-- debajo de un mueble. Ve de frente (a su espalda solo de cerca); agachado se le ve y se le oye menos, y debajo de algo
+-- solo muy de cerca (PosturaReglas).
 -- Devuelve el jugador, a dónde ir y, si está debajo de un mueble, por dónde meterse a por él (Caza.aPorDebajo).
 function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, Debajo?)
 	local ahora = os.clock()
@@ -568,12 +570,20 @@ function Caza.elegirPresa(self: Bicho, soloFuera: boolean): (Player?, Vector3?, 
 			local suRaiz = if cubierto or olor then raizDe(jugador) else nil
 			-- Debajo de algo solo le notan los de su misma parte del mapa.
 			local alAlcance = not cubierto or (suRaiz ~= nil and mismoSitio(suelo, suRaiz.Position))
-			local d = (suCabeza.Position - ojos).Magnitude
-			local loVe = alAlcance and d < PosturaReglas.alcanceVista(self.o.Vista, agachado, cubierto)
+			local hacia = suCabeza.Position - ojos
+			local d = hacia.Magnitude
+			-- Ve de frente: a su espalda, solo de cerca, salvo si te acaba de ver u oír (PosturaReglas.vistaDeLado).
+			local visto = self.vistoEn[jugador]
+			local mira, haciaPlano = plano(self.raiz.CFrame.LookVector), plano(hacia)
+			local cosAngulo = if mira.Magnitude > 0.01 and haciaPlano.Magnitude > 0.01
+				then mira.Unit:Dot(haciaPlano.Unit)
+				else 1 -- justo encima o debajo: de frente
+			local recienVisto = visto ~= nil and ahora - visto < Config.Postura.Memoria
+			local vista = PosturaReglas.vistaDeLado(self.o.Vista, cosAngulo, recienVisto, self.o.Campo)
+			local loVe = alAlcance and d < PosturaReglas.alcanceVista(vista, agachado, cubierto)
 				and libre(ojos, suCabeza.Position, sinBichos(jugador.Character))
 			local corriendo = jugador:GetAttribute("Corriendo") == true -- corriendo hace ruido (14.8)
 			local nota = loVe or (alAlcance and d < PosturaReglas.alcanceOido(OIDO, agachado, cubierto, corriendo))
-			local visto = self.vistoEn[jugador]
 			if nota then
 				self.vistoEn[jugador] = ahora
 			end
