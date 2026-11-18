@@ -15,6 +15,7 @@ local Separar = require(ServerScriptService:WaitForChild("Comun").Separar)
 local Bichos3D = require(script.Parent.Bichos3D)
 local Fachada = require(script.Parent.Fachada)
 local Lugares = require(script.Parent.Lugares)
+local MapaSendas = require(script.Parent.MapaSendas)
 
 -- Muebles del Creator Store y de Poly Haven: una carpeta por archivo de src/muebles (Muebles.rbxm, lo de antes, y un
 -- <Sala>.rbxm por sala, para hacer salas en paralelo: plan-paralelo.md). Tabla nombre -> molde mirando solo los hijos
@@ -3226,7 +3227,7 @@ local function pino(tronco: BasePart, x: number, z: number, alto: number, grueso
 end
 
 -- Lo que hay por el suelo del bosque: rocas y troncos caídos (chocan) y arbustos y helechos (no). Lejos de la casa,
--- del camino y de los sitios (Lugares), con su propio azar: no mueve nada de lo que ya había.
+-- del camino, de las sendas (MapaSendas) y de los sitios (Lugares), con su propio azar: no mueve nada de lo que ya había.
 -- Junto a la casa, la torre, el garaje, el cobertizo, el sótano o lo que hay delante (el motor está en z = -52, el garaje en x = -59): ahí no salen
 -- árboles ni sotobosque.
 local function junto(x: number, z: number): boolean
@@ -3247,7 +3248,7 @@ local function sotobosque(bosque: Folder)
 			intentos += 1
 			local angulo, distancia = azar:NextNumber(0, math.pi * 2), azar:NextNumber(22, 330)
 			local x, z = math.cos(angulo) * distancia, math.sin(angulo) * distancia
-			if (math.abs(x) < 10 and z < -24) or junto(x, z) or not Lugares.libre(x, z) then
+			if (math.abs(x) < 10 and z < -24) or junto(x, z) or not Lugares.libre(x, z) or MapaSendas.cerca(x, z, 3) then
 				continue
 			end
 			local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, azar:NextNumber(0, math.pi * 2), 0)
@@ -3284,6 +3285,8 @@ local function construirBosque(mapa: Folder)
 	-- La carretera de tierra: de la casa al pueblo.
 	CollectionService:AddTag(bloque("Camino", Vector3.new(12, 0.2, 494), CFrame.new(0, 0.05, -283), COLOR.Camino,
 		Enum.Material.Ground, bosque), "EnMapa")
+	-- Las sendas a la granja, al aserradero y a la torre (MapaSendas): sin pinos ni sotobosque encima.
+	MapaSendas.construir(bosque, bloque)
 	local azar = Random.new(7)
 	local puestos = 0
 	while puestos < 260 do
@@ -3293,8 +3296,8 @@ local function construirBosque(mapa: Folder)
 		if not (math.abs(x) < 12 and z < -41) then
 			local alto, grueso = azar:NextNumber(50, 85), azar:NextNumber(2, 4.5)
 			puestos += 1
-			-- Dentro de una zona (Lugares) no se pone, pero cuenta igual: los de fuera no se mueven.
-			if not Lugares.libre(x, z) or junto(x, z) then
+			-- Dentro de una zona (Lugares) o a menos de 4 de una senda no se pone, pero cuenta igual: los demás no se mueven.
+			if not Lugares.libre(x, z) or junto(x, z) or MapaSendas.cerca(x, z, 4) then
 				continue
 			end
 			local tronco = bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
