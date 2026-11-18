@@ -117,8 +117,9 @@ Hecho sin Studio (sesión en la nube) y con números a ojo: **falta verlo y que 
 juego): el jugador aparece en una explanada oscura con lluvia, sin ninguna pista, y la mitad de los nuevos se iba en 5
 minutos en el primer juego. Pedido por el usuario entonces: muy visible, flecha grande, frases cortas.
 - Una línea de papel arriba en el centro (460 de ancho, esquina de sangre) y una flecha roja grande con un círculo que
-  late, sobre lo que señala y visible a través de las paredes; si no está delante, otra flecha en el borde de la
-  pantalla. En el móvil la del borde no se pega a las esquinas de los botones de Roblox ni al botón de saltar. Con
+  late, sobre lo que señala y visible a través de las paredes; si no está en la pantalla, otra flecha en el borde de la
+  pantalla (si está detrás, a media altura a la izquierda o a la derecha, hacia donde girarse; nunca bajo el cartel;
+  la misma cuenta que el tutorial, banco `tests/bancos/flecha-borde.luau`). En el móvil la del borde no se pega a las esquinas de los botones de Roblox ni al botón de saltar. Con
   Rendimiento, sin vaivén ni deslizamiento. Cuelga de `Ui.hud` (su UIScale) y usa el bucle de `Bucle`.
 - Dos etapas (`lobby/servidor/GuiaLobby` decide al cargar los datos y publica el atributo `GuiaLobby`; las reglas, en
   `lobby/servidor/GuiaReglas`, probadas en `tests/bancos/guia-lobby.luau`):

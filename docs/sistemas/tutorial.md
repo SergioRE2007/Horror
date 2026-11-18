@@ -33,6 +33,14 @@ Propuesta de Claude hecha sin poder ver el juego (sesión en la nube, 03-11-2026
 - Cliente (`juego/cliente/TutorialVista`): cartel de papel arriba en el centro (paso "3/9", frase, SALTAR), flecha roja grande sobre lo más cercano que pide el paso (a través de las paredes) con contorno, flecha en el borde de la pantalla si no está delante y, en el móvil, flecha sobre el botón MOCHILA. Suena `Papel` al pasar de paso. Las cinemáticas lo esconden con el resto (está en `PlayerGui`).
 - En Studio solo sale con `Config.Test.Tutorial = true`.
 
+## La flecha del borde (pulido, propuesta de Claude)
+
+- Si lo señalado está detrás, la flecha va a media altura en el borde izquierdo o derecho (hacia donde girarse) y apunta a ese lado; antes salía abajo en el centro apuntando abajo. Delante pero fuera de la pantalla, en el borde en esa dirección (antes, por leer mal `WorldToViewportPoint`, a veces salía al revés). Lo mismo en la guía del lobby.
+- Arriba nunca se mete bajo el cartel del paso; en el móvil, abajo queda por encima de la rejilla de botones del equipo (zona segura incluida) y del joystick.
+- La flecha del mundo mide 90 px por la escala del HUD (en un teléfono, ~50), y se recalcula al cambiar la pantalla.
+- Con Rendimiento: flechas quietas y el cartel sin rebote al cambiar de paso.
+- Banco `tests/bancos/flecha-borde.luau` (los dos módulos de verdad con el Roblox de mentira).
+
 ## Guía del lobby (16.7)
 
 El tutorial solo cubre la partida. Lo del lobby (llegar al coche, y tras la primera partida la tienda con su primera clase
