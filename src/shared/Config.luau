@@ -226,6 +226,12 @@ Config.Director = {
 	Reintento = 2, -- segundos que espera un hueco sin ventana libre o con la Bestia fuera antes de volver a mirar
 }
 
+-- Lo común de los bichos que andan y cazan (juego/servidor/Caza, docs/sistemas/bichos.md). A ojo.
+Config.Caza = {
+	Parada = 2, -- s sin acercarse a donde va (sala o ruido) ni moverse (sin camino, algo en medio): cambia de sala
+	SordoTrasParada = 3, -- s que no hace caso a los ruidos tras atascarse (si no, volvía al mismo ruido sin camino)
+}
+
 -- Linterna con pilas (juego/servidor/Equipo): la F, o el botón en el móvil. Con poca pila parpadea.
 Config.Linterna = {
 	Duracion = 150, -- segundos encendida que dura una pila
@@ -914,6 +920,11 @@ Config.Pavor = {
 	-- Al girar rápido la vista se queda atrás: desde `Desde` rad/s, `Tiempo` s de lo girado, `Max` radianes como mucho,
 	-- y lo deprisa que sigue (por segundo).
 	Retraso = { Desde = 1.5, Tiempo = 0.025, Max = math.rad(2.2), Suave = 12 },
+	-- Un bicho que te persigue (atributo Persigue de su modelo, lo pone Caza): el latido entero mientras dure (`Latido`:
+	-- su fuerza) y, al dejarte, se apaga en Latido.Apaga s; al empezar, un golpe flojo (`Sobresalto`, su volumen por
+	-- esto) y un respingo flojo de las manos (`Respingo`) como mucho cada `Cada` s; la respiración más deprisa (`Respira`,
+	-- como la de arriba) y las manos tiemblan algo (`Manos`). Con Rendimiento, solo el latido y el golpe.
+	Persigue = { Cada = 10, Sobresalto = 0.35, Respingo = 0.3, Latido = 1, Respira = 0.95, Manos = 0.35 },
 }
 
 -- Cómo se mueven y suenan las latas (juego/cliente/LatasVista, 14.3). A ojo.
@@ -1229,6 +1240,7 @@ Config.AmbienteMiedo = {
 	RafagaAlcance = 30, -- studs: ventanas a esta distancia de la cámara
 	RafagaFuera = 0.8, -- studs por fuera del cristal desde donde suena
 	RafagaTono = { 0.9, 1.08 },
+	TensionPersigueSubir = 1.5, -- por segundo, con un bicho persiguiéndote (atributo Persigue): entera en menos de 1 s
 }
 
 -- Sustos sueltos de noche, cada jugador los suyos (juego/cliente/Sustos, 14.3). Segundos y studs a ojo.

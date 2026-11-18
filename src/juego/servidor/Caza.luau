@@ -16,6 +16,10 @@
 --   Ruidos (15.8, pedido por el usuario: lo pesado que cae o se arrastra lo oye el bicho): Caza.oir da el ruido más
 --   cerca que oye y aún no ha ido a mirar (Ruidos; de dentro de la casa a fuera o al revés llega la mitad). Si no ve
 --   a nadie, Caza.cazar va corriendo a mirar allí; nunca pilla por un ruido a quien no está allí.
+--   Atascos: si rondando o yendo a un ruido no avanza (Config.Caza.Parada s sin acercarse ni moverse: sin camino, algo
+--   en medio), cambia de sala y no hace caso a los ruidos un rato (como la `parada` de la Bestia).
+--   Persigue: mientras caza, el atributo Persigue del modelo lleva el UserId de su presa (nil sin presa) para el
+--   cliente (PavorVista: el latido; AmbienteMiedo: la tensión). El Imitador mientras finge, nunca.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
@@ -78,7 +82,14 @@ export type Bicho = typeof(setmetatable({} :: {
 	rumboVisto: number, -- os.clock de la última vez que fue hacia él
 	sinSalida: { SinSalida }, -- los últimos bordes a los que no llegó (no los vuelve a elegir en un rato)
 	gateaEn: Vector3?, -- el borde en el que está gateando (los demás bichos no se le meten ahí)
+	oido: number, -- el número del último ruido al que fue a mirar (Ruidos)
+	parado: Parado?, -- desde dónde y cuándo no avanza hacia donde va sin presa (nil: no se está mirando)
+	sordoHasta: number, -- os.clock hasta el que no hace caso a los ruidos (tras atascarse)
 }, Caza))
+
+-- Yendo sin presa a `destino` (una sala o un ruido): dónde estaba (`punto`) y lo más cerca que estaba (`mejor`) a la
+-- hora `hora` (os.clock). Si en PARADA s no se aleja de `punto` ni se acerca a `destino`, se ha atascado.
+type Parado = { destino: Vector3, punto: Vector3, mejor: number, hora: number }
 
 -- Un borde al que no llegó, hasta `hasta` (os.clock).
 type SinSalida = { punto: Vector3, hasta: number }
@@ -93,6 +104,9 @@ local MAX_DT = Config.Postura.MaxOlor
 local SIN_SALIDA = Config.Postura.SinSalida
 local MAX_SIN_SALIDA = 3 -- bordes a los que no llegó que recuerda a la vez
 local ESPERA = 2.5 -- s quieto tras pillar a alguien (Opciones.Espera si la tiene)
+-- Atascos rondando o yendo a un ruido (Config.Caza, a ojo).
+local PARADA = Config.Caza.Parada
+local SORDO = Config.Caza.SordoTrasParada
 
 local azar = Random.new()
 local vivos: { [Bicho]: boolean } = {}
@@ -356,7 +370,9 @@ function Caza.nuevo(modelo: Model, humanoide: Humanoid, o: Opciones): Bicho
 		rumboVisto = -math.huge,
 		sinSalida = {},
 		gateaEn = nil,
-		oido = 0, -- el número del último ruido al que fue a mirar (Ruidos)
+		oido = 0,
+		parado = nil,
+		sordoHasta = -math.huge,
 	}, Caza)
 	vivos[b] = true
 	return b
@@ -370,7 +386,25 @@ function Caza.todos(): { Bicho }
 	return lista
 end
 
+-- Para el cliente (PavorVista, AmbienteMiedo): a quién persigue ahora, en el atributo Persigue del modelo (el UserId de
+-- `presa`; nil sin presa). Solo se escribe si cambia. El Imitador mientras finge ser una persona en la puerta (sin
+-- Abierto, como lo mira el cliente) no lo lleva nunca: lo delataría.
+local function publicarPresa(self: Bicho, presa: Player?)
+	local modelo = self.modelo
+	if not modelo then
+		return
+	end
+	local id = if presa then presa.UserId else nil
+	if id and modelo.Name == "Imitador" and modelo:GetAttribute("Abierto") ~= true then
+		id = nil
+	end
+	if modelo:GetAttribute("Persigue") ~= id then
+		modelo:SetAttribute("Persigue", id)
+	end
+end
+
 function Caza.quitar(self: Bicho)
+	publicarPresa(self, nil)
 	vivos[self] = nil
 	local camino = caminos[self]
 	if camino then
@@ -758,14 +792,51 @@ function Caza.aPorDebajo(self: Bicho, presa: Player, bajo: Debajo, paso: ((Bicho
 	return nil
 end
 
+-- Una sala de ronda al azar que no sea `ahora` (si hay más de una).
+local function otraSala(ahora: Vector3?): Vector3
+	local salas = Mapa.salas
+	if not ahora or #salas < 2 then
+		return salas[azar:NextInteger(1, #salas)]
+	end
+	local i = azar:NextInteger(1, #salas - 1)
+	if salas[i] == ahora then
+		i = #salas -- así sale cada una de las otras igual de a menudo
+	end
+	return salas[i]
+end
+
+-- Yendo sin presa a `destino`: true si en PARADA s no se ha acercado más de 1 stud ni se ha movido de donde estaba (y
+-- ahora va parado): no tiene camino o algo le tapa y empujaba la pared. Un destino nuevo, acercarse o moverse empiezan
+-- la cuenta otra vez.
+local function atascado(self: Bicho, destino: Vector3): boolean
+	local ahora = os.clock()
+	local aqui = self.raiz.Position
+	local d = plano(destino - self:suelo()).Magnitude
+	local p = self.parado
+	if not p or plano(p.destino - destino).Magnitude > 2 or d < p.mejor - 1 or plano(aqui - p.punto).Magnitude > 1 then
+		self.parado = { destino = destino, punto = aqui, mejor = d, hora = ahora }
+		return false
+	end
+	if ahora - p.hora < PARADA or plano(self.raiz.AssemblyLinearVelocity).Magnitude >= 1 then
+		return false
+	end
+	self.parado = nil
+	return true
+end
+
 -- Caza durante `duracion` segundos. `soloFuera`: en el bosque, solo a los que están fuera de la casa.
 function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 	local fin = os.clock() + duracion
 	local ultimoVisto: Vector3? = nil
 	local ronda: Vector3? = nil
+	self.parado = nil
 	while self.modelo and os.clock() < fin and not self.prisa do
 		local presa, destino, bajo = self:elegirPresa(soloFuera)
-		if not presa then
+		publicarPresa(self, presa)
+		-- Adónde va este paso sin presa por su cuenta (sala o ruido), para ver si se atasca; nil: no cuenta (quieto, con
+		-- presa o lo ha hecho un suceso).
+		local yendo: Vector3? = nil
+		if not presa and os.clock() >= self.sordoHasta then
 			local oido = self:oir(soloFuera)
 			if oido then
 				ultimoVisto = oido -- lo ha oído (15.8): va corriendo a mirar allí
@@ -818,9 +889,11 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			self:pasoHacia(ultimoVisto)
 			if self:cerca(ultimoVisto, 4) then
 				ultimoVisto = nil
+			else
+				yendo = ultimoVisto
 			end
 		elseif soloFuera then
-			return -- en el bosque, si no ve a nadie, se olvida
+			break -- en el bosque, si no ve a nadie, se olvida
 		else
 			self.humanoide.WalkSpeed = self.o.Andar
 			if ronda and self:cerca(ronda, 4) then
@@ -836,10 +909,20 @@ function Caza.cazar(self: Bicho, duracion: number, soloFuera: boolean)
 			-- Un suceso propio de ronda (el Golpeador: Armario, Garras); si lo hace, este paso ya está.
 			if not (self.alCazar and self.alCazar(self, "Ronda", nil, ronda)) then
 				self:pasoHacia(ronda :: Vector3)
+				yendo = ronda
 			end
+		end
+		if not yendo then
+			self.parado = nil -- lo de este paso no cuenta: empieza de cero
+		elseif atascado(self, yendo) then
+			-- No avanza: a otra sala y sordo un rato (el ruido sin camino le volvía a llevar contra la misma pared).
+			ultimoVisto = nil
+			ronda = otraSala(ronda)
+			self.sordoHasta = os.clock() + SORDO
 		end
 		task.wait(0.25)
 	end
+	publicarPresa(self, nil)
 end
 
 -- Lo que sabe cada bicho de un jugador: al irse y al morir. Al morir y no al revivir: muerto no está en elegirPresa
