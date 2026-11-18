@@ -5,6 +5,10 @@
 -- Mientras la compra está abierta, a quién revive no cambia: pulsar otro botón no hace nada (antes, al pagar la
 -- primera se revivía al del último botón). Se libera al pagar, al cerrar la compra sin pagar
 -- (PromptProductPurchaseFinished) o pasado ABIERTA s sin noticias de Roblox.
+-- PromptProductPurchaseFinished no es de fiar (un cliente con trampas lo puede falsear, con el UserId de otro, y no
+-- dice de qué compra es): solo es una pista. Un "no pagó" no borra el objetivo, solo deja abrir otra compra (si
+-- luego llega el recibo de esa, revive a quien se apuntó); un "pagó" alarga la espera una sola vez por compra; y un
+-- aviso que llega antes de CIERRE s de abrir la compra es de la anterior y no cuenta. Quien manda es el recibo.
 -- Atributo del Player "Revivible" = true mientras se le puede revivir (lo usan los botones).
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -25,10 +29,16 @@ local Revivir = {}
 local revividos: { [number]: number } = {} -- [UserId] = la noche en que revivió pagando
 local noche = 0 -- noches de este servidor: sube con cada una, también si se repite al morir todos
 -- comprador -> a quién revive y desde cuándo (os.clock) está la compra abierta.
--- pagada = Roblox ya avisó de que la pagó (falta el recibo).
-local pendientes: { [Player]: { objetivo: Player, desde: number, pagada: boolean? } } =
+-- pagada = os.clock() en que Roblox avisó de que la pagó (falta el recibo); cerrada = avisó de que no la pagó.
+local pendientes: { [Player]: { objetivo: Player, desde: number, pagada: number?, cerrada: boolean? } } =
 	setmetatable({}, { __mode = "k" }) :: any
 local ABIERTA = 120 -- s que se guarda el objetivo si Roblox no avisa de cómo acabó la compra (no debería pasar)
+local CIERRE = 1 -- s: nadie paga tan rápido, así que un aviso de cierre antes de esto es de la compra anterior
+
+-- ¿Sigue en pie la compra abierta? Pagada cuenta desde el aviso de pago (el recibo puede tardar), y solo el primero.
+local function enPie(abierta): boolean
+	return os.clock() - (abierta.pagada or abierta.desde) < ABIERTA
+end
 
 -- En un final (la huida o el incendio), no: el personaje nuevo saldría en mitad de la escena.
 local function puede(objetivo: Player): boolean
@@ -49,9 +59,10 @@ local function pedir(comprador: Player, objetivo: unknown): boolean
 	local abierta = pendientes[comprador]
 	-- Si el apuntado ya no se puede revivir (revivió por otro lado, amaneció, se fue), la compra abierta se da por
 	-- caducada y se apunta al nuevo. Salvo si ya está pagada: ese recibo es del primero (o monedas si ya no se puede).
+	-- Cerrada sin pagar (según Roblox), se puede abrir otra para quien sea.
 	local vale = abierta ~= nil
-		and (abierta.pagada or (abierta.objetivo.Parent == Players and puede(abierta.objetivo)))
-	if abierta and vale and os.clock() - abierta.desde < ABIERTA then
+		and (abierta.pagada ~= nil or (not abierta.cerrada and abierta.objetivo.Parent == Players and puede(abierta.objetivo)))
+	if abierta and vale and enPie(abierta) then
 		-- Ya hay una compra a medias: solo se vuelve a abrir si es para el mismo (así no cambia a quién revive).
 		return abierta.objetivo == objetivo
 	end
@@ -82,21 +93,21 @@ local function alEntrar(jugador: Player)
 	jugador:GetAttributeChangedSignal("Muerto"):Connect(publicar)
 end
 
--- Cómo acabó la compra abierta: sin pagar, se olvida el objetivo; pagada, se guarda hasta que llegue el recibo (dar).
-local function alAcabarCompra(userId: number, producto: number, pagada: boolean)
-	if Config.Compras.Revivir.Id <= 0 or producto ~= Config.Compras.Revivir.Id then
+-- Cómo acabó la compra abierta (solo una pista, ver arriba): sin pagar, se deja abrir otra; pagada, se guarda el
+-- objetivo hasta que llegue el recibo (dar).
+local function alAcabarCompra(userId: unknown, producto: unknown, pagada: unknown)
+	if typeof(userId) ~= "number" or Config.Compras.Revivir.Id <= 0 or producto ~= Config.Compras.Revivir.Id then
 		return
 	end
 	local comprador = Players:GetPlayerByUserId(userId)
 	local abierta = comprador and pendientes[comprador]
-	if not abierta then
-		return
+	if not abierta or os.clock() - abierta.desde < CIERRE then
+		return -- nada abierto, o un aviso viejo de la compra anterior
 	end
-	if pagada then
-		abierta.desde = os.clock() -- el recibo puede tardar: que no caduque mientras
-		abierta.pagada = true
-	else
-		pendientes[comprador :: Player] = nil
+	if pagada == true then
+		abierta.pagada = abierta.pagada or os.clock() -- el recibo puede tardar: que no caduque mientras (una vez)
+	elseif not abierta.pagada then
+		abierta.cerrada = true -- con un pago ya avisado, el recibo está en camino: no se toca
 	end
 end
 

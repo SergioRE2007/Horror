@@ -50,14 +50,15 @@ local function sitio(): CFrame
 	return CFrame.lookAt(p, p + Vector3.new(0, 0, 1))
 end
 
--- `sinTope`: la espera del principio (hasta saber si la partida es nueva): cargarla puede tardar más que Tope y el
--- tutorial no debe empezar antes de la escena. Ciclo siempre arranca (Partida.start vuelve aunque falle).
-local function marcar(si: boolean, sinTope: boolean?)
+-- `alEmpezar`: la espera del principio (hasta saber si la partida es nueva): cargarla puede tardar más que Tope y el
+-- tutorial no debe empezar antes de la escena, así que su tope es SinDecidir (más largo). Siempre hay tope: si algo
+-- falla antes de decidir, EscenaLlegada baja igual y el tutorial empieza.
+local function marcar(si: boolean, alEmpezar: boolean?)
 	vez += 1
 	workspace:SetAttribute("EscenaLlegada", si)
-	if si and not sinTope then
+	if si then
 		local mia = vez
-		task.delay(L.Tope, function()
+		task.delay(if alEmpezar then math.max(L.SinDecidir, L.Tope) else L.Tope, function()
 			if vez == mia then
 				workspace:SetAttribute("EscenaLlegada", false)
 			end
@@ -324,7 +325,7 @@ function Llegada.start()
 		return
 	end
 	casa = Coche.modelo().Parent or workspace -- antes de esconderlo
-	-- Hasta saber si la partida es nueva (el primer día, después de cargarla), el tutorial espera, sin tope.
+	-- Hasta saber si la partida es nueva (el primer día, después de cargarla), el tutorial espera (tope SinDecidir).
 	marcar(true, true)
 	Remotes.Llegada.OnServerEvent:Connect(saltar)
 	local primera = true
@@ -332,20 +333,33 @@ function Llegada.start()
 	Ciclo.alCambiar(function(fase, noche)
 		local previo = antes
 		antes = { fase = fase, noche = noche }
-		if noche <= 1 then
-			ponerEntero()
-		elseif fase == "Dia" and noche == 2 and previo and previo.fase == "Noche" and previo.noche == 1 then
-			destrozar()
-		elseif fase == "Dia" or estado ~= "destrozado" then
-			-- Cargada de la noche 2 en adelante, o el destrozado aún delante al amanecer siguiente (o al volver a
-			-- empezar el día): al garaje. El destrozado sigue delante de noche hasta que vigilar se lo lleve.
-			alGaraje()
+		-- Con pcall: si montar la copia falla, EscenaLlegada tiene que bajar igual (si no, el tutorial no empieza).
+		local bien, fallo = pcall(function()
+			if noche <= 1 then
+				ponerEntero()
+			elseif fase == "Dia" and noche == 2 and previo and previo.fase == "Noche" and previo.noche == 1 then
+				destrozar()
+			elseif fase == "Dia" or estado ~= "destrozado" then
+				-- Cargada de la noche 2 en adelante, o el destrozado aún delante al amanecer siguiente (o al volver a
+				-- empezar el día): al garaje. El destrozado sigue delante de noche hasta que vigilar se lo lleve.
+				alGaraje()
+			end
+		end)
+		if not bien then
+			warn("[Llegada] no se pudo poner el coche:", fallo)
 		end
 		if primera then
 			primera = false
-			if fase == "Dia" and noche == 1 and not Coche.cargada() then
-				escena()
-			else
+			local nueva = bien and fase == "Dia" and noche == 1 and not Coche.cargada()
+			local ok = true
+			if nueva then
+				local err
+				ok, err = pcall(escena)
+				if not ok then
+					warn("[Llegada] la escena falló:", err)
+				end
+			end
+			if not nueva or not ok then
 				marcar(false)
 			end
 		end

@@ -486,6 +486,36 @@ do
 	igual(r2.decision, D.PurchaseGranted, "revivir: de día, entregado igual")
 	igual(#revividos, 1, "revivir: de día no revive")
 	igual(s.Datos.leer(comprador).monedas, antes + s.Config.Compras.Reembolso, "revivir: de día, en monedas")
+	-- PromptProductPurchaseFinished falseado (16-final): un "no pagó" no quita a quién se revive si luego llega el recibo.
+	cambiar("Noche")
+	pedir(c)
+	igual(abiertas(), 5, "revivir: otra noche, se abre")
+	MPS.PromptProductPurchaseFinished:Fire(comprador.UserId, 555, false)
+	local antes2 = s.Datos.leer(comprador).monedas
+	local r3 = recibo(s, comprador, "rev3", 555)
+	correr(3, s)
+	igual(r3.decision, D.PurchaseGranted, "revivir: 'no pagó' falso y recibo, entregado")
+	igual(revividos[2], c, "revivir: 'no pagó' falso no cambia a quién revive")
+	igual(s.Datos.leer(comprador).monedas, antes2, "revivir: y sin monedas (se revivió)")
+	-- Un aviso viejo de "pagó" justo al abrir otra compra no cuenta: luego se puede cerrar y cambiar.
+	b:SetAttribute("Muerto", true)
+	Remotes.Compra.OnServerEvent:Fire(comprador, "Revivir", d)
+	correr(0.1, s)
+	igual(abiertas(), 6, "revivir: se abre para D")
+	MPS.PromptProductPurchaseFinished:Fire(comprador.UserId, 555, true)
+	correr(s.Config.Limites.Compra + 0.2, s)
+	MPS.PromptProductPurchaseFinished:Fire(comprador.UserId, 555, false)
+	pedir(b)
+	igual(abiertas(), 7, "revivir: el 'pagó' viejo no la dejó bloqueada")
+	-- Con un pago avisado, un "no pagó" (falso) no la libera: el recibo es de B.
+	MPS.PromptProductPurchaseFinished:Fire(comprador.UserId, 555, true)
+	MPS.PromptProductPurchaseFinished:Fire(comprador.UserId, 555, false)
+	pedir(d)
+	igual(abiertas(), 7, "revivir: pagada, un 'no pagó' no deja abrir otra")
+	recibo(s, comprador, "rev4", 555)
+	correr(3, s)
+	igual(revividos[3], b, "revivir: revive al pagado, no al último botón")
+	igual(d:GetAttribute("Muerto"), true, "revivir: D sigue muerto")
 	sinErrores(s, "revivir")
 end
 

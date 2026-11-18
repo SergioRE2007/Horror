@@ -37,6 +37,9 @@
     limpie lo suyo cuando el modelo se va lejos (StreamOut) y vuelva a prepararlo al volver.
   - Hecho (03-11-2026): al morir y mirar a otro (MuerteVista) el cliente avisa con el remote `Mirar` y el servidor
     (Muerte) pone `jugador.ReplicationFocus` en el que mira; se quita al revivir. Sin probar con el mapa por partes.
+    Con `Config.Limites.Mirar` entre una y otra, la que llega antes no se tira: el servidor guarda la última y la aplica
+    al acabar el intervalo (una sola espera por jugador). Probar en Studio: de muerto, cambiar de jugador muy rápido y
+    mirar que `ReplicationFocus` acaba en el último (16-final).
   - Lo que el cliente mira una sola vez al empezar y está fuera de la casa: las latas (`Mapa.Latas`, se leen sus atributos:
     bien) y las pistas (sin la pieza no se cierra la nota: bien).
   - Los saltos del servidor (`PivotTo` en Muerte): con `MinimumRadiusPause` el jugador espera a que cargue el suelo.
