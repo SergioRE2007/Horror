@@ -184,7 +184,17 @@ local function preparar(modelo: Instance)
 end
 
 function ChimeneaVista.start()
-	local modelo = CollectionService:GetTagged("Chimenea")[1] or CollectionService:GetInstanceAddedSignal("Chimenea"):Wait()
+	-- Espera a la chimenea con tiempo máximo (el mapa puede llegar por partes); el arranque la lanza con task.spawn.
+	local modelo = CollectionService:GetTagged("Chimenea")[1]
+	local limite = os.clock() + D.EsperaChimenea
+	while not modelo and os.clock() < limite do
+		task.wait(0.5)
+		modelo = CollectionService:GetTagged("Chimenea")[1]
+	end
+	if not modelo then
+		warn("[ChimeneaVista] la chimenea no llegó a tiempo: sin llamas ni crepitar")
+		return
+	end
 	preparar(modelo)
 end
 

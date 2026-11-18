@@ -108,14 +108,16 @@ Config.Golpeador = {
 	},
 	-- Sucesos al azar (14.10, pedido por el usuario: "que no sea siempre igual"). Nunca injustos: mirarte no te mata.
 	-- Cada uno, como mucho una vez por noche (entre todos los Golpeadores). Probabilidad = de cada ocasión. A ojo.
+	-- Armario.Llegar: s como mucho andando hasta el armario. Finge.Lejos: studs que se aleja antes de mirar atrás.
+	-- Garras.Otra: s sin volver a tirar Garras tras una ocasión. Quieto.Otra: s sin tirar Quieto por el mismo jugador.
 	Sucesos = {
-		Armario = { Probabilidad = 0.6, Cerca = 14, Dura = { 4, 6 } }, -- te mira por las rendijas sin saber que estás
+		Armario = { Probabilidad = 0.6, Cerca = 14, Dura = { 4, 6 }, Llegar = 6 }, -- te mira por las rendijas sin saber que estás
 		Olfatea = { Probabilidad = 0.25, Dura = { 2.2, 3 } }, -- se para en una sala y huele hacia ti (cada sala nueva)
 		Llama = { Probabilidad = 0.35, Toques = 3, CadaToque = 1.6, Espera = { 3, 4 } }, -- tres toques lentos y espera
 		Cara = { Probabilidad = 0.4, Dura = { 5, 8 }, Mirado = 1.5, Distancia = 25 }, -- la cara pegada al cristal
-		Finge = { Probabilidad = 0.5, Mira = { 1.4, 2 }, MasPaciencia = 0.5 }, -- se va, se para, mira atrás y vuelve
-		Garras = { Probabilidad = 0.3, Pared = 3, Dura = { 1.8, 2.6 } }, -- arrastra las garras por la pared al pasar
-		Quieto = { Probabilidad = 0.5, Lejos = 18, Dura = { 2.5, 3.5 } }, -- alumbrado al fondo: no se mueve y luego viene
+		Finge = { Probabilidad = 0.5, Mira = { 1.4, 2 }, MasPaciencia = 0.5, Lejos = 28 }, -- se va, se para, mira atrás y vuelve
+		Garras = { Probabilidad = 0.3, Pared = 3, Dura = { 1.8, 2.6 }, Otra = 5 }, -- arrastra las garras por la pared al pasar
+		Quieto = { Probabilidad = 0.5, Lejos = 18, Dura = { 2.5, 3.5 }, Otra = 6 }, -- alumbrado al fondo: no se mueve y luego viene
 	},
 }
 
@@ -175,6 +177,9 @@ Config.Imitador = {
 	Llamadas = 4, -- veces que llama antes de irse
 	CadaLlamada = { 7, 10 }, -- segundos entre llamadas
 	Oido = 80, -- studs desde la puerta a los que se le oye (los avisos solo les llegan a esos)
+	AmigoLejos = 25, -- imita a uno que esté al menos así de lejos de la puerta (si no hay, a cualquiera)
+	SaleCerca = 22, -- studs: si alguien sale y se le acerca tanto, deja de llamar y va a por él
+	Apagon = 1.5, -- segundos desde la primera llamada hasta "The lights went out." (su primera noche)
 	Grito = 2.5,
 	Caza = 30,
 	Andar = 8,
@@ -200,6 +205,8 @@ Config.Acechador = {
 	Frena = 2.5, -- segundos quieto al darle la linterna...
 	Inmune = 2.5, -- ...y después, segundos en que no le vuelve a frenar
 	Pillar = 5,
+	MasPillar = 2, -- studs de más al pillar mientras se te echa encima (corriendo se pasa de largo)
+	TrasPillar = 2.5, -- segundos quieto tras pillarte
 	Max = 2, -- como mucho, a la vez en el mapa
 }
 
@@ -214,6 +221,10 @@ Config.Dificultad = {
 	{ AlaVez = { 3, 3 }, Ritmo = 0.8, Paciencia = 0.85, Tareas = 1.25 },
 }
 Config.Separacion = { 12, 20 } -- segundos entre la llegada de un ataque y la del siguiente de la misma noche
+-- El Director (juego/servidor/Director; el reparto de qué bicho toca, en shared/RepartoBichos).
+Config.Director = {
+	Reintento = 2, -- segundos que espera un hueco sin ventana libre o con la Bestia fuera antes de volver a mirar
+}
 
 -- Linterna con pilas (juego/servidor/Equipo): la F, o el botón en el móvil. Con poca pila parpadea.
 Config.Linterna = {
@@ -517,6 +528,28 @@ Config.Movil = {
 	Radio = 90, -- studs de mundo que se ven del centro al borde (de lado) de la pantalla
 }
 
+-- Segundos mínimos entre dos peticiones del mismo jugador a cada remote (servidor/Limite, 16.16). Los de antes están como
+-- estaban; los marcados "nuevo" no tenían y son a ojo (nadie los pulsa tan seguido). Lo que tiene su propio ritmo de
+-- juego no está aquí: Bestia.Recarga (bengalas), Talar.Cada (hachazos), Flash.Recarga, Postura.Cada y la ventana de Correr.
+Config.Limites = {
+	Idioma = 1, -- cada cambio del atributo Lang llega a todos los clientes
+	Ajustes = 0.25,
+	Clase = 0.3,
+	Compra = 1,
+	Tienda = 0.3,
+	Coche = 0.2, -- todo menos "Arrancar"
+	Pista = 0.3,
+	Mochila = 0.05, -- mover/tirar; lo que llega antes se deshace en el cliente
+	Linterna = 0.25, -- no pasa de dos destellos por segundo
+	Mirada = 0.15,
+	Flash = 0.25, -- nuevo: contando también los intentos fallidos (avisos); la recarga de verdad es Flash.Recarga
+	Movil = 0.3, -- nuevo: al abrirlo, contando los fallidos (avisos)
+	Vendedor = 0.25, -- nuevo
+	Taller = 0.3, -- nuevo
+	Usar = 0.25, -- nuevo: usar lo que se lleva en las manos sobre un sitio
+	Mirar = 0.2, -- nuevo: el muerto cambia a quién mira
+}
+
 -- Modo de pruebas: solo actúa en Studio (shared/Prueba). Con él no se lee ni se guarda nada.
 Config.Test = {
 	Activo = true, -- en Studio: partida sin guardar y lo de abajo
@@ -662,6 +695,7 @@ Config.Detalles = {
 	Tuberia = { 40, 90 }, -- solo de noche y con la cámara dentro de la casa
 	VientoTiro = { 25, 60 }, -- de noche, con la chimenea apagada
 	Rescoldo = 90, -- lo que tardan las brasas en enfriarse después de apagarse el fuego
+	EsperaChimenea = 30, -- segundos como mucho esperando a que el mapa traiga la chimenea (si no llega, sin chimenea viva)
 }
 
 -- Ventajas de los jugadores (shared/Stats): lo de quien no tiene clase. Cada una se usa en un solo sistema.

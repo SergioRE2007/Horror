@@ -2,51 +2,69 @@
 -- para el lobby.
 local Comun = script.Parent:WaitForChild("Comun")
 
-require(Comun:WaitForChild("Idioma")).start() -- lo primero: que nadie escriba un texto en el idioma que no es
-require(Comun:WaitForChild("Avisos")).start()
+-- Arranca un sistema sin que un fallo suyo frene a los de después: require y start van protegidos (el error sale como
+-- aviso con su traza) y, con `aparte`, en su propio hilo (los que esperan al mapa: así no bloquean el arranque).
+local function arrancar(modulo: ModuleScript, aparte: boolean?)
+	local function lanzar()
+		local ok, err = xpcall(function()
+			require(modulo).start()
+		end, debug.traceback)
+		if not ok then
+			warn(`[arranque] {modulo.Name} no ha arrancado: {err}`)
+		end
+	end
+	if aparte then
+		task.spawn(lanzar)
+	else
+		lanzar()
+	end
+end
+
+arrancar(Comun:WaitForChild("Idioma")) -- lo primero: que nadie escriba un texto en el idioma que no es
+arrancar(Comun:WaitForChild("Avisos"))
 
 local Sistemas = script
-require(Sistemas.Sonido).start() -- antes que los que tocan sonidos
-require(Sistemas.Pasos).start()
-require(Sistemas.Ambiente).start()
-require(Sistemas.CuerpoVista).start() -- la cámara como un cuerpo: pasos, respirar, caer
-require(Comun:WaitForChild("Controles")).start()
-require(Comun:WaitForChild("AjustesUi")).start() -- engranaje de Ajustes: Rendimiento (14.4)
-require(Sistemas.CasaVista).start()
-require(Sistemas.GolpeadorVista).start()
-require(Sistemas.RaspadorVista).start()
-require(Sistemas.TrepadorVista).start()
-require(Sistemas.ImitadorVista).start()
-require(Sistemas.AcechadorVista).start()
-require(Sistemas.ChimeneaVista).start()
-task.spawn(require(Sistemas.DetallesVista).start) -- espera al mapa: que no frene a los de después
-require(Sistemas.Manos).start() -- brazos en primera persona (las capas se apuntan antes o después, da igual)
-require(Sistemas.ManosGestos).start()
-require(Sistemas.ManosPrueba).start() -- solo en Studio: lanzar gestos a mano
-require(Sistemas.EquipoVista).start()
-require(Sistemas.MochilaUi).start() -- después de EquipoVista: su botón va en la misma fila
-require(Sistemas.MovilUi).start() -- después de EquipoVista: su botón va en la misma fila
-require(Sistemas.PosturaVista).start() -- agacharse y asomarse (14.6); después de EquipoVista: su botón va en la misma fila
-require(Sistemas.CorrerVista).start() -- correr y aguante (14.8); después de PosturaVista: su botón va detrás de AGACHARSE
-require(Sistemas.CargarVista).start()
-require(Sistemas.TrabajoVista).start()
-require(Sistemas.BrazosVista).start() -- los brazos de los demás jugadores
-require(Sistemas.MuerteVista).start()
-require(Sistemas.EsconditeVista).start() -- los escondites vistos desde fuera: puertas del armario y colcha (manos.md)
-require(Sistemas.MirarVista).start() -- mirar por la mirilla y entre las cortinas (manos.md)
-require(Sistemas.VendedorUi).start()
-require(Sistemas.PistasUi).start()
-require(Sistemas.TallerUi).start()
-require(Sistemas.HuidaVista).start()
-require(Sistemas.LlegadaCocheVista).start() -- escena de llegada en coche (16.8)
-require(Sistemas.BestiaVista).start() -- final de la Bestia (12.2)
-require(Sistemas.BengalasVista).start()
-require(Sistemas.PreparativosVista).start()
-require(Sistemas.IncendioVista).start()
-require(Sistemas.LatasVista).start() -- más miedo (14.3)
-require(Sistemas.Efectos).start()
-require(Sistemas.Sustos).start()
-require(Sistemas.AmbienteMiedo).start()
-require(Sistemas.ClaseVista).start()
-require(Sistemas.RevivirUi).start()
-require(Sistemas.TutorialVista).start() -- los primeros minutos (14.2)
+arrancar(Sistemas.Sonido) -- antes que los que tocan sonidos
+arrancar(Sistemas.Pasos)
+arrancar(Sistemas.Ambiente)
+arrancar(Sistemas.CuerpoVista) -- la cámara como un cuerpo: pasos, respirar, caer
+arrancar(Comun:WaitForChild("Controles"))
+arrancar(Comun:WaitForChild("AjustesUi")) -- engranaje de Ajustes: Rendimiento (14.4)
+arrancar(Sistemas.CasaVista)
+arrancar(Sistemas.GolpeadorVista, true)
+arrancar(Sistemas.RaspadorVista, true)
+arrancar(Sistemas.TrepadorVista, true)
+arrancar(Sistemas.ImitadorVista, true)
+arrancar(Sistemas.AcechadorVista, true)
+arrancar(Sistemas.ChimeneaVista, true)
+arrancar(Sistemas.DetallesVista, true) -- espera al mapa: que no frene a los de después
+arrancar(Sistemas.Manos) -- brazos en primera persona (las capas se apuntan antes o después, da igual)
+arrancar(Sistemas.ManosGestos)
+arrancar(Sistemas.ManosPrueba) -- solo en Studio: lanzar gestos a mano
+arrancar(Sistemas.EquipoVista)
+arrancar(Sistemas.MochilaUi) -- después de EquipoVista: su botón va en la misma fila
+arrancar(Sistemas.MovilUi) -- después de EquipoVista: su botón va en la misma fila
+arrancar(Sistemas.PosturaVista) -- agacharse y asomarse (14.6); después de EquipoVista: su botón va en la misma fila
+arrancar(Sistemas.CorrerVista) -- correr y aguante (14.8); después de PosturaVista: su botón va detrás de AGACHARSE
+arrancar(Sistemas.CargarVista)
+arrancar(Sistemas.TrabajoVista)
+arrancar(Sistemas.BrazosVista) -- los brazos de los demás jugadores
+arrancar(Sistemas.MuerteVista)
+arrancar(Sistemas.EsconditeVista) -- los escondites vistos desde fuera: puertas del armario y colcha (manos.md)
+arrancar(Sistemas.MirarVista) -- mirar por la mirilla y entre las cortinas (manos.md)
+arrancar(Sistemas.VendedorUi)
+arrancar(Sistemas.PistasUi)
+arrancar(Sistemas.TallerUi)
+arrancar(Sistemas.HuidaVista)
+arrancar(Sistemas.LlegadaCocheVista) -- escena de llegada en coche (16.8)
+arrancar(Sistemas.BestiaVista, true) -- final de la Bestia (12.2)
+arrancar(Sistemas.BengalasVista)
+arrancar(Sistemas.PreparativosVista)
+arrancar(Sistemas.IncendioVista)
+arrancar(Sistemas.LatasVista) -- más miedo (14.3)
+arrancar(Sistemas.Efectos)
+arrancar(Sistemas.Sustos)
+arrancar(Sistemas.AmbienteMiedo)
+arrancar(Sistemas.ClaseVista)
+arrancar(Sistemas.RevivirUi)
+arrancar(Sistemas.TutorialVista) -- los primeros minutos (14.2)

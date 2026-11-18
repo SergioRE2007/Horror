@@ -2,16 +2,34 @@
 -- para el juego.
 local Comun = script.Parent:WaitForChild("Comun")
 
-require(Comun:WaitForChild("Idioma")).start() -- lo primero: que nadie escriba un texto en el idioma que no es
-require(Comun:WaitForChild("Avisos")).start()
-require(Comun:WaitForChild("Controles")).start()
-require(Comun:WaitForChild("AjustesUi")).start() -- engranaje de Ajustes: Rendimiento (14.4)
+-- Arranca un sistema sin que un fallo suyo frene a los de después: require y start van protegidos (el error sale como
+-- aviso con su traza) y, con `aparte`, en su propio hilo (los que esperan al mapa: así no bloquean el arranque).
+local function arrancar(modulo: ModuleScript, aparte: boolean?)
+	local function lanzar()
+		local ok, err = xpcall(function()
+			require(modulo).start()
+		end, debug.traceback)
+		if not ok then
+			warn(`[arranque] {modulo.Name} no ha arrancado: {err}`)
+		end
+	end
+	if aparte then
+		task.spawn(lanzar)
+	else
+		lanzar()
+	end
+end
+
+arrancar(Comun:WaitForChild("Idioma")) -- lo primero: que nadie escriba un texto en el idioma que no es
+arrancar(Comun:WaitForChild("Avisos"))
+arrancar(Comun:WaitForChild("Controles"))
+arrancar(Comun:WaitForChild("AjustesUi")) -- engranaje de Ajustes: Rendimiento (14.4)
 
 local Sistemas = script
-require(Sistemas.Clima).start() -- lluvia, niebla, relámpagos y sonidos de fondo (no espera a nada)
-require(Sistemas.GasolineraVista).start() -- la vida del lobby: luces que fallan, puerta, coches, polillas, la sombra
-require(Sistemas.CochesUi).start()
-require(Sistemas.SalidaVista).start() -- la cinemática del coche que se va
-require(Sistemas.LlegadaVista).start() -- el coche que llega a la plaza del que se fue
-require(Sistemas.TiendaUi).start()
-require(Sistemas.GuiaLobby).start() -- flecha y una línea para el jugador nuevo (16.7)
+arrancar(Sistemas.Clima) -- lluvia, niebla, relámpagos y sonidos de fondo (no espera a nada)
+arrancar(Sistemas.GasolineraVista) -- la vida del lobby: luces que fallan, puerta, coches, polillas, la sombra
+arrancar(Sistemas.CochesUi)
+arrancar(Sistemas.SalidaVista) -- la cinemática del coche que se va
+arrancar(Sistemas.LlegadaVista) -- el coche que llega a la plaza del que se fue
+arrancar(Sistemas.TiendaUi)
+arrancar(Sistemas.GuiaLobby) -- flecha y una línea para el jugador nuevo (16.7)
