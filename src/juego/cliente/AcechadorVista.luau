@@ -8,12 +8,14 @@
 --   nunca se le ve deslizarse) y se asoma por un lado, mirándote. De noche le sale vaho por la grieta de la boca.
 --   Con Rendimiento, nada de eso (solo andar, la carga y la linterna, como antes).
 --   "Rama": una rama que se parte bajo sus pies (en 3D). "Carga": ruge y se echa encima con los brazos por delante.
---   "Luz": la linterna le frena: se encoge, se tapa la cara y chilla.
+--   "Luz": la linterna le frena: se encoge, se tapa la cara y chilla. Lo mismo mientras está aturdido (atributo Aturdido,
+--   BichoComun.aturdido): el flash, que no manda "Luz" (antes se quedaba clavado a media zancada); chilla al empezar.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local BichoComun = require(script.Parent.BichoComun)
 local Sonido = require(script.Parent.Sonido)
 
 local AcechadorVista = {}
@@ -40,6 +42,8 @@ local ASOMA = { Lado = 0.3, Pie = 0.1, Sale = 1.2, Queda = { 1.5, 3.5 }, Espera 
 local VISTO = 0.45 -- con la cámara mirando a menos de ~63° de él, se le está viendo: no se mueve el escondite
 -- Si le ves cuando echa a andar o se echa encima: sale de detrás del tronco de una zancada (segundos y radianes).
 local SALE = { Dura = 0.3, Zancada = 0.5 }
+local CHILLA = 0.65 -- tono del chillido al frenarle la luz o el flash
+local ENCOGE = { 0.25, 0.8 } -- segundos en encogerse y en soltarse
 
 type Bicho = {
 	modelo: Model,
@@ -53,7 +57,7 @@ type Bicho = {
 	carga: number, -- os.clock en que se echó encima
 	luz: number, -- os.clock de la última vez que le frenó la linterna
 	chillido: number,
-	encogido: number, -- 0..1, suave
+	encogido: number, -- 0..1, lineal (se usa suavizado)
 	semilla: number,
 	quietud: number, -- 0..1, suave: 1 = parado
 	peso: number, -- -1..1: sobre qué pierna está (suave)
@@ -203,12 +207,21 @@ local function animar(dt: number)
 		b.fase += dt * rapidez * 0.28
 		local s = math.sin(b.fase)
 		local cargando = ahora - b.carga < 20
-		local frenado = ahora - b.luz < 2.5
-		b.encogido += ((if frenado then 1 else 0) - b.encogido) * math.min(1, dt * (if frenado then 12 else 2))
+		-- Frenado por la linterna (remote "Luz") o aturdido (el flash): se encoge y se tapa la cara.
+		local aturdido = BichoComun.aturdido(modelo, ahora)
+		local frenado = ahora - b.luz < 2.5 or aturdido ~= nil
+		if aturdido and aturdido.nuevo and ahora - b.chillido > 1 then
+			b.chillido = ahora
+			Sonido.en("Chillido", b.raiz.Position + Vector3.new(0, 5, 0), CHILLA)
+		end
+		-- Se encoge en ENCOGE[1] s y se suelta en ENCOGE[2], suave al empezar y al acabar (antes, de golpe: los brazos miden
+		-- 7 studs y el primer fotograma daban un latigazo de 3,4; banco aturdidos).
+		b.encogido = if frenado then math.min(1, b.encogido + dt / ENCOGE[1]) else math.max(0, b.encogido - dt / ENCOGE[2])
+		local encogido = suave(b.encogido)
 		local chillando = ahora - b.chillido < 1.4
 		b.quietud += ((if rapidez < 1.5 then 1 else 0) - b.quietud) * math.min(1, dt * 2.5)
 		-- Cuánta vida de estar parado se le ve (nada andando, cargando, con la linterna, lejos o con Rendimiento).
-		local vida = if rendimiento or distancia > CERCA or cargando then 0 else b.quietud * (1 - b.encogido)
+		local vida = if rendimiento or distancia > CERCA or cargando then 0 else b.quietud * (1 - encogido)
 
 		-- Respira hondo: el pecho sube y baja; al soltar el aire, vaho de noche.
 		local respira = math.sin((ahora / RESPIRA + b.semilla) * math.pi * 2)
@@ -338,14 +351,14 @@ local function animar(dt: number)
 		-- Brazos: casi quietos; echándose encima, por delante con las garras abiertas; con luz, delante de la cara.
 		-- Parado, cuelgan como péndulos (se quedan algo atrás al mecerse) y suben un poco al coger aire.
 		local delante = if cargando then 1.1 else 0
-		local brazo = delante * (1 - b.encogido) + 2.4 * b.encogido - respira * 0.012 * vida
-		local temblor = b.encogido * math.sin(ahora * 40) * 0.06
+		local brazo = delante * (1 - encogido) + 2.4 * encogido - respira * 0.012 * vida
+		local temblor = if rendimiento then 0 else encogido * math.sin(ahora * 40) * 0.06
 		local pendulo = -mece * 0.6
-		m.BrazoI.Transform = CFrame.Angles(brazo - s * 0.12 * paso + temblor, 0, -0.05 + b.encogido * 0.4 + pendulo)
+		m.BrazoI.Transform = CFrame.Angles(brazo - s * 0.12 * paso + temblor, 0, -0.05 + encogido * 0.4 + pendulo)
 			* respingo("BrazoI")
-		m.BrazoD.Transform = CFrame.Angles(brazo + s * 0.12 * paso - temblor, 0, 0.05 - b.encogido * 0.4 + pendulo)
+		m.BrazoD.Transform = CFrame.Angles(brazo + s * 0.12 * paso - temblor, 0, 0.05 - encogido * 0.4 + pendulo)
 			* respingo("BrazoD")
-		m.Torso.Transform = conCuerpo("Torso", CFrame.Angles((if cargando then -0.3 else 0) + b.encogido * 0.35
+		m.Torso.Transform = conCuerpo("Torso", CFrame.Angles((if cargando then -0.3 else 0) + encogido * 0.35
 			+ respira * 0.022 * vida + asomaFrente, 0, s * 0.04 * paso + asomaLado) * respingo("Torso"))
 
 		-- Cabeza: a tirones; asomado, mirándote y ladeada hacia fuera. Sin vida, el tirón de siempre.
@@ -356,8 +369,8 @@ local function animar(dt: number)
 		b.giro = b.giro:Lerp(meta2, math.min(1, dt * 16))
 		local tiron = if math.noise(ahora * 0.9, b.semilla) > 0.4 then 0.5 else 0
 		local giro = b.giro * vida
-		m.Cabeza.Transform = CFrame.Angles(b.encogido * 0.5 + giro.X + respira * 0.01 * vida,
-			b.encogido * 0.9 + giro.Y + (1 - paso) * tiron * (1 - vida), giro.Z + math.sin(ahora * 0.4) * 0.1 * (1 - vida))
+		m.Cabeza.Transform = CFrame.Angles(encogido * 0.5 + giro.X + respira * 0.01 * vida,
+			encogido * 0.9 + giro.Y + (1 - paso) * tiron * (1 - vida), giro.Z + math.sin(ahora * 0.4) * 0.1 * (1 - vida))
 			* respingo("Cabeza")
 		m.Mandibula.Transform = CFrame.Angles(-(0.1 + 0.15 * asoma + (if cargando then 0.4 else 0)
 			+ (if chillando then 0.6 + math.sin(ahora * 30) * 0.1 else 0)), 0, 0)
@@ -460,8 +473,11 @@ function AcechadorVista.start()
 			Sonido.en("Rama", pies, 0.8)
 		elseif tipo == "Luz" then
 			b.luz = os.clock()
-			b.chillido = os.clock()
-			Sonido.en("Chillido", b.raiz.Position + Vector3.new(0, 5, 0), 0.65)
+			-- Si ya ha chillado al verle aturdido (el atributo llega antes que el remote), no otra vez.
+			if os.clock() - b.chillido > 0.5 then
+				b.chillido = os.clock()
+				Sonido.en("Chillido", b.raiz.Position + Vector3.new(0, 5, 0), CHILLA)
+			end
 		end
 	end)
 end
