@@ -7,6 +7,16 @@
 --   Con R se usa con algo (Cargar.alUsar): serrar en el caballete, clavar en una ventana o puerta, echar gasolina,
 --   montar una pieza en el coche.
 -- Mientras se lleva no choca con los jugadores (grupos de colisión "Cargado" y "Personajes").
+-- Con físicas de verdad (15.8, pedido por el usuario: "todo"; cuentas en shared/CargarReglas):
+--   Lo que lleva uno solo (Peso 1) lo mueve su cliente (CargarVista pone cada fotograma el AlignPosition y el Giro de
+--   la pieza, que simula él): troncos y tablones al hombro, lo demás delante; se balancea y se queda atrás al girar.
+--   Choca con todo menos con los jugadores, con un giro flojo para que los marcos lo tuerzan. Aquí solo se mira dónde
+--   debería ir (CargarReglas.sitio): enganchado en algo (atributo Enganchado del jugador) frenas, y a Config.Cargar.Suelta
+--   se cae. Atributo Lleva de la pieza = UserId de quien la lleva solo (para su cliente y las manos).
+--   Lanzar (remote Cargar "Lanzar", solo madera): se suelta y sale con la velocidad de CargarReglas.lanzamiento.
+--   Lo que se suelta lo simula el servidor un rato (vuelan): si da contra algo de golpe suena para todos (remote
+--   Pesado) y hace un ruido que oyen los bichos (Ruidos); si se sale del mapa vuelve a donde se soltó. Arrastrar algo
+--   (el motor solo) también hace ruido (atributo Arrastra de la pieza, para el sonido).
 -- Cargar.ajustarVelocidad es la única que pone el WalkSpeed de los jugadores: lo que frena (mochila, trabajando,
 -- agachado, lo que lleva y Frena al agotarse corriendo) es un factor, el más bajo gana; con la clase (Stats Velocidad)
 -- sale la velocidad de andar, que se publica en el atributo Andar. Corriendo (14.8, lo pone Correr) solo cuenta sin
@@ -18,6 +28,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterPlayer = game:GetService("StarterPlayer")
 
+local CargarReglas = require(ReplicatedStorage.Shared.CargarReglas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local CorrerReglas = require(ReplicatedStorage.Shared.CorrerReglas)
@@ -25,6 +36,7 @@ local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Mapa = require(script.Parent.Mapa)
 local Muerte = require(script.Parent.Muerte)
+local Ruidos = require(script.Parent.Ruidos)
 
 local Cargar = {}
 
@@ -33,6 +45,11 @@ type Agarre = { pieza: BasePart, punto: Attachment, empuje: AlignPosition }
 local agarres: { [Player]: Agarre } = {}
 local quienes: { [BasePart]: { Player } } = {}
 local carpeta: Folder
+-- Lo que se acaba de soltar o lanzar: lo simula el servidor hasta que se para (golpes, ruido y que no se pierda).
+type Vuelo = { desde: Vector3, hora: number, antes: Vector3, quieto: number, golpe: number }
+local vuelan: { [BasePart]: Vuelo } = {}
+local arrastres: { [BasePart]: number } = {} -- os.clock del último ruido de arrastre de cada pieza
+local RUIDO = C.Ruido
 
 local COLOR = {
 	Tronco = { Color3.fromRGB(86, 66, 50), Enum.Material.Wood },
@@ -79,6 +96,9 @@ function Cargar.ajustarVelocidad(jugador: Player)
 		local peso = agarre.pieza:GetAttribute("Peso")
 		local cuantos = #(quienes[agarre.pieza] or {})
 		factor = math.min(factor, if cuantos >= peso then C.Frena[peso] else C.Arrastrar)
+		if jugador:GetAttribute("Enganchado") then -- 15.8: lo que llevas se ha enganchado en algo
+			factor = math.min(factor, C.FrenaEnganche)
+		end
 		salto = false
 	end
 	local andar = StarterPlayer.CharacterWalkSpeed * factor * Stats.valor(jugador, "Velocidad")
@@ -95,18 +115,39 @@ end
 local function rehacer(pieza: BasePart)
 	local lista = quienes[pieza] or {}
 	local peso = pieza:GetAttribute("Peso")
-	;(pieza:FindFirstChild("Giro") :: AlignOrientation).Enabled = #lista > 0
-	if #lista == 0 then
-		pieza:SetNetworkOwnershipAuto()
-	elseif #lista == 1 then
-		pieza:SetNetworkOwner(lista[1]) -- uno solo: la simula su cliente para que vaya suave
-	else
-		pieza:SetNetworkOwner(nil) -- entre varios, el servidor
+	local solo = #lista == 1 and peso == 1 -- lo mueve su cliente (15.8)
+	local giro = pieza:FindFirstChild("Giro") :: AlignOrientation
+	giro.Enabled = #lista > 0
+	-- Solo: floja, para que los marcos y las paredes la tuerzan (15.8); entre varios, firme como antes.
+	local fuerzaPeso = pieza.AssemblyMass * workspace.Gravity
+	giro.MaxTorque = fuerzaPeso * (if solo then C.Giro else 40)
+	giro.Responsiveness = if solo then 40 else 15
+	pieza:SetAttribute("Lleva", if solo then lista[1].UserId else nil)
+	if #lista < 1 or #lista >= peso then
+		pieza:SetAttribute("Arrastra", nil)
 	end
-	pieza.CollisionGroup = if #lista > 0 then "Cargado" else "Default"
-	-- Lo que lleva uno solo no choca con nada: al girarse en una sala se atascaba en las paredes y se caía. Lo que se
-	-- arrastra (el motor con uno solo) sí, o se hundía en el suelo.
-	pieza.CanCollide = not (#lista == 1 and peso == 1)
+	if not pieza.Anchored then -- (anclada mientras se trabaja: SetNetworkOwner falla)
+		if #lista == 0 then
+			-- Recién soltada: la simula el servidor hasta que se pare (golpes, ruido, que no se pierda).
+			pieza:SetNetworkOwner(nil)
+			vuelan[pieza] = {
+				desde = pieza.Position, hora = os.clock(), antes = pieza.AssemblyLinearVelocity, quieto = 0, golpe = 0,
+			}
+		elseif #lista == 1 then
+			pieza:SetNetworkOwner(lista[1]) -- uno solo: la simula su cliente para que vaya suave
+		else
+			pieza:SetNetworkOwner(nil) -- entre varios, el servidor
+		end
+	end
+	if #lista > 0 then
+		vuelan[pieza] = nil
+	end
+	-- Mientras se lleva o vuela no choca con los jugadores ni tapa rayos (la vista de los bichos, la linterna): un tronco
+	-- al hombro no te esconde. Al pararse vuelve a Default (seguirVuelos). Choca con todo lo demás (15.8: antes lo de
+	-- uno solo no chocaba con nada y atravesaba las paredes).
+	pieza.CollisionGroup = "Cargado"
+	pieza.CanCollide = true
+	pieza.CanQuery = #lista == 0 and not vuelan[pieza]
 	local prompt = pieza:FindFirstChildOfClass("ProximityPrompt")
 	if prompt then
 		prompt.Enabled = #lista < peso and not pieza:GetAttribute("Trabajo")
@@ -129,6 +170,7 @@ function Cargar.soltar(jugador: Player)
 		table.remove(lista, i)
 	end
 	jugador:SetAttribute("Cargando", nil)
+	jugador:SetAttribute("Enganchado", nil)
 	if agarre.pieza.Parent then
 		rehacer(agarre.pieza)
 	end
@@ -219,6 +261,12 @@ local function coger(jugador: Player, pieza: BasePart, sinMirar: boolean?)
 	empuje.MaxAxesForce = Vector3.new(fuerzaPeso * 2, fuerzaPeso * C.Fuerza * (if peso > 1 then 1 else 2), fuerzaPeso * 2)
 	empuje.Responsiveness = 30
 	empuje.Position = punto.WorldPosition
+	if peso == 1 and #lista == 0 then
+		-- Solo: ya a su sitio (al hombro o delante); luego la mueve su cliente (CargarVista).
+		local sitio = CargarReglas.sitio(pieza:GetAttribute("Tipo"), pieza.Size, raiz.CFrame)
+		empuje.Position = sitio.Position
+		;(pieza:FindFirstChild("Giro") :: AlignOrientation).CFrame = sitio.Rotation
+	end
 	empuje.Parent = punto
 	agarres[jugador] = { pieza = pieza, punto = punto, empuje = empuje }
 	table.insert(lista, jugador)
@@ -343,6 +391,8 @@ function Cargar.nuevo(tipo: string, cf: CFrame, carga: number?): BasePart
 	quienes[pieza] = {}
 	pieza.Destroying:Connect(function() -- las gastadas (serradas, clavadas, quemadas…) no se quedan apuntadas
 		quienes[pieza] = nil
+		vuelan[pieza] = nil
+		arrastres[pieza] = nil
 	end)
 	pieza.Parent = carpeta
 	return pieza
@@ -366,6 +416,8 @@ function Cargar.importar(lista: { { tipo: string, carga: number?, cf: CFrame } }
 	end
 	carpeta:ClearAllChildren()
 	table.clear(quienes)
+	table.clear(vuelan)
+	table.clear(arrastres)
 	for _, p in lista do
 		Cargar.nuevo(p.tipo, p.cf, p.carga)
 	end
@@ -460,6 +512,7 @@ local function usar(jugador: Player, objetivo: unknown)
 		Cargar.soltar(otro)
 	end
 	pieza:SetAttribute("Trabajo", true)
+	vuelan[pieza] = nil
 	pieza.Anchored = true
 	pieza.CFrame = cf
 	pieza.CollisionGroup = "Cargado"
@@ -479,7 +532,8 @@ local function usar(jugador: Player, objetivo: unknown)
 	uso.terminar(jugador, objetivo, pieza)
 end
 
--- Cada fotograma: cada agarre va delante de quien lo lleva; si se queda atascado lejos, se suelta.
+-- Cada fotograma: cada agarre va delante de quien lo lleva (lo de uno solo lo mueve su cliente); si se queda atascado
+-- lejos, se suelta.
 local function seguir()
 	if next(agarres) == nil then
 		return -- nadie lleva nada
@@ -491,16 +545,29 @@ local function seguir()
 			continue
 		end
 		local pieza = agarre.pieza
+		local lista = quienes[pieza]
+		if #lista == 1 and pieza:GetAttribute("Peso") == 1 then
+			-- Lo mueve su cliente (15.8): aquí solo si se ha enganchado (frenas) o se ha quedado atrás (se cae).
+			local debe = CargarReglas.sitio(pieza:GetAttribute("Tipo"), pieza.Size, raiz.CFrame).Position
+			local esta = agarre.punto.WorldPosition
+			local antes = jugador:GetAttribute("Enganchado") == true
+			local ahora = CargarReglas.enganchado(debe, esta, antes)
+			if ahora ~= antes then
+				jugador:SetAttribute("Enganchado", ahora or nil)
+				Cargar.ajustarVelocidad(jugador)
+			end
+			if (esta - debe).Magnitude > C.Suelta then
+				Cargar.soltar(jugador) -- cae desde donde se quedó enganchado: suena (seguirVuelos)
+			end
+			continue
+		end
 		local plano = raiz.CFrame.LookVector * Vector3.new(1, 0, 1)
 		local frente = if plano.Magnitude > 0.01 then plano.Unit else Vector3.zAxis
-		local lista = quienes[pieza]
-		-- Lo largo de uno (troncos, tablones) va a lo largo, hacia delante: atravesado no cabía por las puertas.
-		local largo = pieza:GetAttribute("Peso") == 1 and pieza.Size.X > 3
-		local fondo = if pieza:GetAttribute("Peso") > 1 then 0 elseif largo then pieza.Size.X / 2 - 1.2 else pieza.Size.Z / 2
-		local destino = raiz.Position + frente * (C.Delante + 0.8 + fondo) - Vector3.new(0, 0.6, 0)
+		-- Lo de varios (el motor, la reja), desde aquí: delante de cada uno, agarrado por su extremo. Solo, atravesado y
+		-- se arrastra; entre dos, de uno al otro.
+		local destino = raiz.Position + frente * (C.Delante + 0.8) - Vector3.new(0, 0.6, 0)
 		agarre.empuje.Position = destino
-		-- Uno solo: lo largo hacia delante y lo demás atravesado; entre dos, de uno al otro (cada uno coge un extremo).
-		local eje = if largo then frente else frente:Cross(Vector3.yAxis)
+		local eje = frente:Cross(Vector3.yAxis)
 		if #lista >= 2 and lista[1] == jugador then
 			local otra = raizDe(lista[2])
 			local entre = if otra then (otra.Position - raiz.Position) * Vector3.new(1, 0, 1) else Vector3.zero
@@ -511,9 +578,90 @@ local function seguir()
 		if #lista == 1 or lista[1] == jugador then
 			(pieza:FindFirstChild("Giro") :: AlignOrientation).CFrame = CFrame.fromMatrix(Vector3.zero, eje, Vector3.yAxis)
 		end
+		-- Arrastrando (menos de los que hacen falta: el motor solo): suena y lo oyen los bichos. Lo mira el primero.
+		if lista[1] == jugador and #lista < pieza:GetAttribute("Peso") then
+			local moviendo = (pieza.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude > 1.5
+			if (pieza:GetAttribute("Arrastra") == true) ~= moviendo then
+				pieza:SetAttribute("Arrastra", moviendo or nil)
+			end
+			local ahora = os.clock()
+			if moviendo and ahora - (arrastres[pieza] or 0) >= RUIDO.CadaArrastre then
+				arrastres[pieza] = ahora
+				Ruidos.hacer(pieza.Position, RUIDO.Arrastrar, RUIDO.Dura)
+			end
+		end
 		if (agarre.punto.WorldPosition - destino).Magnitude > C.Suelta then
 			Cargar.soltar(jugador)
 		end
+	end
+end
+
+-- Lo recién soltado o lanzado (15.8): si pierde velocidad de golpe ha dado contra algo (suena y hace ruido); si cae muy
+-- por debajo de donde se soltó se ha salido del mapa y vuelve allí; al pararse vuelve a chocar con los jugadores y a
+-- tapar rayos, y la simula quien esté más cerca (Roblox).
+local function seguirVuelos(dt: number)
+	if next(vuelan) == nil then
+		return
+	end
+	local ahora = os.clock()
+	for pieza, v in vuelan do
+		if not pieza.Parent or pieza.Anchored then
+			vuelan[pieza] = nil
+			continue
+		end
+		local vel = pieza.AssemblyLinearVelocity
+		local fuerza = CargarReglas.golpe(v.antes, vel)
+		v.antes = vel
+		if fuerza and ahora - v.golpe >= RUIDO.Espera then
+			v.golpe = ahora
+			Remotes.Pesado:FireAllClients("Golpe", pieza.Position, CargarReglas.fuerzaGolpe(fuerza), pieza:GetAttribute("Tipo"))
+			Ruidos.hacer(pieza.Position, CargarReglas.alcanceGolpe(fuerza), RUIDO.Dura)
+		end
+		if pieza.Position.Y < v.desde.Y - C.Caida then
+			pieza.AssemblyLinearVelocity = Vector3.zero
+			pieza.AssemblyAngularVelocity = Vector3.zero
+			pieza.CFrame = CFrame.new(v.desde)
+			v.antes = Vector3.zero
+			v.hora = ahora
+			continue
+		end
+		local parado = vel.Magnitude < 0.6 and pieza.AssemblyAngularVelocity.Magnitude < 0.8
+		v.quieto = if parado then v.quieto + dt else 0
+		if v.quieto > 0.4 or ahora - v.hora > C.Vuelo then
+			vuelan[pieza] = nil
+			pieza.CollisionGroup = "Default"
+			pieza.CanQuery = true
+			pieza:SetNetworkOwnershipAuto()
+		end
+	end
+end
+
+-- Lanzar lo que llevas tú solo (15.8, solo madera: CargarReglas.lanzable). `carga` (0..1) y `direccion` vienen del
+-- cliente: CargarReglas.lanzamiento los valida y los recorta; la velocidad la pone el servidor.
+local function lanzar(jugador: Player, carga: unknown, direccion: unknown)
+	local agarre = agarres[jugador]
+	local raiz = raizDe(jugador)
+	if not agarre or not raiz or jugador:GetAttribute("Trabajando") or not Muerte.vivo(jugador) then
+		return
+	end
+	local pieza = agarre.pieza
+	if #(quienes[pieza] or {}) ~= 1 then
+		return
+	end
+	local vel, vueltas = CargarReglas.lanzamiento(pieza:GetAttribute("Tipo"), carga, direccion)
+	if not vel or not vueltas then
+		return
+	end
+	Cargar.soltar(jugador) -- ya la simula el servidor (rehacer): la velocidad que se pone aquí vale
+	if not pieza.Parent or pieza.Anchored then
+		return
+	end
+	local derecha = CargarReglas.frente(raiz.CFrame):Cross(Vector3.yAxis)
+	pieza.AssemblyLinearVelocity = vel + raiz.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
+	pieza.AssemblyAngularVelocity = derecha * -vueltas -- de punta a punta, la de delante hacia abajo
+	local v = vuelan[pieza]
+	if v then
+		v.antes = pieza.AssemblyLinearVelocity
 	end
 end
 
@@ -561,9 +709,16 @@ function Cargar.start()
 		alEntrar(jugador)
 	end
 	Players.PlayerRemoving:Connect(Cargar.soltar)
-	Remotes.Cargar.OnServerEvent:Connect(Cargar.soltar)
+	Remotes.Cargar.OnServerEvent:Connect(function(jugador: Player, que: unknown, carga: unknown, direccion: unknown)
+		if que == "Lanzar" then
+			lanzar(jugador, carga, direccion)
+		else
+			Cargar.soltar(jugador)
+		end
+	end)
 	Remotes.Usar.OnServerEvent:Connect(usar)
 	RunService.Heartbeat:Connect(seguir)
+	RunService.Heartbeat:Connect(seguirVuelos)
 end
 
 return Cargar
