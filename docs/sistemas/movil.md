@@ -44,6 +44,10 @@ esquina de arriba a la derecha.
   baja si no cabe bajo la barra de Roblox. Los avisos de una línea suben al 64 % del alto, en un cuadro de 0,56 del
   ancho que acaba antes de `Hud.Acciones`; una frase larga baja a dos renglones y encoge (`Ui.queQuepa`, 26 como
   mucho), pero los avisos se escriben para que quepan en una línea.
+- Avisos que no se pisan (`Ui.aviso`): uno solo en pantalla. La misma frase que ya se ve solo alarga su tiempo (E en
+  una puerta cerrada no parpadea; si se estaba fundiendo, vuelve). Otra distinta espera en una cola (3 como mucho, sin
+  repetir; se olvida la más vieja) a que la de ahora lleve 1,4 s (`MINIMO_AVISO`, a ojo) o los segundos que pidió
+  (morir: 5); entonces se funde en 0,2 s y sale la siguiente. Banco: `tests/bancos/avisos.luau`.
 - Acciones de teclado con botón en el móvil: B (MOCHILA), R/G (GIRAR/TIRAR en la mochila), F (LINTERNA), clic (FLASH),
   Q/clic (BENGALA dispara directamente), M (MÓVIL), C/Ctrl (AGACHARSE), Shift mantenido (CORRER, que en el móvil y con L3 alterna), E/R con peso (SOLTAR / el botón de usar), E en
   el escondite (SALIR) y la E de cada prompt (botón grande de acción). Asomarse (Z/X) es solo de teclado.
