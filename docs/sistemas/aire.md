@@ -21,9 +21,13 @@ Números en `Config.Aire`, a ojo.
   de tormenta (`AireVista.nublado`, lo pone `CieloVista`) se queda en `Config.Cielo.Tormenta.Haz` (0,15) de lo que se
   veía, motas incluidas (`AireVista.fuerzaHaz`): no hay luna que lo haga.
 - **Niebla baja**: fuera y de noche, partículas grandes y planas (`Squash` negativo) a ras de suelo en un radio de ~40
-  alrededor de la cámara, que se arrastran despacio hacia donde sopla el viento.
+  alrededor de la cámara, que se arrastran despacio hacia donde sopla el viento. Con tormenta van más deprisa:
+  `AireVista.empuje(nublado)`, en rampa hasta `Config.Cielo.Tormenta.Viento` (x1,8, el de las nubes).
 - **Pinocha**: fuera, en las rachas y con un pino a menos de `Pinocha.Cerca` (etiqueta `Pino` en el tronco de cada pino de
-  `Mapa`), cae pinocha fina dando vueltas y de lado con el viento.
+  `Mapa`), cae pinocha fina dando vueltas y de lado con el viento. Con tormenta, más de lado (el mismo empuje) y desde
+  una racha más baja (`AireVista.umbralPinocha`: de `Pinocha.Racha` a `RachaTormenta`).
+- **El viento que se oye** (`Ambiente.vientoSonido`, cielo.md) sube y baja con las mismas rachas: la pinocha cae a la vez
+  que sopla más fuerte.
 - **Viento**: no había dirección de viento en `Ambiente`, así que la pone `AireVista.viento()` (hacia dónde, fuerza y
   racha de 0 a 1): ruido lento con la hora del servidor, el mismo en todos los clientes. Sirve para otros adornos.
 

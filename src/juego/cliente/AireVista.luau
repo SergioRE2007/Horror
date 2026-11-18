@@ -8,8 +8,10 @@
 --     iglesia). Con las cortinas de esa ventana echadas, no. Con el cielo cerrado de tormenta (AireVista.nublado, lo pone
 --     CieloVista) casi no se ven: Config.Cielo.Tormenta.Haz.
 --   Niebla baja fuera, de noche: partículas grandes y planas a ras de suelo alrededor de la cámara que se arrastran
---     despacio hacia donde sopla el viento (AireVista.viento: rumbo y rachas, el mismo para todos los clientes).
---   Pinocha: bajo los pinos (etiqueta "Pino" de Mapa), en las rachas, cae algo de pinocha.
+--     despacio hacia donde sopla el viento (AireVista.viento: rumbo y rachas, el mismo para todos los clientes). Con
+--     tormenta, más deprisa (AireVista.empuje).
+--   Pinocha: bajo los pinos (etiqueta "Pino" de Mapa), en las rachas, cae algo de pinocha (con tormenta, más a menudo
+--     y más de lado). Las mismas rachas suben y bajan el viento que se oye (Ambiente.vientoSonido).
 -- Nada en cinemáticas (cámara Scriptable salvo un vistazo por la mirilla o las cortinas). Con Rendimiento, las motas a
 -- Config.Aire.Rendimiento y sin haces, niebla ni pinocha. Un solo Heartbeat que repasa cada Config.Aire.Cada segundos y
 -- solo trabaja con lo que pide el sitio de la cámara. Las partículas nacen en el mundo (no van pegadas a la caja): la
@@ -87,6 +89,17 @@ end
 -- Cuánto se ve un haz de luna (0 a 1) con la noche `k` y el cielo cerrado `nublado` (0 a 1): con tormenta, su parte.
 function AireVista.fuerzaHaz(k: number, nublado: number): number
 	return k * (1 - (1 - Config.Cielo.Tormenta.Haz) * math.clamp(nublado, 0, 1))
+end
+
+-- Con el cielo cerrado `nublado` (0 a 1), por cuánto va el viento de abajo (niebla baja y pinocha): en rampa hasta
+-- Config.Cielo.Tormenta.Viento, el mismo que las nubes. Y desde qué racha cae la pinocha (con tormenta, más a menudo).
+function AireVista.empuje(nublado: number): number
+	return 1 + (Config.Cielo.Tormenta.Viento - 1) * math.clamp(nublado, 0, 1)
+end
+
+function AireVista.umbralPinocha(nublado: number): number
+	local p = CFG.Pinocha
+	return p.Racha + (p.RachaTormenta - p.Racha) * math.clamp(nublado, 0, 1)
 end
 
 -- Ancho del haz en la ventana y en el suelo, para un haz de `largo` studs.
@@ -464,6 +477,7 @@ local function repasar()
 	local k = nocheAhora()
 	local dentro, cuanto = AireVista.dentro(p)
 	local hacia, fuerza, racha = AireVista.viento()
+	local empuje = AireVista.empuje(AireVista.nublado) -- con tormenta, la niebla y la pinocha van más deprisa
 
 	-- Polvo de dentro.
 	if vale and dentro then
@@ -483,17 +497,17 @@ local function repasar()
 		local centro = Vector3.new(p.X, suelo + CFG.Niebla.Alto / 2, p.Z)
 		cajaNiebla.CFrame = mirando(centro, hacia)
 		local v = CFG.Niebla.Velocidad
-		niebla.Speed = NumberRange.new(v[1] * fuerza, v[2] * fuerza)
+		niebla.Speed = NumberRange.new(v[1] * fuerza * empuje, v[2] * fuerza * empuje)
 		niebla.Rate = CFG.Niebla.Rate * k
 	else
 		niebla.Rate = 0
 	end
 
 	-- Pinocha (fuera, en las rachas y bajo un pino, sin Rendimiento).
-	local umbral = CFG.Pinocha.Racha
+	local umbral = AireVista.umbralPinocha(AireVista.nublado)
 	if vale and not dentro and not ligero and racha > umbral and pinoCerca(p) then
 		cajaPinocha.CFrame = CFrame.new(p + Vector3.new(0, CFG.Pinocha.Alto, 0))
-		pinocha.Acceleration = hacia * (fuerza * 1.5) + Vector3.new(0, -1.2, 0)
+		pinocha.Acceleration = hacia * (fuerza * 1.5 * empuje) + Vector3.new(0, -1.2, 0)
 		pinocha.Rate = CFG.Pinocha.Rate * (racha - umbral) / (1 - umbral)
 	else
 		pinocha.Rate = 0
