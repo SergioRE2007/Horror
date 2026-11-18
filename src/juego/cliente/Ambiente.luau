@@ -2,7 +2,8 @@
 -- Día gris y apagado con bruma de bosque; noche casi negra con niebla azulada. Las transiciones, al final del día
 -- (atardecer) y al final de la noche (amanecer): la exposición sigue al sol (no a la fase) y una franja cálida tiñe la
 -- niebla y la luz de fuera con el sol en el horizonte (Config.Cielo.Sol y Alba, docs/sistemas/cielo.md).
--- También: viento de fondo, el aviso de que se pone el sol, "NOCHE n" grande al anochecer y el aviso del amanecer.
+-- También: viento de fondo (a rachas, más fuerte con tormenta y sordo dentro de casa: Ambiente.vientoSonido), el aviso
+-- de que se pone el sol, "NOCHE n" grande al anochecer y el aviso del amanecer.
 local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -12,6 +13,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
+local AireVista = require(script.Parent.AireVista)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -72,6 +74,11 @@ local SATURACION = -0.35 -- colores apagados, realistas
 local atmosfera: Atmosphere
 local color: ColorCorrectionEffect
 local viento: Sound? -- nil mientras no haya un viento en Config.Sonidos
+local vientoEq: EqualizerSoundEffect? -- "Dentro": le quita agudos y medios con la cámara en casa (el "Oido", aparte)
+local VS = Config.Cielo.VientoSonido
+-- Cuánto se está dentro de casa y en el sótano (0 a 1): van hacia 0 o 1 en VS.Cambio segundos, sin saltos en la puerta.
+local vientoDentro, vientoSotano = 0, 0
+local vientoAntes: number? = nil -- nil: la primera vez se pone donde toque, sin rampa (entrar ya dentro de casa)
 
 local SOL = Config.Cielo.Sol
 local ALBA = Config.Cielo.Alba
@@ -180,6 +187,24 @@ local function momento(): (number, number)
 	return Ambiente.hora(fase, math.clamp((workspace:GetServerTimeNow() - inicio) / math.max(1, fin - inicio), 0, 1))
 end
 
+-- El viento que se oye (sin tocar nada): volumen, y agudos y medios (dB, 0 o menos) del ecualizador, con la noche `k`, la
+-- racha de AireVista.viento, el cielo cerrado `nublado` y cuánto se está dentro de casa y en el sótano (0 a 1; el
+-- sótano cuenta dentro). Fuera no pasa de VS.Tope; dentro, por Dentro.Volumen (y en el sótano por Sotano) y sordo.
+function Ambiente.vientoSonido(k: number, racha: number, nublado: number, dentro: number, sotano: number): (number, number, number)
+	local base = if Config.Sonidos.Viento then Config.Sonidos.Viento.Volumen else 0
+	local d = math.clamp(dentro, 0, 1)
+	local fuera = base * (1 + math.clamp(k, 0, 1)) * mezcla(VS.Rachas[1], VS.Rachas[2], math.clamp(racha, 0, 1))
+		* mezcla(1, VS.Tormenta, math.clamp(nublado, 0, 1))
+	local sitio = mezcla(mezcla(1, VS.Dentro.Volumen, d), VS.Sotano, math.clamp(sotano, 0, 1))
+	return math.min(fuera, VS.Tope) * sitio, VS.Dentro.Agudos * d, VS.Dentro.Medios * d
+end
+
+-- Lleva `x` hacia `meta` a 1/VS.Cambio por segundo (de 0 a 1 en Cambio segundos).
+function Ambiente.acercar(x: number, meta: number, dt: number): number
+	local paso = dt / VS.Cambio
+	return if meta > x then math.min(meta, x + paso) else math.max(meta, x - paso)
+end
+
 -- Una luz de luna de ventana (sin tocar nada): su brillo con el cielo cerrado `nublado` (0 a 1) por esta parte, y su
 -- color con la noche `k`: de día el gris frío de LuzDia (no cae luz azul a pleno sol), de noche su azul. Lo usa el banco.
 function Ambiente.lunaVentana(colorNoche: Color3, k: number, nublado: number): (number, Color3)
@@ -231,6 +256,36 @@ local function cubierto(): number
 	return math.max(Ambiente.nublado, if jugador and jugador:GetAttribute("EscenaFinal") then 1 else 0)
 end
 
+-- El viento de fondo: rachas y tormenta de AireVista y el sitio de la cámara, acercándose sin saltos.
+local function pintarViento(s: Sound, k: number)
+	local ahora = os.clock()
+	local dt = if vientoAntes then math.min(ahora - vientoAntes, 0.5) else VS.Cambio
+	vientoAntes = ahora
+	local camara = workspace.CurrentCamera
+	local dentro, sotano = false, false
+	if camara then
+		local casa, _, sala = AireVista.dentro(camara.CFrame.Position)
+		dentro, sotano = casa, sala == "Sotano"
+	end
+	vientoDentro = Ambiente.acercar(vientoDentro, if dentro then 1 else 0, dt)
+	vientoSotano = Ambiente.acercar(vientoSotano, if sotano then 1 else 0, dt)
+	local _, _, racha = AireVista.viento()
+	local volumen, agudos, medios = Ambiente.vientoSonido(k, racha, Ambiente.nublado, vientoDentro, vientoSotano)
+	s.Volume = volumen
+	s.PlaybackSpeed = 0.96 + 0.08 * racha
+	local eq = vientoEq
+	if eq then
+		local hace = agudos < -0.01 or medios < -0.01
+		if eq.Enabled ~= hace then
+			eq.Enabled = hace
+		end
+		if hace then
+			eq.HighGain = agudos
+			eq.MidGain = medios
+		end
+	end
+end
+
 local function pintar(k: number, hora: number)
 	local v = calcular(k, hora, cubierto())
 	Lighting.ClockTime = hora
@@ -270,7 +325,7 @@ local function pintar(k: number, hora: number)
 		color.Contrast = CONTRASTE + T.Contraste * d * visto
 	end
 	if viento then
-		viento.Volume = Config.Sonidos.Viento.Volumen * (1 + k)
+		pintarViento(viento, k)
 	end
 end
 
@@ -328,6 +383,14 @@ function Ambiente.start()
 	end
 	Lighting.ChildAdded:Connect(apagarEfecto)
 	viento = if Config.Sonidos.Viento then Sonido.bucle("Viento") else nil
+	if viento then
+		local eq = Instance.new("EqualizerSoundEffect")
+		eq.Name = "Dentro"
+		eq.LowGain, eq.MidGain, eq.HighGain = 0, 0, 0
+		eq.Enabled = false
+		eq.Parent = viento
+		vientoEq = eq
+	end
 	-- Una luz de luna: su azul de noche se guarda una vez (como el brillo), antes de que la pintemos de gris.
 	local function apuntarLuz(luz: Instance)
 		if luz:IsA("Light") then
