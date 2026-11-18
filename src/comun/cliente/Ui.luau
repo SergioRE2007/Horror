@@ -2,6 +2,7 @@
 -- desgastadas sobre papel viejo, algo de rojo oscuro. Todo pasa por aquí para que se vea igual.
 -- Todo el HUD cuelga de una sola capa (Ui.hud) con un UIScale que lo encoge en pantallas pequeñas.
 -- Textos de botones y títulos en mayúsculas.
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -132,6 +133,66 @@ function Ui.cerrarConB(estaAbierta: () -> boolean, cerrar: () -> (), conEscape: 
 	end)
 end
 
+-- Selección del mando (docs/sistemas/movil.md): con mando, la A solo pulsa el botón elegido (GuiService.SelectedObject).
+-- Cada ventana elige el suyo al abrirse (Ui.seleccionar) y lo suelta al cerrarse (Ui.soltarSeleccion); el borde claro
+-- que lo marca es el de Ui.hud. El panel de fondo de cada ventana va con Selectable = false: si no, el mando lo elige.
+local function aLaVista(objeto: GuiObject): boolean
+	local actual: Instance? = objeto
+	while actual and actual:IsA("GuiObject") do
+		if not (actual :: GuiObject).Visible then
+			return false
+		end
+		actual = actual.Parent
+	end
+	-- Arriba del todo, su ScreenGui encendido y colgado del PlayerGui.
+	return actual ~= nil and actual:IsA("LayerCollector") and (actual :: LayerCollector).Enabled
+		and objeto:IsDescendantOf(jugador)
+end
+
+local function elegible(boton: GuiObject?): boolean
+	return boton ~= nil and boton.Selectable and boton.Interactable and aLaVista(boton)
+end
+
+-- Elige `boton` para el mando, solo si se está jugando con mando (o `siempre`, como el R3 de Ajustes) y se puede elegir.
+function Ui.seleccionar(boton: GuiObject?, siempre: boolean?)
+	if (siempre or tipoActual == "mando") and elegible(boton) then
+		GuiService.SelectedObject = boton
+	end
+end
+
+-- Quita la selección si es de `panel` (al cerrar una ventana, también al empezar su fundido): que no se quede marcado
+-- un botón escondido ni la A pulse algo que ya no se ve.
+function Ui.soltarSeleccion(panel: Instance)
+	local elegido = GuiService.SelectedObject
+	if elegido and (elegido == panel or elegido:IsDescendantOf(panel)) then
+		GuiService.SelectedObject = nil
+	end
+end
+
+-- Con `panel` abierto y mando: si no hay nada elegido, o lo elegido se ha escondido o apagado (la fila de la tienda ya
+-- comprada, la receta que se oculta), elige `principal()`. Para después de repintar una ventana. Lo elegido que se ve
+-- se respeta aunque sea de otra (Ajustes abierto encima con R3): no se lo quita.
+function Ui.mantenerSeleccion(panel: GuiObject, principal: () -> GuiObject?)
+	local elegido = GuiService.SelectedObject
+	if tipoActual ~= "mando" or not aLaVista(panel) or (elegido and elegible(elegido)) then
+		return
+	end
+	Ui.seleccionar(principal())
+end
+
+-- Al pasar al mando con la ventana abierta, elige `principal()`; al dejarlo (ratón, dedo), suelta lo de `panel`.
+function Ui.seleccionConMando(panel: GuiObject, estaAbierta: () -> boolean, principal: () -> GuiObject?)
+	Ui.alCambiarEntrada(function()
+		if not estaAbierta() then
+			return
+		elseif tipoActual == "mando" then
+			Ui.mantenerSeleccion(panel, principal)
+		else
+			Ui.soltarSeleccion(panel)
+		end
+	end)
+end
+
 -- Alto de un botón: el normal, o el de un dedo en pantallas táctiles.
 function Ui.alto(normal: number): number
 	return if Ui.tactil() then math.max(normal, Ui.DEDO) else normal
@@ -200,7 +261,23 @@ function Ui.hud(): ScreenGui
 	escala.Parent = gui
 	escalaHud = escala
 	hud = gui -- antes de esperar: si otro lo pide mientras tanto, es la misma capa
-	gui.Parent = jugador:WaitForChild("PlayerGui")
+	local playerGui = jugador:WaitForChild("PlayerGui") :: PlayerGui
+	gui.Parent = playerGui
+	-- El borde del botón que lleva elegido el mando, con el estilo del juego (el de Roblox es un azul chillón): un marco
+	-- vacío con un trazo color hueso de 3 px y las esquinas del botón. Vale para todas las ventanas de este jugador.
+	local marca = Instance.new("Frame")
+	marca.Name = "SeleccionMando"
+	marca.BackgroundTransparency = 1
+	marca.BorderSizePixel = 0
+	local trazo = Instance.new("UIStroke")
+	trazo.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	trazo.Color = Ui.Color.Hueso
+	trazo.Thickness = 3
+	trazo.Parent = marca
+	local redondo = Instance.new("UICorner")
+	redondo.CornerRadius = UDim.new(0, 4)
+	redondo.Parent = marca
+	playerGui.SelectionImageObject = marca
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		escalar(gui, escala)
 	end)
@@ -240,6 +317,7 @@ end
 function Ui.boton(texto: string, props: { [string]: any }?): TextButton
 	local b = Instance.new("TextButton")
 	b.AutoButtonColor = false
+	b.Selectable = true -- el mando lo puede elegir (Ui.seleccionar); el de Roblox ya lo es, aquí se dice
 	b.BackgroundColor3 = Ui.Color.Papel
 	b.BackgroundTransparency = 0.15
 	b.FontFace = Ui.Fuente

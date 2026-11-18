@@ -12,6 +12,8 @@
 --   acaso, la cuenta atrás y un fundido a negro propio (capa Fundido, DisplayOrder 100) un poco antes de la hora. Si el
 --   servidor para el coche (falló o es Studio) o a los 12 s sigue aquí, vuelve la imagen (y para esa salida ya no se
 --   vuelve a fundir).
+--   Con mando, al salir el papel ya va elegido lo principal (Ui.seleccionar): para el dueño EMPEZAR (o NUEVA PARTIDA si
+--   EMPEZAR no se puede pulsar), para los demás BAJAR; al bajar el papel se suelta.
 --   BAJAR (también saltando). Con Rendimiento, sin animaciones. En el móvil, todo del alto de un dedo y sin tapar el
 --   botón de saltar de Roblox (abajo a la derecha).
 local Players = game:GetService("Players")
@@ -89,6 +91,7 @@ local elegidaAntes: number? = -1
 local tachadaAntes: number? = -1
 local seguroAntes = false
 local recien = true -- el papel acaba de salir o de cambiar de dueño: lo de dentro se pone sin animar
+local elegir = false -- el papel acaba de salir o de cambiar de dueño: al acabar de pintar, el mando elige lo principal
 
 local function texto(frase: string, huecos: { [string]: any }?): string
 	return Ui.mayusculas(Lang.t(nil, frase, huecos))
@@ -169,6 +172,7 @@ local function mostrar(si: boolean, deGolpe: boolean?)
 	local deUnaVez = deGolpe or rendimiento()
 	if si then
 		recien, elegidaAntes, tachadaAntes, seguroAntes = true, -1, -1, false
+		elegir = true
 		if deUnaVez then
 			panel.Position = dentro
 		else
@@ -179,7 +183,10 @@ local function mostrar(si: boolean, deGolpe: boolean?)
 				{ Position = dentro }):Play()
 		end
 		panel.Visible = true
-	elseif deUnaVez then
+		return
+	end
+	Ui.soltarSeleccion(panel) -- ya al empezar a bajar: la A no arranca un coche del que te vas
+	if deUnaVez then
 		panel.Visible = false
 	else
 		local baja = TweenService:Create(panel, TweenInfo.new(T_BAJA, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
@@ -204,6 +211,7 @@ local function colocar(esDueno: boolean)
 	local crece = modo ~= nil and modo ~= nuevo and visible -- ya estaba a la vista: el papel crece o encoge
 	if nuevo ~= modo then
 		recien, elegidaAntes, tachadaAntes = true, -1, -1
+		elegir = true -- (al pasar a dueño, de BAJAR a EMPEZAR)
 	end
 	modo, ancho = nuevo, quiere
 	local tamano = UDim2.fromOffset(ancho, if esDueno then ALTO_DUENO else ALTO_OTRO)
@@ -304,6 +312,34 @@ local function pintarFichas(p, elegida: number, cuantas: number, tachada: number
 	end
 end
 
+-- Lo que elige el mando: para el dueño EMPEZAR, o NUEVA PARTIDA si EMPEZAR no se puede pulsar (cuenta atrás); para los
+-- demás, o si no hay nada de eso, BAJAR.
+local function principal(): GuiObject
+	if modo == "dueno" then
+		if empezar.Interactable then
+			return empezar
+		elseif nueva.Visible then
+			return nueva
+		end
+	end
+	return bajar
+end
+
+-- Al acabar de pintar: si el papel acaba de salir (o de cambiar de dueño) el mando elige lo principal; si no, solo si lo
+-- elegido se ha ido (con otra ventana abierta encima, como Ajustes, se deja la suya).
+local function seleccion()
+	if not visible then
+		return
+	elseif elegir then
+		elegir = false
+		if Ui.tipoEntrada() == "mando" and not jugador:GetAttribute("VentanaAbierta") then
+			Ui.seleccionar(principal())
+		end
+	else
+		Ui.mantenerSeleccion(panel, principal)
+	end
+end
+
 local function pintar()
 	local c = coche()
 	if fundida and (not c or c:GetAttribute("Salida") ~= fundida) then
@@ -332,6 +368,7 @@ local function pintar()
 		local dueno = Players:GetPlayerByUserId(c:GetAttribute("Dueno") or 0)
 		titulo.Text = if queda then texto("Leaving in {n}…", { n = math.ceil(queda) })
 			else texto("Waiting for {name}…", { name = if dueno then dueno.DisplayName else "…" })
+		seleccion()
 		return
 	end
 	titulo.Text = texto("Choose a game")
@@ -362,6 +399,7 @@ local function pintar()
 		elseif empiezaDeCero then texto("Start over")
 		elseif hay then texto("Continue")
 		else texto("Start")
+	seleccion()
 end
 
 local function crearFicha(i: number): Ficha
@@ -740,6 +778,9 @@ function CochesUi.start()
 	Ui.cerrarConB(function()
 		return visible and not jugador:GetAttribute("VentanaAbierta")
 	end, bajarDelCoche)
+	Ui.seleccionConMando(panel, function()
+		return visible and not jugador:GetAttribute("VentanaAbierta")
+	end, principal)
 	if jugador.Character then
 		task.spawn(vigilarAsiento, jugador.Character)
 	end

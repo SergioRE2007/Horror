@@ -57,9 +57,7 @@ local function pintar()
 end
 
 local function cerrar()
-	if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(panel) then
-		GuiService.SelectedObject = nil
-	end
+	Ui.soltarSeleccion(panel)
 	panel.Visible = false
 	panel.Modal = false
 	-- Ui lo quita en diferido: la misma B que lo cierra no debe agachar (PosturaVista mira VentanaAbierta en esa pulsación).
@@ -77,9 +75,7 @@ local function abrir(conMando: boolean?)
 	Ui.ventanaAbierta("Ajustes", true) -- solo en este cliente: con una ventana abierta, B no agacha (PosturaVista)
 	escalaPanel.Scale = 0.92
 	TweenService:Create(escalaPanel, TweenInfo.new(0.18, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-	if conMando then
-		GuiService.SelectedObject = interruptor -- con el mando, A cambia el ajuste enseguida
-	end
+	Ui.seleccionar(interruptor, conMando) -- con el mando (o abierto con R3), A cambia el ajuste enseguida
 end
 
 -- El engranaje (o la P): gira un cuarto de vuelta y abre o cierra el papel.
@@ -108,6 +104,7 @@ local function construirPanel(hud: ScreenGui)
 	panel.Name = "Ajustes"
 	panel.Text = ""
 	panel.AutoButtonColor = false
+	panel.Selectable = false -- el papel de fondo no lo elige el mando (Ui.seleccionar)
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.46)
 	panel.Size = UDim2.fromOffset(ANCHO, ALTO)
@@ -289,6 +286,11 @@ function AjustesUi.start()
 		elseif not procesado and hud.Enabled and (tecla == Enum.KeyCode.P or tecla == MANDO) then
 			pulsarEngranaje(tecla == MANDO)
 		end
+	end)
+	Ui.seleccionConMando(panel, function()
+		return panel.Visible
+	end, function()
+		return interruptor
 	end)
 	task.spawn(sugerirEnMovil)
 	jugador:GetAttributeChangedSignal("Rendimiento"):Connect(function()

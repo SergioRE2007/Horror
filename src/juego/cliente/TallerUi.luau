@@ -1,7 +1,8 @@
 -- Los bancos del taller (servidor: Taller). Al usar uno sale abajo un papel oscuro con sus recetas
 -- (Recetas.delBanco: las de Config.Taller.Bancos y, en el sótano, la reja del final si ya se leyó su pista; el servidor
 -- manda cuáles no enseñar): lo que sale y lo que pide; las que no te llegan, apagadas. Lo pesado que pide (tablones) cuenta
--- si está suelto junto al banco. Se cierra con CERRAR, al alejarte, al morir o al ponerte a trabajar.
+-- si está suelto junto al banco. Se cierra con CERRAR, al alejarte, al morir o al ponerte a trabajar. Con mando sale
+-- elegido el primer HACER que te llega (si ninguno, CERRAR): la A ya hace algo (Ui.seleccionar).
 -- El cliente solo pide ("Hacer", n): el servidor lo valida todo. También suena el cierre de las trampas ("Trampa").
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -28,7 +29,8 @@ local PASO = BOTON + 10 -- de una receta a la siguiente
 local ARRIBA = math.max(80, 14 + CERRAR + 12) -- donde empieza la primera receta
 local panel: TextButton
 local titulo: TextLabel
-local filas: { { texto: TextLabel, boton: TextButton } } = {}
+local salir: TextButton
+local filas: { { texto: TextLabel, boton: TextButton, puedo: boolean } } = {}
 local banco: Model? = nil
 local ocultas: { [number]: boolean } = {} -- recetas del banco abierto que aún no se enseñan (la reja, sin su pista)
 local abierto = 0 -- sube cada vez que se abre o se cierra: el bucle viejo de cerrar se para
@@ -84,6 +86,7 @@ end
 local function cerrar()
 	abierto += 1
 	banco = nil
+	Ui.soltarSeleccion(panel)
 	panel.Visible = false
 	panel.Modal = false
 	Ui.ventanaAbierta("Taller", false)
@@ -110,11 +113,22 @@ local function pintar()
 			end
 			fila.texto.Text = Ui.mayusculas(Lang.t(nil, "{make}: {needs}", { make = nombre(receta.Da), needs = table.concat(pide, ", ") }))
 			local puedo = #Recetas.falta(receta.Pide, cuenta) == 0
+			fila.puedo = puedo
 			fila.texto.TextTransparency = if puedo then 0 else 0.55
 			fila.boton.TextTransparency = if puedo then 0 else 0.6
 		end
 	end
 	panel.Size = UDim2.fromOffset(ANCHO, ARRIBA + 16 + vistas * PASO)
+end
+
+-- Lo que elige el mando al abrir: el primer HACER que te llega (de arriba abajo); si ninguno, CERRAR.
+local function principal(): GuiObject
+	for _, fila in filas do
+		if fila.boton.Visible and fila.puedo then
+			return fila.boton
+		end
+	end
+	return salir
 end
 
 local function lejos(): boolean
@@ -138,6 +152,7 @@ local function abrir(nuevo: Model, lista: { number })
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
 	Ui.ventanaAbierta("Taller", true) -- B no agacha mientras está abierto
+	Ui.seleccionar(principal())
 	task.spawn(function()
 		while abierto == mio do
 			task.wait(0.25)
@@ -147,6 +162,7 @@ local function abrir(nuevo: Model, lista: { number })
 				cerrar()
 			else
 				pintar() -- lo pesado de alrededor cambia sin avisar
+				Ui.mantenerSeleccion(panel, principal) -- (si la receta elegida se ha ocultado)
 			end
 		end
 	end)
@@ -157,6 +173,7 @@ local function construir()
 	panel.Name = "Taller"
 	panel.Text = ""
 	panel.AutoButtonColor = false
+	panel.Selectable = false -- el papel de fondo no lo elige el mando (Ui.seleccionar)
 	panel.AnchorPoint = Vector2.new(0.5, 1)
 	panel.Position = UDim2.new(0.5, 0, 1, -24)
 	panel.Size = UDim2.fromOffset(ANCHO, 200)
@@ -179,7 +196,8 @@ local function construir()
 		ZIndex = 11,
 	})
 	titulo.Parent = panel
-	local salir = Ui.boton(Lang.t(nil, "Close"), {
+	salir = Ui.boton(Lang.t(nil, "Close"), {
+		Name = "Cerrar",
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -14, 0, 14),
 		Size = UDim2.fromOffset(150, CERRAR),
@@ -215,16 +233,19 @@ local function construir()
 			Remotes.Taller:FireServer("Hacer", i)
 		end)
 		boton.Parent = panel
-		filas[i] = { texto = texto, boton = boton }
+		boton.Name = `Hacer{i}`
+		filas[i] = { texto = texto, boton = boton, puedo = false }
 	end
 	panel.Parent = Ui.hud()
 end
 
 function TallerUi.start()
 	construir()
-	Ui.cerrarConB(function()
+	local function estaAbierto(): boolean
 		return panel.Visible
-	end, cerrar, true) -- B del mando o Escape
+	end
+	Ui.cerrarConB(estaAbierto, cerrar, true) -- B del mando o Escape
+	Ui.seleccionConMando(panel, estaAbierto, principal)
 	Remotes.Taller.OnClientEvent:Connect(function(que, dato, lista)
 		if que == "Abrir" and typeof(dato) == "Instance" and dato:IsA("Model") then
 			abrir(dato, if type(lista) == "table" then lista else {})

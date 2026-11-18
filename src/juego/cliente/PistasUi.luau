@@ -1,7 +1,7 @@
 -- Leer una pista (servidor: Pistas). Sale en el centro un papel oscuro con la esquina manchada de sangre: arriba, en
 -- rojo, lo que es ("Nota del rico"); debajo lo que pone; abajo, cuántas llevamos ("3 de 12", pequeño) y CERRAR.
--- Se cierra con CERRAR, volviendo a pulsar E en la misma pista, al alejarse o al morir. Solo enseña: el servidor no
--- espera nada de vuelta. Al abrirla suena el papel que se despliega (Papel).
+-- Se cierra con CERRAR, volviendo a pulsar E en la misma pista, con B del mando o Escape, al alejarse o al morir. Con
+-- mando sale con CERRAR ya elegido (Ui.seleccionar). Solo enseña: el servidor no espera nada de vuelta. Al abrirla suena el papel que se despliega (Papel).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -32,14 +32,18 @@ local que: TextLabel
 local texto: TextLabel
 local cuenta: TextLabel
 local escala: UIScale
+local salir: TextButton
 local abierta = 0 -- la pista que se está leyendo (0 = ninguna)
 local vez = 0 -- sube cada vez que se abre o se cierra: el bucle viejo de cerrar se para
 
 local function cerrar()
 	vez += 1
 	abierta = 0
+	Ui.soltarSeleccion(panel)
 	panel.Visible = false
 	panel.Modal = false
+	-- Ui lo quita en diferido: la misma B que la cierra no debe agachar (PosturaVista mira VentanaAbierta en esa pulsación).
+	Ui.ventanaAbierta("Pista", false)
 end
 
 -- La pieza de la pista n en el mundo (para saber si me he alejado).
@@ -85,6 +89,8 @@ local function abrir(n: number, encontradas: number)
 	end
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
+	Ui.ventanaAbierta("Pista", true) -- leyendo, B cierra el papel en vez de agachar (PosturaVista)
+	Ui.seleccionar(salir) -- con mando, la A también la cierra
 	escala.Scale = 0.92
 	TweenService:Create(escala, TweenInfo.new(0.18, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	task.spawn(function()
@@ -102,6 +108,7 @@ local function construir()
 	panel.Name = "Pista"
 	panel.Text = ""
 	panel.AutoButtonColor = false
+	panel.Selectable = false -- el papel de fondo no lo elige el mando: el elegido es CERRAR
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.46)
 	panel.Size = UDim2.fromOffset(ANCHO, 300)
@@ -148,7 +155,8 @@ local function construir()
 		ZIndex = 21,
 	})
 	cuenta.Parent = panel
-	local salir = Ui.boton(Lang.t(nil, "Close"), {
+	salir = Ui.boton(Lang.t(nil, "Close"), {
+		Name = "Cerrar",
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -18, 1, -16),
 		Size = UDim2.fromOffset(150, CERRAR),
@@ -162,6 +170,13 @@ end
 
 function PistasUi.start()
 	construir()
+	local function estaAbierta(): boolean
+		return panel.Visible
+	end
+	Ui.cerrarConB(estaAbierta, cerrar, true) -- B del mando o Escape
+	Ui.seleccionConMando(panel, estaAbierta, function()
+		return salir
+	end)
 	Remotes.Pista.OnClientEvent:Connect(function(n, encontradas)
 		if type(n) == "number" and type(encontradas) == "number" then
 			abrir(n, encontradas)
