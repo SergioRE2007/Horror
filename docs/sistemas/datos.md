@@ -8,6 +8,8 @@
 - `src/comun/servidor` → `ServerScriptService.Comun` y `src/comun/cliente` → `StarterPlayerScripts.Comun`: lo que vale en los dos lugares (`Datos`, `Candado`, `Formato`, `Idioma`, `Limpieza`, `Viaje`; en el cliente `Ui`, `Avisos`, `Controles`).
 - `src/juego/*` y `src/lobby/*` → `ServerScriptService.Servidor` y `StarterPlayerScripts.Cliente`: el `init` de cada lugar, que arranca sus sistemas con `start()`.
 - `Limpieza` borra al arrancar todo lo suelto del Workspace y deja `workspace.Mapa` vacía; cada lugar pone ahí su mapa y su punto de aparición (`Mapa`, `Gasolinera`).
+- El mapa del juego, partido en módulos (16.18, sin cambiar nada de lo que construye): `Mapa` tiene las ayudas (`bloque`, `tienda`, `muro`, `mancha`, `HUECOS`…), `construirCasa`, la API que usan los demás (`Mapa.salas`, `objetos`, `pesados`, `lamparas`, `llaves`, `motorSuelto`, `conPadre`, `mueble`, `arbol`…) y `start`, que llama a todo en el mismo orden de siempre. `MapaMedidas`: medidas y tablas fijas compartidas (`ABAJO`, `COLOR`, `TEJADO`, `TORRE`, `HUECO`, `TRAMPILLA`…). `MapaSalas`: `SALAS`, `abandonar` y un `vestir<Sala>` por sala. `MapaAnexos`: cobertizo, caballete, bancos, coche, desván, sótano, final y garaje. `MapaBosque`: el bosque y `Mapa.arbol`. Los tres reciben las ayudas de Mapa con `iniciar(ayudas)` al cargar; la casa les llega como `casa()` (función) porque `Mapa.conPadre` la cambia un rato. Una sala nueva o retocada se toca en `MapaSalas`; los números compartidos, en `MapaMedidas`. `tests/bancos/gateo.luau` lee `HUECOS` del texto de `Mapa.luau`: no moverla de ahí.
+- Probar en Studio (16.18): VER MAPA del plugin y Play: la casa, el bosque, el pueblo y las salas salen igual que antes, sin errores en la Salida.
 - Pedido por el usuario (parpadeos): dos caras de piezas distintas en el mismo plano parpadean al mover la cámara. `Separar.caras(carpeta)` (comun/servidor), al acabar de generar cada mapa, busca esas parejas y agranda 0,03 studs por cara una de las dos hasta que no quede ninguna (avisa con `warn` si quedan). El punto de aparición va encima del suelo, no a ras.
 
 ## Guardado del jugador
@@ -20,6 +22,14 @@
 ## Modo de pruebas
 
 - `Config.Test.Activo` solo actúa en Studio (`Prueba.activa()`): no se lee ni se guarda nada y se dan `Config.Test.Monedas`. `Config.Test.Lang` fuerza el idioma; el atributo `LangTest` del jugador local lo cambia en marcha.
+
+## Límite de ritmo de los remotes (16.16)
+
+- `comun/servidor/Limite`: `Limite.pasa(jugador, "Clave", segundos)` (false = tirar la petición sin más; la cuenta sigue desde la última que pasó) y `Limite.restante(...)` (mira sin apuntar). Se olvida del jugador al salir (`Limite.start()` en el `init` del juego y del lobby; las tablas son además de claves débiles). Reloj cambiable (`Limite.reloj`) para el banco `tests/bancos/limite.luau`.
+- Intervalos en `Config.Limites` (los de antes tal cual: Idioma 1, Ajustes 0,25, Clase 0,3, Compra 1, Tienda 0,3, Coche 0,2, Pista 0,3, Mochila 0,05, Linterna 0,25, Mirada 0,15). Nuevos, a ojo (nadie los pulsa tan seguido): Flash 0,25, Movil 0,3, Vendedor 0,25, Taller 0,3, Usar 0,25, Mirar 0,2. Los que tienen su ritmo de juego siguen con su número: bengalas `Bestia.Recarga`, hachazo `Talar.Cada`, recarga del flash `Flash.Recarga`.
+- Qué cuenta no ha cambiado: Bengalas solo cuenta con la pistola en la mochila (y cuenta también los intentos sin bengalas, para no pedir avisos en ráfaga); Pistas, Recursos y la recarga del flash solo cuentan lo que se hace; Flash, Movil (al abrir; cerrar no cuenta), Vendedor y Taller cuentan todo intento. Coches no cuenta "Arrancar".
+- Sin límite a propósito: `Cargar` (soltar, idempotente), `Tutorial` y `Muerte.salir` (idempotentes), `Correr` (ventana de peticiones propia) y `Postura` (`Config.Postura.Cada` dentro de `PosturaReglas`).
+- Probar en Studio: pulsar muy seguido tienda, clases, vendedor, taller y móvil: solo cuenta uno cada pocos décimas y no sale ningún aviso repetido; el resto del juego igual.
 
 ## Pruebas
 

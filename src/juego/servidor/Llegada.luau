@@ -33,7 +33,7 @@ local Mapa = require(script.Parent.Mapa)
 local Llegada = {}
 
 local L = Config.Llegada
--- Las piezas que en el de verdad faltan y en el entero se ven (Mapa.construirCoche).
+-- Las piezas que en el de verdad faltan y en el entero se ven (MapaAnexos.construirCoche).
 local PIEZAS = { "Motor", "Rueda1", "Rueda2", "Rueda3", "Rueda4", "Bateria", "Radiador" }
 
 local frente: Model? = nil -- la copia de delante de la casa (entera o destrozada)
