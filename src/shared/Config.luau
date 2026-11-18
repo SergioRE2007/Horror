@@ -223,6 +223,8 @@ Config.Linterna = {
 	Alcance = 55, -- studs que alumbra
 	Angulo = 25, -- grados desde el centro en los que frena a un bicho
 	Brillo = 4, -- de noche la exposición sube (Ambiente): con menos apenas se ve el círculo
+	BichoCerca = 22, -- studs (también a través de paredes) a los que un bicho hace fallar tu linterna a tirones
+	BichoFallo = 0.35, -- segundos que puede quedarse apagada seguidos por un bicho como mucho
 }
 
 -- Cámara con flash (juego/servidor/Equipo): clic, botón en el móvil o R2. Echa al Raspador; al resto lo aturde.
