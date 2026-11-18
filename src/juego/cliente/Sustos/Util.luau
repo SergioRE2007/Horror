@@ -501,9 +501,9 @@ function Util.parpadeo(luces: { PointLight }, pasos: { { number } }, alPaso: ((n
 	end)
 	local nombre = "SustosLinterna"
 	pcall(RunService.UnbindFromRenderStep, RunService, nombre)
-	-- Después de EquipoVista (Camera + 4), que le pone el brillo cada fotograma, y de las manos (Camera + 5): si fuera
-	-- antes, EquipoVista lo pisaría y la linterna no parpadearía.
-	RunService:BindToRenderStep(nombre, Enum.RenderPriority.Camera.Value + 6, function()
+	-- Después de EquipoVista (Camera + 6), que le pone el brillo cada fotograma, y de las manos (Camera + 5): con la
+	-- misma prioridad el orden no está garantizado y EquipoVista podía pisarlo (la linterna no parpadeaba).
+	RunService:BindToRenderStep(nombre, Enum.RenderPriority.Camera.Value + 7, function()
 		local foco = Util.miLinterna()
 		if foco then
 			foco.Brightness *= f
