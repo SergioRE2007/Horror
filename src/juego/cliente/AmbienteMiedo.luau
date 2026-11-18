@@ -4,6 +4,8 @@
 --   Tension: un zumbido grave que sube despacio cuando un bicho está cerca de la cámara o cazando dentro de la casa
 --   (con la cámara también dentro), y baja cuando se va. También con la Bestia: ella no tiene música propia, solo sus
 --   ruidos. El Imitador no cuenta mientras finge ser una persona en la puerta (si no, delataría que no es un amigo).
+--   Si un bicho te persigue a ti (atributo Persigue de su modelo = tu UserId, lo pone Caza), entera y deprisa
+--   (TensionPersigueSubir: en menos de 1 s): huir no suena como andar por la casa.
 --   Calla en las cinemáticas y en la muerte (cámara Scriptable) y baja escondido, donde manda el latido (MuerteVista).
 --   Rafaga: de vez en cuando, de noche y con la cámara en casa, una ráfaga contra una ventana cercana, en 3D desde fuera
 --   del cristal.
@@ -39,16 +41,19 @@ local function enCasa(p: Vector3): boolean
 	return false
 end
 
--- Cuánta tensión pide ahora lo que hay en la carpeta Bichos (0 a 1).
-local function tensionBichos(camara: Vector3, camaraEnCasa: boolean): number
+-- Cuánta tensión pide ahora lo que hay en la carpeta Bichos (0 a 1), y si alguno te persigue.
+local function tensionBichos(camara: Vector3, camaraEnCasa: boolean): (number, boolean)
 	local carpeta = workspace:FindFirstChild("Bichos")
 	if not carpeta then
-		return 0
+		return 0, false
 	end
 	local nivel = 0
 	for _, modelo in carpeta:GetChildren() do
 		if not modelo:IsA("Model") or (modelo.Name == "Imitador" and not modelo:GetAttribute("Abierto")) then
 			continue
+		end
+		if modelo:GetAttribute("Persigue") == jugador.UserId then
+			return 1, true -- te persigue: entera, se esté donde se esté
 		end
 		local raiz = (modelo:FindFirstChild("HumanoidRootPart") or modelo.PrimaryPart) :: BasePart?
 		if not raiz then
@@ -60,7 +65,7 @@ local function tensionBichos(camara: Vector3, camaraEnCasa: boolean): number
 			nivel = math.max(nivel, CFG.TensionDentro)
 		end
 	end
-	return nivel
+	return nivel, false
 end
 
 -- Acerca `actual` a `meta` como mucho `subir` (o `bajar`) por segundo.
@@ -128,12 +133,16 @@ function AmbienteMiedo.start()
 			local escondido = typeof(jugador:GetAttribute("Escondido")) == "CFrame"
 			local cine = camara.CameraType == Enum.CameraType.Scriptable and not escondido
 				and not jugador:GetAttribute("Vistazo")
-			local meta = 0
+			local meta, persigue = 0, false
 			if not cine and not jugador:GetAttribute("Muerto") then
-				meta = tensionBichos(p, dentro) * (if escondido then CFG.TensionEscondido else 1)
+				local nivel, teSigue = tensionBichos(p, dentro)
+				persigue = teSigue
+				meta = nivel * (if escondido then CFG.TensionEscondido else 1)
 			end
-			-- En las cinemáticas se corta deprisa (lo suyo es lo de la escena); si no, sube y baja despacio.
-			kTension = acercar(kTension, meta, CFG.TensionSubir, if cine then 2 else CFG.TensionBajar, dt)
+			-- En las cinemáticas se corta deprisa (lo suyo es lo de la escena); si no, sube y baja despacio (si te
+			-- persiguen, sube de golpe).
+			local subir = if persigue then CFG.TensionPersigueSubir else CFG.TensionSubir
+			kTension = acercar(kTension, meta, subir, if cine then 2 else CFG.TensionBajar, dt)
 			ajustar(tension, tensionBase, kTension)
 			tension.PlaybackSpeed = CFG.TensionTono[1] + (CFG.TensionTono[2] - CFG.TensionTono[1]) * kTension
 

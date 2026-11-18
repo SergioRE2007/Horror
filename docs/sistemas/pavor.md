@@ -23,6 +23,11 @@ límite).
   - la respiración de la cámara va más deprisa (`CuerpoVista.respiracion` con más susto, y el vaho más seguido);
   - al girar rápido la vista se queda un pelo atrás (`Retraso`: desde 1,5 rad/s, 2,2° como mucho; `PavorCuentas.retraso`).
 
+**Persecución**: si un bicho te persigue (atributo `Persigue` de su modelo = tu UserId, lo pone `Caza.cazar`), lo veas
+o no: el latido suena entero mientras dure y al dejarte se apaga en `Latido.Apaga` s (`PavorCuentas.trasPersecucion`),
+la respiración va más deprisa y las manos tiemblan algo; al empezar, un golpe flojo y un respingo como mucho cada
+`Persigue.Cada` = 10 s. Mismas excepciones de abajo; con Rendimiento, solo latido y golpe.
+
 Un susto nuevo durante el pavor lo sube si es más fuerte, nunca lo baja. El mismo bicho no vuelve a asustar hasta que lo
 pierdes de vista `Olvida` = 15 s.
 
@@ -45,7 +50,8 @@ pierdes de vista `Olvida` = 15 s.
 - `CuerpoVista` suma la recula y el retraso al mismo `CFrame` que el balanceo (se deshace igual) y el campo de visión al
   de correr.
 - Banco: `tests/bancos/pavor.luau` (cuentas, PavorVista con falsos en cada caso de arriba y CuerpoVista de verdad: campo
-  60 y vuelta a 70, la pared de detrás, el retraso al girar acotado).
+  60 y vuelta a 70, la pared de detrás, el retraso al girar acotado; la persecución con un bicho falso con `Persigue`, y
+  la tensión de `AmbienteMiedo`).
 
 ## Probar en Studio
 
@@ -58,5 +64,8 @@ pierdes de vista `Olvida` = 15 s.
 5. Con el Imitador en la puerta (sin abrir) y por la mirilla: nada de esto.
 6. Esconderse con el latido sonando: se corta y queda el de MuerteVista.
 7. Activar Rendimiento en Ajustes: sin el vértigo, solo latido y temblor flojo.
-8. A ojo para retocar en `Config.Pavor`: lo fuerte del vértigo (`Vertigo.Campo`, `Recula`), lo que tiembla
+8. Dejar que te vea un Golpeador y huir sin mirarlo: su modelo lleva `Persigue` con tu UserId, el latido suena
+   seguido mientras corre detrás y se apaga al perderte; el zumbido de `AmbienteMiedo` sube en ~1 s. Escondido, solo
+   el latido de MuerteVista. El Imitador fingiendo en la puerta: nada.
+9. A ojo para retocar en `Config.Pavor`: lo fuerte del vértigo (`Vertigo.Campo`, `Recula`), lo que tiembla
    (`Temblor.Giro`) y el retraso (`Retraso.Max`).
