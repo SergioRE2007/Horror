@@ -203,6 +203,14 @@ Config.Acechador = {
 	Max = 2, -- como mucho, a la vez en el mapa
 }
 
+-- Al morir (MuerteVista). SustoComun: el susto por fases de los bichos con cara que no son el Golpeador (Acechador,
+-- Raspador, Imitador, Bestia, Trepador), en segundos: quieto mirándote, se abalanza, encima con sangre, tirón y,
+-- tras un fotograma negro, temblando. Todo junto, menos de lo que se queda quieto el bicho al pillarte (2,5 s:
+-- Caza ESPERA, Acechador y Bestia; lo mira tests/regressions). A ojo.
+Config.Muerte = {
+	SustoComun = { Mira = 0.3, Salta = 0.25, Encima = 1.1, Tiron = 0.12, Despues = 0.3 },
+}
+
 -- Dificultad por número de jugadores (shared/Dificultad), pensada para 2 (pedido por el usuario). Se calcula al
 -- empezar cada noche. AlaVez = {mínimo, máximo} ataques a la vez; Ritmo multiplica el tiempo entre ataques,
 -- Paciencia lo que aguanta golpeando o raspando, Tareas lo que hay que hacer de día (de momento, lo deprisa que gasta
