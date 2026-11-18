@@ -33,6 +33,7 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 ## Arreglado de paso
 
 - El motor arrastrado por uno solo se hundía en el suelo: desde el paso 5 lo que lleva uno no choca con nada, y eso incluía lo que se arrastra. Ahora solo deja de chocar lo que uno levanta del todo (`Cargar.rehacer`).
+- El bidón en el coche: uno a la vez ("Ya lo está usando alguien.") y, si le queda gasolina, vuelve a las manos de quien lo echaba (como en el generador y las cruces).
 - `Cargar.alUsar` admite varios usos por tipo (el bidón: generador y coche) y lo que llevan entre varios lo usa uno y los demás lo sueltan. `Cargar.trabajar` es el "trabajar unos segundos" común (también Taller y Coche).
 
 ## Pruebas (modo de pruebas, `ServerStorage.Prueba`)
