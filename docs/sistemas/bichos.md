@@ -68,6 +68,11 @@ agacharte es la finalidad". El cuerpo del jugador (caber debajo, `Cubierto`), en
 `Config.Postura`.
 
 Servidor (`Caza`, `Bestia`):
+- Ven de frente (`PosturaReglas.vistaDeLado`, en `Caza.elegirPresa`): su `Vista` entera solo dentro de ±`Campo` grados
+  (65) de hacia dónde mira su raíz; de lado o a su espalda, solo a `VerEspalda` studs (12), así que colarse por detrás
+  sin correr sirve. Si te vio u oyó hace menos de `Memoria` s (2), te ve hacia cualquier lado (doblar una esquina no le
+  despista). Va antes que agachado y cubierto, que siguen mandando. El oído no cambia. `Opciones.Campo` da otro cono a
+  un bicho (por defecto, el de `Config`). Números a ojo; banco `tests/bancos/vista-bichos.luau`.
 - Agachado se te ve y se te oye peor (`PosturaReglas.alcanceVista`/`alcanceOido`); corriendo, te oyen a `Config.Correr.Oido` (22 en vez de 8, 14.8: `correr.md`). Debajo de un mueble (atributo
   `Cubierto`) solo te notan muy de cerca (`VerCubierto`) y en tu misma parte del mapa, pero te huelen (`oler`/`huele`:
   a `Olfato` studs, `Huele` s hasta saber dónde estás).
