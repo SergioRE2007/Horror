@@ -111,6 +111,7 @@ return {
 	["Flare"] = "Bengala",
 	["Matches"] = "Cerillas",
 	["Iron gate"] = "Reja de hierro",
+	["Door bolt"] = "Cerrojo",
 	["No flares left."] = "No te quedan bengalas.",
 	["You don't have a flare gun."] = "No llevas pistola de bengalas.",
 	["{n} flares"] = "{n} bengalas",

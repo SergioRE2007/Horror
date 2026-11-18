@@ -42,6 +42,7 @@ local COLOR = {
 	Trampa = Color3.fromRGB(85, 82, 78),
 	Bateria = Color3.fromRGB(40, 40, 42),
 	Radiador = Color3.fromRGB(150, 150, 148),
+	Cerrojo = Color3.fromRGB(96, 98, 102), -- hierro gris
 }
 
 -- Lo tirado, lo que se desparrama y las llaves al morir salían a 1,5 studs del jugador sin mirar qué había en medio, y
