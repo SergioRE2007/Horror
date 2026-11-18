@@ -345,3 +345,33 @@ distintas (tormenta, niebla, luna llena, silencio); llaves y pistas en sitios di
 dónde está el bicho y música solo al perseguirte; sustos de una sola vez; miedo que crece a oscuras (ruidos y cosas que
 no están); llevar a cuestas al compañero caído; walkie-talkie; misiones del día; varios finales; mapa por partes
 (StreamingEnabled) para móviles flojos.
+
+## 16. Mejoras del análisis del juego (pedido por el usuario, 18-11-2026: "hazlo todo, lanza los agentes que hagan falta")
+Salen de un análisis con 8 agentes (7 por área y un verificador). Nada grave: ni pérdidas de datos ni duplicados. Hecho
+sin Studio (la sesión fue en la nube): todo lo de aquí va también a "Pendientes para Studio". Números nuevos, a ojo.
+
+| Tarea | Qué | Estado |
+|---|---|---|
+| 16.1 | Candado de la partida: soltarlo aunque el servidor se cierre mientras carga | pendiente |
+| 16.2 | Golpeador: jugando solo no debe golpear más rato que con cuatro | pendiente |
+| 16.3 | Morir todos justo antes del amanecer no cuenta como noche superada | pendiente |
+| 16.4 | Revivir pagado revive al del botón, no a otro muerto | pendiente |
+| 16.5 | Tutorial: cerrar la puerta principal, la gasolina del generador y la siguiente meta tras el tutorial | pendiente |
+| 16.6 | Aviso de una línea la primera vez que raspa el Raspador | pendiente |
+| 16.7 | Guía corta del lobby para el jugador nuevo | pendiente |
+| 16.8 | Llegada en coche y coche destrozado tras la noche 1 (`docs/diseño.md`) | pendiente |
+| 16.9 | Rendimiento activado la primera vez en móvil; Ajustes con mando | pendiente |
+| 16.10 | Sustos: que salgan en noches altas, que vayan a más y que el espejo no destape el giro; polvo con Rendimiento | pendiente |
+| 16.11 | Linternas, bengalas, chimenea e iluminación más ligeras y con Rendimiento | pendiente |
+| 16.12 | Apagón del Imitador solo con el generador encendido; generador sin recalcular cada fotograma | pendiente |
+| 16.13 | Lobby: reintentos del viaje, tienda con datos cargados y cerca del mostrador, coche fijo en la cuenta atrás, menos JSON | pendiente |
+| 16.14 | Mando y táctil: cerrar ventanas con B, táctil bien detectado, pistas de teclado solo con teclado, mayúsculas con más tildes | pendiente |
+| 16.15 | Registro común de bichos, sin `require` diferidos, números a `Config` y reparto del Director como función probada | pendiente |
+| 16.16 | Límite de ritmo común para los remotes (`Limite`), también en los que no tenían | pendiente |
+| 16.17 | Un solo módulo `Sonido` para lobby y juego, con límite de vida; arranque del cliente protegido | pendiente |
+| 16.18 | `Mapa.luau` partido en salas, anexos y bosque, sin cambiar nada del juego | pendiente |
+| 16.19 | Vistas de bichos: funciones comunes en `BichoComun` y `GolpeadorVista` partida | pendiente |
+| 16.20 | Cámara leída siempre al día (`workspace.CurrentCamera`) en los módulos del cliente | pendiente |
+| 16.21 | Pruebas de Lune: guardado, recibos, recompensas, revivir, textos en español, reparto y `Config.Test` | pendiente |
+
+Fuera por ahora: `StreamingEnabled` en el lobby (hay que probarlo en Studio con el emulador de móvil).
