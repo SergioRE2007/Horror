@@ -7,7 +7,11 @@
 -- La 12 es la caja fuerte del rico: la primera vez que alguien la abre en la partida, dentro están las cerillas del
 -- final (Config.Bestia.PistaCerillas; van a su mochila o a sus pies). Como va con la primera lectura, recargar o volver
 -- a abrirla no da más.
+-- Las leídas cuentan para todos: van en el atributo de workspace `PistasLeidas` ("1,2,9", en orden), que lee la libreta
+-- de la mochila (PistasUi.libreta). Al encontrar una nueva, los demás reciben un aviso; la primera vez que se lee la del
+-- plano de la reja (Config.Bestia.Reja.Pista), todos reciben, poco después, el de que ya se puede hacer.
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -56,6 +60,7 @@ local YA_HAY = { [10] = "Read", [11] = "Read", [12] = "Open" }
 local SALA = { [9] = "LlaveSotano", [10] = "LlaveDesvan", [11] = "LlaveRico", [12] = "LlaveRico" }
 
 local MANCHADAS = { [4] = true, [6] = true, [9] = true } -- con una mancha de sangre en una esquina (Moderate)
+local PLANO = Config.Bestia.Reja.Pista -- la del plano de la reja (la 9)
 
 local leidas: { [number]: boolean } = {}
 
@@ -213,6 +218,24 @@ local function cuantas(): number
 	return total
 end
 
+-- Lo que sabe el cliente (la libreta): los números leídos en orden, separados por comas ("" = ninguna).
+local function publicar()
+	local lista = {}
+	for m = 1, #Historia do
+		if leidas[m] then
+			table.insert(lista, tostring(m))
+		end
+	end
+	workspace:SetAttribute("PistasLeidas", table.concat(lista, ","))
+end
+
+-- Un aviso de una línea por el remote de las pistas (PistasUi lo pone donde no tape el papel), en el idioma de cada uno.
+local function avisar(a: { Player }, texto: string, huecos: { [string]: any }?)
+	for _, otro in a do
+		Remotes.Pista:FireClient(otro, "Aviso", Lang.t(otro, texto, huecos))
+	end
+end
+
 function Pistas.leer(jugador: Player, n: number, donde: BasePart)
 	local personaje = jugador.Character
 	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -230,12 +253,32 @@ function Pistas.leer(jugador: Player, n: number, donde: BasePart)
 		return
 	end
 	local cerillas = n == Config.Bestia.PistaCerillas and not leidas[n]
+	local nueva = not leidas[n]
 	leidas[n] = true
 	jugador:SetAttribute("Leida" .. n, true) -- lo que ha leído él (Sustos: el espejo no destapa el giro antes de tiempo)
 	Remotes.Pista:FireClient(jugador, n, cuantas())
 	if cerillas then
 		Mochila.dar(jugador, "Cerillas") -- si no le caben, a sus pies
 		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "There are matches inside the safe."))
+	end
+	if not nueva then
+		return
+	end
+	publicar()
+	local demas = {}
+	for _, otro in Players:GetPlayers() do
+		if otro ~= jugador then
+			table.insert(demas, otro)
+		end
+	end
+	avisar(demas, "{name} found a note. It's in your backpack.", { name = jugador.DisplayName })
+	if n == PLANO then
+		-- Después de que salga el papel (no a la vez que el sonido de abrirlo), y a todos: la reja ya sale en el banco.
+		task.delay(Config.Bestia.AvisoPlano, function()
+			if leidas[n] then -- no se ha vuelto al amanecer (Partida) mientras tanto
+				avisar(Players:GetPlayers(), "There's a drawing of an iron gate. It can be built at the basement bench.")
+			end
+		end)
 	end
 end
 
@@ -269,6 +312,7 @@ function Pistas.importar(lista: { number }?)
 			leidas[n] = true
 		end
 	end
+	publicar()
 end
 
 function Pistas.start()
@@ -279,6 +323,7 @@ function Pistas.start()
 		construir(n, cf, carpeta)
 	end
 	carpeta.Parent = workspace:WaitForChild("Mapa")
+	publicar()
 end
 
 return Pistas

@@ -385,20 +385,21 @@ type Aviso = {
 	revivir: boolean, -- se repitió mientras se fundía: vuelve a verse
 }
 local avisoActual: Aviso? = nil
-local colaAvisos: { { texto: string, segundos: number? } } = {}
+type Colocar = (TextLabel) -> ()
+local colaAvisos: { { texto: string, segundos: number?, colocar: Colocar? } } = {}
 local VISIBLE = { TextTransparency = 0, TextStrokeTransparency = 0.4 }
 local OCULTO = { TextTransparency = 1, TextStrokeTransparency = 1 }
 
-local mostrarAviso: (texto: string, segundos: number?, entrada: number) -> ()
+local mostrarAviso: (texto: string, segundos: number?, entrada: number, colocar: Colocar?) -> ()
 
 local function siguienteAviso()
 	if avisoActual == nil and #colaAvisos > 0 then
 		local s = table.remove(colaAvisos, 1)
-		mostrarAviso(s.texto, s.segundos, 0.25) -- encadenado: entra algo más rápido
+		mostrarAviso(s.texto, s.segundos, 0.25, s.colocar) -- encadenado: entra algo más rápido
 	end
 end
 
-function mostrarAviso(texto: string, segundos: number?, entrada: number)
+function mostrarAviso(texto: string, segundos: number?, entrada: number, colocar: Colocar?)
 	local tactil = Ui.tactil()
 	local t = Ui.texto(texto, {
 		Name = "Aviso",
@@ -416,6 +417,9 @@ function mostrarAviso(texto: string, segundos: number?, entrada: number)
 	})
 	Ui.queQuepa(t, 26) -- y si aun así no cabe (otros idiomas), la letra encoge
 	t.Parent = Ui.hud()
+	if colocar then
+		colocar(t) -- quien lo pidió lo mueve si tapa algo suyo (PistasUi: el papel)
+	end
 	local ahora = os.clock()
 	local a: Aviso = {
 		texto = texto,
@@ -470,7 +474,8 @@ function mostrarAviso(texto: string, segundos: number?, entrada: number)
 	end)
 end
 
-function Ui.aviso(texto: string, segundos: number?)
+-- `colocar` (opcional) recibe el texto al salir, también si sale después desde la cola (PistasUi lo sube si tapa el papel).
+function Ui.aviso(texto: string, segundos: number?, colocar: Colocar?)
 	local a = avisoActual
 	if a and a.texto == texto then
 		-- La misma frase: no se rehace, solo dura más (y si se estaba yendo sin nadie detrás, vuelve).
@@ -490,13 +495,13 @@ function Ui.aviso(texto: string, segundos: number?)
 		end
 	end
 	if a == nil then
-		mostrarAviso(texto, segundos, 0.4)
+		mostrarAviso(texto, segundos, 0.4, colocar)
 		return
 	end
 	if #colaAvisos >= COLA_AVISOS then
 		table.remove(colaAvisos, 1)
 	end
-	table.insert(colaAvisos, { texto = texto, segundos = segundos })
+	table.insert(colaAvisos, { texto = texto, segundos = segundos, colocar = colocar })
 end
 
 return Ui

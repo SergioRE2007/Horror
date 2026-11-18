@@ -40,6 +40,7 @@ local Lang = require(ReplicatedStorage.Shared.Lang)
 local PosturaReglas = require(ReplicatedStorage.Shared.PosturaReglas)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local MuebleRayo = require(script.Parent.MuebleRayo)
+local PistasUi = require(script.Parent.PistasUi)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -692,8 +693,9 @@ function PosturaVista.start()
 		end
 		local tecla = entrada.KeyCode
 		if tecla == Enum.KeyCode.C or tecla == Enum.KeyCode.LeftControl
+			-- B del mando cierra la mochila, las ventanas (Ui.cerrarConB) y la libreta de las pistas: entonces no agacha
 			or (tecla == Enum.KeyCode.ButtonB and not jugador:GetAttribute("MochilaAbierta")
-				and not jugador:GetAttribute("VentanaAbierta")) then -- B cierra la mochila y las ventanas (Ui.cerrarConB)
+				and not jugador:GetAttribute("VentanaAbierta") and not PistasUi.libretaAbierta()) then
 			alternar()
 		elseif tecla == Enum.KeyCode.Z then
 			izquierda, ultima = true, -1

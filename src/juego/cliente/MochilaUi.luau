@@ -3,12 +3,15 @@
 -- hacia ella y sale la rejilla encima; no te mueves, pero el mundo sigue.
 --   Clic o toque en una cosa: la coges (va con el ratón). En una casilla: la dejas ahí si cabe. R o GIRAR la gira;
 --   G o TIRAR la tira al suelo delante de ti. B, CERRAR o tocar fuera la cierra (lo cogido vuelve a su sitio).
+--   N o NOTAS (solo si alguien ha leído alguna pista: atributo de workspace PistasLeidas) la cierra y abre la libreta
+--   de las pistas (PistasUi.libreta). Con la libreta abierta, la B la cierra a ella en vez de abrir la mochila.
 -- Lo que se pide se adelanta aquí con la misma Rejilla y luego manda lo que publica el servidor (atributo Mochila).
 -- A los demás se les ve la mochila a la espalda; abierta, la llevan delante.
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TextService = game:GetService("TextService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -16,6 +19,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Rejilla = require(ReplicatedStorage.Shared.Rejilla)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local PistasUi = require(script.Parent.PistasUi)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
 local MochilaUi = {}
@@ -40,6 +44,9 @@ local panel: CanvasGroup
 local rejillaGui: Frame
 local capaCosas: Frame
 local fantasma: Frame
+local botonNotas: TextButton
+type EnFila = { boton: TextButton, nombre: string, tecla: string }
+local enFila: { EnFila } = {} -- los botones de abajo, para que quepan (ajustarFila)
 local celdas: { Frame } = {}
 local medidas = { 0, 0 }
 
@@ -363,6 +370,53 @@ local function leer()
 	end
 end
 
+-- ¿Ha leído alguien alguna pista? (lo publica el servidor: "1,2,9")
+local function hayNotas(): boolean
+	local valor = workspace:GetAttribute("PistasLeidas")
+	return type(valor) == "string" and string.find(valor, "%d") ~= nil
+end
+
+-- NOTAS: se guarda la mochila y sale la libreta de las pistas.
+local function notas()
+	if not hayNotas() then
+		return
+	end
+	cerrar(true)
+	PistasUi.libreta()
+end
+
+-- Los botones de abajo caben en el ancho del papel (que sale de la rejilla): si no, primero letra algo menor, luego sin
+-- la tecla entre corchetes y, al final, letra pequeña. En el móvil no llevan tecla.
+local FORMAS = { { 22, true }, { 19, true }, { 22, false }, { 19, false }, { 16, false } }
+local function ajustarFila()
+	local libre = panel.Size.X.Offset - 48
+	if libre <= 0 then
+		return
+	end
+	local visibles = {}
+	for _, b in enFila do
+		if b.boton.Visible then
+			table.insert(visibles, b)
+		end
+	end
+	for i, forma in FORMAS do
+		local textos = {}
+		local total = (#visibles - 1) * 10
+		for _, b in visibles do
+			local t = Ui.mayusculas(Lang.t(nil, b.nombre)) .. (if Ui.conTeclado() and forma[2] then "  [" .. b.tecla .. "]" else "")
+			textos[b] = t
+			total += TextService:GetTextSize(t, forma[1], Enum.Font.SpecialElite, Vector2.new(4000, 200)).X + 32
+		end
+		if total <= libre or i == #FORMAS then
+			for _, b in visibles do
+				b.boton.Text = textos[b]
+				b.boton.TextSize = forma[1]
+			end
+			return
+		end
+	end
+end
+
 local function crearGui()
 	raiz = Instance.new("Frame")
 	raiz.Name = "Mochila"
@@ -453,27 +507,38 @@ local function crearGui()
 	lista.FillDirection = Enum.FillDirection.Horizontal
 	lista.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	lista.Padding = UDim.new(0, 10)
+	lista.SortOrder = Enum.SortOrder.LayoutOrder
 	lista.Parent = fila
 	-- La tecla solo se enseña con teclado (Ui.conTeclado); con mando, X gira, Y tira y B cierra (ver start).
-	local pistas = {}
-	for _, b in { { "Rotate", "R", girar }, { "Throw away", "G", tirar }, { "Close", "B", function() cerrar(true) end } } do
-		local function texto(): string
-			local t = Ui.mayusculas(Lang.t(nil, b[1]))
-			return if Ui.conTeclado() then t .. "  [" .. b[2] .. "]" else t
-		end
-		local boton = Ui.boton(texto(), { Size = UDim2.fromOffset(0, BOTON), AutomaticSize = Enum.AutomaticSize.X, TextSize = 22 })
-		pistas[boton] = texto
+	local fila4 = {
+		{ "Notes", "N", notas },
+		{ "Rotate", "R", girar },
+		{ "Throw away", "G", tirar },
+		{ "Close", "B", function() cerrar(true) end },
+	}
+	for orden, b in fila4 do
+		local texto = Ui.mayusculas(Lang.t(nil, b[1])) .. (if Ui.conTeclado() then "  [" .. b[2] .. "]" else "")
+		local boton = Ui.boton(texto, { Size = UDim2.fromOffset(0, BOTON), AutomaticSize = Enum.AutomaticSize.X, TextSize = 22 })
+		boton.LayoutOrder = orden
 		local relleno = Instance.new("UIPadding")
 		relleno.PaddingLeft, relleno.PaddingRight = UDim.new(0, 16), UDim.new(0, 16)
 		relleno.Parent = boton
 		boton.Activated:Connect(b[3])
 		boton.Parent = fila
-	end
-	Ui.alCambiarEntrada(function()
-		for boton, texto in pistas do
-			boton.Text = texto()
+		table.insert(enFila, { boton = boton, nombre = b[1], tecla = b[2] })
+		if b[1] == "Notes" then
+			botonNotas = boton
 		end
+	end
+	-- NOTAS solo cuando hay algo que leer; al aparecer, al cambiar el ancho del papel o al pasar de teclado a mando
+	-- (la tecla entre corchetes sale o se va), que quepan todos.
+	botonNotas.Visible = hayNotas()
+	workspace:GetAttributeChangedSignal("PistasLeidas"):Connect(function()
+		botonNotas.Visible = hayNotas()
+		ajustarFila()
 	end)
+	panel:GetPropertyChangedSignal("Size"):Connect(ajustarFila)
+	Ui.alCambiarEntrada(ajustarFila)
 
 	-- Móvil: botón MOCHILA en la rejilla del equipo (EquipoVista: el tamaño lo pone ella; orden 4).
 	if Ui.tactil() then
@@ -542,12 +607,18 @@ function MochilaUi.start()
 		end
 		local tecla = entrada.KeyCode
 		if tecla == Enum.KeyCode.B or tecla == Enum.KeyCode.DPadUp then
-			alternar()
+			if PistasUi.libretaAbierta() then
+				PistasUi.cerrar() -- con la libreta abierta (desde NOTAS), la B la guarda
+			else
+				alternar()
+			end
+		elseif abierta and tecla == Enum.KeyCode.N then
+			notas()
 		elseif abierta and (tecla == Enum.KeyCode.R or tecla == Enum.KeyCode.ButtonX) then
 			girar() -- X del mando: con la mochila abierta no hay carteles de coger ni nada que soltar (Cargando la cierra)
 		elseif abierta and (tecla == Enum.KeyCode.G or tecla == Enum.KeyCode.ButtonY) then
 			tirar()
-		elseif abierta and tecla == Enum.KeyCode.ButtonB then
+		elseif abierta and tecla == Enum.KeyCode.ButtonB and not PistasUi.libretaAbierta() then
 			cerrar(true)
 		end
 	end)

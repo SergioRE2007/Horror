@@ -485,6 +485,7 @@ Config.Bestia = {
 	-- Receta en el banco del sótano; solo sale tras leer la pista Pista (shared/Historia)
 	Reja = { Pide = { { "Chatarra", 4 }, { "Cadena", 2 } }, Tiempo = 8, Pista = 9 },
 	PistaCerillas = 12, -- la caja fuerte del rico: al abrirla por primera vez en la partida, dentro están las cerillas
+	AvisoPlano = 1.5, -- segundos tras leer la pista del plano hasta el aviso de que la reja ya se puede hacer (a ojo)
 	Montar = 4, -- segundos montando la reja en su marco
 	Caer = 0.35, -- segundos que tarda la reja en caer
 	Palanca = 1.5, -- segundos tirando de la palanca

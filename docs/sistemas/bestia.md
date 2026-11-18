@@ -12,7 +12,7 @@ Pedido por el usuario: la Bestia es el origen de todos los bichos, y el rico la 
 ## Preparación (de día)
 
 1. **Gasolina:** hay 6 cruces en el suelo (escalera del vestíbulo, salón, dormitorio de abajo, pasillo, cocina y dormitorio grande). Con un bidón en las manos, R junto a la cruz. Cada cruz gasta 1/3 de bidón. Si le queda para otra cruz, el bidón sigue en las manos; vacío, se deja en el suelo (14.1, pedido por el usuario). Con las 6 llenas sale un rastro de la escalera al porche.
-2. **Reja:** se hace en el banco del sótano con 4 chatarras y 2 cadenas. La receta solo sale después de leer la pista 9, que está en el sótano (hace falta su llave). Se lleva con R a su marco, al pie de la escalera del sótano.
+2. **Reja:** se hace en el banco del sótano con 4 chatarras y 2 cadenas. La receta solo sale después de leer la pista 9, que está en el sótano (hace falta su llave). La primera vez que alguien la lee, a todos, a los 1,5 s (`AvisoPlano`): "Hay un dibujo de una reja de hierro. Se puede hacer en el banco del sótano.". Se puede releer en la libreta (NOTAS en la mochila). Se lleva con R a su marco, al pie de la escalera del sótano.
 3. **Pistola y bengalas:** la pistola y 3 bengalas están en el desván, delante del baúl del rico. Las cerillas, dentro de la caja fuerte del rico: la primera vez que alguien la abre (pista 12) le van a la mochila (o a sus pies) con el aviso "Dentro de la caja fuerte hay unas cerillas." (`Config.Bestia.PistaCerillas`).
 4. **Trampilla:** del sótano al patio. Se abre desde abajo y se queda abierta.
 

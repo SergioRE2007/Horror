@@ -19,6 +19,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local BengalasVista = require(script.Parent.BengalasVista)
 local Manos = require(script.Parent.Manos)
+local PistasUi = require(script.Parent.PistasUi)
 local ManosGestos = require(script.Parent.ManosGestos)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
@@ -428,7 +429,8 @@ function EquipoVista.start()
 		if procesado then
 			return
 		end
-		if entrada.KeyCode == Enum.KeyCode.F or entrada.KeyCode == Enum.KeyCode.ButtonL1 then
+		if entrada.KeyCode == Enum.KeyCode.F
+			or (entrada.KeyCode == Enum.KeyCode.ButtonL1 and not PistasUi.libretaAbierta()) then -- en la libreta, LB pasa hoja
 			pedirLinterna()
 		elseif entrada.UserInputType == Enum.UserInputType.MouseButton1 or entrada.KeyCode == Enum.KeyCode.ButtonR2 then
 			pedirFlash()
