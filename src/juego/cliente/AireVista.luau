@@ -9,7 +9,8 @@
 --     CieloVista) casi no se ven: Config.Cielo.Tormenta.Haz.
 --   Niebla baja fuera, de noche: partículas grandes y planas a ras de suelo alrededor de la cámara que se arrastran
 --     despacio hacia donde sopla el viento (AireVista.viento: rumbo y rachas, el mismo para todos los clientes). Con
---     tormenta, más deprisa (AireVista.empuje).
+--     tormenta, más deprisa (AireVista.empuje). Las noches de niebla cerrada (AireVista.neblina, lo pone CieloVista),
+--     más espesa y más alta (AireVista.nieblaBaja, Config.Cielo.Niebla.Baja y Alto).
 --   Pinocha: bajo los pinos (etiqueta "Pino" de Mapa), en las rachas, cae algo de pinocha (con tormenta, más a menudo
 --     y más de lado). Las mismas rachas suben y bajan el viento que se oye (Ambiente.vientoSonido).
 -- Nada en cinemáticas (cámara Scriptable salvo un vistazo por la mirilla o las cortinas). Con Rendimiento, las motas a
@@ -34,6 +35,8 @@ local jugador = Players.LocalPlayer
 
 -- Cielo cerrado de tormenta (CieloVista, cielo.md): de 0 a 1, en rampa. Apaga los haces de luna hasta su parte.
 AireVista.nublado = 0
+-- Noche de niebla cerrada (CieloVista, cielo.md): de 0 a 1, en rampa. Espesa y sube la niebla baja.
+AireVista.neblina = 0
 
 ---------------------------------------------------------------- cuentas (sin Roblox: las usa el banco)
 
@@ -89,6 +92,13 @@ end
 -- Cuánto se ve un haz de luna (0 a 1) con la noche `k` y el cielo cerrado `nublado` (0 a 1): con tormenta, su parte.
 function AireVista.fuerzaHaz(k: number, nublado: number): number
 	return k * (1 - (1 - Config.Cielo.Tormenta.Haz) * math.clamp(nublado, 0, 1))
+end
+
+-- La niebla baja con la noche `k` y la niebla cerrada `neblina` (0 a 1): cuántas por segundo y lo alta que es su caja.
+function AireVista.nieblaBaja(k: number, neblina: number): (number, number)
+	local N, B = CFG.Niebla, Config.Cielo.Niebla
+	local n = math.clamp(neblina, 0, 1)
+	return N.Rate * k * (1 + (B.Baja - 1) * n), N.Alto * (1 + (B.Alto - 1) * n)
 end
 
 -- Con el cielo cerrado `nublado` (0 a 1), por cuánto va el viento de abajo (niebla baja y pinocha): en rampa hasta
@@ -490,15 +500,19 @@ local function repasar()
 	-- Haces de luna (de noche, sin Rendimiento).
 	moverHaces(p, k, vale and not ligero)
 
-	-- Niebla baja (fuera, de noche, sin Rendimiento).
+	-- Niebla baja (fuera, de noche, sin Rendimiento): las noches de niebla cerrada, más espesa y más alta.
 	if vale and not dentro and not ligero and k > 0.02 then
 		ponerFiltro()
 		local suelo = sueloBajo(p)
-		local centro = Vector3.new(p.X, suelo + CFG.Niebla.Alto / 2, p.Z)
+		local ritmo, alto = AireVista.nieblaBaja(k, AireVista.neblina)
+		if math.abs(cajaNiebla.Size.Y - alto) > 0.05 then
+			cajaNiebla.Size = Vector3.new(CFG.Niebla.Radio * 2, alto, CFG.Niebla.Radio * 2)
+		end
+		local centro = Vector3.new(p.X, suelo + alto / 2, p.Z)
 		cajaNiebla.CFrame = mirando(centro, hacia)
 		local v = CFG.Niebla.Velocidad
 		niebla.Speed = NumberRange.new(v[1] * fuerza * empuje, v[2] * fuerza * empuje)
-		niebla.Rate = CFG.Niebla.Rate * k
+		niebla.Rate = ritmo
 	else
 		niebla.Rate = 0
 	end
