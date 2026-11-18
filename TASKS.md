@@ -9,7 +9,8 @@ Sale de `docs/plan-tecnico.md` (orden de construcción) y `docs/diseño.md`. Ser
 1. 14.2 (que Sergio apruebe el tutorial) y 14.5 Partida entera de prueba, con la propuesta a ojo de
    `docs/sistemas/economia.md`.
 2. Sonidos e imágenes que faltan (`docs/sistemas/sonidos-pendientes.md`), cuando vuelva a haber créditos.
-3. **15. Mejoras pedidas por el usuario** (abajo): inventario, objetos con forma, mapa e interacciones.
+3. **15. Mejoras pedidas por el usuario** (abajo): inventario, objetos con forma, mapa e interacciones. La 15.8
+   (cargar con físicas) va primero, pedida el 18-11-2026.
 4. 11.2 Monstruos (casi al final), 13.2 Lanzamiento.
 
 ## Hechas
@@ -288,10 +289,8 @@ Retoques a ojo:
   es darle un click, es antiintuitivo".
 - Qué: cada objeto con su imagen (el modelo 3D en un ViewportFrame, como las armas del primer juego); coger y soltar
   **arrastrando** (ratón, dedo y mando), con la casilla de destino marcada en verde o rojo; girar con R o un botón; tirar
-  arrastrando fuera de la rejilla. Al estilo oscuro (papel viejo, letras desgastadas). Skills 
-oblox-ui-designer y
-  
-oblox-ui-engineer. Sin cambiar el guardado de la mochila (mochila.md).
+  arrastrando fuera de la rejilla. Al estilo oscuro (papel viejo, letras desgastadas). Skills `roblox-ui-designer` y
+  `roblox-ui-engineer`. Sin cambiar el guardado de la mochila (mochila.md).
 - **Estado:** pendiente
 
 ### 15.2 Objetos con forma
@@ -335,19 +334,32 @@ oblox-ui-engineer. Sin cambiar el guardado de la mochila (mochila.md).
 - **Estado:** pendiente
 
 ### 15.7 Recuperar los commits aplastados en el historial de main
+- Pedido por el usuario: "a mí me mola ver un montón de commits". Hasta el 05-11-2026 las ramas se juntaban aplastadas
+  (squash) y main solo tenía un commit por rama; desde entonces se juntan con --no-ff (CLAUDE.md).
 - Los commits de las 30 PR siguen en GitHub (`refs/pull/N/head`, ~270 commits) y los dos últimos en el reflog de este PC
   (`fdc5981`, `f206e22`). `tools/git/rehacer-historial.ps1` rehace main cambiando cada commit aplastado por un merge de
-- Los commits de las 30 PR siguen en GitHub (
+  verdad de su rama, sin cambiar el código (mismos árboles). Antes: `git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"`.
 - Copia de seguridad ya hecha: etiqueta `respaldo/main-aplastado` (en GitHub). Al acabar: comprobar que el árbol de la
-  (dc5981, 206e22). 	ools/git/rehacer-historial.ps1 rehace main cambiando cada commit aplastado por un merge de
-  verdad de su rama, sin cambiar el código (mismos árboles). Antes: git fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*".
-- Copia de seguridad ya hecha: etiqueta 
-espaldo/main-aplastado (en GitHub). Al acabar: comprobar que el árbol de la
-  punta nueva es igual al de main, git push --force-with-lease origin main y avisar de volver a bajar el proyecto en
-  otros ordenadores. Se paró a medias por falta de tiempo (pedido por el usuario); main no se llegó a tocar.
+  punta nueva es igual al de main, `git push --force-with-lease origin main` y avisar de volver a bajar el proyecto en
+  otros ordenadores.
 - Hecho el 05-11-2026: main pasó de 55 a 328 commits con 40 merges, mismos árboles en todos los commits. La #9 se queda
   aplastada: su rama se siguió usando tras juntarla y los commits originales ya no existen.
 - **Estado:** hecho
+
+### 15.8 Cargar cosas pesadas con físicas de verdad (pedido por el usuario, 18-11-2026: "todo")
+- Antes lo pesado era un bloque rígido que flotaba delante y atravesaba las paredes. Claude propuso cuatro cosas y el
+  usuario las quiso todas:
+  1. Físicas de verdad: se balancea al andar y se queda atrás al girar; choca con paredes y marcos, así que hay que
+     entrar de frente por las puertas; si se engancha, frenas, y si sigues tirando, se cae.
+  2. Al hombro: troncos y tablones van al hombro derecho, a lo largo; lo demás, delante con las dos manos.
+  3. Lanzar (troncos y tablones): mantener clic, R2 o LANZAR para coger fuerza y soltar para tirarlo; cae dando vueltas
+     y suena. La E lo deja en el suelo con cuidado, sin ruido.
+  4. Ruido: lo que cae de golpe (lanzado, soltado al morir o al engancharse) y lo que se arrastra suena, y los bichos
+     que rondan lo oyen y van corriendo a mirar allí (no a ti: si estás escondido no te pillan por el ruido).
+- **Estado:** hecho sin Studio (18-11-2026, en la nube: `docs/sistemas/mochila.md`), números a ojo. Bancos de Lune
+  `cargar.luau` y `cargar-vista.luau`; revisado con cinco `reviewer` y un verificador por cada uno (nada grave; los
+  cuatro detalles menores, arreglados). Falta probarlo en Studio (lista en `mochila.md`, "Pendiente") y los 4 sonidos
+  (`sonidos-pendientes.md`, 31-34: mientras suenan provisionales).
 
 ### Ideas de Claude, por decidir (05-11-2026)
 Sin aprobar todavía; el usuario decide cuáles entran: sucesos al azar en los demás bichos (como la 14.10); noches

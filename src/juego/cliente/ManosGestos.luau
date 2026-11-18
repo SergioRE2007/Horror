@@ -31,8 +31,10 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local CargarReglas = require(ReplicatedStorage.Shared.CargarReglas)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local CargarVista = require(script.Parent.CargarVista)
 local CorrerVista = require(script.Parent.CorrerVista)
 local Manos = require(script.Parent.Manos)
 local ManosCorrer = require(script.Parent.ManosCorrer)
@@ -720,6 +722,12 @@ local function buscarPesado(tipo: string): BasePart?
 	local mejor, distancia = nil, 10
 	local cf = Camara.get().CFrame
 	for _, p in CollectionService:GetTagged("Pesado") do
+		if p:IsA("BasePart") and p:GetAttribute("Lleva") == jugador.UserId then
+			llevando = p -- la que llevo yo solo (15.8): sin dudas
+			return p
+		end
+	end
+	for _, p in CollectionService:GetTagged("Pesado") do
 		if p:IsA("BasePart") and p:GetAttribute("Tipo") == tipo then
 			local d = (p.Position - cf.Position).Magnitude
 			local delante = (p.Position - cf.Position):Dot(cf.LookVector) > -1
@@ -743,8 +751,10 @@ local function capaCargar(): Manos.Pose?
 		return nil
 	end
 	local cf = Camara.get().CFrame
-	local der = cercaEnCaja(p, cf * Vector3.new(0.75, -1.1, -1.2))
-	local izq = cercaEnCaja(p, cf * Vector3.new(-0.75, -1.1, -1.2))
+	-- Al hombro (15.8): la derecha encima, junto al hombro; la izquierda cruza por delante y lo sujeta más adelante.
+	local hombro = CargarReglas.alHombro(tipo)
+	local der = cercaEnCaja(p, cf * (if hombro then Vector3.new(0.75, -0.25, -0.9) else Vector3.new(0.75, -1.1, -1.2)))
+	local izq = cercaEnCaja(p, cf * (if hombro then Vector3.new(0.35, -0.55, -1.8) else Vector3.new(-0.75, -1.1, -1.2)))
 	local centro = p.Position
 	local function fuera(punto: Vector3): Vector3
 		local d = punto - centro
@@ -754,6 +764,24 @@ local function capaCargar(): Manos.Pose?
 		der = Manos.palma(der + fuera(der) * 0.12, cf.LookVector - cf.UpVector * 0.3, fuera(der)),
 		izq = Manos.palma(izq + fuera(izq) * 0.12, cf.LookVector - cf.UpVector * 0.3, fuera(izq)),
 		velocidad = 22,
+	}
+end
+
+-- Justo después de lanzar algo (15.8): las dos manos se quedan estiradas hacia delante un momento y bajan.
+local LANZAR_DURA = 0.35
+local function capaLanzar(): Manos.Pose?
+	local desde = os.clock() - CargarVista.lanzado()
+	if desde > LANZAR_DURA or jugador:GetAttribute("Cargando") then
+		return nil
+	end
+	local k = desde / LANZAR_DURA
+	local cf = Camara.get().CFrame
+	local baja = -0.45 - 0.5 * k * k
+	local dedos = cf.LookVector + cf.UpVector * (0.25 - k * 0.6)
+	return {
+		der = Manos.palma(cf * Vector3.new(0.42, baja, -1.45), dedos, -cf.LookVector + cf.RightVector * 0.3),
+		izq = Manos.palma(cf * Vector3.new(-0.42, baja, -1.45), dedos, -cf.LookVector - cf.RightVector * 0.3),
+		velocidad = 30,
 	}
 end
 
@@ -1604,6 +1632,7 @@ function ManosGestos.start()
 	Manos.capa("Movil", 20, capaMovil)
 	Manos.capa("Pistola", 25, capaPistola)
 	Manos.capa("Cargar", 30, capaCargar)
+	Manos.capa("Lanzar", 31, capaLanzar)
 	Manos.capa("Cambiar", 45, capaCambiar)
 	Manos.capa("Trepar", 35, capaTrepar)
 	Manos.capa("Aire", 5, capaAire)

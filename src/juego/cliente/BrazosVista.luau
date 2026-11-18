@@ -316,6 +316,12 @@ local function pesadoDe(otro: Player, raiz: BasePart): BasePart?
 	end
 	local mejor, distancia = nil, 8
 	for _, p in CollectionService:GetTagged("Pesado") do
+		if p:IsA("BasePart") and p:GetAttribute("Lleva") == otro.UserId then -- la lleva él solo (15.8): sin dudas
+			pesados[otro] = { pieza = p, buscado = os.clock() }
+			return p
+		end
+	end
+	for _, p in CollectionService:GetTagged("Pesado") do
 		if p:IsA("BasePart") and p:GetAttribute("Tipo") == tipo then
 			local d = (p.Position - raiz.Position).Magnitude
 			if d < distancia then

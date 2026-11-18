@@ -57,6 +57,10 @@ Si no llegan los créditos para todo: primero las filas 1 a 8.
 | 28 | `Config.Sonidos.Olfateo` (0,9) | El Golpeador olfateando | 2 | suelto | 3 | otro provisional |
 | 29 | `Config.Sonidos.UnasPared` (1) | Garras por la pared al pasar | 2,5 | suelto | 3 | otro provisional |
 | 30 | `Config.Sonidos.ToqueDedo` (1) | Toque lento de uña en el cristal | 0,5 | suelto | 4 | otro provisional |
+| 31 | `Config.Sonidos.GolpeMadera` (1,2) | Un tronco o un tablón que cae al suelo (15.8) | 1 | suelto | 4 | Caida (el árbol) |
+| 32 | `Config.Sonidos.GolpeMetal` (1,6) | El bidón, la rueda o el motor al caer (15.8) | 1 | suelto | 4 | Golpe (el Golpeador) |
+| 33 | `Config.Sonidos.Arrastre` (1,2) | Algo pesado arrastrado por un suelo de madera (15.8) | 4 | bucle | 3 | Hollin |
+| 34 | `Config.Sonidos.Lanzar` (0,7) | Resoplido al lanzar algo pesado (15.8) | 0,6 | suelto | 3 | nada (Id 0) |
 
 Notas por fila:
 
@@ -114,7 +118,11 @@ Notas por fila:
 	{ "name": "Olfateo", "seconds": 2, "versions": 3, "label": "Golpes de nariz de un bicho grande", "text": "Large creature sniffing the air in short sharp bursts through its nose, four or five quick wet sniffs, close, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "UnasPared", "seconds": 2.5, "versions": 3, "label": "Garras arrastradas por una pared al pasar", "text": "Long sharp claws slowly dragged along a wooden and plaster wall while walking, a continuous scraping screech of nails on wallpaper and wood, horror game sound effect, realistic, dry, no reverb, no music" },
 	{ "name": "ToqueDedo", "seconds": 0.5, "versions": 4, "label": "Un toque lento de uña en el cristal", "text": "Single slow tap of a long fingernail against a window pane, one hard click on glass with a faint ring, very short, horror game sound effect, realistic, dry, no reverb, no music" },
-	{ "name": "RespiraBicho", "seconds": 5, "versions": 3, "label": "Respiración del bicho pegado al armario", "text": "Slow heavy wet breathing of a large creature right outside a wooden closet door, deep rattling inhales and long exhales, very close, no voice, no growl, horror game sound effect, realistic, dry, no reverb, no music" }
+	{ "name": "RespiraBicho", "seconds": 5, "versions": 3, "label": "Respiración del bicho pegado al armario", "text": "Slow heavy wet breathing of a large creature right outside a wooden closet door, deep rattling inhales and long exhales, very close, no voice, no growl, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "GolpeMadera", "seconds": 1, "versions": 4, "label": "Tronco o tablón que cae al suelo", "text": "Heavy wooden log dropped onto old wooden floorboards, one deep hollow thud with a short bounce and a creak of the boards, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "GolpeMetal", "seconds": 1, "versions": 4, "label": "Bidón o pieza de metal que cae al suelo", "text": "Heavy metal jerrycan and car engine part dropped onto a wooden floor, a loud dull metallic clang and thud with a short rattle, horror game sound effect, realistic, dry, no reverb, no music" },
+	{ "name": "Arrastre", "seconds": 4, "versions": 3, "loop": true, "label": "Algo pesado arrastrado por el suelo (bucle)", "text": "Heavy metal machine being slowly dragged across old wooden floorboards, continuous low scraping and grinding with creaks, steady, horror game sound effect, realistic, dry, no reverb, no music, seamless loop" },
+	{ "name": "Lanzar", "seconds": 0.6, "versions": 3, "label": "Resoplido al lanzar algo pesado", "text": "Young person grunting with effort while throwing a heavy log, one short strained exhale, no words, close, realistic, dry, no reverb, no music" }
 ]
 ```
 

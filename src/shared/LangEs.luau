@@ -40,6 +40,8 @@ return {
 	["Pick up"] = "Coger",
 	["Carry"] = "Cargar",
 	["Drop"] = "Soltar",
+	["Throw"] = "Lanzar",
+	["[E] Drop   [Click] Throw"] = "[E] Soltar   [Clic] Lanzar",
 	["No room in your backpack."] = "No cabe en la mochila.",
 	["It doesn't fit there."] = "Ahí no cabe.",
 	["Too heavy. You need someone else."] = "Pesa demasiado. Necesitas a alguien más.",

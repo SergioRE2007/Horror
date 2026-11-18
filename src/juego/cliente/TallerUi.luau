@@ -51,7 +51,9 @@ local function tengo(): { [string]: number }
 	local mando = banco and banco:FindFirstChild("Mando") :: BasePart?
 	if mando then
 		for _, pieza in CollectionService:GetTagged("Pesado") do
-			if pieza:IsA("BasePart") and pieza.CollisionGroup ~= "Cargado" and (pieza.Position - mando.Position).Magnitude <= T.Radio then
+			-- Lo que nadie lleva ni se trabaja (como Cargar.libre en el servidor; atributos de Cargar, 15.8).
+			if pieza:IsA("BasePart") and not pieza:GetAttribute("Llevada") and not pieza:GetAttribute("Trabajo")
+				and (pieza.Position - mando.Position).Magnitude <= T.Radio then
 				local tipo = pieza:GetAttribute("Tipo")
 				cuenta[tipo] = (cuenta[tipo] or 0) + 1
 			end

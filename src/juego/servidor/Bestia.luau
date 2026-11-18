@@ -479,7 +479,8 @@ local function cazar(e: Estado, b: Caza.Bicho)
 		parada = 0
 	end
 	if not presa and not b:quieto() then
-		ultimoVisto = oler(b) or ultimoVisto
+		-- Lo que huele manda; si no, un ruido de algo pesado (15.8: va a mirar allí).
+		ultimoVisto = oler(b) or b:oir(false) or ultimoVisto
 	end
 	if b:quieto() then
 		b.humanoide:MoveTo(b.raiz.Position)
