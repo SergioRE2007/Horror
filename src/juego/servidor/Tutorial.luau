@@ -159,7 +159,7 @@ local function mirar()
 	local quedan = if type(fin) == "number" then fin - workspace:GetServerTimeNow() else math.huge
 	local cortinas, puerta = cortinasAbiertas()
 	local generador, gasolina = generadorEncendido()
-	local bidon = hayGasolina()
+	local bidon = hayBidon()
 	for jugador, a in activos do
 		if not jugador.Parent then
 			quitar(jugador)
