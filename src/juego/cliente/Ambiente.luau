@@ -1,8 +1,10 @@
 -- Luz, niebla y hora del día en el cliente, a partir de los atributos del Ciclo (Fase, Noche, FaseInicio, FaseFin).
 -- Día gris y apagado con bruma de bosque; noche casi negra con niebla azulada. Las transiciones, al final del día
--- (atardecer) y al final de la noche (amanecer).
+-- (atardecer) y al final de la noche (amanecer): la exposición sigue al sol (no a la fase) y una franja cálida tiñe la
+-- niebla y la luz de fuera con el sol en el horizonte (Config.Cielo, docs/sistemas/cielo.md).
 -- También: viento de fondo, el aviso de que se pone el sol, "NOCHE n" grande al anochecer y el aviso del amanecer.
 local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -48,20 +50,31 @@ local atmosfera: Atmosphere
 local color: ColorCorrectionEffect
 local viento: Sound? -- nil mientras no haya un viento en Config.Sonidos
 
+local SOL = Config.Cielo.Sol
+local ALBA = Config.Cielo.Alba
+local SATURACION = -0.35 -- colores apagados, realistas
+local BLANCO = Color3.new(1, 1, 1)
+local AMANECER = Color3.fromRGB(table.unpack(ALBA.Amanecer))
+local ATARDECER = Color3.fromRGB(table.unpack(ALBA.Atardecer))
+local TINTE = Color3.fromRGB(table.unpack(ALBA.Tinte))
+
 local function mezcla(a: number, b: number, k: number): number
 	return a + (b - a) * k
 end
 
--- Cuánto de noche (0 a 1) y la hora (ClockTime) según la fase y lo que lleva de ella.
-local function momento(): (number, number)
-	local fase = workspace:GetAttribute("Fase")
-	local inicio, fin = workspace:GetAttribute("FaseInicio"), workspace:GetAttribute("FaseFin")
-	if not fase or not inicio or not fin then
-		return 0, 12
-	end
-	local p = math.clamp((workspace:GetServerTimeNow() - inicio) / math.max(1, fin - inicio), 0, 1)
+-- Rampa de 0 a 1 que arranca y acaba sin golpe.
+local function suave(t: number): number
+	t = math.clamp(t, 0, 1)
+	return t * t * (3 - 2 * t)
+end
+
+-- Cuánto de noche (0 a 1) y la hora (ClockTime) según la fase y lo que lleva de ella (p, 0 a 1). Sin fase, mediodía.
+-- La noche (k) manda en lámparas, Ambient y niebla; la luz del sol y la exposición siguen a la hora (Ambiente.sol).
+function Ambiente.hora(fase: string?, p: number): (number, number)
 	if fase == "Dia" then
 		return math.clamp((p - 0.8) / 0.2, 0, 1), 6.5 + p * 12
+	elseif fase ~= "Noche" then
+		return 0, 12
 	end
 	-- De noche la hora corre deprisa hasta medianoche y luego apenas se mueve (la luna siempre alta); al final, hacia
 	-- el amanecer.
@@ -72,18 +85,89 @@ local function momento(): (number, number)
 	return k, hora
 end
 
+-- Cuánto sol hay (0 a 1) a esa hora: 0 con el sol bajo el horizonte, 1 con el sol ya alto; las rampas, Margen horas a
+-- cada lado de la salida y la puesta (con el sol cruzando el horizonte, 0,5).
+function Ambiente.sol(hora: number): number
+	local m = SOL.Margen
+	return math.min(suave((hora - (SOL.Sale - m)) / (2 * m)), suave((SOL.Pone + m - hora) / (2 * m)))
+end
+
+-- Cuánto de la luz de noche (luna) se deja: 0 mientras haya algo de sol y sube durante Luna horas tras ponerse del todo
+-- (por la mañana, al revés). Así el Brightness nunca pasa del de día con el sol fuera.
+local function luna(hora: number): number
+	if hora >= 12 then
+		return suave((hora - (SOL.Pone + SOL.Margen)) / SOL.Luna)
+	end
+	return suave((SOL.Sale - SOL.Margen - hora) / SOL.Luna)
+end
+
+-- Peso de la franja cálida (0 a 1): campana de Ancho horas a cada lado de la salida o la puesta, máxima con el sol en
+-- el horizonte, 0 a pleno día y a plena noche; con el cielo cubierto (nublado 1), 0. Y si es la del ocaso.
+function Ambiente.franja(hora: number, nublado: number?): (number, boolean)
+	local tarde = hora >= 12
+	local d = math.abs(hora - (if tarde then SOL.Pone else SOL.Sale)) / ALBA.Ancho
+	if d >= 1 then
+		return 0, tarde
+	end
+	return 0.5 * (1 + math.cos(math.pi * d)) * (1 - math.clamp(nublado or 0, 0, 1)), tarde
+end
+
+-- Todo lo que se pinta, sin tocar nada (lo usan pintar y tests/bancos/cielo.luau). Se rellena siempre la misma tabla.
+local valores = {} :: { [string]: any }
+function Ambiente.valores(fase: string?, p: number, nublado: number?): { [string]: any }
+	local k, hora = Ambiente.hora(fase, p)
+	local sol = Ambiente.sol(hora)
+	local w, tarde = Ambiente.franja(hora, nublado)
+	local calido = if tarde then ATARDECER else AMANECER
+	local niebla = DIA.Niebla:Lerp(NOCHE.Niebla, k)
+	valores.k, valores.hora, valores.sol, valores.franja = k, hora, sol, w
+	valores.Brightness = mezcla(DIA.Brightness, NOCHE.Brightness, k * luna(hora))
+	-- La exposición sigue al sol: no sube hasta que baja de Pleno ni cae hasta que sale (sin ella la luna sale negra).
+	valores.Exposicion = mezcla(NOCHE.Exposicion, DIA.Exposicion, math.min(1, sol / SOL.Pleno))
+	valores.Ambient = DIA.Ambient:Lerp(NOCHE.Ambient, k)
+	valores.OutdoorAmbient = DIA.OutdoorAmbient:Lerp(NOCHE.OutdoorAmbient, k):Lerp(calido, w * ALBA.Ambiente)
+	valores.Densidad = mezcla(DIA.Densidad, NOCHE.Densidad, k)
+	valores.Niebla = niebla:Lerp(calido, w * ALBA.Niebla) -- hacia el sol, más cálida
+	valores.Decay = niebla:Lerp(calido, w * ALBA.Niebla * 0.5) -- lejos del sol, menos
+	valores.Glare = w * ALBA.Glare
+	valores.Brillo = mezcla(DIA.Brillo, NOCHE.Brillo, k)
+	valores.Saturacion = SATURACION + w * ALBA.Saturacion
+	valores.Tinte = BLANCO:Lerp(TINTE, w)
+	valores.Lamparas = mezcla(DIA.Lamparas, NOCHE.Lamparas, k)
+	return valores
+end
+
+-- La fase y lo que lleva de ella (0 a 1), de los atributos del Ciclo.
+local function momento(): (string?, number)
+	local fase = workspace:GetAttribute("Fase")
+	local inicio, fin = workspace:GetAttribute("FaseInicio"), workspace:GetAttribute("FaseFin")
+	if not fase or not inicio or not fin then
+		return nil, 0
+	end
+	return fase, math.clamp((workspace:GetServerTimeNow() - inicio) / math.max(1, fin - inicio), 0, 1)
+end
+
 local function pintar()
-	local k, hora = momento()
-	Lighting.ClockTime = hora
-	Lighting.Brightness = mezcla(DIA.Brightness, NOCHE.Brightness, k)
-	Lighting.Ambient = DIA.Ambient:Lerp(NOCHE.Ambient, k)
-	Lighting.OutdoorAmbient = DIA.OutdoorAmbient:Lerp(NOCHE.OutdoorAmbient, k)
-	atmosfera.Density = mezcla(DIA.Densidad, NOCHE.Densidad, k)
-	atmosfera.Color = DIA.Niebla:Lerp(NOCHE.Niebla, k)
-	atmosfera.Decay = atmosfera.Color
-	color.Brightness = mezcla(DIA.Brillo, NOCHE.Brillo, k)
-	Lighting.ExposureCompensation = mezcla(DIA.Exposicion, NOCHE.Exposicion, k)
-	local proporcion = mezcla(DIA.Lamparas, NOCHE.Lamparas, k)
+	local fase, p = momento()
+	-- En la escena final la escena lleva la luz: sin franja (como con el cielo cubierto) para no dejarle tintes.
+	local jugador = Players.LocalPlayer
+	local nublado = if jugador and jugador:GetAttribute("EscenaFinal") then 1
+		else tonumber(workspace:GetAttribute("Nublado")) or 0
+	local v = Ambiente.valores(fase, p, nublado)
+	local k = v.k
+	Lighting.ClockTime = v.hora
+	Lighting.Brightness = v.Brightness
+	Lighting.Ambient = v.Ambient
+	Lighting.OutdoorAmbient = v.OutdoorAmbient
+	atmosfera.Density = v.Densidad
+	atmosfera.Color = v.Niebla
+	atmosfera.Decay = v.Decay
+	atmosfera.Glare = v.Glare
+	color.Brightness = v.Brillo
+	color.Saturation = v.Saturacion
+	color.TintColor = v.Tinte
+	Lighting.ExposureCompensation = v.Exposicion
+	local proporcion = v.Lamparas
 	for luz, base in lamparas do
 		if luz.Parent then
 			luz.Brightness = base * proporcion * (Ambiente.factor[luz] or 1)
@@ -135,7 +219,7 @@ function Ambiente.start()
 	atmosfera.Haze = 2
 	atmosfera.Parent = Lighting
 	color = Instance.new("ColorCorrectionEffect")
-	color.Saturation = -0.35 -- colores apagados, realistas
+	color.Saturation = SATURACION
 	color.Contrast = 0.1
 	color.Parent = Lighting
 	viento = if Config.Sonidos.Viento then Sonido.bucle("Viento") else nil
