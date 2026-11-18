@@ -138,15 +138,54 @@ function Mochila.contar(jugador: Player, tipo: string): number
 	return if r then Rejilla.contar(r, tipo) else 0
 end
 
--- Le da una cosa nueva (con la carga de empezar); si no le cabe, cae a sus pies.
-function Mochila.dar(jugador: Player, tipo: string)
+-- ¿Cae `punto` dentro de la caja girada `cf` de tamaño `tam`, con `margen` de más por cada lado? Cuenta pura (se
+-- prueba con Lune sacándola del texto).
+function Mochila.dentroDeCaja(cf: CFrame, tam: Vector3, punto: Vector3, margen: number): boolean
+	local p = cf:PointToObjectSpace(punto)
+	return math.abs(p.X) <= tam.X / 2 + margen and math.abs(p.Y) <= tam.Y / 2 + margen
+		and math.abs(p.Z) <= tam.Z / 2 + margen
+end
+
+-- Si `punto` está dentro de un escondite (armario o cama), su Salida; si no, el mismo punto. Quien muere o se va
+-- escondido tiene el personaje metido en el "Dentro" del mueble: lo que se le caía ahí no lo cogía nadie (ni
+-- Llaves.repasar repone una llave que sigue en el mundo) y la sala de esa llave quedaba cerrada para siempre.
+function Mochila.fueraDeEscondite(punto: Vector3): Vector3
+	for _, sitio in CollectionService:GetTagged("Escondite") do
+		local salida = sitio:GetAttribute("Salida")
+		if sitio:IsA("Model") and typeof(salida) == "CFrame" then
+			local cf, tam = sitio:GetBoundingBox()
+			if Mochila.dentroDeCaja(cf, tam, punto, 0.5) then
+				return salida.Position
+			end
+		end
+	end
+	return punto
+end
+
+-- Lo que se le ha dejado en el suelo hace nada (dar sin sitio varias veces seguidas: un trueque de 3, Preparativos):
+-- cada una un poco girada para que no caigan una encima de otra.
+local DAR_SEGUIDAS = 2 -- segundos en los que cuentan como seguidas
+local alSuelo: { [Player]: { n: number, t: number } } = {}
+
+-- Le da una cosa nueva (con la carga de empezar). true si entró en la mochila; si no le cabe, cae a sus pies, un poco
+-- detrás (delante suele estar el banco, el mostrador o la caja fuerte de donde sale: antes se metía dentro) y se le
+-- avisa.
+function Mochila.dar(jugador: Player, tipo: string): boolean
 	local r = rejillas[jugador]
 	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if r and Rejilla.meter(r, CAT, tipo, cargaNueva(tipo)) then
 		Mochila.publicar(jugador)
+		return true
 	elseif raiz then
-		Mochila.dejar(tipo, cargaNueva(tipo), raiz.CFrame * CFrame.new(0, -1, -2))
+		local ahora = os.clock()
+		local antes = alSuelo[jugador]
+		local n = if antes and ahora - antes.t < DAR_SEGUIDAS then antes.n + 1 else 0
+		alSuelo[jugador] = { n = n, t = ahora }
+		local punto = (raiz.CFrame * CFrame.Angles(0, n * 0.7, 0) * CFrame.new(0, -1.5, 1)).Position
+		Mochila.dejar(tipo, cargaNueva(tipo), CFrame.new((Mochila.sitioLibre(raiz.Position, punto))))
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "No room in your backpack. It's on the floor."))
 	end
+	return false
 end
 
 -- Gasta una pila o un carrete de repuesto. false si no le quedan.
@@ -423,7 +462,9 @@ end
 function Mochila.importarSueltos(lista: { { tipo: string, carga: number?, cf: CFrame } })
 	carpeta:ClearAllChildren()
 	for _, o in lista do
-		Mochila.dejar(o.tipo, o.carga, o.cf)
+		-- Partidas guardadas antes de sacarlo del escondite: una llave metida en un armario, a su puerta.
+		local fuera = Mochila.fueraDeEscondite(o.cf.Position)
+		Mochila.dejar(o.tipo, o.carga, if fuera == o.cf.Position then o.cf else o.cf.Rotation + fuera)
 	end
 end
 
@@ -479,7 +520,7 @@ local function alEntrar(jugador: Player)
 	jugador.CharacterRemoving:Connect(function(personaje)
 		local raiz = personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz then
-			ultimaPos[jugador] = raiz.Position
+			ultimaPos[jugador] = Mochila.fueraDeEscondite(raiz.Position)
 		end
 	end)
 	if jugador.Character then
@@ -518,9 +559,9 @@ function Mochila.start()
 		for _, cosa in pendientes[jugador] or {} do
 			table.insert(cosas, cosa)
 		end
-		pendientes[jugador], caidos[jugador] = nil, nil
+		pendientes[jugador], caidos[jugador], alSuelo[jugador] = nil, nil, nil
 		local raiz = raizDe(jugador)
-		local punto = if raiz then raiz.Position else ultimaPos[jugador]
+		local punto = if raiz then Mochila.fueraDeEscondite(raiz.Position) else ultimaPos[jugador]
 		ultimaPos[jugador] = nil
 		if not punto then
 			if not aparicion or not aparicion.Parent then

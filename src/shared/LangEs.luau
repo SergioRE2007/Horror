@@ -43,6 +43,7 @@ return {
 	["Throw"] = "Lanzar",
 	["[E] Drop   [Click] Throw"] = "[E] Soltar   [Clic] Lanzar",
 	["No room in your backpack."] = "No cabe en la mochila.",
+	["No room in your backpack. It's on the floor."] = "No cabe en la mochila. Está en el suelo.",
 	["It doesn't fit there."] = "Ahí no cabe.",
 	["Too heavy. You need someone else."] = "Pesa demasiado. Necesitas a alguien más.",
 	["Your hands are full."] = "Tienes las manos ocupadas.",

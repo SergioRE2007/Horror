@@ -17,6 +17,7 @@ Puertas con `Bloqueada` y `Llave` (el tipo de llave que la abre). De más cerca 
 - Objetos de mochila 1×1 con `Llave = true` (`LlaveSotano`, `LlaveGaraje`, `LlaveDesvan`, `LlaveRico`). Latón con un brillo flojo (`PointLight`, `Config.BrilloLlave`; pedido por el usuario).
 - Cada zona da 4 sitios posibles (`Mapa.llaves`, los pone `Lugares`); el sitio sale de `Azar.entero(semilla, orden, …)`: siempre el mismo en la misma partida y en cualquier servidor (no usa `Random`).
 - Si mueres con una llave, se cae donde mueres (pedido por el usuario).
+- Si mueres escondido, cae a la salida del armario o de la cama (`Mochila.fueraDeEscondite`, atributo `Salida`): dentro no la cogía nadie y `repasar` no la repone (sigue en el mundo). Lo mismo con lo suelto cargado de partidas viejas.
 - `Llaves.repasar(semilla, mochilasGuardadas)` lo llama `Partida` al empezar una partida nueva, al cargar (`aplicar`) y al amanecer: la llave de una sala aún cerrada que no está suelta ni en la mochila de alguien que está vuelve a su sitio. A los que no han venido se les quitan las llaves de su mochila guardada (nadie se queda la llave fuera ni la duplica al volver). Las cuentas, en `Reparto` (sin Roblox, probado con Lune).
 - Se guarda todo con la partida sin cambiar el formato: sala abierta = `bloqueada` de la puerta, llave suelta = objeto suelto, llave en la mochila = mochila.
 
