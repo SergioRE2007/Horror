@@ -12,8 +12,8 @@
 --   acaso, la cuenta atrás y un fundido a negro propio (capa Fundido, DisplayOrder 100) un poco antes de la hora. Si el
 --   servidor para el coche (falló o es Studio) o a los 12 s sigue aquí, vuelve la imagen (y para esa salida ya no se
 --   vuelve a fundir).
---   Con mando, al salir el papel ya va elegido lo principal (Ui.seleccionar): para el dueño EMPEZAR (o NUEVA PARTIDA si
---   EMPEZAR no se puede pulsar), para los demás BAJAR; al bajar el papel se suelta.
+--   Con mando, al salir el papel ya va elegido lo principal (Ui.seleccionar): para el dueño EMPEZAR (en la cuenta atrás
+--   sigue elegido, apagado, y la A no hace nada), para los demás BAJAR; al bajar el papel se suelta.
 --   BAJAR (también saltando). Con Rendimiento, sin animaciones. En el móvil, todo del alto de un dedo y sin tapar el
 --   botón de saltar de Roblox (abajo a la derecha).
 local Players = game:GetService("Players")
@@ -312,15 +312,11 @@ local function pintarFichas(p, elegida: number, cuantas: number, tachada: number
 	end
 end
 
--- Lo que elige el mando: para el dueño EMPEZAR, o NUEVA PARTIDA si EMPEZAR no se puede pulsar (cuenta atrás); para los
--- demás, o si no hay nada de eso, BAJAR.
+-- Lo que elige el mando: para el dueño siempre EMPEZAR (en la cuenta atrás sigue elegido aunque esté apagado, así la A
+-- machacada no hace nada y no lo baja del coche que arranca); para los demás BAJAR.
 local function principal(): GuiObject
 	if modo == "dueno" then
-		if empezar.Interactable then
-			return empezar
-		elseif nueva.Visible then
-			return nueva
-		end
+		return empezar
 	end
 	return bajar
 end

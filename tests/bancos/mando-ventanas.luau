@@ -75,6 +75,14 @@ do
 		return boton
 	end)
 	comprueba(GuiService.SelectedObject == boton, "lo elegido escondido: vuelve a lo principal")
+	-- Lo elegido que solo se apaga (EMPEZAR en la cuenta atrás) se queda: si saltara a otro, la A lo pulsaría.
+	otroPanel.Visible = true
+	boton.Interactable = false
+	Ui.mantenerSeleccion(panel, function()
+		return otro
+	end)
+	comprueba(GuiService.SelectedObject == boton, "lo elegido apagado (Interactable = false) se queda elegido")
+	boton.Interactable = true
 end
 
 -- Pistas y vendedor (la partida).

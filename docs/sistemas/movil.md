@@ -88,11 +88,11 @@ esquina de arriba a la derecha.
 - B (y Escape, salvo en el coche) cierra taller, vendedor, tienda y la nota que lees; en el coche, B es BAJAR
   (`Ui.cerrarConB`). Cada ventana llama a `Ui.ventanaAbierta(nombre, abierta)` para que esa B no agache (atributo
   `VentanaAbierta`).
-- Con mando cada ventana sale con un botón ya elegido (`Ui.seleccionar`; la A lo pulsa): coche EMPEZAR (o NUEVA PARTIDA
-  en la cuenta atrás; si no eres el dueño, BAJAR), tienda el primer botón pulsable (si no, la X), taller el primer HACER
-  que te llega, vendedor el primer trato que pagas (si no, CERRAR), nota CERRAR, Ajustes el SÍ/NO. Al cerrar (ya al
+- Con mando cada ventana sale con un botón ya elegido (`Ui.seleccionar`; la A lo pulsa): coche EMPEZAR (sigue elegido,
+  apagado, en la cuenta atrás: la A no te baja; si no eres el dueño, BAJAR), tienda el primer botón pulsable (si no, la
+  X), taller el primer HACER que te llega, vendedor el primer trato que pagas (si no, CERRAR), nota CERRAR, Ajustes el SÍ/NO. Al cerrar (ya al
   empezar el fundido) `Ui.soltarSeleccion(panel)`. `Ui.mantenerSeleccion` tras repintar (lo elegido se compró o se
-  ocultó) y `Ui.seleccionConMando` al coger o soltar el mando con la ventana abierta; lo elegido de otra ventana a la
+  ocultó; lo que solo se apaga, con `Interactable = false`, se deja elegido) y `Ui.seleccionConMando` al coger o soltar el mando con la ventana abierta; lo elegido de otra ventana a la
   vista (Ajustes encima) se respeta. Los papeles de fondo van con `Selectable = false`. El borde del elegido es el del
   juego (`PlayerGui.SelectionImageObject` en `Ui.hud`: hueso, 3 px, esquinas de 4). Banco `tests/bancos/mando-ventanas`.
 - `Ui.mayusculas` cubre à è ì ò ù â ê î ô û ã õ ç ö ä ü ñ y las tildes del español.

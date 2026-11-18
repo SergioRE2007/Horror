@@ -169,12 +169,14 @@ function Ui.soltarSeleccion(panel: Instance)
 	end
 end
 
--- Con `panel` abierto y mando: si no hay nada elegido, o lo elegido se ha escondido o apagado (la fila de la tienda ya
+-- Con `panel` abierto y mando: si no hay nada elegido, o lo elegido se ha escondido (la fila de la tienda ya
 -- comprada, la receta que se oculta), elige `principal()`. Para después de repintar una ventana. Lo elegido que se ve
--- se respeta aunque sea de otra (Ajustes abierto encima con R3): no se lo quita.
+-- se respeta aunque sea de otra (Ajustes abierto encima con R3) o se haya apagado (Interactable = false, como EMPEZAR
+-- en la cuenta atrás): no se lo quita, porque saltar a otro botón haría que la siguiente A pulsara algo sin querer.
 function Ui.mantenerSeleccion(panel: GuiObject, principal: () -> GuiObject?)
 	local elegido = GuiService.SelectedObject
-	if tipoActual ~= "mando" or not aLaVista(panel) or (elegido and elegible(elegido)) then
+	if tipoActual ~= "mando" or not aLaVista(panel)
+		or (elegido and elegido:IsA("GuiObject") and elegido.Selectable and aLaVista(elegido)) then
 		return
 	end
 	Ui.seleccionar(principal())
