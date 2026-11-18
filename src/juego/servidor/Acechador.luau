@@ -30,6 +30,12 @@ local ataques: { [Ataque]: boolean } = {}
 local fuera: { [Player]: number } = {} -- segundos seguidos fuera, a oscuras
 local espera: { [Player]: number } = {} -- los que le tocan esperar a este hasta que le salga
 
+-- Con niebla cerrada (Caza.esNiebla) acecha y sale más cerca (Config.Caza.Niebla.Acechador): entre la niebla se le ve
+-- la silueta y se nota que se queda quieto al mirarle. Sin niebla, 1.
+local function porNiebla(): number
+	return if Caza.esNiebla() then Config.Caza.Niebla.Acechador else 1
+end
+
 local function rango(r: { number }): number
 	return azar:NextNumber(r[1], r[2])
 end
@@ -150,13 +156,14 @@ local function suelo(p: Vector3, pies: number): Vector3?
 	return golpe.Position
 end
 
--- Por dónde sale, a A.Lejos + 14 studs de la presa (`r`, su raíz): primero a su espalda según hacia dónde mira (su
--- cabeza) y luego del lado contrario a la casa. Nunca entre ella y la casa (le cortaría el camino de vuelta a la luz;
--- al volver, lo lleva a la espalda) ni en el cono de su cabeza (A.Cono): antes salía justo delante de quien se alejaba
--- de la casa. Cada giro con algo de azar, para que no salga siempre en el mismo sitio.
+-- Por dónde sale, a A.Lejos + 14 studs de la presa (`r`, su raíz) o a `dist` (con niebla, más cerca: porNiebla):
+-- primero a su espalda según hacia dónde mira (su cabeza) y luego del lado contrario a la casa. Nunca entre ella y la
+-- casa (le cortaría el camino de vuelta a la luz; al volver, lo lleva a la espalda) ni en el cono de su cabeza
+-- (A.Cono): antes salía justo delante de quien se alejaba de la casa. Cada giro con algo de azar, para que no salga
+-- siempre en el mismo sitio.
 local GIROS_ESPALDA = { 0, 0.35, -0.35, 0.7, -0.7 }
 local GIROS_FUERA = { 0, 0.45, -0.45, 0.9, -0.9, 1.25, -1.25, 1.5, -1.5 }
-local function salidas(presa: Player, r: BasePart): { Vector3 }
+local function salidas(presa: Player, r: BasePart, dist: number?): { Vector3 }
 	local afuera = plano(r.Position)
 	afuera = if afuera.Magnitude > 0.1 then afuera.Unit else Vector3.zAxis
 	local cabeza = presa.Character and presa.Character:FindFirstChild("Head") :: BasePart?
@@ -165,6 +172,7 @@ local function salidas(presa: Player, r: BasePart): { Vector3 }
 	local cono = math.cos(math.rad(A.Cono))
 	local pies = r.Position.Y - 3 -- la raíz va a unos 3 studs del suelo
 	local azarGiro = azar:NextNumber(-0.15, 0.15)
+	local aSalir = dist or (A.Lejos + 14)
 	local sitios = {}
 	local probadas: { Vector3 } = {}
 	local function repetida(d: Vector3): boolean
@@ -180,7 +188,7 @@ local function salidas(presa: Player, r: BasePart): { Vector3 }
 		for _, giro in giros do
 			local d = CFrame.Angles(0, giro + azarGiro, 0):VectorToWorldSpace(hacia)
 			if d:Dot(afuera) >= 0 and d:Dot(mira) < cono and not repetida(d) then
-				local p = suelo(r.Position + d * (A.Lejos + 14), pies)
+				local p = suelo(r.Position + d * aSalir, pies)
 				if p then
 					table.insert(sitios, p)
 				end
@@ -199,7 +207,7 @@ local function ataque(a: Ataque)
 		return
 	end
 	-- Sale lejos, entre los árboles, donde no le vea aparecer nadie (Caza.sitioSinVer). Sin sitio, esta vez no sale.
-	local sitios = salidas(presa, r)
+	local sitios = salidas(presa, r, (A.Lejos + 14) * porNiebla())
 	if #sitios == 0 then
 		return
 	end
@@ -223,22 +231,23 @@ local function ataque(a: Ataque)
 		return os.clock() - b.iluminado < 0.6
 	end
 
-	-- Acecha: le sigue a `Lejos` studs; si le mira, quieto; si le alumbra, quieto un momento.
+	-- Acecha: le sigue a `Lejos` studs (con niebla, más cerca); si le mira, quieto; si le alumbra, quieto un momento.
 	local finAcecho = os.clock() + rango(A.Acecho)
 	local rama = os.clock() + azar:NextNumber(0.5, 1.5)
 	while os.clock() < finAcecho and sigue() do
 		local rr = raizDe(presa) :: BasePart
 		local hacia = plano(rr.Position - b.raiz.Position)
 		local distancia = hacia.Magnitude
+		local aLejos = A.Lejos * porNiebla()
 		local leMira = distancia > 0.1 and plano(rr.CFrame.LookVector):Dot(-hacia.Unit) > 0.8
 		if iluminado() and not b:quieto() then
 			b:aturdir(A.Frena)
 			Remotes.Acechador:FireAllClients("Luz", modelo)
-		elseif leMira or distancia <= A.Lejos then
+		elseif leMira or distancia <= aLejos then
 			b.humanoide:MoveTo(b.raiz.Position)
 		else
 			b.humanoide.WalkSpeed = A.Andar
-			b:pasoHacia(rr.Position - hacia.Unit * (A.Lejos - 4) - Vector3.new(0, 3, 0))
+			b:pasoHacia(rr.Position - hacia.Unit * (aLejos - 4) - Vector3.new(0, 3, 0))
 		end
 		if os.clock() > rama then
 			Remotes.Acechador:FireAllClients("Rama", modelo)
