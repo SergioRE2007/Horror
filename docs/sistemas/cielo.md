@@ -30,6 +30,12 @@ noches de tormenta. Todo en el cliente y solo de adorno: `src/juego/cliente/Ciel
 - **Viento**: `workspace.GlobalWind` sigue a `AireVista.viento` (rumbo y rachas, el mismo que arrastra la niebla baja)
   por `Viento`, y más fuerte con tormenta (`Tormenta.Viento`). Solo mueve las nubes: ningún emisor usa `WindAffectsDrag`
   (si uno lo encendiera, también lo empujaría).
+- **El viento que se oye** (`Config.Cielo.VientoSonido`, `Ambiente.vientoSonido`, función pura): el bucle `Viento` va
+  de `Volumen` de día al doble de noche, por la racha de `AireVista.viento` (`Rachas`, 0,75 a 1,3; tono de 0,96 a 1,04),
+  por `Tormenta` (1,5) con el cielo cerrado y sin pasar de `Tope` fuera. Con la cámara en casa (`AireVista.dentro`) baja a
+  `Dentro.Volumen` y un `EqualizerSoundEffect` propio llamado `Dentro` (colgado del Sound; el `Oido` de OidoVista sigue
+  aparte y lo apaga escondido) le quita agudos y medios; en el sótano, a `Sotano`. El paso de fuera a dentro tarda
+  `Cambio` segundos (`Ambiente.acercar`): sin saltos en la puerta.
 - **Efectos del lugar**: `Ambiente.start` apaga los `Bloom`, `SunRays` y `DepthOfField` que haya en `Lighting` (los
   trae la plantilla de Roblox) y los que lleguen tarde. Uno que el juego quiera de verdad lleva el atributo `Permitido`.
 
@@ -69,6 +75,8 @@ rampa y baja la luz, el relámpago, Rendimiento, las luces de luna (grises de d�
 con tormenta y con el fogonazo entero), el destello de la pantalla según `Ambiente.cieloVisto` (tormenta.md), `TormentaPrueba` (solo en Studio), entrar tarde, un `Sky` o unas nubes
 que llegan tarde y los efectos apagados. Y el sol: exposición y brillo sin picos ni saltos al atardecer y al amanecer, la
 franja en campana, apagada con el cielo cubierto, y en marcha al alba la tormenta y la escena final la quitan.
+Y el viento que se oye: rachas, tormenta y tope, dentro y en el sótano, sin saltos al cruzar la puerta, y en marcha con la
+cámara fuera, en el vestíbulo, en el sótano y con el cielo cerrado.
 
 ## Mirar en Studio
 
@@ -76,7 +84,9 @@ franja en campana, apagada con el cielo cubierto, y en marcha al alba la torment
   las tape del todo. Si se pierden, subir `Density` de las nubes antes que tocar la niebla.
 - `workspace:SetAttribute("TormentaPrueba", true)` de noche: en 25 s el cielo se cierra sin estrellas y las nubes se
   encienden con cada relámpago sin cegar; en el vestíbulo se apaga el haz de luna de la alfombra y la sala queda más
-  negra, pero el relámpago enciende la ventana igual.
+  negra, pero el relámpago enciende la ventana igual. Fuera, el viento suena más fuerte y la niebla baja corre más.
+- De noche fuera el viento sube y baja a la vez que cae la pinocha; al entrar, en 1-2 s queda bajo y sordo, y en el
+  sótano casi no se oye. Nada saturado con racha y tormenta a la vez.
 - De día en el vestíbulo, la luz de la ventana alta no es azul.
 - Ningún `Bloom` ni `SunRays` encendido en `Lighting`. Con Rendimiento, sin nubes.
 - La cinemática final (`IncendioVista`, que manda en la luz mientras dura) se ve bien con las nubes de noche al alba.

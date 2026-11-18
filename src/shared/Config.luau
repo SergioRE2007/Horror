@@ -928,10 +928,12 @@ Config.Aire = {
 		Motas = 3, -- por segundo dentro de cada haz
 		Ventana = 7, -- studs: la ventana (etiqueta Ventana) más cerca que esto la tapa al cerrar la persiana o tablones
 	},
-	-- Niebla baja de fuera, de noche: partículas grandes y planas alrededor de la cámara.
+	-- Niebla baja de fuera, de noche: partículas grandes y planas alrededor de la cámara. Con tormenta, más deprisa
+	-- (Velocidad por Config.Cielo.Tormenta.Viento, como las nubes; también el empuje de la pinocha).
 	Niebla = { Radio = 40, Rate = 5, Alto = 2.2, Velocidad = { 0.5, 1.4 } },
-	-- Pinocha que cae en las rachas, con un pino a menos de `Cerca` studs (en planta).
-	Pinocha = { Cerca = 16, Rate = 12, Racha = 0.55, Alto = 14 },
+	-- Pinocha que cae en las rachas, con un pino a menos de `Cerca` studs (en planta). Con el cielo cerrado de tormenta
+	-- (AireVista.nublado), desde la racha RachaTormenta: cae más a menudo.
+	Pinocha = { Cerca = 16, Rate = 12, Racha = 0.55, RachaTormenta = 0.42, Alto = 14 },
 	-- Viento (no lo había en Ambiente: lo pone AireVista.viento): rumbo en radianes en el plano xz, cuánto se desvía y
 	-- cada cuánto, y fuerza (studs/s de deriva).
 	Viento = { Rumbo = 0.7, Giro = 0.6, Lento = 0.012, Fuerza = { 0.4, 1.6 }, Rachas = 0.16 },
@@ -1597,6 +1599,19 @@ Config.Cielo = {
 		Viento = 1.8, -- el viento de las nubes, por esto
 		Lunas = 0.25, -- con el cielo cerrado, el brillo de las luces de luna de las ventanas por esto (el fogonazo, entero)
 		Haz = 0.15, -- ...y lo que se ve de los haces de luna (AireVista) por esto: la sala queda a oscuras
+	},
+	-- El viento que se oye (Sonidos.Viento, Ambiente.vientoSonido). Su volumen de noche por: la racha de AireVista.viento
+	-- (Rachas: con racha 0 y con racha 1; el tono, de 0,96 a 1,04), el cielo cerrado (Tormenta, con nublado 1) y el sitio
+	-- de la cámara: dentro de casa el volumen por Dentro.Volumen y un ecualizador le quita agudos y medios (dB); en el
+	-- sótano, por Sotano. Cambio: segundos en pasar de fuera a dentro (sin saltos en la puerta). Tope: el volumen de fuera
+	-- no pasa de esto (racha y tormenta a la vez, sin saturar). A ojo.
+	VientoSonido = {
+		Rachas = { 0.75, 1.3 },
+		Tormenta = 1.5,
+		Dentro = { Volumen = 0.35, Agudos = -18, Medios = -6 },
+		Sotano = 0.12,
+		Cambio = 1.5,
+		Tope = 1.8,
 	},
 	-- Las luces de luna de las ventanas (etiqueta Luna) de día no son azules: este gris frío de día (RGB) y su azul de
 	-- noche, con la misma rampa que las lámparas.

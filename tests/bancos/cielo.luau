@@ -11,6 +11,9 @@
 --   Luces de luna de las ventanas (etiqueta Luna): de día grises (no azules), de noche su azul; con el cielo cerrado,
 --   apagadas a su parte (y CieloVista se lo dice también a AireVista); el fogonazo del relámpago, entero. El destello de
 --   la pantalla (ColorCorrection) solo con lo que se vea del cielo (Ambiente.cieloVisto); la luz de fuera, entera.
+--   El viento que se oye (Ambiente.vientoSonido): más con las rachas y la tormenta sin pasar del tope, dentro de casa
+--   bajo y sin agudos, en el sótano casi nada; de fuera a dentro y al sótano, sin saltos. En marcha, con la cámara fuera,
+--   en el vestíbulo y en el sótano, y con el cielo cerrado.
 -- Si algo no se cumple, termina con error.
 local crearMundo = require("./_roblox")
 
@@ -57,8 +60,11 @@ local function montar(opciones: { studio: boolean?, conCielo: boolean?, fase: st
 		table.insert(hay.llamadas, { noche, inicio, cfg })
 		return hay.valor
 	end }
-	local SonidoMudo = { bucle = function()
-		return g.Instance.new("Sound")
+	local bucles = {} :: { [string]: any } -- los bucles pedidos, por nombre (el viento)
+	local SonidoMudo = { bucle = function(nombre: string)
+		local s = g.Instance.new("Sound")
+		bucles[nombre] = s
+		return s
 	end, tocar = function()
 		return g.Instance.new("Sound")
 	end, en = function()
@@ -67,7 +73,8 @@ local function montar(opciones: { studio: boolean?, conCielo: boolean?, fase: st
 	local Ambiente = m.cargar("src/juego/cliente/Ambiente", { Sonido = SonidoMudo })
 	Ambiente.start()
 	local Cielo = m.cargar("src/juego/cliente/CieloVista", { TormentaVista = TormentaFalsa })
-	return { m = m, g = g, L = L, efectos = efectos, hay = hay, Ambiente = Ambiente, Cielo = Cielo, largo = largo }
+	return { m = m, g = g, L = L, efectos = efectos, hay = hay, Ambiente = Ambiente, Cielo = Cielo, largo = largo,
+		bucles = bucles }
 end
 
 local function cielos(L: any): { any }
@@ -515,5 +522,97 @@ comprobar(cerca(colorD.Brightness, pantallaD, 1e-6) and cerca(colorD.Contrast, c
 D.Ambiente.nublado = 0
 D.m.correr(0.3, 1 / 60)
 comprobar(cerca(fDia.Brightness, lunaNoche, 1e-4), "abierto el cielo, la luna como estaba")
+
+-- El viento que se oye. ---------------------------------------------------------------------------------------------
+local VS = CFG.VientoSonido
+local AV = A.Ambiente
+local BASE = Config.Sonidos.Viento.Volumen
+local function rachas(r: number): number
+	return VS.Rachas[1] + (VS.Rachas[2] - VS.Rachas[1]) * r
+end
+local vFuera, aFuera, mFuera = AV.vientoSonido(1, 0.5, 0, 0, 0)
+comprobar(cerca(vFuera, BASE * 2 * rachas(0.5), 1e-6) and aFuera == 0 and mFuera == 0, "viento fuera de noche: claro")
+comprobar(cerca(AV.vientoSonido(0, 0.5, 0, 0, 0), BASE * rachas(0.5), 1e-6), "viento de día: la mitad que de noche")
+comprobar(AV.vientoSonido(1, 1, 0, 0, 0) > AV.vientoSonido(1, 0, 0, 0, 0) * 1.5, "viento: las rachas se notan")
+local vTormenta = AV.vientoSonido(1, 0.5, 1, 0, 0)
+comprobar(cerca(vTormenta, math.min(VS.Tope, vFuera * VS.Tormenta), 1e-6) and vTormenta > vFuera * 1.2,
+	"viento con tormenta: más fuerte")
+comprobar(cerca(AV.vientoSonido(1, 1, 1, 0, 0), VS.Tope, 1e-6), "viento con racha y tormenta: no pasa del tope")
+local vDentro, aDentro, mDentro = AV.vientoSonido(1, 0.5, 0, 1, 0)
+comprobar(cerca(vDentro, vFuera * VS.Dentro.Volumen, 1e-6) and aDentro == VS.Dentro.Agudos and mDentro == VS.Dentro.Medios,
+	"viento dentro: bajo y sordo")
+local vSotano, aSotano = AV.vientoSonido(1, 0.5, 0, 1, 1)
+comprobar(cerca(vSotano, vFuera * VS.Sotano, 1e-6) and aSotano == VS.Dentro.Agudos, "viento en el sótano: casi nada")
+comprobar(VS.Sotano < VS.Dentro.Volumen and VS.Dentro.Agudos < VS.Dentro.Medios and VS.Dentro.Medios < 0
+	and VS.Tope >= BASE * 2 and VS.Rachas[1] < 1 and VS.Rachas[2] > 1, "Config del viento con sentido")
+for k = 0, 1, 0.25 do
+	for r = 0, 1, 0.25 do
+		for n = 0, 1, 0.5 do
+			for d = 0, 1, 0.5 do
+				local v, a, md = AV.vientoSonido(k, r, n, d, d * d)
+				comprobar(finito(v) and v >= 0 and v <= VS.Tope + 1e-9 and a <= 0 and md <= 0 and a >= VS.Dentro.Agudos,
+					"viento: en su rango")
+			end
+		end
+	end
+end
+-- Fuera → vestíbulo → sótano → fuera, a 10 pintadas por segundo: sin saltos y llega en Cambio segundos.
+local dentroV, sotanoV = 0, 0
+local antesV, antesA = AV.vientoSonido(1, 0.5, 0, 0, 0)
+local saltoV, saltoA = 0, 0
+local function pasar(metaD: number, metaS: number, segundos: number)
+	for _ = 1, math.floor(segundos / 0.1 + 0.5) do
+		dentroV = AV.acercar(dentroV, metaD, 0.1)
+		sotanoV = AV.acercar(sotanoV, metaS, 0.1)
+		local v, a = AV.vientoSonido(1, 0.5, 0, dentroV, sotanoV)
+		saltoV = math.max(saltoV, math.abs(v - antesV))
+		saltoA = math.max(saltoA, math.abs(a - antesA))
+		antesV, antesA = v, a
+	end
+end
+pasar(1, 0, VS.Cambio + 0.1)
+comprobar(dentroV == 1 and cerca(antesV, vDentro, 1e-6), "viento: dentro en Cambio segundos")
+pasar(1, 1, VS.Cambio + 0.1)
+comprobar(sotanoV == 1 and cerca(antesV, vSotano, 1e-6), "viento: en el sótano en Cambio segundos")
+pasar(0, 0, VS.Cambio + 0.1)
+comprobar(dentroV == 0 and sotanoV == 0 and cerca(antesV, vFuera, 1e-6), "viento: fuera otra vez")
+comprobar(saltoV < vFuera * 0.1 and saltoA < -VS.Dentro.Agudos * 0.1, `viento: sin saltos ({saltoV}, {saltoA} dB)`)
+
+-- En marcha: el viento de verdad (rachas de AireVista) con la cámara en cada sitio.
+local W = montar({ fase = "Noche", p = 0.5 })
+W.m.camaraRoblox = false
+local camW = W.m.camara
+camW.CameraType = W.g.Enum.CameraType.Scriptable
+local AireW = W.m.cargar("src/juego/cliente/AireVista")
+local sonW = W.bucles.Viento
+local eqW = sonW and sonW:FindFirstChild("Dentro")
+comprobar(eqW and eqW:IsA("EqualizerSoundEffect"), "viento en marcha: con su ecualizador Dentro")
+local function vientoAhora(dentroW: number, sotanoW: number, nub: number): number
+	local _, _, r = AireW.viento()
+	return (W.Ambiente.vientoSonido(1, r, nub, dentroW, sotanoW))
+end
+local function irW(x: number, y: number, z: number, segundos: number, cada: (() -> ())?)
+	camW.CFrame = W.g.CFrame.new(x, y, z)
+	W.m.correr(segundos, 1 / 10, cada)
+end
+irW(150, 5, 150, 2)
+comprobar(cerca(sonW.Volume, vientoAhora(0, 0, 0), 1e-3) and not eqW.Enabled, "viento en marcha fuera: claro")
+comprobar(sonW.PlaybackSpeed >= 0.96 - 1e-9 and sonW.PlaybackSpeed <= 1.04 + 1e-9, "viento en marcha: el tono con la racha")
+local volAntes, saltoW = sonW.Volume, 0
+irW(0, 6, 0, VS.Cambio + 0.3, function()
+	saltoW = math.max(saltoW, math.abs(sonW.Volume - volAntes))
+	volAntes = sonW.Volume
+end)
+comprobar(saltoW < vientoAhora(0, 0, 0) * 0.12, `viento en marcha: al entrar, sin saltos ({saltoW})`)
+comprobar(cerca(sonW.Volume, vientoAhora(1, 0, 0), 1e-3) and eqW.Enabled and cerca(eqW.HighGain, VS.Dentro.Agudos, 1e-6)
+	and cerca(eqW.MidGain, VS.Dentro.Medios, 1e-6), "viento en marcha en el vestíbulo: bajo y sordo")
+irW(0, -6, 55, VS.Cambio + 0.3)
+comprobar(cerca(sonW.Volume, vientoAhora(1, 1, 0), 1e-3), "viento en marcha en el sótano: casi nada")
+irW(150, 5, 150, VS.Cambio + 0.3)
+comprobar(cerca(sonW.Volume, vientoAhora(0, 0, 0), 1e-3) and not eqW.Enabled, "viento en marcha: al salir, claro otra vez")
+W.Ambiente.nublado = 1
+irW(150, 5, 150, 0.3)
+comprobar(cerca(sonW.Volume, vientoAhora(0, 0, 1), 1e-3) and sonW.Volume > vientoAhora(0, 0, 0) * 1.1,
+	"viento en marcha con tormenta: más fuerte")
 
 print(`cielo: {cuentas} comprobaciones`)
