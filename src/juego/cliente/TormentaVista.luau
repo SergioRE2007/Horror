@@ -2,7 +2,9 @@
 -- cliente y solo de adorno; números en Config.Tormenta (a ojo).
 --   Algunas noches (desde Config.Tormenta.Desde, una de cada dos) hay tormenta seca: sin lluvia, solo relámpagos cada
 --   25-70 s. Cada uno son 2-3 destellos muy cortos que suben de golpe la luz de fuera, ponen el cielo blanco azulado
---   (la niebla) y dan un pico de brillo y contraste (Ambiente.destello). Las luces de luna cercanas (etiqueta Luna,
+--   (la niebla) y dan un pico de brillo y contraste (Ambiente.destello). Ese pico de la pantalla entera solo llega
+--   según el cielo que se vea desde la cámara (Ambiente.cieloVisto, Config.Tormenta.Pantalla): fuera entero, junto a una
+--   ventana casi entero y en el sótano o escondido casi nada. Las luces de luna cercanas (etiqueta Luna,
 --   Mapa.luzLuna) se vuelven un fogonazo (Ambiente.lunas) y, sin Rendimiento, una luz con sombras por fuera del cristal
 --   recorta en el suelo los marcos, las cortinas y lo que haya fuera: un bicho pegado a la ventana se ve en negro
 --   contra el cielo blanco y su sombra entra en la sala. Nadie lo programa: sale solo de la luz.
@@ -117,6 +119,20 @@ function TormentaVista.fuerza(r: Relampago, x: number, uno: boolean): number
 	return k
 end
 
+-- Cuánto cielo se ve desde la cámara (0 a 1) para el destello de la pantalla: `dentro` de casa, en una sala sin ventanas
+-- o escondido (`tapado`) y a cuántos studs está la luna sin persiana más cercana (nil: ninguna a menos de
+-- Fogonazo.Cerca). Fuera, 1.
+function TormentaVista.cieloVisto(dentro: boolean, tapado: boolean, distancia: number?, cfg: any): number
+	local P = cfg.Pantalla
+	if tapado then
+		return P.Escondido
+	elseif not dentro then
+		return 1
+	end
+	local k = if distancia then 1 - distancia / cfg.Fogonazo.Cerca else 0
+	return math.clamp(math.max(k, P.Dentro), 0, 1)
+end
+
 -- Segundos desde el primer destello hasta que se apaga el último.
 function TormentaVista.duracion(r: Relampago): number
 	local d = r.destellos[#r.destellos]
@@ -227,6 +243,7 @@ TormentaVista.estado = {
 	truenos = 0,
 	ultimoTrueno = nil :: Sound?,
 	rayos = 0, -- rayos dibujados en el cielo
+	cieloVisto = 1, -- lo que se vio del cielo en el último relámpago (Ambiente.cieloVisto)
 	rayo = nil :: { base: Vector3, forma: Forma, ramas: boolean }?, -- el que hay ahora (nil cuando se apaga)
 }
 
@@ -299,8 +316,9 @@ local function extraDe(luna: BasePart, foco: SpotLight): SpotLight
 	return luz
 end
 
--- Las lunas cercanas a la cámara que se encienden en este relámpago (y las más cercanas, con su fogonazo).
-local function elegirLunas(camara: Vector3, conSombras: boolean): ({ Light }, { SpotLight })
+-- Las lunas cercanas a la cámara que se encienden en este relámpago (y las más cercanas, con su fogonazo), y a cuántos
+-- studs está la más cercana (nil sin ninguna).
+local function elegirLunas(camara: Vector3, conSombras: boolean): ({ Light }, { SpotLight }, number?)
 	local f = CFG.Fogonazo
 	local cercanas = {}
 	for _, luna in CollectionService:GetTagged("Luna") do
@@ -322,7 +340,15 @@ local function elegirLunas(camara: Vector3, conSombras: boolean): ({ Light }, { 
 			table.insert(fogonazos, extraDe(c.luna, c.foco))
 		end
 	end
-	return lunas, fogonazos
+	return lunas, fogonazos, if cercanas[1] then cercanas[1].d else nil
+end
+
+-- ¿La cámara está escondida o en una sala sin ventanas (Pantalla.SinCielo)? Y si está dentro de casa.
+local function dondeEsta(camara: Vector3): (boolean, boolean)
+	local dentro, _, sala = AireVista.dentro(camara)
+	local tapado = typeof(jugador:GetAttribute("Escondido")) == "CFrame"
+		or (sala ~= nil and table.find(CFG.Pantalla.SinCielo, sala) ~= nil)
+	return dentro, tapado
 end
 
 ---------------------------------------------------------------- el rayo del cielo
@@ -483,6 +509,7 @@ local function apagarDestello(a: Activo)
 	for _, luz in a.lunas do
 		Ambiente.lunas[luz] = nil
 	end
+	Ambiente.cieloVisto = 1
 end
 
 -- Cada fotograma mientras dura un relámpago o el temblor de su trueno; después se desconecta solo.
@@ -611,10 +638,13 @@ local function lanzar(r: Relampago, tarde: number)
 	if actual then
 		apagarDestello(actual :: Activo)
 	end
-	local lunas, fogonazos = elegirLunas(camara, not uno)
+	local lunas, fogonazos, masCerca = elegirLunas(camara, not uno)
 	for _, luz in lunas do
 		Ambiente.lunas[luz] = 1
 	end
+	local dentro, tapado = dondeEsta(camara)
+	Ambiente.cieloVisto = TormentaVista.cieloVisto(dentro, tapado, masCerca, CFG)
+	TormentaVista.estado.cieloVisto = Ambiente.cieloVisto
 	actual = { r = r, inicio = os.clock() - tarde, uno = uno, fogonazos = fogonazos, lunas = lunas }
 	-- Si cae cerca, el rayo en el cielo, del lado del que llegará el trueno.
 	local lejos = TormentaVista.distanciaRayo(r.cerca, CFG)

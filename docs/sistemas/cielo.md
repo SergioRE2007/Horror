@@ -20,8 +20,13 @@ noches de tormenta. Todo en el cliente y solo de adorno: `src/juego/cliente/Ciel
   tarde la ve ya puesta, sin rampa.
 - **El relámpago**: mientras `Ambiente.destello` > 0 la nube se aclara por dentro (el color va hacia `Destello.Color` y
   baja algo la densidad), cada fotograma; en cuanto acaba vuelve igual.
-- **Luz**: `Ambiente.nublado` (de 0 a 1, la tormenta en rampa). `Ambiente` multiplica con él `Brightness` y
-  `OutdoorAmbient` hasta `Tormenta.Luz` (0,8); el relámpago se suma después, entero. Con 0, nada cambia.
+- **Luz**: `Ambiente.nublado` y `AireVista.nublado` (de 0 a 1, la tormenta en rampa). `Ambiente` multiplica con él
+  `Brightness` y `OutdoorAmbient` hasta `Tormenta.Luz` (0,7) y el brillo de las luces de luna de las ventanas hasta
+  `Tormenta.Lunas` (0,25); `AireVista` deja los haces de luna en `Tormenta.Haz` (0,15): con el cielo cerrado la sala se
+  queda a oscuras. El relámpago (y el fogonazo de las lunas) se suma después, entero. Con 0, nada cambia.
+- **Luces de luna de las ventanas** (hijas de una pieza con la etiqueta `Luna`, también si la etiqueta llega tarde):
+  `Ambiente` guarda su azul la primera vez y lo mezcla con la noche desde `LuzDia` (gris frío): de día no cae luz azul
+  a pleno sol.
 - **Viento**: `workspace.GlobalWind` sigue a `AireVista.viento` (rumbo y rachas, el mismo que arrastra la niebla baja)
   por `Viento`, y más fuerte con tormenta (`Tormenta.Viento`). Solo mueve las nubes: ningún emisor usa `WindAffectsDrag`
   (si uno lo encendiera, también lo empujaría).
@@ -60,7 +65,8 @@ que repasa cada `Cada` s (10 por segundo); las nubes, cada fotograma solo mientr
 
 `tests/bancos/cielo.luau`: carga `CieloVista` y `Ambiente` de verdad con una `TormentaVista` falsa. Mira las cuentas
 (estados de nubes, destello que vuelve igual, estrellas, rampa), el día, el anochecer, la noche, la tormenta que llega en
-rampa y baja la luz, el relámpago, Rendimiento, `TormentaPrueba` (solo en Studio), entrar tarde, un `Sky` o unas nubes
+rampa y baja la luz, el relámpago, Rendimiento, las luces de luna (grises de día, azules de noche, apagadas a su parte
+con tormenta y con el fogonazo entero), el destello de la pantalla según `Ambiente.cieloVisto` (tormenta.md), `TormentaPrueba` (solo en Studio), entrar tarde, un `Sky` o unas nubes
 que llegan tarde y los efectos apagados. Y el sol: exposición y brillo sin picos ni saltos al atardecer y al amanecer, la
 franja en campana, apagada con el cielo cubierto, y en marcha al alba la tormenta y la escena final la quitan.
 
@@ -69,6 +75,8 @@ franja en campana, apagada con el cielo cubierto, y en marcha al alba la torment
 - De día, nubes grises; de noche, nubes rotas con la luna entre ellas y que la niebla (`Atmosphere`, densidad 0,36) no
   las tape del todo. Si se pierden, subir `Density` de las nubes antes que tocar la niebla.
 - `workspace:SetAttribute("TormentaPrueba", true)` de noche: en 25 s el cielo se cierra sin estrellas y las nubes se
-  encienden con cada relámpago sin cegar.
+  encienden con cada relámpago sin cegar; en el vestíbulo se apaga el haz de luna de la alfombra y la sala queda más
+  negra, pero el relámpago enciende la ventana igual.
+- De día en el vestíbulo, la luz de la ventana alta no es azul.
 - Ningún `Bloom` ni `SunRays` encendido en `Lighting`. Con Rendimiento, sin nubes.
 - La cinemática final (`IncendioVista`, que manda en la luz mientras dura) se ve bien con las nubes de noche al alba.

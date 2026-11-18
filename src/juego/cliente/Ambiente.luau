@@ -3,6 +3,7 @@
 -- (atardecer) y al final de la noche (amanecer): la exposición sigue al sol (no a la fase) y una franja cálida tiñe la
 -- niebla y la luz de fuera con el sol en el horizonte (Config.Cielo.Sol y Alba, docs/sistemas/cielo.md).
 -- También: viento de fondo, el aviso de que se pone el sol, "NOCHE n" grande al anochecer y el aviso del amanecer.
+local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -42,6 +43,10 @@ local NOCHE = {
 }
 
 local lamparas: { [Light]: number } = {} -- luz → su brillo puesto por el servidor
+-- Las luces de luna de las ventanas (hijas de una pieza con la etiqueta Luna, Mapa.luzLuna) → su color de noche (el
+-- azul puesto por el servidor). De día van al gris de Config.Cielo.LuzDia y con el cielo cerrado se apagan a su parte.
+local lunasMapa: { [Light]: Color3 } = {}
+local LUZ_DIA = Color3.fromRGB(table.unpack(Config.Cielo.LuzDia))
 
 -- Parpadeos (DetallesVista): luz → cuánto de su brillo le queda ahora (0 a 1). Sin entrada, todo.
 Ambiente.factor = {} :: { [Light]: number }
@@ -50,11 +55,14 @@ Ambiente.factor = {} :: { [Light]: number }
 --   destello: fogonazo del relámpago de 0 a 1 (luz de fuera, niebla, ColorCorrection y las lunas de `lunas`).
 --   lunas: luz de luna → cuánto de Config.Tormenta.Luz.Luna se le suma ahora (0 a 1).
 --   temblor: las bombillas (PointLight) tiemblan con el trueno, de 0 a 1.
+--   cieloVisto: cuánto cielo se ve desde la cámara en este relámpago (0 a 1; fuera 1, en el sótano o escondido casi
+--     nada). Solo multiplica la parte del ColorCorrection (la pantalla entera); al acabar vuelve a 1.
 Ambiente.destello = 0
 Ambiente.lunas = {} :: { [Light]: number }
 Ambiente.temblor = 0
--- Cielo cerrado (CieloVista, cielo.md): de 0 a 1, la tormenta en rampa. Baja algo la luz de fuera
--- (Config.Cielo.Tormenta.Luz); con 0, nada.
+Ambiente.cieloVisto = 1
+-- Cielo cerrado (CieloVista, cielo.md): de 0 a 1, la tormenta en rampa. Baja la luz de fuera
+-- (Config.Cielo.Tormenta.Luz) y las luces de luna de las ventanas (Tormenta.Lunas); con 0, nada.
 Ambiente.nublado = 0
 local semillas: { [Light]: number } = {} -- cada bombilla tiembla a su aire
 local contador = 0
@@ -172,14 +180,31 @@ local function momento(): (number, number)
 	return Ambiente.hora(fase, math.clamp((workspace:GetServerTimeNow() - inicio) / math.max(1, fin - inicio), 0, 1))
 end
 
--- Lo de las lámparas del mapa: su brillo según cuánto de noche es (k) y los parpadeos (factor).
+-- Una luz de luna de ventana (sin tocar nada): su brillo con el cielo cerrado `nublado` (0 a 1) por esta parte, y su
+-- color con la noche `k`: de día el gris frío de LuzDia (no cae luz azul a pleno sol), de noche su azul. Lo usa el banco.
+function Ambiente.lunaVentana(colorNoche: Color3, k: number, nublado: number): (number, Color3)
+	local f = 1 - (1 - Config.Cielo.Tormenta.Lunas) * math.clamp(nublado, 0, 1)
+	return f, LUZ_DIA:Lerp(colorNoche, math.clamp(k, 0, 1))
+end
+
+-- Lo de las lámparas del mapa: su brillo según cuánto de noche es (k) y los parpadeos (factor). Las de luna, además,
+-- con el cielo (Ambiente.lunaVentana); el fogonazo del relámpago se les suma entero.
 local function pintarLamparas(k: number)
 	local proporcion = mezcla(DIA.Lamparas, NOCHE.Lamparas, k)
 	local temblor = Ambiente.temblor
+	local nublado = math.min(Ambiente.nublado, 1)
 	local reloj = os.clock()
 	for luz, base in lamparas do
 		if luz.Parent then
 			local brillo = base * proporcion * (Ambiente.factor[luz] or 1)
+			local azul = lunasMapa[luz]
+			if azul then
+				local f, c = Ambiente.lunaVentana(azul, k, nublado)
+				brillo *= f
+				if luz.Color ~= c then
+					luz.Color = c
+				end
+			end
 			if temblor > 0 and luz:IsA("PointLight") then -- el trueno: tiembla y baja un poco, cada una a su aire
 				local n = semillas[luz] or 0
 				brillo *= 1 - temblor * (0.5 + 0.5 * math.noise(reloj * 22, n, 0.37))
@@ -191,6 +216,7 @@ local function pintarLamparas(k: number)
 			luz.Brightness = brillo
 		else
 			lamparas[luz] = nil
+			lunasMapa[luz] = nil
 			Ambiente.factor[luz] = nil
 			Ambiente.lunas[luz] = nil
 			semillas[luz] = nil
@@ -238,8 +264,10 @@ local function pintar(k: number, hora: number)
 		Lighting.OutdoorAmbient = mas(Lighting.OutdoorAmbient, T.Fuera, d)
 		atmosfera.Color = mas(atmosfera.Color, T.Niebla, d)
 		atmosfera.Decay = mas(atmosfera.Decay, T.Niebla, d * 0.6)
-		color.Brightness += T.Color * d
-		color.Contrast = CONTRASTE + T.Contraste * d
+		-- La pantalla entera, solo con lo que se vea del cielo desde aquí (en el sótano o en el armario, casi nada).
+		local visto = math.clamp(Ambiente.cieloVisto, 0, 1)
+		color.Brightness += T.Color * d * visto
+		color.Contrast = CONTRASTE + T.Contraste * d * visto
 	end
 	if viento then
 		viento.Volume = Config.Sonidos.Viento.Volumen * (1 + k)
@@ -300,17 +328,36 @@ function Ambiente.start()
 	end
 	Lighting.ChildAdded:Connect(apagarEfecto)
 	viento = if Config.Sonidos.Viento then Sonido.bucle("Viento") else nil
+	-- Una luz de luna: su azul de noche se guarda una vez (como el brillo), antes de que la pintemos de gris.
 	local function apuntarLuz(luz: Instance)
-		if luz:IsA("Light") and not lamparas[luz] then
-			lamparas[luz] = luz.Brightness
-			contador += 1
-			semillas[luz] = contador * 1.618
+		if luz:IsA("Light") then
+			if not lamparas[luz] then
+				lamparas[luz] = luz.Brightness
+				contador += 1
+				semillas[luz] = contador * 1.618
+			end
+			local padre = luz.Parent
+			if padre and not lunasMapa[luz] and CollectionService:HasTag(padre, "Luna") then
+				lunasMapa[luz] = luz.Color
+			end
 		end
 	end
 	local mapa = workspace:WaitForChild("Mapa")
 	mapa.DescendantAdded:Connect(apuntarLuz)
 	for _, luz in mapa:GetDescendants() do
 		apuntarLuz(luz)
+	end
+	-- Por si la etiqueta llega después que la luz: las luces de esa pieza del mapa, a luna.
+	local function apuntarPiezaLuna(pieza: Instance)
+		if pieza:IsDescendantOf(mapa) then
+			for _, hijo in pieza:GetChildren() do
+				apuntarLuz(hijo)
+			end
+		end
+	end
+	CollectionService:GetInstanceAddedSignal("Luna"):Connect(apuntarPiezaLuna)
+	for _, pieza in CollectionService:GetTagged("Luna") do
+		apuntarPiezaLuna(pieza)
 	end
 
 	local faseAntes = workspace:GetAttribute("Fase")

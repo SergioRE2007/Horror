@@ -8,6 +8,8 @@
 --   Rayo del cielo: misma semilla misma forma, quebrado, llega al suelo, ramas en el aire, del lado del trueno, a su
 --   distancia, se ve con el destello y desaparece; lejano, sin rayo; con Rendimiento, solo el tronco.
 --   Cinemática: nada (ni rayo). De día: nada. Ambiente: el destello sube la luz de fuera y la luna, y sin él queda como estaba.
+--   El cielo que se ve (Ambiente.cieloVisto, la parte del destello en la pantalla): fuera entero, junto a la ventana casi
+--   entero, en el sótano o escondido casi nada, y al acabar el relámpago vuelve a 1.
 -- Si algo no se cumple, termina con error.
 local crearMundo = require("./_roblox")
 
@@ -28,7 +30,7 @@ local CFG = Config.Tormenta
 local INICIO = 1_793_000_000.25
 
 -- Los falsos: Ambiente (lo que TormentaVista le pone), CasaVista (una ventana que vibra) y Sonido (se apunta).
-local AmbienteFalso = { destello = 0, lunas = {}, temblor = 0, factor = {} }
+local AmbienteFalso = { destello = 0, lunas = {}, temblor = 0, factor = {}, cieloVisto = 1 }
 local vibraciones = 0
 local temblores = 0
 local CasaFalsa = { elementos = {}, temblar = function()
@@ -170,6 +172,16 @@ comprobar(Tormenta.semillaRayo(lista[1]) == Tormenta.semillaRayo(otra[1]), "rayo
 
 comprobar(#Tormenta.horario(1, inicio, fin, CFG) == 0, "noche 1: horario vacío")
 comprobar(#Tormenta.horario(1, inicio, fin, CFG, true) > 0, "forzada (prueba en Studio): siempre hay")
+-- El cielo que se ve: fuera, entero; escondido o sin ventanas, casi nada; dentro, según la luna más cerca.
+local P = CFG.Pantalla
+comprobar(Tormenta.cieloVisto(false, false, nil, CFG) == 1, "cielo visto: fuera, entero")
+comprobar(Tormenta.cieloVisto(true, true, 2, CFG) == P.Escondido and Tormenta.cieloVisto(false, true, nil, CFG) == P.Escondido,
+	"cielo visto: escondido o en el sótano, casi nada (aunque haya luna cerca)")
+comprobar(Tormenta.cieloVisto(true, false, nil, CFG) == P.Dentro, "cielo visto: dentro sin luna cerca, el suelo")
+comprobar(Tormenta.cieloVisto(true, false, 2, CFG) > 0.9, "cielo visto: junto a la ventana, casi entero")
+comprobar(Tormenta.cieloVisto(true, false, CFG.Fogonazo.Cerca * 0.99, CFG) == P.Dentro, "cielo visto: lejos de la ventana, el suelo")
+comprobar(Tormenta.cieloVisto(true, false, 10, CFG) > Tormenta.cieloVisto(true, false, 30, CFG), "cielo visto: menos cuanto más lejos")
+comprobar(P.Escondido < P.Dentro and P.Dentro < 0.5 and table.find(P.SinCielo, "Sotano"), "Config: el sótano, sin cielo")
 
 -- En marcha. ----------------------------------------------------------------------------------------------------------
 local mapa = Instance.new("Folder")
@@ -231,9 +243,12 @@ if espera > 0 then
 end
 comprobar(Tormenta.estado.relampagos == 0 and AmbienteFalso.destello == 0, "antes de su hora, nada")
 
-local maximo, conSombras, lunaPuesta = 0, false, false
+local maximo, conSombras, lunaPuesta, cieloPrimero = 0, false, false, nil
 m.correr(0.8, 1 / 120, function()
 	maximo = math.max(maximo, AmbienteFalso.destello)
+	if AmbienteFalso.destello > 0 then
+		cieloPrimero = AmbienteFalso.cieloVisto
+	end
 	if AmbienteFalso.lunas[foco] then
 		lunaPuesta = true
 	end
@@ -254,6 +269,10 @@ comprobar(conSombras, "el fogonazo con sombras, encendido")
 local pieza = g.workspace.TormentaLocal:FindFirstChild("Fogonazo")
 comprobar(pieza and (pieza.Position - luna.Position).Magnitude > CFG.Fogonazo.Atras - 0.01, "el fogonazo, por fuera de la luna")
 comprobar(AmbienteFalso.destello == 0 and AmbienteFalso.lunas[foco] == nil, "acabado el destello, todo a 0")
+local lunaVest = (luna.Position - camara.CFrame.Position).Magnitude
+comprobar(cieloPrimero and math.abs(cieloPrimero - Tormenta.cieloVisto(true, false, lunaVest, CFG)) < 1e-6,
+	`en el vestíbulo, según lo cerca que está la ventana ({cieloPrimero})`)
+comprobar(AmbienteFalso.cieloVisto == 1, "acabado el relámpago, el cielo visto vuelve a 1")
 
 -- El trueno.
 m.correr(r1.trueno + 0.3, 1 / 30)
@@ -434,6 +453,44 @@ end)
 comprobar(visto > 0, "por la mirilla, sí se ve")
 jugador:SetAttribute("Vistazo", nil)
 camara.CameraType = Enum.CameraType.Custom
+
+-- El cielo que se ve en marcha: junto a la ventana, en el sótano, escondido y fuera. Una noche nueva y larga (la de
+-- antes ya casi no tiene relámpagos), con tormenta y el primero enseguida.
+do
+	local ahoraN = g.workspace:GetServerTimeNow()
+	local nueva: number? = nil
+	for cand = ahoraN - CFG.Primero[2], ahoraN - CFG.Primero[1], 0.37 do
+		local l = Tormenta.horario(NOCHE, cand, cand + 3000, CFG)
+		if #l >= 8 and l[1].t - ahoraN > 0.5 then
+			nueva = cand
+			break
+		end
+	end
+	assert(nueva, "no encuentro otra noche con tormenta")
+	fase("Noche", NOCHE, nueva, nueva + 3000)
+	m.correr(2.1, 1 / 30) -- que TormentaVista vea la noche nueva
+end
+local function cieloEn(donde: any, etiqueta: string): number
+	camara.CFrame = CFrame.new(donde)
+	local visto: number? = nil
+	local r = hastaElSiguiente(function()
+		if AmbienteFalso.destello > 0 then
+			visto = AmbienteFalso.cieloVisto
+		end
+	end)
+	comprobar(visto ~= nil, etiqueta .. ": cae el relámpago")
+	comprobar(AmbienteFalso.cieloVisto == 1, etiqueta .. ": luego, vuelve a 1")
+	m.correr(r.trueno + CFG.Temblor.Dura + 0.5, 1 / 30)
+	return visto :: number
+end
+local junto = cieloEn(Vector3.new(0, 17, -29), "junto a la ventana")
+comprobar(junto > 0.85, `junto a la ventana, casi entero ({junto})`)
+comprobar(cieloEn(Vector3.new(0, -6, 55), "sótano") == P.Escondido, "en el sótano, casi nada")
+jugador:SetAttribute("Escondido", CFrame.new(0, 6, -20))
+comprobar(cieloEn(Vector3.new(0, 6, -20), "escondido") == P.Escondido, "escondido, casi nada")
+jugador:SetAttribute("Escondido", nil)
+comprobar(cieloEn(Vector3.new(60, 5, 230), "fuera") == 1, "fuera, entero")
+camara.CFrame = CFrame.new(0, 12, -22)
 
 -- De día: nada.
 local n = Tormenta.estado.relampagos

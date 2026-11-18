@@ -12,6 +12,12 @@ Pedido por el usuario: "mejorar la inmersión del juego". Todo en el cliente y s
 - **La luz**: `Ambiente.destello` (de 0 a 1) se suma cada fotograma a lo que pone `Ambiente`: brillo, luz de fuera
   (`OutdoorAmbient`), niebla (el cielo se pone blanco azulado) y un pico de brillo y contraste del `ColorCorrection`.
   Sin destello, todo queda como lo pone `Ambiente`, así que nunca se queda a medias.
+- **La pantalla, según el cielo que se ve**: el pico del `ColorCorrection` (brillo y contraste de la pantalla entera) se
+  multiplica por `Ambiente.cieloVisto`, que `TormentaVista.cieloVisto` calcula en cada relámpago: fuera, 1; dentro de casa,
+  `1 - distancia / Fogonazo.Cerca` a la luna sin persiana más cercana, con suelo `Pantalla.Dentro` (0,15); en una sala sin
+  ventanas (`Pantalla.SinCielo`: el sótano) o escondido (atributo `Escondido`), `Pantalla.Escondido` (0,05). Al acabar
+  vuelve a 1. La luz de fuera, la niebla y las lunas, enteras igual: la ventana se enciende, pero en el sótano o en el
+  armario la pantalla ya no parpadea entera.
 - **Las lunas**: las luces de luna (etiqueta `Luna`, `Mapa.luzLuna`) a menos de `Fogonazo.Cerca` suben su brillo con el
   destello (`Ambiente.lunas`). Con las cortinas de esa ventana echadas (`Persiana`), no.
 - **Fogonazo con sombras** (sin Rendimiento): para las 3 lunas más cercanas, un `SpotLight` con sombras en la misma
@@ -46,7 +52,8 @@ Pedido por el usuario: "mejorar la inmersión del juego". Todo en el cliente y s
   fila 39).
 - Banco: `tests/bancos/tormenta.luau` (noches con tormenta, mismo horario con la misma semilla, rangos, la fuerza del
   destello, la forma del rayo, a su hora, el rayo del lado del trueno y a su distancia, trueno, cristales y bombillas,
-  Rendimiento, cinemática, mirilla, de día, y el destello sumado en
+  Rendimiento, cinemática, mirilla, el cielo visto (vestíbulo, junto a la ventana, sótano, escondido y fuera), de día,
+  y el destello sumado en
   `Ambiente` de verdad).
 
 ## Probar en Studio
@@ -60,10 +67,11 @@ Pedido por el usuario: "mejorar la inmersión del juego". Todo en el cliente y s
 3. Con un bicho (Golpeador) pegado a una ventana: en el fogonazo se le ve en negro y su sombra entra en la sala. Si la
    luz del fogonazo no pasa (el cristal o un alero la tapan), probar `Fogonazo.Atras` más pequeño o quitarle la sombra al
    cristal (`CastShadow = false`) en el cliente.
-4. El trueno: lejano y sordo dentro, claro fuera; uno cercano suena desde un lado y tiemblan los cristales y las
+4. En el sótano y dentro del armario la pantalla apenas parpadea; fuera, igual que antes.
+5. El trueno: lejano y sordo dentro, claro fuera; uno cercano suena desde un lado y tiemblan los cristales y las
    bombillas.
-5. El rayo: fuera y desde una ventana, se ve quebrado en el horizonte, parpadea con los destellos y el trueno cercano
+6. El rayo: fuera y desde una ventana, se ve quebrado en el horizonte, parpadea con los destellos y el trueno cercano
    llega del mismo lado. Que la niebla no lo borre (si se pierde, subir `Rayo.Brillo` o bajar `Rayo.Lejos`) y que no
    deslumbre (bajar `Rayo.Brillo` o `Rayo.Halo.Opacidad`).
-6. Ajustes → Rendimiento: un solo destello, sin sombras nuevas y el rayo sin ramas. Una cinemática: nada. Dos
+7. Ajustes → Rendimiento: un solo destello, sin sombras nuevas y el rayo sin ramas. Una cinemática: nada. Dos
    jugadores: el mismo relámpago (y el mismo rayo) a la vez.
