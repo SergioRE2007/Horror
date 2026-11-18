@@ -18,6 +18,13 @@ Con bloques grises y animaciones sencillas pero que se noten (pedido por el usua
 - `Movil` (pedido por el usuario): el móvil es un objeto de la mochila (se empieza con uno). Mirarlo gasta batería (150 s la carga entera); se puede mirar escondido, no con las manos ocupadas. Atributos del jugador: `MovilAbierto`, `Bateria` (nil = no lleva) y `Donde` (x, z de cada jugador, para el mapa de los demás: de lejos su personaje puede no llegar al cliente).
 - Modo de pruebas nuevo: `ServerStorage.Prueba:Fire("Romper", punto)` rompe la ventana o puerta de fuera más cerca.
 
+## Sendas a los sitios (`MapaSendas`, pulido)
+
+- Antes solo había la carretera al pueblo y la meta del día mandaba a la granja, al aserradero y a la torre sin decir por dónde. Ahora salen tres sendas de tierra pisada: a la granja (del claro de detrás de la casa, al este, a la puerta de la casa de la granja), al aserradero (de la carretera hacia el oeste a z ≈ -80, a la nave) y a la torre (de detrás de la casa, por el este de la caseta del guarda, al pie de la escalera).
+- Cada una: tiras de `Ground` algo más claras que el suelo (3,5 a 5 de ancho, curva Catmull-Rom con un punto cada ~7 studs, tres alturas que se turnan para que no parpadeen), un mojón cada ~30 studs (estaca vieja con un trapo rojo desvaído, a un lado y al otro) y al principio un poste sin letras con la tabla en flecha y el dibujo de bloques de adónde va (la X del granero, un disco de sierra, una torrecita). Nada choca ni hace sombra; las tiras llevan `EnMapa` (salen en el móvil).
+- El bosque no pone pinos a menos de 4 del borde de una senda (el intento cuenta igual: los demás pinos no se mueven) ni sotobosque a menos de 3. Los talables no cambian (se guardan por su `Clave`): alguno puede quedar al lado de una senda.
+- Banco: `tests/bancos/sendas.luau` (empiezan en el claro o la carretera, acaban en su zona, no pisan la casa ni lo de alrededor, tramos de 10 como mucho). Números a ojo.
+
 ## Cliente (`src/juego/cliente`)
 
 - `TrabajoVista`: herramientas de bloques delante de la cámara (las tuyas) o del pecho (las de los demás). Hachazo con astillas, temblor del árbol y un corte de madera clara que se ahonda; golpe contra el suelo y astillas al partirse. Sierra que va y viene con serrín. Martillo con un clavo nuevo en cada golpe; el tablón se funde al final. Chorro de gasolina. Generador: la cuerda sale y vuelve con cada tirón; encendido tiembla, echa humo y suena; indicador de gasolina en el frente (rojo con poca).

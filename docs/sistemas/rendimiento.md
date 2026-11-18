@@ -8,8 +8,10 @@
 | Pueblo (fachadas, interiores, calle, cementerio, pinos de alrededor) | ~5.000 | ~750 |
 | Bosque (suelo, 231 pinos con su tronco, 45 talables, sotobosque) | ~1.700 | ~1.290 |
 | Granja, aserradero, torre | ~130 | 0 |
+| Sendas a la granja, el aserradero y la torre (`MapaSendas`, después de medir) | ~205 | 0 |
 | **Total** | **12.293** | **3.064** (475 mallas distintas) |
 
+- Sendas: 93 tiras de tierra, 18 mojones de 3 piezas y 3 postes de ~15-25 piezas pequeñas; ninguna choca ni hace sombra.
 - Pinos: 515 en total (231 del bosque y 284 alrededor del pueblo), 3 piezas cada uno (tronco invisible que choca, corteza y ramas).
 - Luces: 55 (25 con sombras, casi todas en la casa y apagadas hasta el generador). Partículas en el mapa: 0.
 - Texturas: 940 SurfaceAppearance (804 en la casa) con 245 texturas de color distintas, y 50 MaterialVariant. Es lo que más
