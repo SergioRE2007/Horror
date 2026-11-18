@@ -293,6 +293,7 @@ return {
 	["Next: find the garage key. It's somewhere at the sawmill."] = "Siguiente: busca la llave del garaje. Está en el aserradero.",
 	["Next: fix the car in the garage. 1 part missing."] = "Siguiente: repara el coche del garaje. Falta 1 pieza.",
 	["Next: fix the car in the garage. {n} parts missing."] = "Siguiente: repara el coche del garaje. Faltan {n} piezas.",
+	["Next: fuel the generator before night. The farm has fuel."] = "Siguiente: llena el generador antes de la noche. En la granja hay gasolina.",
 	["Next: fill the car with fuel and escape."] = "Siguiente: llena el coche de gasolina y huye.",
 	["The car is ready. Get in and escape."] = "El coche está listo. Súbete y huye.",
 	-- Coche destrozado tras la noche 1 (16.8).

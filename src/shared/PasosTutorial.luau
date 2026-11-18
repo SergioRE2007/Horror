@@ -43,7 +43,7 @@ export type Vista = {
 	corrido: boolean?, -- ha corrido alguna vez desde que empezó el tutorial (atributo Corriendo)
 	gasolina: number?, -- parte del depósito del generador (0..1); nil = no se pide echarle gasolina
 	gasolinaMin: number?, -- lo que debe tener para la noche (Config.Tutorial.Gasolina)
-	bidon: boolean?, -- queda algún bidón con gasolina en el mundo
+	bidon: boolean?, -- hay gasolina que echarle (un bidón con gasolina, o uno vacío y el depósito de la granja)
 }
 
 function PasosTutorial.nuevo(): Estado
@@ -127,12 +127,21 @@ function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 end
 
 -- La siguiente meta tras el tutorial (16.5), de más cerca a más lejos como las llaves (docs/diseño.md): la llave del
--- sótano (granja), la del garaje (aserradero), las piezas del coche y su gasolina, y huir. Devuelve un código y un
--- número (Tutorial lo pasa a una frase con Lang.t):
---   "Sotano", "Garaje", "Piezas" (n = piezas que faltan), "Gasolina" (solo falta la del coche) o "Huir" (listo).
---   `cerradas` = llaves de las salas aún cerradas (Casa.cerradas); `piezas` = las que le faltan al coche.
-function PasosTutorial.meta(cerradas: { string }, piezas: number, gasolinaCoche: boolean): (string, number)
-	if table.find(cerradas, "LlaveSotano") then
+-- sótano (granja), la del garaje (aserradero), las piezas del coche y su gasolina, y huir. Antes que todo eso, si el
+-- generador no aguanta la noche y hay gasolina a mano, llenarlo (se empieza con poco y una noche gasta más). Devuelve
+-- un código y un número (Tutorial lo pasa a una frase con Lang.t):
+--   "Generador", "Sotano", "Garaje", "Piezas" (n = piezas que faltan), "Gasolina" (solo falta la del coche) o "Huir".
+--   `cerradas` = llaves de las salas aún cerradas (Casa.cerradas); `piezas` = las que le faltan al coche; `poca` = de
+--   día, el generador por debajo de Config.Tutorial.Gasolina y queda gasolina que echarle (Tutorial lo calcula).
+function PasosTutorial.meta(
+	cerradas: { string },
+	piezas: number,
+	gasolinaCoche: boolean,
+	poca: boolean?
+): (string, number)
+	if poca then
+		return "Generador", 0
+	elseif table.find(cerradas, "LlaveSotano") then
 		return "Sotano", 0
 	elseif table.find(cerradas, "LlaveGaraje") then
 		return "Garaje", 0

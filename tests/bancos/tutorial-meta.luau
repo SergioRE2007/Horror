@@ -1,7 +1,8 @@
 -- Banco del tutorial, 16.5 (shared/PasosTutorial, sin Roblox):
 --   La gasolina del generador: en marcha con poco depósito, el paso Generador pide echarle un bidón (repostar) hasta
 --   que llega al mínimo o sube; sin bidones con gasolina no lo pide; parado y sin gasolina, primero el bidón.
---   La siguiente meta tras el tutorial: llave del sótano, del garaje, piezas del coche, su gasolina y huir.
+--   La siguiente meta tras el tutorial: llenar el generador si no aguanta la noche, llave del sótano, del garaje,
+--   piezas del coche, su gasolina y huir.
 -- Ejecutar desde la raíz: lune run tests/bancos/tutorial-meta.luau (lo corre regressions.luau).
 local PT = require("../../src/shared/PasosTutorial")
 
@@ -75,6 +76,11 @@ do
 	igual(n, 3, "meta: cuántas piezas faltan")
 	igual(PT.meta({}, 0, true), "Gasolina", "meta: solo falta la gasolina del coche")
 	igual(PT.meta({}, 0, false), "Huir", "meta: listo para huir")
+	-- El generador no aguanta la noche (Tutorial calcula `poca`: de día, bajo el mínimo y con gasolina a mano)
+	igual(PT.meta(todas, 5, true, true), "Generador", "meta: poca gasolina, el generador antes que el sótano")
+	igual(PT.meta({}, 0, false, true), "Generador", "meta: poca gasolina, antes incluso que huir")
+	igual(PT.meta(todas, 5, true, false), "Sotano", "meta: con gasolina de sobra (o sin nada que echarle), como antes")
+	igual(PT.meta(todas, 5, true), "Sotano", "meta: sin el dato, como antes")
 end
 
 print(`tutorial-meta: {cuentas} comprobaciones`)

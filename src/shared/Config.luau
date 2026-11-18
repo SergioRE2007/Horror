@@ -649,7 +649,7 @@ Config.Tutorial = {
 	Cada = 0.5, -- segundos entre dos miradas del servidor
 	Flecha = 4, -- studs por encima de lo que señala la flecha
 	-- 16.5, a ojo: parte del depósito del generador que pide antes de la noche (una noche gasta 0,5 a ritmo 1; con un
-	-- bidón lleno siempre se llega), segundos tras empezar el día hasta el aviso de la siguiente meta y lo que tarda
+	-- bidón lleno siempre se llega; también la usa la siguiente meta para avisar de llenarlo), segundos tras empezar el día hasta el aviso de la siguiente meta y lo que tarda
 	-- en poder repetirse (que no lleguen dos seguidos al entrar el día 1).
 	Gasolina = 0.45,
 	Meta = 6,
