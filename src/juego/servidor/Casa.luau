@@ -469,7 +469,8 @@ function Casa.start()
 		preparar(el, "Ventana")
 	end
 	-- Con las manos ocupadas no salen los prompts: una puerta cerrada se abre de un empujón al ir hacia ella. Menos la
-	-- que está golpeando el bicho: al llevarle un tablón para clavarlo se abría sin querer y le dejaba entrar.
+	-- que está golpeando el bicho: al llevarle un tablón para clavarlo se abría sin querer y le dejaba entrar. La de
+	-- cerrojo que aporrea no pone `atacada`: se mira cuándo la golpeó por última vez.
 	task.spawn(function()
 		while true do
 			task.wait(0.2)
@@ -482,6 +483,7 @@ function Casa.start()
 					local mando = el:FindFirstChild("Mando") :: BasePart
 					local hacia = (mando.Position - raiz.Position) * Vector3.new(1, 0, 1)
 					if e.tipo == "Puerta" and not e.abierta and not e.bloqueada and not e.atacada and hacia.Magnitude < 4.5
+						and not (e.cerrojo and ahora() - (aporreada[el] or -math.huge) < CERROJO.Cada * 3)
 						and hacia.Unit:Dot(raiz.CFrame.LookVector) > 0.5 and Defensa.puerta(e, ahora(), cfg) then
 						publicar(el)
 					end
