@@ -91,6 +91,7 @@ end
 
 local function alEntrar(jugador: Player)
 	jugador:GetAttributeChangedSignal("Muerto"):Connect(publicar)
+	publicar() -- quien vuelve a entrar muerto (Muerte) pudo ponerse Muerto antes de esta conexión
 end
 
 -- Cómo acabó la compra abierta (solo una pista, ver arriba): sin pagar, se deja abrir otra; pagada, se guarda el

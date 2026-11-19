@@ -5,12 +5,15 @@
 -- la cámara en el atributo "Vista". Atributos del jugador: Escondido (la Vista de su escondite), Muerto.
 -- Si mueren todos avisa a quien se haya apuntado con Muerte.alMorirTodos (Director vuelve al principio del día); y a
 -- cada muerte, a los de Muerte.alMorir (Caza olvida su olor), muera como muera.
+-- Salir y volver a entrar no revive: quien ha muerto esta noche y vuelve (tras un corte, lobby/servidor/Regreso) entra
+-- sin personaje y Muerto, mirando a los vivos, hasta el amanecer o que paguen por revivirle (Revivir).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Limite = require(game:GetService("ServerScriptService"):WaitForChild("Comun").Limite)
 
@@ -19,6 +22,9 @@ local Muerte = {}
 local escondidos: { [Player]: { sitio: Model, hora: number } } = {}
 local oyentes: { () -> () } = {}
 local alMorirOyentes: { (Player) -> () } = {}
+-- UserIds de los que han muerto y aún no han revivido (por UserId: sigue valiendo si se van y vuelven a entrar).
+local muertos: { [number]: boolean } = {}
+local AVISO_VUELTA = 2 -- s tras volver a entrar muerto hasta que se le recuerda (que su cliente ya esté escuchando)
 
 local function humanoideDe(jugador: Player): Humanoid?
 	local personaje = jugador.Character
@@ -133,6 +139,7 @@ end
 
 -- Ya está Muerto: avisa a los de alMorir y mira si quedan vivos.
 local function murio(jugador: Player)
+	muertos[jugador.UserId] = true
 	for _, fn in alMorirOyentes do
 		task.spawn(fn, jugador)
 	end
@@ -167,10 +174,12 @@ function Muerte.revivirTodos()
 	for _, jugador in Players:GetPlayers() do
 		Muerte.revivir(jugador)
 	end
+	table.clear(muertos) -- también los que no están: si vuelven, ya es otro día
 end
 
 -- Vuelve ese, si está muerto (al amanecer, o de noche pagando: Revivir).
 function Muerte.revivir(jugador: Player)
+	muertos[jugador.UserId] = nil
 	if not vivo(jugador) then
 		soltarSitio(jugador)
 		jugador:SetAttribute("Muerto", nil)
@@ -207,7 +216,22 @@ local function alEntrar(jugador: Player)
 			end
 		end)
 	end)
-	jugador:LoadCharacter()
+	if not muertos[jugador.UserId] then
+		jugador:LoadCharacter()
+		return
+	end
+	-- Murió esta noche y ha vuelto a entrar: sigue muerto, sin personaje (MuerteVista le pone a mirar a los vivos).
+	jugador:SetAttribute("Muerto", true)
+	task.delay(AVISO_VUELTA, function()
+		if jugador.Parent == Players and jugador:GetAttribute("Muerto") then
+			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "It got you. You'll wake up at dawn."))
+		end
+	end)
+	-- Solo él en el servidor (los vivos se fueron mientras faltaba): no hay a quién mirar y es como si hubieran
+	-- muerto todos, el día vuelve a empezar. Con más gente aquí y todos muertos, eso ya se avisó al morir el último.
+	if #Players:GetPlayers() == 1 then
+		task.defer(comprobarTodos)
+	end
 end
 
 -- De muerto, la cámara sigue a otro (MuerteVista): con el mapa por partes (StreamingEnabled, rendimiento.md) el

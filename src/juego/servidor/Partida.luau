@@ -7,6 +7,9 @@
 --   Las mochilas son de cada jugador dentro de la partida; lo que lleva el que se va cae al suelo (Mochila) y deja de
 --   ser suyo en la siguiente foto.
 --   Si el dueño se va, se espera Config.Partida.EsperaDueno por si es un corte y luego se acaba para todos.
+--   Volver tras un corte: a cada uno de los que vienen que se va se le apunta la vuelta (Viaje.apuntarVuelta) y se le
+--   renueva cada Config.Partida.VueltaCada s mientras falte; desde el lobby puede volver (lobby/servidor/Regreso). Se
+--   borra al volver a entrar y al acabarse la partida (con o sin final, o al cerrarse el servidor).
 --   Cada guardado apunta en los datos del dueño el resumen de la ranura (lo que enseña el lobby).
 --   Al huir en el coche (Coche.alHuir) o al quemar la casa con la Bestia dentro (Incendio.alTerminar, 12.2) se guarda
 --   con `final` ("Huida" o "Bestia") y se da por terminada: la ranura queda libre.
@@ -61,6 +64,11 @@ local cerrando = false -- el servidor se está cerrando (BindToClose)
 local cargandoPartida = false -- cogiendo el candado de la partida
 local esperaDueno = 0 -- sube cada vez que el dueño se va: una espera vieja no acaba la partida
 local almacenPrueba = nil
+-- [UserId] = vez: los que vienen y se han ido con la partida en marcha (se les renueva la vuelta). La vez sube con cada
+-- salida: una renovación vieja que ve la vuelta ya borrada no deja sin vuelta a quien se ha vuelto a ir.
+local ausentes: { [number]: number } = {}
+local vezAusente = 0
+local avisadaGuardada = false -- ya se ha dicho a Viaje que esta partida nueva tiene algo guardado (Viaje.yaGuardada)
 
 local function redondear(n: number, cifras: number): number
 	local m = 10 ^ cifras
@@ -168,6 +176,11 @@ local function guardar(soltar: boolean)
 		op = nil
 		acabar("This game was opened in another server.")
 	elseif estado == "ok" and ultima and info then
+		if info.nueva and not avisadaGuardada then
+			-- Ya hay una foto de esta partida guardada: si el servidor se cierra y alguien vuelve, que la cargue.
+			avisadaGuardada = true
+			task.spawn(Viaje.yaGuardada)
+		end
 		local dueno = Players:GetPlayerByUserId(info.dueno)
 		local ranura, noche, final = tostring(info.ranura), ultima.noche, ultima.final
 		if dueno then
@@ -179,12 +192,24 @@ local function guardar(soltar: boolean)
 	end
 end
 
+-- La partida se acaba: nadie puede volver. Se borran las vueltas de los que faltan (sin esperar).
+local function borrarVueltas()
+	local viaje = info
+	if viaje then
+		for id in ausentes do
+			task.spawn(Viaje.borrarVuelta, id, viaje)
+		end
+	end
+	table.clear(ausentes)
+end
+
 -- Se ha terminado con un final (Coche al huir, Incendio al quemar a la Bestia): se guarda así, se suelta y ya no pasa nada más (Director lo mira).
 local function terminar(final: string)
 	if FinPartida.acabada() then
 		return
 	end
 	FinPartida.marcar()
+	borrarVueltas()
 	ultima = foto()
 	ultima.final = final
 	task.spawn(guardar, true)
@@ -200,6 +225,7 @@ acabar = function(texto: string)
 		return
 	end
 	FinPartida.marcar()
+	borrarVueltas()
 	task.spawn(guardar, true)
 	task.spawn(Viaje.volver, Players:GetPlayers(), texto) -- sin esperar: lo llaman desde el ciclo y el arranque
 end
@@ -239,8 +265,22 @@ local function almacenDeMentira()
 	}
 end
 
+-- Apunta la vuelta de `userId` (se acaba de ir). Si mientras tanto ha vuelto o se ha acabado, se quita otra vez: el
+-- borrado pudo llegar antes que esto.
+local function apuntarVuelta(userId: number, viaje: Viaje.Info)
+	Viaje.apuntarVuelta(userId, viaje)
+	if not ausentes[userId] then
+		Viaje.borrarVuelta(userId, viaje)
+	end
+end
+
 local function alEntrar(jugador: Player)
 	local id = tostring(jugador.UserId)
+	-- Ha vuelto (o viene por primera vez): su vuelta a esta partida ya no hace falta.
+	ausentes[jugador.UserId] = nil
+	if info then
+		task.spawn(Viaje.borrarVuelta, jugador.UserId, info)
+	end
 	while not jugador:GetAttribute("Mochila") and jugador.Parent do -- que Mochila le haya preparado la suya
 		task.wait()
 	end
@@ -262,6 +302,14 @@ end
 
 local function alSalir(jugador: Player)
 	idos[tostring(jugador.UserId)] = true
+	-- Por si es un corte: de los que vienen, el que se va con la partida en marcha puede volver desde el lobby (no si
+	-- se le ha mandado al lobby: Viaje.devuelto).
+	if info and not FinPartida.acabada() and not cerrando and not Viaje.devuelto(jugador)
+		and table.find(esperadosDe(info), jugador.UserId) then
+		vezAusente += 1
+		ausentes[jugador.UserId] = vezAusente
+		task.spawn(apuntarVuelta, jugador.UserId, info)
+	end
 	if not info or jugador.UserId ~= info.dueno or FinPartida.acabada() then
 		return
 	end
@@ -322,8 +370,26 @@ function Partida.start(): number
 			end
 		end
 	end)
+	-- Renueva la vuelta de los que faltan (si este servidor se cae, caduca sola a los VueltaCaduca s). La que ya no lleva
+	-- aquí (ha caducado, o se ha ido luego a otra partida) no se renueva más.
+	task.spawn(function()
+		while true do
+			task.wait(P.VueltaCada)
+			local viaje = info
+			if viaje and not FinPartida.acabada() and not cerrando then
+				for id, vez in ausentes do
+					task.spawn(function()
+						if Viaje.renovarVuelta(id, viaje) == "otra" and ausentes[id] == vez then
+							ausentes[id] = nil
+						end
+					end)
+				end
+			end
+		end
+	end)
 	game:BindToClose(function()
 		cerrando = true
+		borrarVueltas() -- el servidor se va: ya no se puede volver a esta partida
 		-- Si aún está cogiendo el candado, se espera: al acabar lo suelta él (abajo) sin escribir nada nuevo.
 		local inicio = os.clock()
 		while cargandoPartida and os.clock() - inicio < Config.Guardado.Cierre do
@@ -362,6 +428,9 @@ function Partida.start(): number
 	for _, jugador in Players:GetPlayers() do
 		if #viaje.jugadores > 0 and not table.find(viaje.jugadores, jugador.UserId) then
 			Viaje.volver({ jugador }, "This game has already started.")
+		else
+			-- Entró antes de leer el viaje (alEntrar aún no sabía a qué partida): su vuelta aquí, si la tenía, sobra.
+			task.spawn(Viaje.borrarVuelta, jugador.UserId, viaje)
 		end
 	end
 

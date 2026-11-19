@@ -336,4 +336,8 @@ return {
 	-- Guía del lobby (16.7).
 	["Get in the car"] = "Sube al coche",
 	["Your first class is free"] = "Tu primera clase es gratis",
+	-- Volver tras un corte.
+	["Your friends are still playing."] = "Tus amigos siguen jugando.",
+	["Go back"] = "Volver",
+	["Your game has already ended."] = "Tu partida ya ha terminado.",
 }
