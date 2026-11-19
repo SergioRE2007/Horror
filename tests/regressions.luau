@@ -1496,9 +1496,13 @@ do -- Caza.tramoEscalera: todos los que cazan suben la escalera del vestíbulo (
 	local i = string.find(fuente, "local PIE_ESCALERA", 1, true)
 	local j = string.find(fuente, "function Caza.tramoEscalera(", i, true)
 	local _, f = string.find(fuente, "\r?\nend\r?\n", j)
-	local tramo = luau.load("local Caza = {}\n" .. string.sub(fuente, i, f) .. "\nreturn Caza.tramoEscalera", {
+	-- planta() mira Caza.dentroDeCasa (fuera, siempre la de abajo): también sacada del texto, con el Config de verdad.
+	local d = string.find(fuente, "function Caza.dentroDeCasa(", 1, true)
+	local _, fd = string.find(fuente, "\r?\nend\r?\n", d)
+	local trozo = string.sub(fuente, d, fd) .. string.sub(fuente, i, f)
+	local tramo = luau.load("local Caza = {}\n" .. trozo .. "\nreturn Caza.tramoEscalera", {
 		debugName = "Caza.tramoEscalera",
-		environment = { Vector3 = V3, plano = function(v) return V3.new(v.X, 0, v.Z) end },
+		environment = { Vector3 = V3, Config = Config, plano = function(v) return V3.new(v.X, 0, v.Z) end },
 	})()
 	local PIE, ANTE, CIMA = V3.new(0, 1, -21), V3.new(0, 1, -25), V3.new(0, 14, 6)
 	local galeria, salon, cocina = V3.new(25, 14, -14), V3.new(25, 1, -15), V3.new(-30, 1, 11)
@@ -1522,6 +1526,11 @@ do -- Caza.tramoEscalera: todos los que cazan suben la escalera del vestíbulo (
 	va(salon, V3.new(0, 5, -13), ANTE, false, "escalera: a por quien está en los peldaños, por el pie")
 	va(V3.new(0, 1, -25), V3.new(0, 5, -13), V3.new(0, 5, -13), true, "escalera: desde el pie, recto a por él")
 	va(galeria, V3.new(0, 11, -4), CIMA, false, "escalera: desde arriba a por quien está en ella, por lo alto")
+	-- Fuera, en alto (la colina de la torre, cima en y 20, y su escalera): la misma planta que abajo, por los caminos
+	-- hacia él. Antes contaba como la de arriba y se iba al pie de la escalera del vestíbulo.
+	va(V3.new(80, 0, 230), V3.new(90, 12, 270), V3.new(90, 12, 270), false, "escalera: a por quien sube la colina, hacia él")
+	va(V3.new(90, 12, 270), salon, salon, false, "escalera: de la colina a la casa, por los caminos")
+	va(V3.new(90, 12, 270), galeria, ANTE, false, "escalera: de la colina arriba de la casa, por el pie")
 end
 
 do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y workspace:Raycast no los ve)
