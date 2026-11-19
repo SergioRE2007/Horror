@@ -103,6 +103,18 @@ assert(cfg.Caduca > cfg.Intervalo * 2, "Caduca tiene que ser bastante mayor que 
 assert(cfg.Espera > cfg.Reintento, "Espera tiene que dar para varios intentos")
 comprobaciones += 2
 
+-- Generador: apagarlo pide mantener E y, recién arrancado, ni eso (quien sigue tirando a ritmo no lo apaga).
+igual(Config.Generador.Apagar > 0, true, "generador: apagar pide mantener E")
+igual(Config.Generador.Gracia >= Config.Generador.Tiron, true, "generador: la gracia cubre el tirón siguiente")
+
+-- Config.Muerte.Escondido: números positivos, y el respingo tiene que caber en lo que llega de CasaVista.temblar
+-- (alcance de 35 studs si no se le da otro).
+for nombre, valor in Config.Muerte.Escondido do
+	assert(type(valor) == "number" and valor > 0, `Config.Muerte.Escondido.{nombre} tiene que ser un número > 0`)
+end
+assert(Config.Muerte.Escondido.Cerca < 35, "Config.Muerte.Escondido.Cerca: menor que el alcance del temblor")
+comprobaciones += 2
+
 -- Formato: partida nueva y arreglar lo viejo o roto.
 do
 	local nuevo = Formato.arreglarJugador(nil)
@@ -621,6 +633,72 @@ do
 	-- Mochilas rotas no rompen nada.
 	igual(#Reparto.faltan({ "LlaveRico" }, {}, { ["3"] = { cosas = "x" }, ["4"] = 5 }, {}, esLlave), 1, "mochilas rotas")
 
+	-- Lo único del final (pistola, bengalas, cerillas) y los que vienen a la sesión (esperados, al cargar).
+	local function esUnica(tipo)
+		return type(tipo) == "string" and Config.Objetos[tipo] ~= nil and Config.Objetos[tipo].Unica == true
+	end
+	local function cuenta(tipo)
+		return esLlave(tipo) or tipo == "Cerillas"
+	end
+	for _, tipo in { "Pistola", "Bengala", "Cerillas" } do
+		igual(esUnica(tipo), true, `{tipo} es única`)
+	end
+	igual(esUnica("Pila"), false, "una pila no es única")
+	igual(Config.Bestia.PistaCerillas >= 1 and Config.Bestia.PistaCerillas <= #cargar("src/shared/Historia"), true,
+		"la pista de las cerillas existe")
+	-- Cargar en un servidor recién arrancado: aún no ha entrado nadie, pero vienen 1 y 2. No se quita nada ni sale nada.
+	local guardadasE = {
+		["1"] = { cosas = { { tipo = "LlaveSotano" }, { tipo = "Pistola" }, { tipo = "Cerillas" } } },
+		["2"] = { cosas = { { tipo = "LlaveRico" }, { tipo = "Bengala" } } },
+	}
+	local estanE, vistasE = {}, {}
+	Reparto.esperar(guardadasE, { 1, 2 }, estanE, vistasE, cuenta)
+	local faltanE, quitadasE = Reparto.faltan({ "LlaveSotano", "LlaveRico" }, vistasE, guardadasE, estanE, esLlave, esUnica)
+	igual(#faltanE, 0, "esperados: sus llaves cuentan, no sale otra")
+	igual(#quitadasE, 0, "esperados: no se les quita nada único")
+	igual(#guardadasE["1"].cosas + #guardadasE["2"].cosas, 5, "esperados: sus mochilas se quedan enteras")
+	igual(vistasE.Cerillas, 1, "esperados: sus cerillas cuentan como vistas")
+	local _, ponerE = Reparto.reponer(quitadasE, "Cerillas", true, vistasE.Cerillas)
+	igual(ponerE, false, "esperados: con sus cerillas no salen otras")
+	-- Un esperado que ya está dentro no se cuenta dos veces.
+	local vistasD = { LlaveRico = 1 }
+	Reparto.esperar({ ["2"] = { cosas = { { tipo = "LlaveRico" } } } }, { 2 }, { ["2"] = true }, vistasD, cuenta)
+	igual(vistasD.LlaveRico, 1, "esperado ya dentro: no cuenta doble")
+	-- El ausente que no viene pierde llaves y lo único; lo único sale en la lista para volver a su sitio.
+	local guardadasA = {
+		["5"] = { cosas = { { tipo = "Pila" }, { tipo = "Pistola" }, { tipo = "LlaveGaraje" }, { tipo = "Bengala" },
+			{ tipo = "Bengala" }, { tipo = "Cerillas" } } },
+		["6"] = { cosas = { { tipo = "Pistola" }, { tipo = "LlaveGaraje" } } },
+	}
+	local faltanA, quitadasA = Reparto.faltan({ "LlaveGaraje" }, {}, guardadasA, { ["6"] = true }, esLlave, esUnica)
+	igual(#faltanA, 1, "ausente: su llave vuelve a su sitio")
+	igual(#guardadasA["5"].cosas, 1, "ausente: se queda solo lo que no es llave ni único")
+	igual(guardadasA["5"].cosas[1].tipo, "Pila", "ausente: la pila se queda")
+	table.sort(quitadasA)
+	igual(table.concat(quitadasA, ","), "Bengala,Bengala,Cerillas,Pistola", "ausente: lo único quitado, en la lista")
+	igual(#guardadasA["6"].cosas, 2, "presente: no se le toca nada")
+	-- Lo que vuelve al mapa: todo menos las cerillas, que van aparte (caja fuerte) y solo con la pista leída.
+	local aSuSitio, sinLeer = Reparto.reponer(quitadasA, "Cerillas", false, 0)
+	igual(#aSuSitio, 3, "pistola y bengalas vuelven a su sitio")
+	igual(table.find(aSuSitio, "Cerillas"), nil, "las cerillas no van a la entrada del mapa")
+	igual(sinLeer, false, "sin la pista de la caja fuerte leída no se reponen las cerillas")
+	igual(select(2, Reparto.reponer(quitadasA, "Cerillas", true, 0)), true, "con la pista leída y sin otras, sí")
+	igual(select(2, Reparto.reponer({}, "Cerillas", true, 1)), false, "con otras sueltas o en una mochila, no")
+	igual(select(2, Reparto.reponer({}, "Cerillas", true, 0)), true, "perdidas (caídas del mapa) con la pista leída, sí")
+	-- Bengalas gastadas: tras la noche de la Bestia vuelven las que falten; un día normal, solo si no queda ninguna.
+	local BB = Config.Bestia.Bengalas
+	igual(Reparto.bengalas(0, BB, true), BB, "noche final fallida sin bengalas: vuelven todas")
+	igual(Reparto.bengalas(1, BB, true), BB - 1, "noche final fallida con 1: vuelven las que faltan")
+	igual(Reparto.bengalas(BB, BB, true), 0, "noche final con todas: no vuelve ninguna")
+	igual(Reparto.bengalas(BB + 2, BB, true), 0, "con de más (modo de pruebas): nunca negativo")
+	igual(Reparto.bengalas(0, BB, false), BB, "día normal sin ninguna en la partida: vuelven todas")
+	igual(Reparto.bengalas(2, BB, false), 0, "día normal con 2: no vuelven")
+	-- Sin esUnica (como antes) no se quita nada más que las llaves.
+	local guardadasV = { ["9"] = { cosas = { { tipo = "Pistola" }, { tipo = "LlaveSotano" } } } }
+	local _, quitadasV = Reparto.faltan({}, {}, guardadasV, {}, esLlave)
+	igual(#quitadasV, 0, "sin esUnica: nada único quitado")
+	igual(#guardadasV["9"].cosas, 1, "sin esUnica: solo la llave")
+
 	-- Se guardan: la llave suelta pasa por FormatoPartida y la puerta abierta también.
 	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos, coche = Config.Coche,
 		arreglarCoche = cargar("src/shared/Recetas").arreglarCoche }
@@ -637,6 +715,31 @@ do
 	local Rejilla = cargar("src/shared/Rejilla")
 	local r = Rejilla.desde(d.mochilas["7"], Config.Objetos, Config.Mochila.Ancho, Config.Mochila.Alto)
 	igual(Rejilla.contar(r, "LlaveRico"), 1, "la llave de la mochila se guarda")
+end
+
+-- Susto al morir de los bichos que no son el Golpeador (MuerteVista): cabe entero antes de que el bicho se mueva.
+-- Lo que se queda quieto: ESPERA de Caza y el task.wait tras Muerte.matar de la Bestia, sacados del código del
+-- servidor, y Config.Acechador.TrasPillar (el Acechador ya espera eso).
+do
+	local S = Config.Muerte.SustoComun
+	local total = 0
+	for _, fase in { "Mira", "Salta", "Encima", "Tiron", "Despues" } do
+		assert(type(S[fase]) == "number" and S[fase] > 0, `SustoComun.{fase}`)
+		total += S[fase]
+	end
+	local quietos = {
+		Caza = tonumber(string.match(fs.readFile("src/juego/servidor/Caza.luau"), "local ESPERA = ([%d%.]+)")),
+		Acechador = Config.Acechador.TrasPillar,
+		Bestia = tonumber(string.match(fs.readFile("src/juego/servidor/Bestia.luau"),
+			"Muerte%.matar%b()%s*task%.wait%(([%d%.]+)%)")),
+	}
+	-- Por nombre fijo: un nil (patrón que ya no encaja) hace saltar el assert en vez de perderse sin avisar.
+	for _, fuente in { "Caza", "Acechador", "Bestia" } do
+		local quieto = quietos[fuente]
+		assert(type(quieto) == "number", `susto común: no se encuentra lo que espera el bicho ({fuente})`)
+		assert(total < quieto, `susto común: {total} s no cabe en {quieto} s quieto ({fuente})`)
+		comprobaciones += 1
+	end
 end
 
 -- Vendedor: tratos con objetos que existen y cantidades con sentido.
@@ -743,6 +846,49 @@ do
 	Defensa.romper(puerta, cfgCasa)
 	igual(puerta.refuerzo, false, "puerta echada abajo: sin refuerzo")
 
+	-- Cerrojo de las puertas de dentro: se pone una vez, aguanta golpes y al reventar la puerta salta.
+	local CC = cfgCasa.Cerrojo
+	igual(CC.Dano[1] > 0 and CC.Dano[2] >= CC.Dano[1] and CC.Cada > 0 and CC.Poner > 0, true, "números del cerrojo con sentido")
+	local dentro = Defensa.nueva("Puerta", cfgCasa)
+	igual(dentro.cerrojo, false, "puerta nueva: sin cerrojo")
+	igual(Defensa.golpeCerrojo(dentro, CC.Dano[2], cfgCasa), "Entra", "sin cerrojo no la para")
+	igual(dentro.vida, cfgCasa.VidaPuerta, "y no le quita vida")
+	igual(Defensa.ponerCerrojo(dentro), true, "se pone el cerrojo")
+	igual(Defensa.ponerCerrojo(dentro), false, "no dos veces")
+	local golpes, resultado = 0, "Golpe"
+	while resultado == "Golpe" and golpes < 100 do
+		resultado = Defensa.golpeCerrojo(dentro, CC.Dano[2], cfgCasa)
+		golpes += 1
+	end
+	igual(resultado, "Entra", "a golpes acaba reventándola")
+	igual(golpes, math.ceil(cfgCasa.VidaPuerta / CC.Dano[2]), "con los golpes que le tocan por su vida")
+	igual(golpes >= 4, true, "aguanta unos cuantos golpes (da tiempo a esconderse)")
+	igual(dentro.cerrojo, false, "reventada: el cerrojo salta")
+	igual(dentro.abierta and dentro.vida == 0, true, "y queda abierta y rota")
+	igual(Defensa.ponerCerrojo(dentro), false, "rota no se le pone otro")
+	Defensa.reparar(dentro)
+	dentro.abierta = false
+	igual(Defensa.ponerCerrojo(dentro), true, "reparada sí")
+	dentro.abierta = true
+	igual(Defensa.golpeCerrojo(dentro, CC.Dano[1], cfgCasa), "Entra", "abierta, el cerrojo no sirve")
+	igual(dentro.vida, cfgCasa.VidaPuerta, "abierta no se golpea")
+	dentro.abierta = false
+	Defensa.reforzar(dentro, cfgCasa, Config.Taller.Refuerzo)
+	igual(dentro.cerrojo, true, "reforzarla no quita el cerrojo")
+	igual(Defensa.golpeCerrojo(dentro, cfgCasa.VidaPuerta, cfgCasa), "Golpe", "reforzada aguanta más con cerrojo")
+	local conLlave = Defensa.nueva("Puerta", cfgCasa)
+	conLlave.bloqueada = true
+	igual(Defensa.ponerCerrojo(conLlave), false, "con llave no se pone")
+	igual(Defensa.ponerCerrojo(Defensa.nueva("Ventana", cfgCasa)), false, "en una ventana no")
+
+	-- El cerrojo sale del banco del sótano, al final de sus recetas (antes que la reja, que va detrás de todas).
+	local recetasSotano = Recetas.delBanco("Sotano", Config)
+	local cerrojo = recetasSotano[#Config.Taller.Bancos.Sotano]
+	igual(cerrojo.Da, "Cerrojo", "el cerrojo, última receta del sótano")
+	igual(cerrojo.Pide[1][1], "Chatarra", "pide chatarra")
+	igual(recetasSotano[#recetasSotano].Da, "Reja", "la reja sigue al final")
+	igual(Config.Objetos.Cerrojo ~= nil and Lang.es[Config.Objetos.Cerrojo.Nombre] ~= nil, true, "objeto de la mochila con español")
+
 	-- Se guarda con la partida: piezas del coche, gasolina, portón, refuerzo y lo fabricado (suelto o en la mochila).
 	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos, coche = C,
 		arreglarCoche = Recetas.arreglarCoche }
@@ -758,6 +904,17 @@ do
 	}, "partida del paso 8"), cat)
 	igual(d.casa.V1_2_3.refuerzo, true, "ventana reforzada guardada")
 	igual(d.casa.V4_5_6.refuerzo, nil, "refuerzo que no es booleano: fuera")
+	igual(d.casa.V1_2_3.cerrojo, nil, "partida de antes de los cerrojos: sin cerrojo")
+	local conCerrojo = FP.arreglar(guardable({
+		noche = 5,
+		casa = { P1_2_3 = { vida = 120, abierta = false, cerrojo = true }, P4_5_6 = { vida = 160, cerrojo = "si" },
+			P7_8_9 = { vida = 160, cerrojo = false } },
+	}, "partida con cerrojos"), cat)
+	igual(conCerrojo.casa.P1_2_3.cerrojo, true, "puerta con cerrojo guardada")
+	igual(conCerrojo.casa.P1_2_3.vida, 120, "con la vida que le quedaba")
+	igual(conCerrojo.casa.P4_5_6.cerrojo, nil, "cerrojo que no es booleano: fuera")
+	igual(conCerrojo.casa.P7_8_9.cerrojo, nil, "sin cerrojo: no se guarda nada")
+	guardable(conCerrojo, "partida con cerrojos arreglada")
 	igual(d.coche.piezas.Motor, 1, "motor montado guardado")
 	igual(d.coche.piezas.Rueda, 1, "una rueda guardada")
 	igual(d.coche.gasolina, 0.5, "gasolina del coche guardada")
@@ -999,7 +1156,9 @@ do
 	igual(sotano[1].Da, Config.Taller.Bancos.Sotano[1].Da, "la primera receta sigue siendo la primera")
 	igual(sotano[#sotano].Pide, Config.Bestia.Reja.Pide, "la reja pide lo de Config.Bestia.Reja")
 	igual(Config.Pesados.Reja ~= nil, true, "la reja es pesada")
-	igual(#Config.Taller.Bancos.Sotano, 2, "delBanco no toca Config")
+	local cuantasSotano = #Config.Taller.Bancos.Sotano
+	Recetas.delBanco("Sotano", Config)
+	igual(#Config.Taller.Bancos.Sotano, cuantasSotano, "delBanco no toca Config")
 	igual(#Recetas.delBanco("Garaje", Config), #Config.Taller.Bancos.Garaje, "el garaje, sin reja")
 	local pista = Historia[sotano[#sotano].Pista]
 	igual(pista ~= nil and string.find(pista.texto, "gate") ~= nil, true, "la pista de la reja habla de la reja")
@@ -1039,16 +1198,32 @@ end
 do
 	local PT = cargar("src/shared/PasosTutorial")
 	local function vista(cambios)
-		local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, mochila = false, hacha = false, cargando = nil,
-			generador = false, cortinas = 3 }
+		local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, nota = true, mochila = false, hacha = false,
+			cargando = nil, generador = false, cortinas = 3 }
 		for clave, valor in cambios do
 			v[clave] = valor
 		end
 		return v
 	end
+	-- La nota de la cocina (la pista 1) va antes que todo; leída, se pasa a la mochila.
+	local nueva = PT.nuevo()
+	igual(nueva.paso, "Nota", "tutorial: empieza por la nota de la cocina")
+	PT.avanzar(nueva, vista({ nota = false }))
+	igual(nueva.paso, "Nota", "tutorial: sin leerla, sigue en la nota")
+	PT.avanzar(nueva, vista({ nota = false, mochila = true, hacha = true }))
+	igual(nueva.paso, "Nota", "tutorial: lo de después hecho no salta la nota")
+	PT.avanzar(nueva, vista({ nota = true, mochila = true, hacha = true }))
+	igual(nueva.paso, "Correr", "tutorial: leída, sigue por lo que falte")
+	local leyendo = PT.nuevo()
+	PT.avanzar(leyendo, vista({ nota = true }))
+	PT.avanzar(leyendo, vista({ nota = false }))
+	igual(leyendo.paso, "Mochila", "tutorial: leída una vez, no vuelve a la nota")
+	local deNoche = PT.nuevo()
+	PT.avanzar(deNoche, vista({ nota = false, fase = "Noche" }))
+	igual(deNoche.paso, "Cortinas", "tutorial: de noche la nota se deja, como lo demás del día")
 	local e = PT.nuevo()
 	igual(PT.avanzar(e, vista({})), false, "tutorial: empieza sin acabar")
-	igual(e.paso, "Mochila", "tutorial: primero la mochila")
+	igual(e.paso, "Mochila", "tutorial: con la nota leída, la mochila")
 	PT.avanzar(e, vista({ mochila = true }))
 	igual(e.paso, "Hacha", "tutorial: luego el hacha")
 	PT.avanzar(e, vista({ hacha = true }))
@@ -1099,8 +1274,10 @@ do
 	PT.avanzar(tarde, vista({ fase = "Noche", noche = 4, cortinas = 0 }))
 	igual(tarde.paso, "Amanecer", "tutorial: entrar de noche con todo cerrado")
 	igual(PT.avanzar(tarde, vista({ fase = "Dia", noche = 5, quedan = 5 })), true, "tutorial: amanecer visto ya de tarde")
-	igual(PT.numero("Cortinas"), 8, "tutorial: número del paso")
-	igual(PT.numero("Correr"), 3, "tutorial: correr va tras el hacha")
+	igual(PT.numero("Nota"), 1, "tutorial: la nota es el primero")
+	igual(PT.DIA[1], "Nota", "tutorial: la nota abre los del día")
+	igual(PT.numero("Cortinas"), 9, "tutorial: número del paso")
+	igual(PT.numero("Correr"), 4, "tutorial: correr va tras el hacha")
 	igual(#PT.LISTA, #PT.DIA + 3, "tutorial: los del día y los tres de la noche")
 	igual(PT.numero("Nada"), 0, "tutorial: paso que no existe")
 end
@@ -1199,6 +1376,24 @@ do
 	igual(PR.alcanceOido(8, true, true), math.min(8, CP.VerCubierto), "esconderse: debajo de algo casi no te oyen")
 	igual(PR.alcanceOido(1, true, true), 1, "esconderse: nunca más lejos que su oído")
 	igual(PR.alcanceOido(1, true, false), 1, "esconderse: agachado, tampoco")
+	-- Sigilo: quieto no haces ruido, las paredes tapan el oído y la linterna te delata agachado.
+	local CC = Config.Correr
+	igual(PR.alcanceOido(8, false, false, false, false), math.min(8, CP.OirQuieto), "sigilo: quieto casi no te oyen")
+	igual(PR.alcanceOido(8, false, false, false, true), 8, "sigilo: andando, como siempre")
+	igual(PR.alcanceOido(8, false, false, true, false), CC.Oido, "sigilo: corriendo se oye aunque no avance")
+	igual(PR.alcanceOido(8, false, false, false, true, true), 8 * CP.OirPared, "sigilo: tras la pared, menos")
+	igual(PR.alcanceOido(8, false, false, true, true, true), CC.Oido * CP.OirPared, "sigilo: corriendo tras la pared")
+	igual(PR.alcanceOido(8, false, false, false, false, true), math.min(8, CP.OirQuieto) * CP.OirPared, "sigilo: quieto y tapado")
+	igual(PR.alcanceOido(8, true, false, false, false), math.min(CP.OirAgachado, CP.OirQuieto), "sigilo: agachado y quieto")
+	igual(PR.alcanceOido(8, true, true, false, true), math.min(8, CP.VerCubierto), "sigilo: cubierto manda")
+	igual(PR.alcanceOido(8, false, false, nil, nil, nil), PR.alcanceOido(8, false, false), "sigilo: lo viejo da lo mismo")
+	igual(CP.OirQuieto < CP.OirAgachado and CP.OirPared > 0 and CP.OirPared < 1, true, "sigilo: números con sentido")
+	igual(CC.Oido * CP.OirPared > 8 * CP.OirPared and 8 * CP.OirPared >= CP.OirQuieto, true, "sigilo: correr tras la pared aún se oye")
+	igual(PR.alcanceVista(60, true, false, true), 60, "sigilo: agachado con luz te ven como de pie")
+	igual(PR.alcanceVista(60, true, false, false), 60 * CP.VistaAgachado, "sigilo: agachado sin luz, peor")
+	igual(PR.alcanceVista(60, true, true, true), CP.VerCubierto, "sigilo: cubierto con luz, el mueble manda")
+	igual(PR.alcanceVista(60, false, false, true), 60, "sigilo: de pie con luz, lo de siempre")
+	igual(PR.alcanceVista(60, true, false, nil), PR.alcanceVista(60, true, false), "sigilo: vista vieja da lo mismo")
 	local olor = 0
 	for _ = 1, 10 do
 		olor = PR.oler(olor, 0.25, CP.Olfato - 1)
@@ -1274,6 +1469,74 @@ do -- Caza.borde: por dónde se mete el bicho debajo de un mueble (sacada del te
 	local b3, c3 = borde(caja, estrecha, V3.new(0, 1, 2.9), lejos, 2.5, function(b) return b.Z > 3.5 end)
 	igual(b3, V3.new(0, 0, 5.5), "debajo: lado corto, en medio")
 	igual(c3, V3.new(0, 0, 3), "debajo: la cara, en la boca del hueco")
+end
+
+do -- Mochila.dentroDeCaja: lo que cae dentro de un armario o cama sale a su Salida (sacada del texto: Mochila necesita Roblox)
+	local roblox = require("@lune/roblox")
+	local V3, CF = roblox.Vector3, roblox.CFrame
+	local fuente = fs.readFile("src/juego/servidor/Mochila.luau")
+	local i = string.find(fuente, "function Mochila.dentroDeCaja(", 1, true)
+	local _, f = string.find(fuente, "\r?\nend\r?\n", i)
+	local dentro = luau.load("local Mochila = {}\n" .. string.sub(fuente, i, f) .. "\nreturn Mochila.dentroDeCaja",
+		{ debugName = "Mochila.dentroDeCaja", environment = { math = math } })()
+	-- Un armario de 4,6 × 8 × 3 girado 90°: lo ancho va a lo largo de Z.
+	local armario = CF.new(10, 4, -5) * CF.Angles(0, math.pi / 2, 0)
+	local tam = V3.new(4.6, 8, 3)
+	igual(dentro(armario, tam, V3.new(10, 3, -5), 0.5), true, "escondite: el centro del armario, dentro")
+	igual(dentro(armario, tam, V3.new(10, 3, -7.1), 0.5), true, "escondite: a lo ancho girado, dentro")
+	igual(dentro(armario, tam, V3.new(12.2, 3, -5), 0.5), false, "escondite: a 2,2 del centro por lo estrecho, fuera")
+	igual(dentro(armario, tam, V3.new(11.9, 3, -5), 0.5), true, "escondite: casi en la puerta cuenta con el margen")
+	igual(dentro(armario, tam, V3.new(10, 9, -5), 0.5), false, "escondite: encima del armario, fuera")
+end
+
+do -- Caza.tramoEscalera: todos los que cazan suben la escalera del vestíbulo (sacada del texto: Caza necesita Roblox)
+	local roblox = require("@lune/roblox")
+	local V3 = roblox.Vector3
+	local fuente = fs.readFile("src/juego/servidor/Caza.luau")
+	local i = string.find(fuente, "local PIE_ESCALERA", 1, true)
+	local j = string.find(fuente, "function Caza.tramoEscalera(", i, true)
+	local _, f = string.find(fuente, "\r?\nend\r?\n", j)
+	-- planta() mira Caza.dentroDeCasa (fuera, siempre la de abajo): también sacada del texto, con el Config de verdad.
+	local d = string.find(fuente, "function Caza.dentroDeCasa(", 1, true)
+	local _, fd = string.find(fuente, "\r?\nend\r?\n", d)
+	local trozo = string.sub(fuente, d, fd) .. string.sub(fuente, i, f)
+	local tramo = luau.load("local Caza = {}\n" .. trozo .. "\nreturn Caza.tramoEscalera", {
+		debugName = "Caza.tramoEscalera",
+		environment = { Vector3 = V3, Config = Config, plano = function(v) return V3.new(v.X, 0, v.Z) end },
+	})()
+	local PIE, ANTE, CIMA = V3.new(0, 1, -21), V3.new(0, 1, -25), V3.new(0, 14, 6)
+	local galeria, salon, cocina = V3.new(25, 14, -14), V3.new(25, 1, -15), V3.new(-30, 1, 11)
+	local function va(suelo, destino, punto, recto, etiqueta)
+		local p, r = tramo(suelo, destino)
+		igual((p - punto).Magnitude < 1e-4 and r == recto, true, etiqueta)
+	end
+	va(salon, cocina, cocina, false, "escalera: en la misma planta, por los caminos")
+	va(galeria, V3.new(-25, 14, 21), V3.new(-25, 14, 21), false, "escalera: arriba a arriba, por los caminos")
+	va(salon, galeria, ANTE, false, "escalera: de abajo a arriba, primero delante del pie")
+	va(V3.new(0.5, 1, -24.5), galeria, CIMA, true, "escalera: delante del pie, recto hasta arriba")
+	va(V3.new(4, 1, -24), galeria, ANTE, false, "escalera: de lado no sube (la barandilla), se pone de frente")
+	va(V3.new(0, 7, -10), galeria, CIMA, true, "escalera: a medio subir, sigue hasta arriba")
+	va(V3.new(0, 7, -10), salon, PIE, true, "escalera: a medio bajar, sigue hasta el pie")
+	va(galeria, salon, CIMA, false, "escalera: de arriba a abajo, primero a lo alto")
+	va(V3.new(1, 14, 7), salon, PIE, true, "escalera: en lo alto, recto hasta el pie")
+	va(V3.new(0, 1, -40), V3.new(0, 1, 31), V3.new(0, 1, 31), false, "escalera: el sótano y el pasillo, abajo")
+	-- Alguien en la misma escalera: recto a por él, y no al extremo de su planta (se iba al pie con él dos peldaños más
+	-- arriba). Y quien está fuera de ella entra siempre por un extremo.
+	va(V3.new(0, 3, -16), V3.new(0, 6, -12), V3.new(0, 6, -12), true, "escalera: los dos en ella, recto a por él")
+	va(salon, V3.new(0, 5, -13), ANTE, false, "escalera: a por quien está en los peldaños, por el pie")
+	va(V3.new(0, 1, -25), V3.new(0, 5, -13), V3.new(0, 5, -13), true, "escalera: desde el pie, recto a por él")
+	va(galeria, V3.new(0, 11, -4), CIMA, false, "escalera: desde arriba a por quien está en ella, por lo alto")
+	-- Fuera, en alto (la colina de la torre, cima en y 20, y su escalera): la misma planta que abajo, por los caminos
+	-- hacia él. Antes contaba como la de arriba y se iba al pie de la escalera del vestíbulo.
+	va(V3.new(80, 0, 230), V3.new(90, 12, 270), V3.new(90, 12, 270), false, "escalera: a por quien sube la colina, hacia él")
+	va(V3.new(90, 12, 270), salon, salon, false, "escalera: de la colina a la casa, por los caminos")
+	va(V3.new(90, 12, 270), galeria, ANTE, false, "escalera: de la colina arriba de la casa, por el pie")
+	-- El balcón (encima del porche) está fuera pero es de arriba: solo se llega por su puerta de la planta de arriba.
+	local balcon = V3.new(-5, 14, -37)
+	va(galeria, balcon, balcon, false, "escalera: de arriba al balcón, por los caminos (sin bajar)")
+	va(salon, balcon, ANTE, false, "escalera: de abajo al balcón, por la escalera del vestíbulo")
+	va(balcon, salon, CIMA, false, "escalera: del balcón abajo, primero a lo alto")
+	va(V3.new(-5, 1, -37), salon, salon, false, "escalera: el porche de abajo, abajo")
 end
 
 do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y workspace:Raycast no los ve)
@@ -1441,6 +1704,137 @@ do
 	igual(PR.alcanceOido(oido, false, true, true), math.min(oido, Config.Postura.VerCubierto), "correr: cubierto manda")
 end
 
+do -- Linde del mundo (MapaBosque.linde): todo lo que se usa queda dentro de la pared, y la pared no llega al borde del suelo
+	-- PuebloPlano usa Vector3 (sus lados): se carga aquí con el de Lune antes de que Linde lo pida.
+	local ruta = "src/juego/servidor/PuebloPlano"
+	cargados[ruta] = cargados[ruta] or luau.load(fs.readFile(ruta .. ".luau"),
+		{ debugName = ruta, environment = { Vector3 = require("@lune/roblox").Vector3 } })()
+	local Linde = cargar("src/juego/servidor/Linde")
+	local Plano = cargados[ruta]
+	local function dentro(x: number, z: number, holgura: number, que: string)
+		igual(Linde.dentro(x, z) and Linde.distancia(x, z) >= holgura, true, `linde: {que} ({x}, {z}) dentro`)
+	end
+	-- La casa, el coche de la huida por la carretera hasta el pueblo, y los sitios de Lugares con su radio.
+	dentro(0, 0, 300, "la casa")
+	for z = -73, -530, -19 do
+		dentro(0, z, 40, "la carretera")
+	end
+	for nombre, zona in { Granja = { 205, 75, 55 }, Aserradero = { -232, -86, 45 }, Torre = { 90, 285, 70 } } do
+		for _, d in { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, { 0.7, 0.7 }, { -0.7, -0.7 }, { 0.7, -0.7 }, { -0.7, 0.7 } } do
+			dentro(zona[1] + d[1] * zona[3], zona[2] + d[2] * zona[3], 25, nombre)
+		end
+	end
+	-- El pueblo con su cinturón de pinos (PuebloCalle.bosque: hasta 55 studs de los edificios).
+	local x1, x2, z1, z2 = Linde.pueblo()
+	for _, e in Plano.edificios do
+		dentro(e.x, e.z, 55, e.nombre)
+	end
+	for _, esquina in { { x1 - 55, z1 - 55 }, { x2 + 55, z1 - 55 }, { x1 - 55, z2 + 55 }, { x2 + 55, z2 + 55 } } do
+		dentro(esquina[1], esquina[2], 3, "el cinturón del pueblo")
+	end
+	-- Fuera: el llano pelado de antes y lo que hay más allá del pueblo.
+	for _, p in { { 470, 0 }, { -470, 0 }, { 0, 470 }, { 0, -640 }, { 160, -500 }, { -110, -500 } } do
+		igual(Linde.dentro(p[1], p[2]), false, `linde: ({p[1]}, {p[2]}) fuera`)
+	end
+	-- El contorno, cerrado y lejos del borde del suelo (±800) con su bosque de fuera (50 studs).
+	local tramos = Linde.tramos()
+	igual(#tramos >= 30 and tramos[#tramos].b == tramos[1].a, true, "linde: contorno cerrado con bastantes lados")
+	for _, t in tramos do
+		local largo = math.sqrt((t.b.x - t.a.x) ^ 2 + (t.b.z - t.a.z) ^ 2)
+		igual(largo > 1 and largo < 250 and math.abs(t.a.x) < 740 and math.abs(t.a.z) < 740, true, "linde: tramo razonable")
+	end
+	-- Los árboles de la linde: por dentro, pegados a la pared, sin pisar el pueblo ni la carretera; por fuera, fuera.
+	local semilla = 7
+	local azar = {
+		NextNumber = function(_, a: number, b: number)
+			semilla = (semilla * 1103515245 + 12345) % 2147483648
+			return a + (b - a) * semilla / 2147483648
+		end,
+	}
+	local de, fu = Linde.sitios(azar, 17, 5, 4, 52, true), Linde.sitios(azar, 21, 6, 6, 50, false)
+	igual(#de > 250 and #de < 600 and #fu > 150 and #fu < 600, true, `linde: cuántos árboles ({#de} dentro, {#fu} fuera)`)
+	local mal = 0
+	for _, s in de do
+		local d = Linde.distancia(s.x, s.z)
+		if not Linde.dentro(s.x, s.z) or d < 4 or d > 52 or Linde.carretera(s.x, s.z) or Linde.enPueblo(s.x, s.z, 55) then
+			mal += 1
+		end
+	end
+	for _, s in fu do
+		if Linde.dentro(s.x, s.z) or Linde.distancia(s.x, s.z) < 6 then
+			mal += 1
+		end
+	end
+	igual(mal, 0, "linde: árboles en su franja")
+end
+
+-- Llegar e irse sin saltos (Caza.llegarA, Caza.salir y la prórroga de Caza.cazar): sacado del texto, Caza necesita
+-- Roblox. Los cuatro que atacan una ventana o la chimenea llegan con llegarA y se van con salir (nunca irA a pelo a
+-- `dentro`, que se teletransportaba delante del jugador), y la prórroga no corre con prisa ni en el bosque.
+do
+	for _, cfg in { "LlegarMas", "Prorroga", "SalirMax", "VerLejos", "Candidatos", "PerderseMax" } do
+		local v = Config.Caza[cfg]
+		igual(type(v) == "number" and v > 0, true, `Config.Caza.{cfg}`)
+	end
+	local caza = fs.readFile("src/juego/servidor/Caza.luau")
+	for _, f in { "function Caza.nadieVe(", "function Caza.llegarA(", "function Caza.salir(" } do
+		igual(string.find(caza, f, 1, true) ~= nil, true, `Caza: {f}`)
+	end
+	local i = string.find(caza, "function Caza.cazar(", 1, true) :: number
+	local _, f = string.find(caza, "\r?\nend\r?\n", i)
+	local cazar = string.sub(caza, i, f)
+	igual(string.find(cazar, "while self.modelo and not self.prisa do", 1, true) ~= nil, true, "cazar: la prisa corta")
+	igual(string.find(cazar, "if soloFuera then fin else fin + PRORROGA", 1, true) ~= nil, true, "cazar: sin prórroga fuera")
+	igual(string.find(cazar, "ahora >= fin and not conPresa", 1, true) ~= nil, true, "cazar: prórroga solo con presa")
+	local salida = { Golpeador = "dentro", Raspador = "dentro", Imitador = "dentro", Trepador = "salida.Position" }
+	for nombre, donde in salida do
+		local fuente = fs.readFile(`src/juego/servidor/{nombre}.luau`)
+		igual(string.find(fuente, "b:llegarA(", 1, true) ~= nil, true, `{nombre}: llega con Caza.llegarA`)
+		igual(string.find(fuente, `b:salir({donde},`, 1, true) ~= nil, true, `{nombre}: se va con Caza.salir`)
+		igual(string.find(fuente, `b:irA({donde},`, 1, true), nil, `{nombre}: sin irA a pelo a la salida`)
+	end
+	local trepador = fs.readFile("src/juego/servidor/Trepador.luau")
+	local s = string.find(trepador, "b:salir(salida.Position", 1, true) :: number
+	igual((string.find(trepador, "\"Baja\", modelo", s, true) or 0) > s, true, "Trepador: sale antes de 'Baja'")
+	-- Caza.salir anda con Caza.ir, que baja la escalera del vestíbulo: la caza acaba a menudo arriba y las salidas están
+	-- abajo. Con irA o pasoHacia (los caminos no bajan esa escalera) se quedaba empujando la barandilla de la galería
+	-- 25 + 10 s y luego salía de golpe a la vista. Sacada del texto, con un reloj y un bicho de mentira.
+	local a = string.find(caza, "function Caza.salir(", 1, true) :: number
+	local _, z = string.find(caza, "\r?\nend\r?\n", a)
+	local reloj = 0
+	local salir = luau.load("local Caza = {}\n" .. string.sub(caza, a, z) .. "\nreturn Caza.salir", {
+		debugName = "Caza.salir",
+		environment = {
+			IR_SALIDA = 25,
+			SALIR_MAX = Config.Caza.SalirMax,
+			os = { clock = function() return reloj end },
+			task = { wait = function(t) reloj += t end },
+		},
+	})()
+	local usa, pasos = {}, 0
+	local function bicho(llega: number?, leVen: boolean)
+		pasos = 0
+		return {
+			modelo = {},
+			humanoide = { WalkSpeed = 0, MoveTo = function() end },
+			raiz = { Position = 0 },
+			cerca = function() return llega ~= nil and pasos >= llega end,
+			nadieVe = function() return not leVen end,
+			ir = function() pasos += 1; usa.ir = true end,
+			pasoHacia = function() usa.pasoHacia = true end,
+			irA = function() usa.irA = true end,
+		}
+	end
+	local b = bicho(nil, true) -- no llega y le ven: anda los 25 s y luego hasta SalirMax más
+	salir(b, 0, 7)
+	igual(b.humanoide.WalkSpeed, 7, "salir: a su velocidad")
+	igual(usa.ir == true and usa.pasoHacia == nil and usa.irA == nil, true, "salir: con Caza.ir (baja la escalera)")
+	igual(math.abs(reloj - (25 + Config.Caza.SalirMax)) < 1e-6, true, "salir: si le ven, hasta SalirMax más")
+	reloj = 0
+	salir(bicho(3, true), 0, 7) -- llega a la salida: para enseguida
+	igual(pasos == 3 and reloj < 1, true, "salir: al llegar, para")
+end
+
 -- Bancos (tests/bancos, 14.8): módulos del cliente con un Roblox de mentira (tests/bancos/_roblox.luau) y cuentas,
 -- cada uno en su propio proceso de Lune (no se pisan lo que tocan), todos a la vez (process.exec cede): el del gateo
 -- (~30 s, sus cinco bichos a la vez) marca el paso. Los que empiezan por "_" son ayudas, no bancos.
@@ -1475,6 +1869,37 @@ do
 			comprobaciones += 1
 		end
 	end
+end
+
+-- Depósito de gasoil de la granja (Recursos): lo de un día da para llenar un bidón entero y para una noche de luz, y
+-- no se mete en la casa de la granja, el granero ni el campo (Lugares.granja; el grifo y el bidón, al oeste).
+do
+	local D = Config.Deposito
+	assert(D.Dia >= 1, "el depósito tiene que llenar al menos un bidón al día")
+	assert(D.Dia * Config.Generador.PorBidon * Config.Generador.Deposito >= Config.Ciclo.Noche,
+		"lo de un día del depósito tiene que dar para una noche de generador")
+	assert(D.Llenar > 0 and D.Llenar <= 10, "llenar el bidón: unos segundos")
+	comprobaciones += 3
+	local x, z = D.Posicion[1], D.Posicion[3]
+	local hueco = { x - 5.2, x + 3.3, z - 1.9, z + 3.8 } -- cilindro, patas, grifo, el bidón debajo y donde cae
+	for nombre, r in { CasaGranja = { 187.5, 204.5, 45.5, 58.5 }, Granero = { 217, 239, 67, 93 }, Campo = { 179, 215, 91, 117 } } do
+		local cruza = hueco[1] < r[2] and hueco[2] > r[1] and hueco[3] < r[4] and hueco[4] > r[3]
+		igual(cruza, false, `el depósito no se mete en {nombre}`)
+	end
+end
+
+-- La linterna falla con un bicho cerca (EquipoVista) y el parpadeo de los sustos va después de ella.
+do
+	local CL = Config.Linterna
+	igual(CL.BichoCerca > 5 and CL.BichoCerca < CL.Alcance, true, "linterna: distancia de fallo por bicho razonable")
+	igual(CL.BichoFallo > 0 and CL.BichoFallo <= 0.6, true, "linterna: nunca a oscuras mucho rato por un bicho")
+	local function prioridad(ruta: string, patron: string): number?
+		local n = string.match(fs.readFile(ruta), patron)
+		return tonumber(n)
+	end
+	local equipo = prioridad("src/juego/cliente/EquipoVista.luau", 'BindToRenderStep%("Linterna", Enum%.RenderPriority%.Camera%.Value %+ (%d+)')
+	local sustos = prioridad("src/juego/cliente/Sustos/Util.luau", 'BindToRenderStep%(nombre, Enum%.RenderPriority%.Camera%.Value %+ (%d+), function%(%)\n\t\tlocal foco = Util%.miLinterna')
+	igual(equipo ~= nil and sustos ~= nil and sustos > equipo, true, "linterna: el parpadeo de los sustos va después de EquipoVista")
 end
 
 print(`Todo bien: {comprobaciones} comprobaciones.`)

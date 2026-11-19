@@ -4,6 +4,10 @@
 -- Cada cosa tiene un ProximityPrompt principal (persiana o puerta) y otro de reparar que sale solo si hace falta.
 -- Se repara clavando un tablón que se lleva en las manos (Cargar.alUsar "Tablon"). El tablón reforzado (del banco del
 -- sótano, Taller) la deja además con más vida (Config.Taller.Refuerzo) hasta que el bicho la rompa.
+-- Cerrojos (Config.Casa.Cerrojo): en las puertas de dentro (ni las que dan fuera, Atacable, ni las aún cerradas con
+-- llave; las de las salas ya abiertas, sí) el prompt de R sale como "Install bolt" mientras no tengan; con un Cerrojo
+-- en la mochila se pone en unos segundos (atributo Cerrojo del modelo, lo pinta CasaVista). Los jugadores abren y
+-- cierran como siempre; cerrada, el bicho no la abre de un empujón: la aporrea hasta reventarla (Casa.abrirPuerta).
 -- Los textos de los prompts van en inglés y el cliente los traduce al pintarlos (Controles).
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -16,19 +20,32 @@ local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Prueba = require(ReplicatedStorage.Shared.Prueba)
 local Cargar = require(script.Parent.Cargar)
+local Mochila = require(script.Parent.Mochila)
 
 local Casa = {}
 
 local cfg = Config.Casa
+local CERROJO = cfg.Cerrojo
+local azar = Random.new()
 local estados: { [Model]: Defensa.Estado } = {}
 -- La lista de Casa.puertas, hecha una vez (Caza la pide en cada paso de cada bicho): nil = hay que rehacerla (puerta
 -- nueva, abierta con llave o casa importada).
 local puertasSinLlave: { Model }? = nil
 local prompts: { [Model]: { principal: ProximityPrompt, reparar: ProximityPrompt } } = {}
 local gastarLlave: ((jugador: Player, llave: string) -> boolean)? = nil -- lo pone Llaves
+-- Una ventana o puerta en la que ya se está trabajando (clavando un tablón o poniendo un cerrojo): si llegaba otro con
+-- un tablón, el suyo se gastaba sin hacer nada.
+local clavando: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+-- Cuándo aporreó el bicho por última vez cada puerta con cerrojo (Casa.abrirPuerta): un golpe cada CERROJO.Cada s.
+local aporreada: { [Model]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 local function ahora(): number
 	return workspace:GetServerTimeNow()
+end
+
+-- ¿Se le puede poner un cerrojo ahora? Puerta de dentro (no da fuera ni sigue cerrada con llave), entera y sin él.
+local function admiteCerrojo(el: Model, e: Defensa.Estado): boolean
+	return e.tipo == "Puerta" and not e.cerrojo and not e.bloqueada and e.vida > 0 and not el:GetAttribute("Atacable")
 end
 
 local function publicar(el: Model)
@@ -71,8 +88,13 @@ local function publicar(el: Model)
 		end
 		p.principal.ActionText = if e.abierta then "Close" else "Open"
 		p.principal.Enabled = e.vida > 0
+		el:SetAttribute("Cerrojo", e.cerrojo)
 	end
-	p.reparar.Enabled = Defensa.necesitaReparar(e)
+	-- R: reparar si hace falta; si no, en una puerta de dentro sin cerrojo, ponerlo (así se sabe que existe).
+	local reparar = Defensa.necesitaReparar(e)
+	local cerrojo = not reparar and admiteCerrojo(el, e)
+	p.reparar.ActionText = if cerrojo then "Install bolt" else "Repair"
+	p.reparar.Enabled = reparar or cerrojo
 end
 
 -- ¿Puede este jugador tocarlo? Vivo, fuera de un escondite, cerca y, si es una ventana, desde dentro de la casa.
@@ -92,6 +114,38 @@ local function puede(jugador: Player, el: Model): boolean
 		return (raiz.Position - centro.Position):Dot(centro.LookVector) < 0
 	end
 	return true
+end
+
+-- R en una puerta de dentro sin cerrojo: con uno en la mochila, unos segundos a martillazos (como en el banco) y queda
+-- puesto. Se gasta al acabar, y solo si sigue pudiéndose (en esos segundos el bicho pudo reventarla).
+local function ponerCerrojo(jugador: Player, el: Model)
+	local e = estados[el]
+	if e.cerrojo then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "It already has a bolt."))
+		return
+	end
+	if not admiteCerrojo(el, e) or jugador:GetAttribute("Trabajando") or jugador:GetAttribute("Cargando") then
+		return
+	end
+	if clavando[el] then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Someone is already using it."))
+		return
+	end
+	if Mochila.contar(jugador, "Cerrojo") < 1 then
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "You need a bolt. Make one at the workbench."))
+		return
+	end
+	clavando[el] = true
+	-- "Fabricar" y no "Clavar": los clavos de Clavar van en el tablón y aquí no hay tablón (se quedaban en el aire).
+	local bien = Cargar.trabajar(jugador, "Fabricar", el:FindFirstChild("Mando") :: BasePart,
+		CERROJO.Poner * Stats.valor(jugador, "Trabajo"))
+	clavando[el] = nil
+	e = estados[el] -- importar cambia la tabla
+	if not bien or not puede(jugador, el) or not admiteCerrojo(el, e) or not Mochila.sacar(jugador, "Cerrojo") then
+		return
+	end
+	Defensa.ponerCerrojo(e)
+	publicar(el)
 end
 
 local function nuevoPrompt(mando: BasePart, tecla: Enum.KeyCode, mandoTecla: Enum.KeyCode, texto: string): ProximityPrompt
@@ -150,10 +204,16 @@ local function preparar(el: Model, tipo: string)
 			publicar(el)
 		end
 	end)
-	-- Se repara con un tablón en las manos (Cargar, R): este prompt solo sale con las manos libres y lo recuerda.
+	-- Se repara con un tablón en las manos (Cargar, R): este prompt solo sale con las manos libres y lo recuerda. En
+	-- una puerta de dentro entera, pone el cerrojo.
 	reparar.Triggered:Connect(function(jugador)
-		if puede(jugador, el) and Defensa.necesitaReparar(estados[el]) then
+		if not puede(jugador, el) then
+			return
+		end
+		if Defensa.necesitaReparar(estados[el]) then
 			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "Bring a plank to repair it."))
+		elseif tipo == "Puerta" then
+			ponerCerrojo(jugador, el)
 		end
 	end)
 	publicar(el)
@@ -216,11 +276,30 @@ function Casa.romper(el: Model)
 	publicar(el)
 end
 
--- El bicho abre de un golpe una puerta cerrada (sin llave) que le estorba. true si la ha abierto.
-function Casa.abrirPuerta(el: Model): boolean
+-- El bicho abre de un golpe una puerta cerrada (sin llave) que le estorba. true si la ha abierto. Con cerrojo no se
+-- abre: cada vez que la empuja la aporrea (un golpe cada CERROJO.Cada s por puerta; sube Golpes y el cliente la hace
+-- temblar y sonar) y le quita vida (Defensa.golpeCerrojo) hasta reventarla: entonces true. Con `rompeCerrojos` (la
+-- Bestia) revienta al primero.
+function Casa.abrirPuerta(el: Model, rompeCerrojos: boolean?): boolean
 	local e = estados[el]
 	if e.tipo ~= "Puerta" or e.abierta or e.bloqueada then
 		return false
+	end
+	if e.cerrojo then
+		local t = ahora()
+		if not rompeCerrojos and t < (aporreada[el] or -math.huge) + CERROJO.Cada then
+			return false
+		end
+		aporreada[el] = t
+		local entra = true
+		if rompeCerrojos then
+			Defensa.romper(e, cfg)
+		else
+			entra = Defensa.golpeCerrojo(e, azar:NextNumber(CERROJO.Dano[1], CERROJO.Dano[2]), cfg) == "Entra"
+		end
+		el:SetAttribute("Golpes", (el:GetAttribute("Golpes") or 0) + 1)
+		publicar(el)
+		return entra
 	end
 	e.abierta = true
 	e.cambio = ahora()
@@ -261,14 +340,15 @@ function Casa.cerradas(): { string }
 	return lista
 end
 
--- Lo que se guarda de la casa (Partida, al amanecer): [clave] = { vida, persiana, cristal, abierta, bloqueada, refuerzo }.
+-- Lo que se guarda de la casa (Partida, al amanecer): [clave] = { vida, persiana, cristal, abierta, bloqueada, refuerzo,
+-- cerrojo }.
 function Casa.exportar()
 	local t = {}
 	for el, e in estados do
 		local clave = el:GetAttribute("Clave")
 		if clave then
 			t[clave] = { vida = e.vida, persiana = e.persiana, cristal = e.cristal, abierta = e.abierta, bloqueada = e.bloqueada,
-				refuerzo = e.refuerzo or nil }
+				refuerzo = e.refuerzo or nil, cerrojo = e.cerrojo or nil }
 		end
 	end
 	return t
@@ -303,6 +383,10 @@ function Casa.importar(t)
 			if g.bloqueada ~= nil then
 				e.bloqueada = g.bloqueada
 			end
+			-- Solo donde se puede poner (una partida vieja o tocada no lo cuela en la puerta principal).
+			if g.cerrojo and admiteCerrojo(el, e) then
+				Defensa.ponerCerrojo(e)
+			end
 		end
 		estados[el] = e
 		publicar(el)
@@ -336,9 +420,6 @@ local function prepararClavar(jugador: Player, el: Instance, pieza: BasePart): (
 	local lado = if bisagra:PointToObjectSpace(raiz.Position).Z >= 0 then 1 else -1
 	return bisagra * CFrame.new(el:GetAttribute("Ancho") / 2, 4.5, 0.6 * lado) * inclinado, Config.Talar.Clavar
 end
-
--- Una ventana o puerta que ya se está clavando: si llegaba otro con un tablón, el suyo se gastaba sin hacer nada.
-local clavando: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 local function empezarClavar(jugador: Player, el: Instance, pieza: BasePart): (CFrame?, number?)
 	if clavando[el] then
@@ -388,7 +469,8 @@ function Casa.start()
 		preparar(el, "Ventana")
 	end
 	-- Con las manos ocupadas no salen los prompts: una puerta cerrada se abre de un empujón al ir hacia ella. Menos la
-	-- que está golpeando el bicho: al llevarle un tablón para clavarlo se abría sin querer y le dejaba entrar.
+	-- que está golpeando el bicho: al llevarle un tablón para clavarlo se abría sin querer y le dejaba entrar. La de
+	-- cerrojo que aporrea no pone `atacada`: se mira cuándo la golpeó por última vez.
 	task.spawn(function()
 		while true do
 			task.wait(0.2)
@@ -401,6 +483,7 @@ function Casa.start()
 					local mando = el:FindFirstChild("Mando") :: BasePart
 					local hacia = (mando.Position - raiz.Position) * Vector3.new(1, 0, 1)
 					if e.tipo == "Puerta" and not e.abierta and not e.bloqueada and not e.atacada and hacia.Magnitude < 4.5
+						and not (e.cerrojo and ahora() - (aporreada[el] or -math.huge) < CERROJO.Cada * 3)
 						and hacia.Unit:Dot(raiz.CFrame.LookVector) > 0.5 and Defensa.puerta(e, ahora(), cfg) then
 						publicar(el)
 					end

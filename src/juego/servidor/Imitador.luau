@@ -1,6 +1,7 @@
 -- El Imitador (desde la noche Config.Imitador.Noche): se planta en la puerta principal y llama con la voz de uno de
--- vosotros ("soy Sergio, abre"). Hay que mirar en el móvil si ese amigo está fuera de verdad. Si alguien abre la puerta
--- mientras está ahí (o se la encuentra abierta), entra: ruge y caza como el Golpeador. Si nadie abre, se cansa y se va.
+-- vosotros ("soy Sergio, abre"), casi siempre la del que acaba de morir esta noche (o, solo, a veces la de Tom). Hay
+-- que mirar en el móvil si ese amigo está fuera de verdad. Si alguien abre la puerta mientras está ahí (o se la
+-- encuentra abierta), entra: ruge y caza como el Golpeador. Si nadie abre, se cansa y se va.
 -- A quien sale a mirar, le caza. La primera noche que sale, al primer golpe en la puerta se va la luz (Generador).
 -- De lejos y a oscuras parece una persona; al entrar se le estira el cuello y abre la boca (ImitadorVista).
 -- Atributo del modelo para el cliente: Abierto (le han abierto y entra).
@@ -10,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Lang = require(ReplicatedStorage.Shared.Lang)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local RepartoBichos = require(ReplicatedStorage.Shared.RepartoBichos)
 local Casa = require(script.Parent.Casa)
 local Bichos = require(script.Parent.Bichos)
 local Caza = require(script.Parent.Caza)
@@ -95,28 +97,48 @@ local function crear(cf: CFrame): Caza.Bicho
 	})
 end
 
--- A quién imita: a uno de los que no están junto a la puerta (si estás solo, a ti).
-local function elegirAmigo(puerta: Vector3): Player?
-	local lista = {}
+-- ¿Alguien ha visto ya la foto de Tom? (atributo de workspace PistasLeidas: "1,2,9")
+local function tomLeida(): boolean
+	local leidas = workspace:GetAttribute("PistasLeidas")
+	if type(leidas) ~= "string" then
+		return false
+	end
+	for n in string.gmatch(leidas, "%d+") do
+		if tonumber(n) == I.Antiguo.Pista then
+			return true
+		end
+	end
+	return false
+end
+
+-- A quién imita (RepartoBichos.voz): casi siempre al que ha muerto esta noche, si lo hay; si no, a uno de los que no
+-- están junto a la puerta; jugando solo, a ti o, si has visto su foto, a veces a Tom. Devuelve el nombre y el jugador
+-- (nil con Tom).
+local function elegirAmigo(puerta: Vector3): (string, Player?)
+	local muertos, lejos = {}, {}
+	for _, jugador in Players:GetPlayers() do
+		if jugador:GetAttribute("Muerto") then
+			table.insert(muertos, jugador)
+		end
+	end
 	for _, jugador in Muerte.vivos() do
 		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz and (raiz.Position - puerta).Magnitude > I.AmigoLejos then
-			table.insert(lista, jugador)
+			table.insert(lejos, jugador)
 		end
 	end
-	if #lista == 0 then
-		lista = Players:GetPlayers()
-	end
-	return if #lista > 0 then lista[azar:NextInteger(1, #lista)] else nil
+	local nombre, jugador = RepartoBichos.voz(muertos, lejos, Players:GetPlayers(), tomLeida(), azar, I)
+	return nombre or "", jugador
 end
 
--- Lo que dice, a los que le oyen (cerca de la puerta).
-local function decir(puerta: Vector3, frase: string, amigo: Player?)
+-- Lo que dice, a los que le oyen (cerca de la puerta). `nombre`: la voz que pone; `amigo`: el jugador al que imita (al
+-- que la primera llamada le dice que es su voz).
+local function decir(puerta: Vector3, frase: string, nombre: string, amigo: Player?)
 	for _, jugador in Players:GetPlayers() do
 		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz and (raiz.Position - puerta).Magnitude <= I.Oido then
-			local texto = if jugador == amigo and frase == FRASES[1] then SU_VOZ else frase
-			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, texto, { name = if amigo then amigo.DisplayName else "" }))
+			local texto = if amigo and jugador == amigo and frase == FRASES[1] then SU_VOZ else frase
+			Remotes.Aviso:FireClient(jugador, Lang.t(jugador, texto, { name = nombre }))
 		end
 	end
 end
@@ -133,7 +155,9 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 	local dentro = el:GetAttribute("Dentro") :: Vector3
 	local normal = plano(centro.LookVector).Unit
 	local lado = normal:Cross(Vector3.yAxis)
-	local inicio = fuera + normal * 75 + lado * azar:NextNumber(-25, 25)
+	-- Desde donde nadie le vea aparecer (Caza.sitioSinVer): el sitio de siempre u otro más hondo o más a un lado.
+	local inicio = Caza.sitioSinVer(Caza.llegadas(fuera + normal * 75 + lado * azar:NextNumber(-25, 25), fuera, normal, lado,
+		ALTURA), ALTURA)
 	local lejos = fuera + normal * 110 + lado * azar:NextNumber(-40, 40)
 	local delante = Vector3.new(centro.X, fuera.Y, centro.Z) + normal * 2.5 -- pegado a la puerta, esperando a que le abran
 	local b = crear(CFrame.lookAt(inicio + Vector3.new(0, ALTURA, 0), fuera + Vector3.new(0, ALTURA, 0)))
@@ -141,29 +165,35 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 	b.prisa = a.prisa
 	local modelo = b.modelo :: Model
 
-	b:irA(delante, I.Andar, 35, function()
+	-- Si se atasca por el camino, no llama desde lejos (Caza.llegarA).
+	b:llegarA(delante, I.Andar, 35, function()
 		return not b.prisa and b:elegirPresa(true) == nil
-	end)
+	end, centro.Position)
 	if b.prisa or b:elegirPresa(true) then
 		if not b.prisa then
 			b:cazar(I.Caza / 2, true)
 		end
-		b:irA(lejos, I.Andar, 25)
+		b:perderse(lejos, I.Andar, 25) -- sin esfumarse a la vista (Caza.perderse)
 		return
 	end
 	b.humanoide.AutoRotate = false
 	b:mirarA(centro.Position)
 
 	-- Llama unas cuantas veces; entre llamada y llamada, si alguien abre, entra.
-	local amigo = elegirAmigo(centro.Position)
+	local nombre, amigo = elegirAmigo(centro.Position)
 	local abierta = Casa.estado(el).abierta
 	local salio = false
 	for i = 1, I.Llamadas do
-		if abierta or b.prisa then
+		-- Aturdido (flash o cepo): ni golpes ni voz mientras se tapa la cara; llama cuando se le pase.
+		while b.modelo and not b.prisa and b:quieto() do
+			task.wait(0.2)
+		end
+		abierta = abierta or Casa.estado(el).abierta
+		if abierta or b.prisa or not b.modelo then
 			break
 		end
 		Remotes.Imitador:FireAllClients("Llama", modelo)
-		decir(centro.Position, FRASES[math.min(i, #FRASES)], amigo)
+		decir(centro.Position, FRASES[math.min(i, #FRASES)], nombre, amigo)
 		if i == 1 and apagon then
 			-- Se va la luz justo al llamar (solo si estaba encendida). Solo aquí se da el apagón por hecho: si se va sin
 			-- llamar (caza fuera o se encuentra la puerta abierta), le toca al siguiente Imitador de la noche.
@@ -180,7 +210,11 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 		end
 		local hasta = os.clock() + rango(I.CadaLlamada) * paciencia
 		while os.clock() < hasta and not b.prisa do
+			local antes = os.clock()
 			task.wait(0.2)
+			if b:quieto() then
+				hasta += os.clock() - antes -- el rato aturdido no cuenta entre llamadas
+			end
 			if Casa.estado(el).abierta then
 				abierta = true
 				break
@@ -206,15 +240,15 @@ local function ataque(a: Ataque, el: Model, _noche: number, paciencia: number, a
 		modelo:PivotTo(CFrame.lookAt(pie, pie - normal))
 		task.wait(I.Grito)
 		b:cazar(I.Caza, false)
-		b:irA(dentro, I.Andar, 25)
+		b:salir(dentro, I.Andar) -- sin salir de golpe a la vista
 		local pieFuera = fuera + Vector3.new(0, ALTURA, 0)
 		if b.modelo then
 			b.modelo:PivotTo(CFrame.lookAt(pieFuera, pieFuera + normal))
 		end
 	elseif not b.prisa then
-		decir(centro.Position, ULTIMA, amigo)
+		decir(centro.Position, ULTIMA, nombre, amigo)
 	end
-	b:irA(lejos, I.Andar, 25)
+	b:perderse(lejos, I.Andar, 25)
 end
 
 local function terminar(a: Ataque)

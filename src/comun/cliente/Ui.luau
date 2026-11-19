@@ -2,6 +2,7 @@
 -- desgastadas sobre papel viejo, algo de rojo oscuro. Todo pasa por aquí para que se vea igual.
 -- Todo el HUD cuelga de una sola capa (Ui.hud) con un UIScale que lo encoge en pantallas pequeñas.
 -- Textos de botones y títulos en mayúsculas.
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -132,6 +133,68 @@ function Ui.cerrarConB(estaAbierta: () -> boolean, cerrar: () -> (), conEscape: 
 	end)
 end
 
+-- Selección del mando (docs/sistemas/movil.md): con mando, la A solo pulsa el botón elegido (GuiService.SelectedObject).
+-- Cada ventana elige el suyo al abrirse (Ui.seleccionar) y lo suelta al cerrarse (Ui.soltarSeleccion); el borde claro
+-- que lo marca es el de Ui.hud. El panel de fondo de cada ventana va con Selectable = false: si no, el mando lo elige.
+local function aLaVista(objeto: GuiObject): boolean
+	local actual: Instance? = objeto
+	while actual and actual:IsA("GuiObject") do
+		if not (actual :: GuiObject).Visible then
+			return false
+		end
+		actual = actual.Parent
+	end
+	-- Arriba del todo, su ScreenGui encendido y colgado del PlayerGui.
+	return actual ~= nil and actual:IsA("LayerCollector") and (actual :: LayerCollector).Enabled
+		and objeto:IsDescendantOf(jugador)
+end
+
+local function elegible(boton: GuiObject?): boolean
+	return boton ~= nil and boton.Selectable and boton.Interactable and aLaVista(boton)
+end
+
+-- Elige `boton` para el mando, solo si se está jugando con mando (o `siempre`, como el R3 de Ajustes) y se puede elegir.
+function Ui.seleccionar(boton: GuiObject?, siempre: boolean?)
+	if (siempre or tipoActual == "mando") and elegible(boton) then
+		GuiService.SelectedObject = boton
+	end
+end
+
+-- Quita la selección si es de `panel` (al cerrar una ventana, también al empezar su fundido): que no se quede marcado
+-- un botón escondido ni la A pulse algo que ya no se ve.
+function Ui.soltarSeleccion(panel: Instance)
+	local elegido = GuiService.SelectedObject
+	if elegido and (elegido == panel or elegido:IsDescendantOf(panel)) then
+		GuiService.SelectedObject = nil
+	end
+end
+
+-- Con `panel` abierto y mando: si no hay nada elegido, o lo elegido se ha escondido (la fila de la tienda ya
+-- comprada, la receta que se oculta), elige `principal()`. Para después de repintar una ventana. Lo elegido que se ve
+-- se respeta aunque sea de otra (Ajustes abierto encima con R3) o se haya apagado (Interactable = false, como EMPEZAR
+-- en la cuenta atrás): no se lo quita, porque saltar a otro botón haría que la siguiente A pulsara algo sin querer.
+function Ui.mantenerSeleccion(panel: GuiObject, principal: () -> GuiObject?)
+	local elegido = GuiService.SelectedObject
+	if tipoActual ~= "mando" or not aLaVista(panel)
+		or (elegido and elegido:IsA("GuiObject") and elegido.Selectable and aLaVista(elegido)) then
+		return
+	end
+	Ui.seleccionar(principal())
+end
+
+-- Al pasar al mando con la ventana abierta, elige `principal()`; al dejarlo (ratón, dedo), suelta lo de `panel`.
+function Ui.seleccionConMando(panel: GuiObject, estaAbierta: () -> boolean, principal: () -> GuiObject?)
+	Ui.alCambiarEntrada(function()
+		if not estaAbierta() then
+			return
+		elseif tipoActual == "mando" then
+			Ui.mantenerSeleccion(panel, principal)
+		else
+			Ui.soltarSeleccion(panel)
+		end
+	end)
+end
+
 -- Alto de un botón: el normal, o el de un dedo en pantallas táctiles.
 function Ui.alto(normal: number): number
 	return if Ui.tactil() then math.max(normal, Ui.DEDO) else normal
@@ -200,7 +263,23 @@ function Ui.hud(): ScreenGui
 	escala.Parent = gui
 	escalaHud = escala
 	hud = gui -- antes de esperar: si otro lo pide mientras tanto, es la misma capa
-	gui.Parent = jugador:WaitForChild("PlayerGui")
+	local playerGui = jugador:WaitForChild("PlayerGui") :: PlayerGui
+	gui.Parent = playerGui
+	-- El borde del botón que lleva elegido el mando, con el estilo del juego (el de Roblox es un azul chillón): un marco
+	-- vacío con un trazo color hueso de 3 px y las esquinas del botón. Vale para todas las ventanas de este jugador.
+	local marca = Instance.new("Frame")
+	marca.Name = "SeleccionMando"
+	marca.BackgroundTransparency = 1
+	marca.BorderSizePixel = 0
+	local trazo = Instance.new("UIStroke")
+	trazo.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	trazo.Color = Ui.Color.Hueso
+	trazo.Thickness = 3
+	trazo.Parent = marca
+	local redondo = Instance.new("UICorner")
+	redondo.CornerRadius = UDim.new(0, 4)
+	redondo.Parent = marca
+	playerGui.SelectionImageObject = marca
 	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		escalar(gui, escala)
 	end)
@@ -240,6 +319,7 @@ end
 function Ui.boton(texto: string, props: { [string]: any }?): TextButton
 	local b = Instance.new("TextButton")
 	b.AutoButtonColor = false
+	b.Selectable = true -- el mando lo puede elegir (Ui.seleccionar); el de Roblox ya lo es, aquí se dice
 	b.BackgroundColor3 = Ui.Color.Papel
 	b.BackgroundTransparency = 0.15
 	b.FontFace = Ui.Fuente
@@ -288,14 +368,41 @@ function Ui.mancha(padre: GuiObject): Frame
 	return mancha
 end
 
--- Aviso de una sola línea abajo en el centro que se va solo.
-local avisoActual: TextLabel? = nil
-function Ui.aviso(texto: string, segundos: number?)
-	if avisoActual then
-		avisoActual:Destroy()
+-- Avisos de una sola línea abajo en el centro que se van solos (docs/sistemas/movil.md). Nunca hay más de uno en
+-- pantalla y no se pisan: al amanecer llegan a la vez el del amanecer y el del premio y antes uno borraba al otro.
+--   misma frase que la que se ve: solo se alarga su tiempo (pulsar E en una puerta cerrada no la hace parpadear);
+--   otra distinta: espera en una cola corta a que la de ahora lleve MINIMO_AVISO a la vista y entonces la de ahora se
+--   funde en 0,2 s y sale la siguiente; la que pide sus segundos (morir: 5) se ve entera antes de dejar paso.
+local MINIMO_AVISO = 1.4 -- s que se ve un aviso antes de dejar paso al siguiente (a ojo)
+local DURACION_AVISO = 3.5 -- s que se ve si nadie dice otra cosa
+local COLA_AVISOS = 3 -- avisos esperando como mucho; si llega otro, se olvida el más viejo
+type Aviso = {
+	texto: string,
+	desde: number, -- cuándo salió
+	hasta: number, -- cuándo empieza a irse si no hay nadie esperando
+	minimo: number, -- lo que se ve como poco aunque haya cola
+	saliendo: boolean,
+	revivir: boolean, -- se repitió mientras se fundía: vuelve a verse
+}
+local avisoActual: Aviso? = nil
+type Colocar = (TextLabel) -> ()
+local colaAvisos: { { texto: string, segundos: number?, colocar: Colocar? } } = {}
+local VISIBLE = { TextTransparency = 0, TextStrokeTransparency = 0.4 }
+local OCULTO = { TextTransparency = 1, TextStrokeTransparency = 1 }
+
+local mostrarAviso: (texto: string, segundos: number?, entrada: number, colocar: Colocar?) -> ()
+
+local function siguienteAviso()
+	if avisoActual == nil and #colaAvisos > 0 then
+		local s = table.remove(colaAvisos, 1)
+		mostrarAviso(s.texto, s.segundos, 0.25, s.colocar) -- encadenado: entra algo más rápido
 	end
+end
+
+function mostrarAviso(texto: string, segundos: number?, entrada: number, colocar: Colocar?)
 	local tactil = Ui.tactil()
 	local t = Ui.texto(texto, {
+		Name = "Aviso",
 		AnchorPoint = Vector2.new(0.5, 1),
 		-- Encima del botón SALIR del escondite; en el móvil, más arriba aún: abajo están los botones del equipo.
 		Position = UDim2.fromScale(0.5, if tactil then 0.64 else 0.76),
@@ -310,16 +417,91 @@ function Ui.aviso(texto: string, segundos: number?)
 	})
 	Ui.queQuepa(t, 26) -- y si aun así no cabe (otros idiomas), la letra encoge
 	t.Parent = Ui.hud()
-	avisoActual = t
-	TweenService:Create(t, TweenInfo.new(0.4), { TextTransparency = 0, TextStrokeTransparency = 0.4 }):Play()
-	task.delay(segundos or 3.5, function()
-		if t.Parent then
-			local fuera = TweenService:Create(t, TweenInfo.new(1), { TextTransparency = 1, TextStrokeTransparency = 1 })
+	if colocar then
+		colocar(t) -- quien lo pidió lo mueve si tapa algo suyo (PistasUi: el papel)
+	end
+	local ahora = os.clock()
+	local a: Aviso = {
+		texto = texto,
+		desde = ahora,
+		hasta = ahora + (segundos or DURACION_AVISO),
+		minimo = math.max(MINIMO_AVISO, segundos or 0),
+		saliendo = false,
+		revivir = false,
+	}
+	avisoActual = a
+	TweenService:Create(t, TweenInfo.new(entrada), VISIBLE):Play()
+	task.spawn(function()
+		while true do
+			-- A la vista hasta su hora, o hasta cumplir el mínimo si alguien espera.
+			while t.Parent do
+				local reloj = os.clock()
+				if reloj >= a.hasta or (#colaAvisos > 0 and reloj >= a.desde + a.minimo) then
+					break
+				end
+				task.wait(0.05)
+			end
+			-- Se funde: en 1 s si se va sola, en 0,2 s si hay otra esperando (también si llega mientras se funde).
+			a.saliendo = true
+			local rapido = #colaAvisos > 0
+			local fuera = TweenService:Create(t, TweenInfo.new(if rapido then 0.2 else 1), OCULTO)
 			fuera:Play()
-			fuera.Completed:Wait()
-			t:Destroy()
+			local fin = os.clock() + (if rapido then 0.2 else 1)
+			while t.Parent and os.clock() < fin and not a.revivir do
+				task.wait(0.03)
+				if not rapido and #colaAvisos > 0 then
+					rapido = true
+					fuera:Cancel()
+					fuera = TweenService:Create(t, TweenInfo.new(0.2), OCULTO)
+					fuera:Play()
+					fin = math.min(fin, os.clock() + 0.2)
+				end
+			end
+			a.saliendo = false
+			if not (a.revivir and t.Parent) then
+				break
+			end
+			-- Se repitió la frase mientras se iba: vuelve a verse entera y sigue contando.
+			a.revivir = false
+			fuera:Cancel()
+			TweenService:Create(t, TweenInfo.new(0.15), VISIBLE):Play()
 		end
+		t:Destroy()
+		if avisoActual == a then
+			avisoActual = nil
+		end
+		siguienteAviso()
 	end)
+end
+
+-- `colocar` (opcional) recibe el texto al salir, también si sale después desde la cola (PistasUi lo sube si tapa el papel).
+function Ui.aviso(texto: string, segundos: number?, colocar: Colocar?)
+	local a = avisoActual
+	if a and a.texto == texto then
+		-- La misma frase: no se rehace, solo dura más (y si se estaba yendo sin nadie detrás, vuelve).
+		a.hasta = math.max(a.hasta, os.clock() + (segundos or DURACION_AVISO))
+		if a.saliendo and #colaAvisos == 0 then
+			a.revivir = true
+		end
+		return
+	end
+	for _, s in colaAvisos do
+		if s.texto == texto then
+			-- Ya espera: no se repite, pero se queda con los segundos más largos que se pidan.
+			if segundos and segundos > (s.segundos or DURACION_AVISO) then
+				s.segundos = segundos
+			end
+			return
+		end
+	end
+	if a == nil then
+		mostrarAviso(texto, segundos, 0.4, colocar)
+		return
+	end
+	if #colaAvisos >= COLA_AVISOS then
+		table.remove(colaAvisos, 1)
+	end
+	table.insert(colaAvisos, { texto = texto, segundos = segundos, colocar = colocar })
 end
 
 return Ui

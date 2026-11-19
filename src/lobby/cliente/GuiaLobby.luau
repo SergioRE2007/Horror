@@ -2,16 +2,16 @@
 -- invadir más la pantalla y decir más vistoso dónde clicar" (la mitad de los nuevos se iba en 5 minutos). El lobby era una
 -- explanada oscura sin ninguna pista.
 --   Una sola línea de papel arriba en el centro y una flecha roja grande, que sube y baja, sobre lo que hay que tocar
---   (se ve a través de las paredes); si no está delante, otra flecha en el borde de la pantalla señala hacia dónde
---   girarse. Dos etapas, que decide el servidor (lobby/servidor/GuiaLobby) y publica en el atributo `GuiaLobby`:
+--   (se ve a través de las paredes); si no está en la pantalla, otra flecha en el borde señala hacia dónde girarse (si
+--   está detrás, a media altura en el borde izquierdo o derecho, hacia donde girar). Dos etapas, que decide el servidor (lobby/servidor/GuiaLobby) y publica en el atributo `GuiaLobby`:
 --     "Coche"  nunca ha jugado: "Get in the car", la flecha va al coche libre más cercano. Se apaga al sentarse (atributo
 --              `Coche`) y vuelve si se baja.
 --     "Tienda" ya ha jugado y no ha comprado clase: "Your first class is free" (es cierto: Comprar.precioClase), la
 --              flecha va al mostrador. Se apaga al abrir la tienda, al comprar, al subirse a un coche o a los
 --              Config.Lobby.Guia.TiendaSegundos s. El servidor la da una sola vez por cuenta.
 --   Todo cuelga de la capa común del HUD (Ui.hud, con su UIScale), el bucle es el de Bucle y solo corre mientras se ve.
---   En el móvil la flecha del borde no se pega a las esquinas de abajo (botón de saltar) ni de arriba (botones de
---   Roblox) y el cartel, centrado y estrecho (460), deja libres los lados. Con Rendimiento, sin vaivén ni deslizamiento.
+--   La flecha del borde no se mete bajo el cartel; en el móvil no se pega a las esquinas de abajo (botón de saltar) ni
+--   de arriba (botones de Roblox) y el cartel, centrado y estrecho (460), deja libres los lados. Con Rendimiento, sin vaivén ni deslizamiento.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -48,6 +48,7 @@ local clasesAl: any = nil -- lo comprado al aparecer la etapa de la tienda: si c
 local etapaActual: string? = nil
 local objetivo: BasePart? = nil
 local proxima = 0
+local ladoAnterior = 1 -- a qué lado iba la flecha de detrás: justo a la espalda no cambia de lado a cada fotograma
 local vez = 0 -- sube al enseñar o esconder el cartel: el deslizamiento de antes ya no lo esconde
 
 local function rendimiento(): boolean
@@ -91,6 +92,40 @@ local function flecha(padre: Instance, lado: UDim2): Frame
 	caja.Parent = padre
 	return caja
 end
+
+-- Dónde va la flecha del borde (en píxeles de diseño del HUD) y hacia dónde apunta (unitario, en la pantalla).
+--   tam: la pantalla en píxeles de verdad; punto: lo que da WorldToViewportPoint (su Z es la profundidad: <= 0, detrás);
+--   lado: la X de lo señalado vista desde la cámara (su signo dice a qué lado girarse); escala: la del HUD;
+--   margenLado, margenArriba, margenAbajo: del centro de la flecha a cada borde, en píxeles de diseño.
+-- Delante pero fuera de la pantalla: en el borde, en la dirección en que está. Detrás, la proyección no sirve (sale al
+-- revés y casi siempre abajo en el centro, que no dice hacia dónde girarse): a media altura en el borde izquierdo o
+-- derecho, apuntando a ese lado. La misma cuenta está en TutorialVista (a propósito, sin ayuda común).
+local function sitioBorde(tam: Vector2, punto: Vector3, lado: number, escala: number, margenLado: number,
+	margenArriba: number, margenAbajo: number): (Vector2, Vector2)
+	local izq, der = margenLado * escala, tam.X - margenLado * escala
+	local arriba, abajo = margenArriba * escala, tam.Y - margenAbajo * escala
+	if der < izq then
+		izq, der = tam.X / 2, tam.X / 2
+	end
+	if abajo < arriba then
+		local m = (arriba + abajo) / 2
+		arriba, abajo = m, m
+	end
+	local medio = Vector2.new(math.clamp(tam.X / 2, izq, der), math.clamp(tam.Y / 2, arriba, abajo))
+	if punto.Z <= 0 then
+		local signo = if lado < 0 then -1 else 1
+		return Vector2.new(if signo > 0 then der else izq, medio.Y) / escala, Vector2.new(signo, 0)
+	end
+	local hacia = Vector2.new(punto.X, punto.Y) - tam / 2
+	if hacia.Magnitude < 1 then
+		hacia = Vector2.new(0, 1)
+	end
+	hacia = hacia.Unit
+	local cabeX = (if hacia.X > 0 then der - medio.X else medio.X - izq) / math.max(math.abs(hacia.X), 1e-3)
+	local cabeY = (if hacia.Y > 0 then abajo - medio.Y else medio.Y - arriba) / math.max(math.abs(hacia.Y), 1e-3)
+	return (medio + hacia * math.max(math.min(cabeX, cabeY), 0)) / escala, hacia
+end
+GuiaLobby.sitioBorde = sitioBorde -- para el banco (tests/bancos/flecha-borde.luau)
 
 local function ladoMundo(): number
 	return FLECHA_MUNDO * Ui.escala()
@@ -234,28 +269,21 @@ local function cadaFotograma(_dt: number, ahora: number, camara: Camera)
 	flechaBorde.Visible = false
 	local meta = objetivo
 	if meta and meta.Parent then
-		local punto, delante = camara:WorldToViewportPoint(meta.Position)
+		-- El segundo valor de WorldToViewportPoint dice si se ve (delante y dentro), no si está delante: eso lo dice la Z.
+		local punto, seVe = camara:WorldToViewportPoint(meta.Position)
 		local tam = camara.ViewportSize
-		local dentro = delante and punto.X > 0 and punto.X < tam.X and punto.Y > 0 and punto.Y < tam.Y
-		if not dentro then
-			local medio = tam / 2
-			local hacia = Vector2.new(punto.X, punto.Y) - medio
-			if not delante then
-				hacia = -hacia -- detrás: la proyección sale al revés
+		if not (seVe and punto.Z > 0) then
+			local lado = camara.CFrame:PointToObjectSpace(meta.Position).X
+			if math.abs(lado) > 0.5 then
+				ladoAnterior = if lado < 0 then -1 else 1
 			end
-			if hacia.Magnitude < 1 then
-				hacia = Vector2.new(0, 1)
-			end
-			hacia = hacia.Unit
-			local escala = Ui.escala()
 			local tactil = Ui.tactil()
-			-- Márgenes a cada borde: el móvil deja libres las esquinas de los botones de Roblox (arriba) y el de saltar
-			-- (abajo a la derecha).
-			local lado = 70 * escala
-			local margenY = if hacia.Y > 0 then (if tactil then 300 else 70) * escala else (if tactil then 110 else 70) * escala
-			local cabe = math.min((medio.X - lado) / math.max(math.abs(hacia.X), 1e-3),
-				(medio.Y - margenY) / math.max(math.abs(hacia.Y), 1e-3))
-			local sitio = (medio + hacia * math.max(cabe, 0)) / escala -- el HUD dibuja en píxeles de diseño
+			-- Márgenes a cada borde: arriba, por debajo del cartel (y en el móvil de los botones de Roblox); abajo, en el
+			-- móvil, por encima del botón de saltar (abajo a la derecha) y del joystick.
+			local margenArriba = math.max(CARTEL_Y + CARTEL_ALTO + FLECHA_BORDE / 2 + 8, if tactil then 110 else 70)
+			local sitio, hacia = sitioBorde(tam, punto, ladoAnterior, Ui.escala(), 70, margenArriba,
+				if tactil then 300 else 70)
+			sitio += hacia * vaiven * 6 -- empuja hacia donde señala (quieta con Rendimiento)
 			flechaBorde.Position = UDim2.fromOffset(sitio.X, sitio.Y)
 			-- La flecha apunta hacia abajo (0, 1): girarla hacia `hacia`.
 			flechaBorde.Rotation = math.deg(math.atan2(hacia.Y, hacia.X)) - 90

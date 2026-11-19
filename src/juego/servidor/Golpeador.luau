@@ -149,7 +149,9 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 	local dentro = el:GetAttribute("Dentro") :: Vector3
 	local normal = plano(centro.LookVector).Unit
 	local lado = normal:Cross(Vector3.yAxis)
-	local inicio = fuera + normal * 75 + lado * azar:NextNumber(-25, 25)
+	-- Desde donde nadie le vea aparecer (Caza.sitioSinVer): el sitio de siempre u otro más hondo o más a un lado.
+	local inicio = Caza.sitioSinVer(Caza.llegadas(fuera + normal * 75 + lado * azar:NextNumber(-25, 25), fuera, normal, lado,
+		ALTURA), ALTURA)
 	local lejos = fuera + normal * 110 + lado * azar:NextNumber(-40, 40)
 	local b = crear(CFrame.lookAt(inicio + Vector3.new(0, ALTURA, 0), fuera + Vector3.new(0, ALTURA, 0)))
 	Sucesos.enganchar(b, noche) -- los sucesos de dentro de la casa (Armario, Olfatea, Garras, Quieto)
@@ -159,11 +161,11 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		return not b.prisa and b:elegirPresa(true) == nil
 	end
 
-	-- Llega desde el bosque; si ve a alguien fuera, va a por él.
-	b:irA(fuera, G.Andar, 30, noVeNadie)
+	-- Llega desde el bosque; si ve a alguien fuera, va a por él. Si se atasca, nunca golpea desde lejos (Caza.llegarA).
+	b:llegarA(fuera, G.Andar, 30, noVeNadie, centro.Position)
 	if not b.prisa and b:elegirPresa(true) then
 		b:cazar(G.Caza / 2, true)
-		b:irA(lejos, G.Andar, 25)
+		b:perderse(lejos, G.Andar, 25) -- sin esfumarse a la vista (Caza.perderse)
 		return
 	end
 
@@ -191,14 +193,14 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		end
 		task.wait(G.Grito)
 		b:cazar(G.Caza, false)
-		-- Se va por donde entró.
-		b:irA(dentro, G.Andar, 25)
+		-- Se va por donde entró, y solo sale de golpe cuando nadie le ve (Caza.salir).
+		b:salir(dentro, G.Andar)
 		local pieFuera = fuera + Vector3.new(0, ALTURA, 0)
 		if b.modelo then
 			b.modelo:PivotTo(CFrame.lookAt(pieFuera, pieFuera + normal))
 		end
 	end
-	b:irA(lejos, G.Andar, 25)
+	b:perderse(lejos, G.Andar, 25)
 end
 
 local function terminar(a: Ataque)

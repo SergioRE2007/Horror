@@ -1,5 +1,6 @@
 -- Los tratos del vendedor (servidor: Vendedor). Al hablarle sale abajo un papel oscuro con lo que dice y sus tratos
 -- (Config.Vendedor.Trueques); los que no te puedes permitir, apagados. Se cierra con CERRAR, al alejarte o al morir.
+-- Con mando sale elegido el primer trato que puedes pagar (si ninguno, CERRAR): la A ya hace algo (Ui.seleccionar).
 -- El cliente solo pide ("Cambiar", n): el servidor lo valida todo.
 -- Cuando te acercas, el vendedor gira la cabeza y te sigue con la mirada (solo en tu pantalla: el cuello, en local).
 local CollectionService = game:GetService("CollectionService")
@@ -27,7 +28,8 @@ local PASO = BOTON + (if TACTIL then 8 else 10) -- de un trato al siguiente
 local ARRIBA = math.max(80, 14 + CERRAR + 12) -- donde empieza el primer trato
 local panel: TextButton
 local dice: TextLabel
-local filas: { { texto: TextLabel, boton: TextButton } } = {}
+local salir: TextButton
+local filas: { { texto: TextLabel, boton: TextButton, puedo: boolean } } = {}
 local abierto = 0 -- sube cada vez que se abre: el bucle viejo de cerrar se para
 local apagados: { ProximityPrompt } = {} -- los prompts del vendedor apagados mientras el papel está abierto
 
@@ -51,6 +53,7 @@ local function pintar()
 	local cuenta = llevo()
 	for i, trato in V.Trueques do
 		local puedo = (cuenta[trato.Pide[1]] or 0) >= trato.Pide[2]
+		filas[i].puedo = puedo
 		filas[i].texto.TextTransparency = if puedo then 0 else 0.55
 		filas[i].boton.TextTransparency = if puedo then 0 else 0.6
 	end
@@ -69,8 +72,19 @@ local function apagarPrompts()
 	end
 end
 
+-- Lo que elige el mando al abrir: el primer trato que puedes pagar (de arriba abajo); si ninguno, CERRAR.
+local function principal(): GuiObject
+	for _, fila in filas do
+		if fila.puedo then
+			return fila.boton
+		end
+	end
+	return salir
+end
+
 local function cerrar()
 	abierto += 1
+	Ui.soltarSeleccion(panel)
 	panel.Visible = false
 	panel.Modal = false
 	Ui.ventanaAbierta("Vendedor", false)
@@ -105,6 +119,7 @@ local function abrir(frase: string)
 	panel.Visible = true
 	panel.Modal = true -- suelta el ratón en primera persona
 	Ui.ventanaAbierta("Vendedor", true) -- B no agacha mientras está abierto
+	Ui.seleccionar(principal())
 	task.spawn(function()
 		while abierto == mio do
 			task.wait(0.25)
@@ -120,6 +135,7 @@ local function construir()
 	panel.Name = "Vendedor"
 	panel.Text = ""
 	panel.AutoButtonColor = false
+	panel.Selectable = false -- el papel de fondo no lo elige el mando (Ui.seleccionar)
 	panel.AnchorPoint = Vector2.new(0.5, 1)
 	panel.Position = UDim2.new(0.5, 0, 1, -24)
 	panel.Size = UDim2.fromOffset(ANCHO, ARRIBA + 16 + #V.Trueques * PASO)
@@ -143,7 +159,8 @@ local function construir()
 		ZIndex = 11,
 	})
 	dice.Parent = panel
-	local salir = Ui.boton(Lang.t(nil, "Close"), {
+	salir = Ui.boton(Lang.t(nil, "Close"), {
+		Name = "Cerrar",
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -14, 0, 14),
 		Size = UDim2.fromOffset(150, CERRAR),
@@ -175,7 +192,8 @@ local function construir()
 			Remotes.Vendedor:FireServer("Cambiar", i)
 		end)
 		boton.Parent = panel
-		filas[i] = { texto = texto, boton = boton }
+		boton.Name = `Cambiar{i}`
+		filas[i] = { texto = texto, boton = boton, puedo = false }
 	end
 	panel.Parent = Ui.hud()
 end
@@ -224,9 +242,11 @@ end
 
 function VendedorUi.start()
 	construir()
-	Ui.cerrarConB(function()
+	local function estaAbierto(): boolean
 		return panel.Visible
-	end, cerrar, true) -- B del mando o Escape
+	end
+	Ui.cerrarConB(estaAbierto, cerrar, true) -- B del mando o Escape
+	Ui.seleccionConMando(panel, estaAbierto, principal)
 	RunService.Heartbeat:Connect(mirarte)
 	Remotes.Vendedor.OnClientEvent:Connect(function(que, frase)
 		if que == "Abrir" and type(frase) == "string" then

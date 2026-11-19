@@ -8,6 +8,17 @@
 --      Rendimiento, y que todo vuelve a 0 al pasar el pavor.
 --   3. CuerpoVista de verdad con ponerPavor: el campo de visión baja a ~60 y vuelve a 70 justo, la cámara recula sin
 --      meterse en la pared de detrás y al girar rápido la vista se queda atrás un poco (nunca más de Retraso.Max).
+--   4. Persecución: un bicho falso con el atributo Persigue (lo pone Caza): en PavorVista, latido entero mientras te
+--      persigue aunque no lo veas y apagándose al dejarte, golpe flojo como mucho cada Persigue.Cada s, respiración y
+--      manos; nada si persigue a otro, con el Imitador fingiendo, escondido o en una cinemática; con Rendimiento solo
+--      latido y golpe. En AmbienteMiedo, la tensión entera en ~1 s.
+--   6. Pillan a un compañero (Remotes.Muerte de otro jugador): visto a 5 y a 30 studs, el susto entero (fuerza como poco
+--      Companero.Minimo), también con el muñeco opaco de CadaverVista ya puesto en Cadaveres; tras una pared a 15, solo latido y golpe flojo; tras una pared a 30 y a la vista a 60, nada;
+--      escondido o si te pillan a ti, nada; con Rendimiento, sin vértigo.
+--   7. Visión de túnel (PavorCuentas.tunel y PavorVista): bordes y color apagado al ver uno mientras dura su latido,
+--      más fuertes y latiendo perseguido, entran en ~0,4 s y salen en ~2 s; nada escondido, cubierto, mirando, muerto ni
+--      en cinemáticas (y de golpe al esconderse); con Rendimiento, solo bordes flojos y quietos. Comprobado dentro de los
+--      casos 1, 2 y 4.
 local crearMundo = require("./_roblox")
 
 local cuentas = 0
@@ -78,6 +89,13 @@ do
 	comprobar(P.latido(C.Latido.Dura[1] + C.Latido.Apaga * 0.5, C.Minimo) < 1, "de lejos se apaga antes")
 	cerca(P.latido(P.finLatido(1), 1), 0, 1e-9, "latido acaba")
 	comprobar(P.finLatido(1) > P.finLatido(C.Minimo), "de cerca, latido más largo")
+	-- Tras una persecución: entera hasta que te deja y se apaga en Latido.Apaga s.
+	cerca(P.trasPersecucion(-1), 1, 1e-9, "persecución: entera mientras dura")
+	cerca(P.trasPersecucion(0), 1, 1e-9, "persecución: entera al dejarte")
+	local mitad = P.trasPersecucion(C.Latido.Apaga * 0.5)
+	comprobar(mitad > 0.2 and mitad < 0.8, "persecución: a medio apagar")
+	cerca(P.trasPersecucion(C.Latido.Apaga), 0, 1e-9, "persecución: apagada")
+	comprobar(P.trasPersecucion(math.huge) == 0 and P.trasPersecucion(0 / 0) == 0, "persecución: fuera de tiempo")
 
 	-- El temblor de las manos: nada sin pavor, acotado, se mueve con el tiempo y más con más pavor.
 	local g0, d0 = P.temblor(1.23, 0, 1.7)
@@ -136,6 +154,57 @@ do
 	comprobar(c == 0 and g == 0, "retraso con NaN")
 	c, g = P.retraso(-1, 0, 0, 0, 0, 1)
 	comprobar(c == 0 and g == 0, "retraso con dt 0")
+
+	-- Visión de túnel: lo que debería tener, cómo entra y sale, y cómo se ve.
+	local T = C.Tunel
+	comprobar(P.tunelMeta(0, 0) == 0, "túnel: sin nada, nada")
+	cerca(P.tunelMeta(1, 0), T.Ver, 1e-9, "túnel: ver uno de cerca, Ver")
+	cerca(P.tunelMeta(0, 1), C.Persigue.Tunel, 1e-9, "túnel: perseguido, Persigue.Tunel")
+	comprobar(P.tunelMeta(1, 0) < P.tunelMeta(0, 1), "túnel: perseguido, más fuerte que solo verlo")
+	comprobar(P.tunelMeta(0 / 0, 0) == 0 and P.tunelMeta(5, 5) == 1, "túnel: meta con NaN y acotada")
+	local va, n = 0, 0
+	while va < 1 and n < 1000 do
+		va = P.acercarTunel(va, 1, dt)
+		n += 1
+	end
+	cerca(n * dt, T.Entra, dt * 1.5, "túnel: entra del todo en Entra s")
+	n = 0
+	while va > 0 and n < 1000 do
+		va = P.acercarTunel(va, 0, dt)
+		n += 1
+	end
+	cerca(n * dt, T.Sale, dt * 1.5, "túnel: sale del todo en Sale s")
+	comprobar(P.acercarTunel(0.5, 0.6, 10) == 0.6 and P.acercarTunel(0.5, 0.4, 10) == 0.4, "túnel: no se pasa de la meta")
+	comprobar(P.acercarTunel(0 / 0, 1, dt) == 0, "túnel: acercar con NaN")
+	local o0, a0, s0, k0 = P.tunel(0, 1, 3)
+	comprobar(o0 == 0 and a0 == 0 and s0 == 0 and k0 == 0, "túnel: con 0, nada")
+	local o1, a1, s1, k1 = P.tunel(1, 1, nil)
+	cerca(s1, T.Color, 1e-9, "túnel: del todo, la Saturation de Color")
+	cerca(k1, T.Contraste, 1e-9, "túnel: del todo, el contraste")
+	comprobar(o1 > 0.5 and o1 <= 1 and a1 >= T.Ancho[1] and a1 <= T.Ancho[2], "túnel: bordes oscuros y acotados")
+	local oFlojo, aFlojo = P.tunel(0.3, 0, nil)
+	comprobar(oFlojo < o1 and aFlojo < a1, "túnel: flojo, bordes más claros y más abiertos")
+	-- Late: el ancho cambia a lo largo de un golpe, se repite cada 1 / Latir s, y perseguido late más.
+	local function latir(nivel: number, sigue: number): number
+		local lo, hi = math.huge, -math.huge
+		for i = 0, 99 do
+			local _, a = P.tunel(nivel, sigue, 100 + i / 100 / T.Latir)
+			lo, hi = math.min(lo, a), math.max(hi, a)
+		end
+		return hi - lo
+	end
+	comprobar(latir(1, 1) > 0.03, `túnel: perseguido, los bordes laten ({latir(1, 1)})`)
+	comprobar(latir(0.55, 0) > 0 and latir(0.55, 0) < latir(0.55, 1), "túnel: solo viéndolo, laten menos")
+	local _, aT = P.tunel(1, 1, 7.3)
+	local _, aT2 = P.tunel(1, 1, 7.3 + 1 / T.Latir)
+	cerca(aT, aT2, 1e-6, "túnel: un golpe cada 1 / Latir s")
+	local _, aQuieto = P.tunel(1, 1, nil)
+	local _, aQuieto2 = P.tunel(1, 1, nil)
+	comprobar(aQuieto == aQuieto2 and aQuieto <= aT + 1e-9, "túnel: sin t (Rendimiento), quieto y sin golpe")
+	local oN = P.tunel(0 / 0, 0 / 0, 0 / 0)
+	comprobar(oN == 0, "túnel con NaN")
+	local oNt, aNt = P.tunel(1, 0 / 0, 0 / 0)
+	comprobar(oNt == oNt and aNt == aNt, "túnel con t NaN, sin NaN")
 end
 
 -- ===== 2. PavorVista =====
@@ -203,6 +272,19 @@ do
 		Sonido = SonidoFalso,
 	})
 	Pavor.start()
+	-- La visión de túnel: sus bordes en el Hud y su ColorCorrection.
+	local T = C.Tunel
+	local tunelMarco = jugador:FindFirstChildOfClass("PlayerGui"):FindFirstChild("Hud"):FindFirstChild("PavorTunel")
+	local ojos = m.servicio("Lighting"):FindFirstChild("PavorOjos")
+	comprobar(tunelMarco ~= nil and ojos ~= nil and ojos:IsA("ColorCorrectionEffect"), "túnel: bordes y PavorOjos creados")
+	comprobar(tunelMarco.ZIndex == 0 and tunelMarco.Visible == false and ojos.Enabled == false, "túnel: abajo y apagado")
+	local function filo(): (number, number) -- lo negro del filo de los lados y su ancho
+		local ks = tunelMarco.Lados.UIGradient.Transparency.Keypoints
+		return 1 - ks[1].Value, ks[3].Time
+	end
+	local function sinTunel(): boolean
+		return Pavor.tunel() == 0 and not tunelMarco.Visible and not ojos.Enabled
+	end
 
 	local carpeta = g.Instance.new("Folder")
 	carpeta.Name = "Bichos"
@@ -268,6 +350,10 @@ do
 	cerca(cuerpo.campoMax, C.Vertigo.Campo * f20, 0.6, "vértigo de 20 studs")
 	comprobar(cuerpo.recula > 0 and cuerpo.recula <= C.Vertigo.Recula + 1e-6, "recula un palmo")
 	comprobar(manos.pavor > 0.4 and cuerpo.susto > 0 and cuerpo.retraso > 0, "pavor: manos, respiración y retraso")
+	cerca(Pavor.tunel(), f20 * T.Ver, 0.02, "túnel: al verlo, entra en menos de 0,5 s")
+	comprobar(tunelMarco.Visible and ojos.Enabled and ojos.Saturation < -0.05 and ojos.Contrast > 0,
+		"túnel: bordes y color apagado al verlo")
+	comprobar(ojos.Saturation > T.Color * 0.7, "túnel: solo viéndolo, sin llegar a lo de perseguido")
 	-- Mientras se sigue viendo, nada nuevo.
 	m.correr(5)
 	comprobar(sobresaltos == 1, "viéndolo, no repite")
@@ -276,6 +362,7 @@ do
 	-- Miras a otro lado 5 s y vuelves: no repite.
 	m.mirar(math.pi, 0)
 	m.correr(5)
+	comprobar(sinTunel() and manos.pavor > 0, "túnel: se va en unos segundos aunque quede pavor")
 	m.mirar(0, 0)
 	m.correr(1)
 	comprobar(sobresaltos == 1, "perdido de vista 5 s, no repite")
@@ -337,8 +424,10 @@ do
 	jugador:SetAttribute("Escondido", nil)
 	m.correr(0.5)
 	comprobar(sobresaltos == 1 and sonando() == 1, "al salir, ya lo ves")
+	comprobar(Pavor.tunel() > 0.3 and tunelMarco.Visible and ojos.Enabled, "túnel: al salir y verlo, sale")
 	jugador:SetAttribute("Escondido", CFrame.new())
 	m.correr(0.1)
+	comprobar(sinTunel(), "túnel: al esconderte, fuera de golpe")
 	comprobar(sonando() == 0, "al esconderte, el latido se corta (manda MuerteVista)")
 	comprobar(cuerpo.campo == 0 and cuerpo.susto == 0 and manos.pavor == 0, "escondido, nada puesto")
 	jugador:SetAttribute("Escondido", nil)
@@ -358,6 +447,7 @@ do
 		bicho("Golpeador", ojo + Vector3.new(0, -3, -12))
 		m.correr(1)
 		comprobar(sobresaltos == 0 and cuerpo.campoMax == 0 and manos.max == 0, `{caso}: no asusta`)
+		comprobar(sinTunel(), `{caso}: sin visión de túnel`)
 		camara.CameraType = Enum.CameraType.Custom
 		jugador:SetAttribute(caso, nil)
 		limpiar()
@@ -370,6 +460,12 @@ do
 	comprobar(sobresaltos == 1 and sonando() == 1, "con Rendimiento, golpe y latido")
 	comprobar(cuerpo.campoMax == 0 and cuerpo.susto == 0 and cuerpo.retraso == 0, "con Rendimiento, sin vértigo")
 	comprobar(manos.max > 0 and manos.max <= C.Temblor.Rendimiento + 1e-6, "con Rendimiento, temblor flojo")
+	local oR, aR = filo()
+	comprobar(tunelMarco.Visible and not ojos.Enabled, "túnel con Rendimiento: bordes, sin ColorCorrection")
+	comprobar(oR > 0 and oR <= T.Bordes * T.Rendimiento + 1e-6, `túnel con Rendimiento: bordes flojos ({oR})`)
+	m.correr(0.4)
+	local oR2, aR2 = filo()
+	comprobar(oR2 == oR and aR2 == aR, "túnel con Rendimiento: quietos (sin latir)")
 	jugador:SetAttribute("Rendimiento", nil)
 	limpiar()
 
@@ -524,6 +620,393 @@ do
 	m.correr(1)
 	cerca(medida.fov, 70, 1e-6, "al final, campo 70 justo")
 	comprobar(not medida.roto, "sin NaN en la cámara (al final)")
+end
+
+-- ===== 4. Persecución (atributo Persigue) =====
+do
+	local m = crearMundo()
+	local g = m.global
+	local Vector3, CFrame, Enum = g.Vector3, g.CFrame, g.Enum
+	local Config = m.cargar("src/shared/Config")
+	local C = Config.Pavor
+	local P = C.Persigue
+	local jugador = m.jugadorLocal
+	local camara = m.camara
+	local yo = jugador.UserId
+
+	m.caja(CFrame.new(0, -0.5, 0), Vector3.new(400, 1, 400), { Name = "Suelo" })
+	m.personaje(CFrame.new(0, 3, 0))
+	m.mirar(0, 0) -- hacia -Z
+
+	local cuerpo = { susto = 0, campoMax = 0 }
+	local manos = { pavor = 0 }
+	local sobresaltos, respingos = 0, 0
+	local latidos: { any } = {}
+	local Pavor = m.cargar("src/juego/cliente/PavorVista", {
+		CuerpoVista = { ponerPavor = function(campo: number, _recula: number, susto: number)
+			cuerpo.susto = susto
+			cuerpo.campoMax = math.max(cuerpo.campoMax, campo)
+		end },
+		Manos = { pavor = function(x: number)
+			manos.pavor = x
+		end },
+		ManosGestos = { sobresalto = function()
+			respingos += 1
+		end },
+		Sonido = {
+			tocar = function(nombre: string)
+				local s = g.Instance.new("Sound")
+				s.Volume = 1.2
+				if nombre == "Sobresalto" then
+					sobresaltos += 1
+				end
+				return s
+			end,
+			bucle = function(nombre: string)
+				local s = g.Instance.new("Sound")
+				s.Name = nombre
+				s.Volume = 0.8
+				s.Parent = g.game:GetService("SoundService")
+				table.insert(latidos, s)
+				return s
+			end,
+			hay = function()
+				return true
+			end,
+		},
+	})
+	Pavor.start()
+
+	local carpeta = g.Instance.new("Folder")
+	carpeta.Name = "Bichos"
+	carpeta.Parent = g.workspace
+	-- Un bicho detrás de ti (no lo ves: solo cuenta que te persigue).
+	local function bicho(nombre: string): any
+		local b = g.Instance.new("Model")
+		b.Name = nombre
+		local raiz = m.caja(CFrame.new(0, 3, 25), Vector3.new(2, 5, 1), { CanCollide = false })
+		raiz.Name = "HumanoidRootPart"
+		raiz.Parent = b
+		g.Instance.new("Humanoid").Parent = b
+		b.Parent = carpeta
+		return b
+	end
+	local function latido(): any
+		for _, s in latidos do
+			if s.Parent ~= nil then
+				return s
+			end
+		end
+		return nil
+	end
+	local lleno = 0.8 * C.Latido.Volumen * P.Latido
+	local T = C.Tunel
+	local tunelMarco = jugador:FindFirstChildOfClass("PlayerGui"):FindFirstChild("Hud"):FindFirstChild("PavorTunel")
+	local ojos = m.servicio("Lighting"):FindFirstChild("PavorOjos")
+	local function ancho(): number
+		return tunelMarco.Lados.UIGradient.Transparency.Keypoints[3].Time
+	end
+	m.correr(0.5)
+
+	-- Te persigue sin que lo veas: golpe, respingo, latido entero, respiración y manos.
+	local b = bicho("Golpeador")
+	m.correr(1)
+	comprobar(sobresaltos == 0 and latido() == nil, "persecución: un bicho que no te persigue, nada")
+	b:SetAttribute("Persigue", yo)
+	m.correr(0.3)
+	comprobar(sobresaltos == 1 and respingos == 1, "persecución: al empezar, golpe y respingo")
+	comprobar(latido() ~= nil, "persecución: suena el latido sin verlo")
+	cerca(cuerpo.susto, P.Respira, 1e-6, "persecución: respiración más deprisa")
+	cerca(manos.pavor, P.Manos, 1e-6, "persecución: las manos tiemblan algo")
+	comprobar(cuerpo.campoMax == 0, "persecución: sin verlo, sin vértigo")
+	m.correr(0.3)
+	cerca(Pavor.tunel(), P.Tunel, 1e-6, "túnel perseguido: entero en ~0,4 s")
+	cerca(ojos.Saturation, T.Color * P.Tunel, 1e-6, "túnel perseguido: la imagen sin color")
+	comprobar(ojos.Enabled and tunelMarco.Visible, "túnel perseguido: bordes y ColorCorrection")
+	-- Late: el ancho de los bordes sube y baja en cada golpe.
+	local lo, hi = math.huge, -math.huge
+	m.correr(1.5, nil, function()
+		lo, hi = math.min(lo, ancho()), math.max(hi, ancho())
+	end)
+	comprobar(hi - lo > 0.03 and hi <= T.Ancho[2] + 1e-6, `túnel perseguido: los bordes laten ({lo}..{hi})`)
+	-- Mientras dura (más que lo que dura el latido de verlo), entero y sin más golpes.
+	m.correr(C.Latido.Dura[2] + C.Latido.Apaga + 5)
+	local l = latido()
+	comprobar(l ~= nil and math.abs(l.Volume - lleno) < 1e-6, "persecución: el latido sigue entero mientras dura")
+	comprobar(sobresaltos == 1, "persecución: un solo golpe")
+	-- Te deja: se apaga en Latido.Apaga s.
+	b:SetAttribute("Persigue", nil)
+	m.correr(C.Latido.Apaga * 0.5)
+	l = latido()
+	comprobar(l ~= nil and l.Volume < lleno - 0.05 and l.Volume > 0, "persecución: al dejarte se va apagando")
+	comprobar(Pavor.tunel() > 0.1 and Pavor.tunel() < 1, "túnel: al dejarte se va abriendo")
+	m.correr(C.Latido.Apaga * 0.5 + 0.5)
+	comprobar(latido() == nil, "persecución: apagado del todo")
+	comprobar(cuerpo.susto == 0 and manos.pavor == 0, "persecución: respiración y manos vuelven")
+	comprobar(Pavor.tunel() == 0 and not tunelMarco.Visible and not ojos.Enabled, "túnel: fuera al perderte")
+	-- Otra enseguida (menos de Cada s desde el golpe de antes, contando desde que empezó): latido, sin golpe.
+	local t0 = sobresaltos
+	b:SetAttribute("Persigue", yo)
+	m.correr(0.3)
+	comprobar(latido() ~= nil, "persecución: otra, latido")
+	-- La de antes empezó hace más de Cada s: esta sí da golpe. Ahora una tercera enseguida: sin golpe.
+	comprobar(sobresaltos == t0 + 1, "persecución: pasado Cada s, otro golpe")
+	b:SetAttribute("Persigue", nil)
+	m.correr(1)
+	b:SetAttribute("Persigue", yo)
+	m.correr(0.3)
+	comprobar(sobresaltos == t0 + 1, "persecución: otra antes de Cada s, sin golpe")
+	comprobar(latido() ~= nil, "persecución: y el latido, entero")
+	b:SetAttribute("Persigue", nil)
+	m.correr(C.Latido.Apaga + P.Cada + 1)
+
+	-- Persigue a otro: nada.
+	b:SetAttribute("Persigue", yo + 1000)
+	m.correr(1)
+	comprobar(latido() == nil and sobresaltos == t0 + 1, "persecución: si persigue a otro, nada")
+	b:Destroy()
+
+	-- El Imitador fingiendo: nada (Caza tampoco se lo pone; por si acaso).
+	local imitador = bicho("Imitador")
+	imitador:SetAttribute("Persigue", yo)
+	m.correr(1)
+	comprobar(latido() == nil and sobresaltos == t0 + 1, "persecución: el Imitador fingiendo, nada")
+	imitador:Destroy()
+	m.correr(0.5)
+
+	-- Escondido: nada nuestro (el latido es de MuerteVista).
+	jugador:SetAttribute("Escondido", CFrame.new())
+	b = bicho("Golpeador")
+	b:SetAttribute("Persigue", yo)
+	m.correr(1)
+	comprobar(latido() == nil and sobresaltos == t0 + 1 and cuerpo.susto == 0, "persecución: escondido, nada")
+	comprobar(Pavor.tunel() == 0 and not tunelMarco.Visible and not ojos.Enabled, "túnel perseguido: escondido, nada")
+	jugador:SetAttribute("Escondido", nil)
+	m.correr(0.3)
+	comprobar(latido() ~= nil, "persecución: al salir del escondite, el latido")
+	b:SetAttribute("Persigue", nil)
+	m.correr(C.Latido.Apaga + P.Cada + 1)
+
+	-- En una cinemática: nada.
+	camara.CameraType = Enum.CameraType.Scriptable
+	b:SetAttribute("Persigue", yo)
+	m.correr(1)
+	comprobar(latido() == nil and cuerpo.susto == 0, "persecución: en una cinemática, nada")
+	comprobar(not tunelMarco.Visible and not ojos.Enabled, "túnel perseguido: en una cinemática, nada")
+	camara.CameraType = Enum.CameraType.Custom
+	b:SetAttribute("Persigue", nil)
+	m.correr(C.Latido.Apaga + P.Cada + 1)
+
+	-- Con Rendimiento: latido y golpe, sin respingo, respiración ni temblor.
+	jugador:SetAttribute("Rendimiento", true)
+	local s0, r0 = sobresaltos, respingos
+	b:SetAttribute("Persigue", yo)
+	m.correr(1)
+	comprobar(latido() ~= nil and sobresaltos == s0 + 1, "persecución con Rendimiento: latido y golpe")
+	comprobar(respingos == r0 and cuerpo.susto == 0 and manos.pavor == 0, "persecución con Rendimiento: nada más")
+	local oscuro = 1 - tunelMarco.Lados.UIGradient.Transparency.Keypoints[1].Value
+	comprobar(tunelMarco.Visible and not ojos.Enabled and oscuro <= T.Bordes * T.Rendimiento + 1e-6,
+		"túnel perseguido con Rendimiento: bordes flojos, sin color")
+	jugador:SetAttribute("Rendimiento", nil)
+	b:Destroy()
+end
+
+-- ===== 5. La tensión de AmbienteMiedo con un bicho que te persigue =====
+do
+	local m = crearMundo()
+	local g = m.global
+	local Vector3, CFrame = g.Vector3, g.CFrame
+	local Config = m.cargar("src/shared/Config")
+	local A = Config.AmbienteMiedo
+	local jugador = m.jugadorLocal
+	local X = 300 -- fuera de la casa: solo cuenta la distancia
+	m.caja(CFrame.new(X, -0.5, 0), Vector3.new(200, 1, 200), { Name = "Suelo" })
+	m.personaje(CFrame.new(X, 3, 0))
+	local bucles: { [string]: any } = {}
+	local Ambiente = m.cargar("src/juego/cliente/AmbienteMiedo", {
+		Sonido = {
+			bucle = function(nombre: string)
+				local s = g.Instance.new("Sound")
+				s.Name = nombre
+				s.Volume = 1
+				bucles[nombre] = s
+				return s
+			end,
+			en = function() end,
+		},
+	})
+	Ambiente.start()
+	local carpeta = g.Instance.new("Folder")
+	carpeta.Name = "Bichos"
+	carpeta.Parent = g.workspace
+	local b = g.Instance.new("Model")
+	b.Name = "Golpeador"
+	local raiz = m.caja(CFrame.new(X, 3, A.TensionLejos - 5), Vector3.new(2, 5, 1), { CanCollide = false })
+	raiz.Name = "HumanoidRootPart"
+	raiz.Parent = b
+	b.PrimaryPart = raiz
+	b.Parent = carpeta
+	m.correr(2)
+	local lejos = bucles.Tension.Volume
+	comprobar(lejos < 0.15, `tensión: un bicho lejos que no te persigue, poca ({lejos})`)
+	b:SetAttribute("Persigue", jugador.UserId)
+	m.correr(1)
+	comprobar(bucles.Tension.Volume > 0.95, `tensión: te persigue, entera en ~1 s ({bucles.Tension.Volume})`)
+	b:SetAttribute("Persigue", nil)
+	m.correr(2)
+	comprobar(bucles.Tension.Volume < 0.95 and bucles.Tension.Volume > lejos, "tensión: al dejarte baja despacio")
+end
+
+-- ===== 6. Pillan a un compañero (Remotes.Muerte) =====
+do
+	local m = crearMundo()
+	local g = m.global
+	local Vector3, CFrame = g.Vector3, g.CFrame
+	local Config = m.cargar("src/shared/Config")
+	local C = Config.Pavor
+	local K = C.Companero
+	local jugador = m.jugadorLocal
+
+	m.caja(CFrame.new(0, -0.5, 0), Vector3.new(400, 1, 400), { Name = "Suelo" })
+	m.personaje(CFrame.new(0, 3, 0))
+	m.mirar(0, 0) -- hacia -Z
+
+	local cuerpo = { campoMax = 0 }
+	local manos = { max = 0 }
+	local sobresaltos = 0
+	local golpe: any = nil
+	local latidos: { any } = {}
+	local Pavor = m.cargar("src/juego/cliente/PavorVista", {
+		CuerpoVista = { ponerPavor = function(campo: number)
+			cuerpo.campoMax = math.max(cuerpo.campoMax, campo)
+		end },
+		Manos = { pavor = function(x: number)
+			manos.max = math.max(manos.max, x)
+		end },
+		ManosGestos = { sobresalto = function() end },
+		Sonido = {
+			tocar = function(nombre: string)
+				local s = g.Instance.new("Sound")
+				s.Volume = 1
+				if nombre == "Sobresalto" then
+					sobresaltos += 1
+					golpe = s -- su Volume, lo que le deja PavorVista
+				end
+				return s
+			end,
+			bucle = function(nombre: string)
+				local s = g.Instance.new("Sound")
+				s.Name = nombre
+				s.Volume = 0.8
+				s.Parent = g.game:GetService("SoundService")
+				table.insert(latidos, s)
+				return s
+			end,
+			hay = function()
+				return true
+			end,
+		},
+	})
+	Pavor.start()
+	local function sonando(): number
+		local n = 0
+		for _, s in latidos do
+			if s.Parent ~= nil then
+				n += 1
+			end
+		end
+		return n
+	end
+	local function limpiar()
+		m.correr(40)
+		cuerpo.campoMax, manos.max = 0, 0
+		sobresaltos, golpe = 0, nil
+	end
+	m.correr(0.5)
+	local ojo = m.camara.CFrame.Position
+
+	local otro = m.jugador("Amigo")
+	-- Le pillan a `distancia` studs delante (con un bicho falso al lado).
+	local function caeDelante(distancia: number)
+		local pj = m.personaje(CFrame.new(Vector3.new(0, 3, -distancia)), otro)
+		local b = g.Instance.new("Model")
+		b.Name = "Golpeador"
+		local raiz = m.caja(CFrame.new(Vector3.new(2, 3, -distancia)), Vector3.new(2, 5, 1), { CanCollide = false })
+		raiz.Name = "HumanoidRootPart"
+		raiz.Parent = b
+		b.Parent = g.workspace
+		m.alCliente("Muerte", otro, Vector3.new(2, 6, -distancia), b)
+		m.correr(0.6)
+		b:Destroy()
+		return pj
+	end
+
+	-- Visto a 5: del todo (vértigo entero, golpe, latido y manos).
+	caeDelante(5)
+	comprobar(sobresaltos == 1 and sonando() == 1, "compañero visto a 5: golpe y latido")
+	cerca(cuerpo.campoMax, C.Vertigo.Campo, 0.6, "compañero visto a 5: vértigo entero")
+	comprobar(manos.max > 0.8, "compañero visto a 5: las manos tiemblan")
+	limpiar()
+
+	-- Visto a 5 con el muñeco de CadaverVista ya puesto (si su conexión a Muerte va antes): una copia opaca en
+	-- workspace.Cadaveres justo donde el cuerpo. No tapa: el susto entero igual.
+	local cadaveres = g.Instance.new("Folder")
+	cadaveres.Name = "Cadaveres"
+	cadaveres.Parent = g.workspace
+	local muneco = g.Instance.new("Model")
+	muneco.Name = "Cadaver"
+	muneco.Parent = cadaveres
+	m.caja(CFrame.new(Vector3.new(0, 3, -5)), Vector3.new(2.5, 6, 1.5), { Name = "Muneco", Parent = muneco })
+	caeDelante(5)
+	comprobar(sobresaltos == 1 and sonando() == 1, "compañero visto a 5 con su muñeco delante: golpe y latido")
+	cerca(cuerpo.campoMax, C.Vertigo.Campo, 0.6, "compañero visto a 5 con su muñeco delante: vértigo entero")
+	cadaveres:Destroy()
+	limpiar()
+
+	-- Visto a 30: más fuerte que un bicho a 30 (como poco Minimo).
+	caeDelante(30)
+	comprobar(sobresaltos == 1, "compañero visto a 30: golpe")
+	cerca(cuerpo.campoMax, C.Vertigo.Campo * K.Minimo, 0.6, "compañero visto a 30: vértigo como poco Minimo")
+	limpiar()
+
+	-- Tras una pared a 15: solo latido y golpe flojo; nada de vértigo ni manos.
+	local pared = m.caja(CFrame.new(ojo + Vector3.new(0, 0, -3)), Vector3.new(30, 20, 1), { Name = "Pared" })
+	caeDelante(15)
+	comprobar(sonando() == 1 and sobresaltos == 1, "compañero tras una pared a 15: latido y golpe")
+	cerca(golpe and golpe.Volume or 0, K.OidoSobresalto, 0.01, "compañero tras una pared a 15: golpe flojo")
+	comprobar(cuerpo.campoMax == 0 and manos.max == 0, "compañero tras una pared a 15: sin vértigo ni manos")
+	m.correr(10)
+	comprobar(sonando() == 0, "compañero tras una pared: el latido se apaga solo")
+	limpiar()
+	-- Tras la pared a 30: ni se ve ni se oye.
+	caeDelante(30)
+	comprobar(sobresaltos == 0 and sonando() == 0, "compañero tras una pared a 30: nada")
+	pared:Destroy()
+	limpiar()
+
+	-- A 60, a la vista: nada.
+	caeDelante(60)
+	comprobar(sobresaltos == 0 and sonando() == 0 and cuerpo.campoMax == 0, "compañero a 60: nada")
+	limpiar()
+
+	-- Escondido: nada (allí manda MuerteVista).
+	jugador:SetAttribute("Escondido", CFrame.new())
+	caeDelante(5)
+	comprobar(sobresaltos == 0 and sonando() == 0 and cuerpo.campoMax == 0, "compañero escondido: nada")
+	jugador:SetAttribute("Escondido", nil)
+	limpiar()
+
+	-- Si te pillan a ti, esto no hace nada (manda MuerteVista).
+	m.alCliente("Muerte", jugador, ojo + Vector3.new(0, 0, -3), nil)
+	m.correr(0.6)
+	comprobar(sobresaltos == 0 and sonando() == 0, "te pillan a ti: nada de PavorVista")
+	limpiar()
+
+	-- Con Rendimiento: golpe y latido, sin vértigo.
+	jugador:SetAttribute("Rendimiento", true)
+	caeDelante(5)
+	comprobar(sobresaltos == 1 and sonando() == 1 and cuerpo.campoMax == 0, "compañero con Rendimiento: sin vértigo")
+	jugador:SetAttribute("Rendimiento", nil)
 end
 
 print(`pavor: {cuentas} comprobaciones bien`)

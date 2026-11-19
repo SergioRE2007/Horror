@@ -1,9 +1,10 @@
 -- Banco de los ojos que se acostumbran a la oscuridad (pedido por el usuario: "mejorar la inmersión"; docs/sistemas/
 -- adaptar.md). Ejecutar desde la raíz: lune run tests/bancos/adaptar.luau (lo corre regressions.luau).
---   1. Las cuentas sueltas (AdaptarCuentas): juntar, punto, foco, rebote, apunta, seguir; acotadas y sin NaN.
+--   1. Las cuentas sueltas (AdaptarCuentas): juntar, punto, foco, rebote, rayo, apunta, seguir; acotadas y sin NaN.
 --   2. Escenas en el tiempo con `acostumbrar` y `efecto`: apagar la linterna de noche (casi negro de golpe y en 8-12 s
 --      un pelo más claro y en grises), encenderla ya acostumbrado (deslumbra y se va en 0,6-1,2 s), un relámpago corto,
---      andar de una sala a otra parecida (sin nada) y la linterna de otro a la cara (mientras apunte).
+--      andar de una sala a otra parecida (sin nada), el relámpago según el cielo que se ve (Ambiente.cieloVisto: en el
+--      sótano o escondido, apenas) y la linterna de otro a la cara (mientras apunte).
 local crearMundo = require("./_roblox")
 
 local cuentas = 0
@@ -224,6 +225,48 @@ do
 	end)
 	comprobar(maximo > 0.9, `el relámpago deslumbra ({maximo})`)
 	comprobar(negroHasta < 3, `tras el relámpago no se queda negro mucho rato ({negroHasta})`)
+end
+
+-- El relámpago según el cielo que se ve (Ambiente.cieloVisto, el mismo que usa la tormenta para su destello de la
+-- pantalla): fuera deslumbra entero; en el sótano o escondido (Pantalla.Escondido), con los ojos hechos a la oscuridad,
+-- apenas (menos que el destello de la pantalla de la tormenta fuera) y con la linterna encendida, nada. Antes
+-- AdaptarVista no lo miraba y en el sótano la pantalla parpadeaba casi como fuera.
+do
+	cerca(A.rayo(1, 1), L.Rayo, 1e-9, "rayo fuera, entero")
+	cerca(A.rayo(0.5, 0.1), 0.5 * L.Rayo * 0.1, 1e-9, "rayo por el cielo visto")
+	comprobar(A.rayo(0, 1) == 0 and A.rayo(1, 0) == 0 and A.rayo(-1, 1) == 0, "rayo sin destello o sin cielo, nada")
+	comprobar(A.rayo(1, 3) == L.Rayo and A.rayo(NAN, 1) == 0 and A.rayo(1, NAN) == L.Rayo, "rayo acotado y sin NaN")
+
+	local P = Config.Tormenta.Pantalla
+	-- Un destello como los de TormentaVista (sube en 0,015 s y baja en 0,1 s) desde ojos ya hechos a `suma`.
+	local function destello(visto: number, suma: number): (number, number)
+		local quieto = A.juntar(suma)
+		local base = A.efecto(quieto, quieto, 0).brillo
+		local calido, brillo = 0, base
+		correr(quieto, 1.5, function(t)
+			local x = t - 0.5
+			local d = if x < 0 then 0
+				elseif x < 0.015 then x / 0.015
+				elseif x < 0.115 then (1 - (x - 0.015) / 0.1) ^ 2
+				else 0
+			return A.juntar(suma + A.rayo(d, visto))
+		end, function(_, e)
+			calido = math.max(calido, e.calido)
+			brillo = math.max(brillo, e.brillo)
+		end)
+		return calido, brillo - base
+	end
+	local fuera, brilloFuera = destello(1, C.Base)
+	local dentro = destello(P.Dentro, C.Base)
+	local sotano, brilloSotano = destello(P.Escondido, C.Base)
+	comprobar(fuera > 0.9, `relámpago fuera a oscuras: deslumbra ({fuera})`)
+	comprobar(sotano < 0.25 and sotano < fuera / 4,
+		`relámpago en el sótano o escondido: apenas ({sotano} frente a {fuera})`)
+	comprobar(brilloSotano < Config.Tormenta.Luz.Color and brilloSotano < brilloFuera / 4,
+		`relámpago en el sótano: la pantalla apenas se aclara ({brilloSotano} frente a {brilloFuera})`)
+	comprobar(dentro <= fuera and sotano <= dentro, "relámpago: menos cuanto menos cielo")
+	local conLinterna = destello(P.Escondido, C.Base + L.Linterna)
+	comprobar(conLinterna == 0, `relámpago en el sótano con la linterna: nada ({conLinterna})`)
 end
 
 -- La linterna de otro a la cara: deslumbra mientras apunte y se va al dejar de apuntar.

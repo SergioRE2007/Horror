@@ -19,6 +19,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Stats = require(ReplicatedStorage.Shared.Stats)
 local BengalasVista = require(script.Parent.BengalasVista)
 local Manos = require(script.Parent.Manos)
+local PistasUi = require(script.Parent.PistasUi)
 local ManosGestos = require(script.Parent.ManosGestos)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
@@ -105,9 +106,73 @@ local function sinAtravesar(donde: CFrame): CFrame
 	return donde.Rotation + (desde + hacia.Unit * llega)
 end
 
--- Coloca y enciende (o apaga) la luz de cada jugador; parpadea con poca pila.
+-- El bicho más cercano a la cámara (también a través de paredes), mirado cada BUSCAR_CADA s: la linterna propia falla
+-- a tirones con algo cerca. Sin el Imitador mientras finge ser una persona en la puerta (lo delataría, como en
+-- AmbienteMiedo y MuerteVista) ni bichos muertos.
+local BUSCAR_CADA = 0.2
+local VUELVE = 0.18 -- segundos encendida a la fuerza tras un apagón largo (el tope de L.BichoFallo)
+local bichoDist = math.huge
+local ultimaBusqueda = -math.huge
+local oscuraDesde: number? = nil -- desde cuándo está apagada a tirones por el bicho
+local forzadaHasta = 0
+
+local function buscarBicho(ahora: number)
+	if ahora - ultimaBusqueda < BUSCAR_CADA then
+		return
+	end
+	ultimaBusqueda = ahora
+	bichoDist = math.huge
+	local carpeta = workspace:FindFirstChild("Bichos")
+	if not carpeta then
+		return
+	end
+	local desde = Camara.get().CFrame.Position
+	for _, bicho in carpeta:GetChildren() do
+		if not bicho:IsA("Model") or (bicho.Name == "Imitador" and not bicho:GetAttribute("Abierto")) then
+			continue
+		end
+		local humanoide = bicho:FindFirstChildOfClass("Humanoid")
+		if humanoide and humanoide.Health <= 0 then
+			continue
+		end
+		local raiz = (bicho:FindFirstChild("HumanoidRootPart") or bicho.PrimaryPart) :: BasePart?
+		if raiz then
+			bichoDist = math.min(bichoDist, (raiz.Position - desde).Magnitude)
+		end
+	end
+end
+
+-- Cuánto brillo le deja a tu linterna el bicho cercano (1 = nada que ver). Más cerca, fallos más seguidos y largos,
+-- pero nunca a oscuras más de L.BichoFallo s seguidos: tras eso vuelve VUELVE s, para que se pueda seguir jugando.
+local function falloPorBicho(ahora: number): number
+	if bichoDist >= L.BichoCerca then
+		oscuraDesde = nil
+		return 1
+	end
+	local cerca = 1 - bichoDist / L.BichoCerca -- 0 en el borde, 1 encima
+	local ruido = math.noise(ahora * (5 + 9 * cerca), 41.7)
+	local apaga = ruido < -0.45 + cerca * 0.6 and ahora >= forzadaHasta
+	if apaga then
+		oscuraDesde = oscuraDesde or ahora
+		if ahora - (oscuraDesde :: number) > L.BichoFallo then
+			forzadaHasta = ahora + VUELVE
+			oscuraDesde = nil
+			apaga = false
+		end
+	else
+		oscuraDesde = nil
+	end
+	if apaga then
+		return 0.03
+	end
+	-- Encendida, pero temblando: más cuanto más cerca.
+	return 1 - cerca * 0.45 * (0.5 + 0.5 * math.noise(ahora * 28, 9.2))
+end
+
+-- Coloca y enciende (o apaga) la luz de cada jugador; parpadea con poca pila o con un bicho cerca (solo la tuya).
 local function actualizarLuces()
 	local ahora = os.clock()
+	buscarBicho(ahora)
 	for _, otro in Players:GetPlayers() do
 		local encendida = otro:GetAttribute("Linterna") == true
 		local luz = luces[otro]
@@ -153,19 +218,21 @@ local function actualizarLuces()
 				and typeof(jugador:GetAttribute("Escondido")) ~= "CFrame")
 		end
 		local pila = otro:GetAttribute("Pila") or 1
-		local brillo = L.Brillo
+		local porPila = 1
 		if pila < L.Poca then
 			-- Cuanta menos pila, más se apaga a tirones.
 			local fallo = 1 - pila / L.Poca
 			local ruido = math.noise(ahora * 9, otro.UserId % 97)
 			if ruido < -0.5 + fallo * 0.7 then
-				brillo *= 0.05
+				porPila = 0.05
 			else
-				brillo *= 0.75 + 0.25 * math.noise(ahora * 30, 3.1)
+				porPila = 0.75 + 0.25 * math.noise(ahora * 30, 3.1)
 			end
 		end
 		-- Rendimiento puede cambiar con la linterna encendida (y la sombra de la propia es la única que cuesta de verdad).
 		luz.foco.Shadows = otro == jugador and not jugador:GetAttribute("Rendimiento")
+		-- Con un bicho cerca solo falla la tuya (la del amigo la ve él); se queda el peor de los dos fallos.
+		local brillo = L.Brillo * math.min(porPila, if otro == jugador then falloPorBicho(ahora) else 1)
 		local rango, masBrillo = haz(otro)
 		luz.foco.Brightness = brillo * masBrillo
 		luz.foco.Color = colorDe(otro)
@@ -362,7 +429,8 @@ function EquipoVista.start()
 		if procesado then
 			return
 		end
-		if entrada.KeyCode == Enum.KeyCode.F or entrada.KeyCode == Enum.KeyCode.ButtonL1 then
+		if entrada.KeyCode == Enum.KeyCode.F
+			or (entrada.KeyCode == Enum.KeyCode.ButtonL1 and not PistasUi.libretaAbierta()) then -- en la libreta, LB pasa hoja
 			pedirLinterna()
 		elseif entrada.UserInputType == Enum.UserInputType.MouseButton1 or entrada.KeyCode == Enum.KeyCode.ButtonR2 then
 			pedirFlash()

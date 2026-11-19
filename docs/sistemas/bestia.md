@@ -12,8 +12,8 @@ Pedido por el usuario: la Bestia es el origen de todos los bichos, y el rico la 
 ## Preparación (de día)
 
 1. **Gasolina:** hay 6 cruces en el suelo (escalera del vestíbulo, salón, dormitorio de abajo, pasillo, cocina y dormitorio grande). Con un bidón en las manos, R junto a la cruz. Cada cruz gasta 1/3 de bidón. Si le queda para otra cruz, el bidón sigue en las manos; vacío, se deja en el suelo (14.1, pedido por el usuario). Con las 6 llenas sale un rastro de la escalera al porche.
-2. **Reja:** se hace en el banco del sótano con 4 chatarras y 2 cadenas. La receta solo sale después de leer la pista 9, que está en el sótano (hace falta su llave). Se lleva con R a su marco, al pie de la escalera del sótano.
-3. **Pistola y bengalas:** la pistola y 3 bengalas están en el desván, delante del baúl del rico. Las cerillas, en la encimera de la cocina.
+2. **Reja:** se hace en el banco del sótano con 4 chatarras y 2 cadenas. La receta solo sale después de leer la pista 9, que está en el sótano (hace falta su llave). La primera vez que alguien la lee, a todos, a los 1,5 s (`AvisoPlano`): "Hay un dibujo de una reja de hierro. Se puede hacer en el banco del sótano.". Se puede releer en la libreta (NOTAS en la mochila). Se lleva con R a su marco, al pie de la escalera del sótano.
+3. **Pistola y bengalas:** la pistola y 3 bengalas están en el desván, delante del baúl del rico. Las cerillas, dentro de la caja fuerte del rico: la primera vez que alguien la abre (pista 12) le van a la mochila (o a sus pies) con el aviso "Dentro de la caja fuerte hay unas cerillas." (`Config.Bestia.PistaCerillas`). Las tres son únicas (`Unica` en `Config.Objetos`): si se las lleva un amigo que no vuelve, se le quitan al cargar o al amanecer y vuelven a su sitio; las cerillas, delante de la caja fuerte del rico, solo con la pista 12 leída y si no quedan otras (`Llaves.repasar`, `docs/sistemas/llaves.md`). Al morir, la pistola, las bengalas y las cerillas caen al lado como las llaves (si muere el de la pistola, otro la coge). Cada disparo gasta una bengala, pero si la noche final sale mal y alguien llega al amanecer, vuelven al desván las que falten hasta 3; y si no queda ninguna, vuelven siempre (`Reparto.bengalas`).
 4. **Trampilla:** del sótano al patio. Se abre desde abajo y se queda abierta.
 
 Lo preparado se guarda con la partida. Si mueren todos, se vuelve al amanecer: lo hecho ese día se pierde. Excepción (14.1, pedido por el usuario): al pulsar "Wait for her" se hace la foto de la partida y se guarda, así que morir esa noche vuelve a ese momento (de día, con todo preparado y las mochilas de entonces).
@@ -21,12 +21,13 @@ Lo preparado se guarda con la partida. Si mueren todos, se vuelve al amanecer: l
 ## Noche final
 
 - **Empezar:** "Wait for her" en el vestíbulo, de día y con todo listo. Se hace de noche y no sale ningún otro bicho. A los 6 s ella sale del bosque delante de la puerta principal, ruge, revienta la puerta y entra. Al pulsar "Wait for her" la puerta principal se cierra de golpe (y queda entera), para que siempre la reviente (14.1, pedido por el usuario).
-- **Cómo caza:** corre a 19 (el jugador, a 16) y pilla a 5 studs. Persigue a quien ve. Sin verle, huele a quien no esté escondido a menos de 25 studs en su planta (16 de alto si te vio hace menos de 6 s). Arriba de la escalera del sótano o dentro huele a 40 a quien esté abajo, para que se la pueda meter aunque cojee (14.1). Si lleva 2 s sin avanzar, cambia de destino y deja de oler 4 s. Ronda las dos plantas.
-- **Escaleras (14.1, pedido por el usuario: arriba estabas a salvo):** PathfindingService no sube la escalera del vestíbulo, así que `ir()` la lleva al pie (o a lo alto) y la sube recta por el medio, con un empujón de un peldaño si se atasca (un rayo comprueba antes que no haya pared, puerta ni reja). La escalera del sótano también se baja y se sube recta y centrada (con los caminos se quedaba ladeada contra el marco).
+- **Cómo caza:** corre a 19 (el jugador, a 16) y pilla a 5 studs. Persigue a quien ve. Sin verle, huele a quien no esté escondido a menos de 25 studs en su planta (16 de alto si te vio hace menos de 6 s). Arriba de la escalera del sótano o dentro huele a 40 a quien esté abajo, para que se la pueda meter aunque cojee (14.1). Si lleva 2 s sin avanzar, cambia de destino y deja de oler 4 s. Ronda las dos plantas. Pilla solo sin nada en medio (`Caza.alcanza`, a `Pillar + 1,5`): tras una puerta cerrada no mata; sigue hasta ella, la abre al llegar y entonces sí.
+- **Escaleras (14.1, pedido por el usuario: arriba estabas a salvo):** PathfindingService no sube la escalera del vestíbulo, así que `Caza.ir` (común a todos los que cazan, `Caza.tramoEscalera`) la lleva al pie (o a lo alto) y la sube recta por el medio, con un empujón de un peldaño si se atasca (`Caza.subirRecta`; un rayo comprueba antes que no haya pared, puerta ni reja). La escalera del sótano es solo suya (`ir` en `Bestia`): también se baja y se sube recta y centrada (con los caminos se quedaba ladeada contra el marco).
 - **Trampilla:** no pasa por ella (no trepa). Si a quien busca se le va por la trampilla, se queda debajo 8 s arañando hacia arriba (`Aranar`, `BestiaVista` "Arana") y luego le busca por la escalera; en 15 s no vuelve a la trampilla.
 - **Bengala:** se queda quieta 0,6 s y cojea 8 s a velocidad 7. El flash de la cámara no la para.
 - **Palanca:** fuera, en un poste del patio al oeste de la trampilla, con un tubo de hierro que baja por el hueco (14.1, pedido por el usuario: dentro te pillaba mientras tirabas). Se mete a la Bestia en el sótano, se sube por la escalera de mano y se tira al salir; desde abajo no llega. Si ella ya está dentro del sótano, la reja cae y la deja atrapada. Si no, aviso de que la reja ha caído sin nada detrás, y la reja vuelve a subir al amanecer.
 - **Atrapada:** no sale. Golpea la reja si ve a alguien fuera cerca y solo pilla a quien esté dentro con ella.
+- **Encerrada:** al caer la reja con ella dentro, a todos: "Está encerrada. Prende el rastro del porche." (si cae vacía: "no había nada detrás").
 - **Incendio:** "Light" en el porche (2 s con cerillas) con ella atrapada. El fuego sale del porche, pasa por las cruces en orden, uno cada 1,6 s, y acaba en el sótano. Ella chilla y desaparece, y caen todos los bichos.
 - **Premio:** escena final de 20 s sin interfaz y premio: 600 monedas del final más 500 del logro de la Bestia, que solo se da la primera vez (prueba de Lune). La insignia sale de `Config.Insignias.Bestia`, que vale 0 hasta publicar. Después, vuelta al lobby (en Studio no hay teletransporte).
 
@@ -36,7 +37,7 @@ Lo preparado se guarda con la partida. Si mueren todos, se vuelve al amanecer: l
   - Echar gasolina en las 6 cruces con bidones de verdad.
   - Abrir el sótano con su llave, leer la pista 9 y hacer la reja en el banco.
   - Montar la reja.
-  - Coger del desván la pistola y las 3 bengalas, y de la cocina las cerillas.
+  - Coger del desván la pistola y las 3 bengalas, y de la caja fuerte del rico las cerillas.
   - "Wait for her".
   - Bengala que le da y la hace cojear.
   - Llevarla al sótano y bajar la reja: queda atrapada.

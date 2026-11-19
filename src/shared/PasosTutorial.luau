@@ -1,8 +1,9 @@
 -- Los pasos del tutorial (14.2 / 13.1): qué toca enseñar ahora a un jugador. Sin nada de Roblox, para probarlo con Lune.
 -- Lo usa juego/servidor/Tutorial, que mira el mundo cada poco y le pasa lo que ve (`Vista`); el cliente
 -- (TutorialVista) solo pinta el paso que le dice el atributo "Tutorial" del jugador.
---   De día, en orden: abrir la mochila, coger un hacha, correr al bosque, talar y cargar un tronco, serrarlo y arrancar
---   el generador. Si ya estaba hecho (el generador encendido, el hacha en la mochila) se salta solo.
+--   De día, en orden: leer la nota de la mesa de la cocina (la pista 1, el gancho de la historia: docs/historia.md),
+--   abrir la mochila, coger un hacha, correr al bosque, talar y cargar un tronco, serrarlo y arrancar
+--   el generador. Si ya estaba hecho (la nota leída, el generador encendido, el hacha en la mochila) se salta solo.
 --   Correr (14.8, "añade al tutorial un paso corto para correr si encaja"): se acaba en cuanto corre un momento (lo
 --   mira el servidor: atributo Corriendo). Si ya ha corrido antes, se salta; y si ya lleva un tronco o un tablón,
 --   también (cargando no se puede correr: se quedaría atascado).
@@ -14,13 +15,15 @@
 --   un bidón (Estado.repostar) si el depósito no llega a Config.Tutorial.Gasolina, hasta que lo llena o sube. Si no
 --   queda ningún bidón con gasolina, no lo pide. Así el jugador nuevo no se queda a oscuras a mitad de la primera noche.
 --   La puerta principal abierta cuenta como una cortina más (la suma la hace Tutorial en `cortinas`).
--- Después del tutorial, PasosTutorial.meta dice cuál es la siguiente meta (Tutorial la avisa al empezar cada día).
+-- Después del tutorial, PasosTutorial.meta dice cuál es la siguiente meta (Tutorial la avisa al empezar cada día) y,
+-- si ya se ha empezado a preparar la casa para la Bestia, PasosTutorial.metaBestia. Lo urgente para la noche va
+-- antes que las llaves y el coche: el generador con poca gasolina, reparar lo roto y troncos junto a la chimenea.
 local PasosTutorial = {}
 
 -- En el orden en que salen. No hace falta guardarlo: si el jugador se va a medias, la próxima vez empieza de cero.
-PasosTutorial.DIA = { "Mochila", "Hacha", "Correr", "Tronco", "Serrar", "Generador" }
+PasosTutorial.DIA = { "Nota", "Mochila", "Hacha", "Correr", "Tronco", "Serrar", "Generador" }
 PasosTutorial.LISTA =
-	{ "Mochila", "Hacha", "Correr", "Tronco", "Serrar", "Generador", "Espera", "Cortinas", "Amanecer" }
+	{ "Nota", "Mochila", "Hacha", "Correr", "Tronco", "Serrar", "Generador", "Espera", "Cortinas", "Amanecer" }
 
 export type Estado = {
 	paso: string,
@@ -35,6 +38,7 @@ export type Vista = {
 	noche: number, -- la de Ciclo: de día, la que viene
 	quedan: number, -- segundos que le quedan a la fase
 	aviso: number, -- Config.Ciclo.Aviso
+	nota: boolean?, -- ha leído la nota de la cocina (la pista 1: atributo Leida1, lo pone Pistas.leer)
 	mochila: boolean, -- ha abierto la mochila alguna vez desde que empezó el tutorial
 	hacha: boolean, -- lleva un hacha en la mochila
 	cargando: string?, -- lo pesado que lleva en las manos (atributo Cargando)
@@ -43,7 +47,7 @@ export type Vista = {
 	corrido: boolean?, -- ha corrido alguna vez desde que empezó el tutorial (atributo Corriendo)
 	gasolina: number?, -- parte del depósito del generador (0..1); nil = no se pide echarle gasolina
 	gasolinaMin: number?, -- lo que debe tener para la noche (Config.Tutorial.Gasolina)
-	bidon: boolean?, -- queda algún bidón con gasolina en el mundo
+	bidon: boolean?, -- hay gasolina que echarle (un bidón con gasolina, o uno vacío y el depósito de la granja)
 }
 
 function PasosTutorial.nuevo(): Estado
@@ -59,6 +63,9 @@ end
 function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 	local h = e.hechos
 	e.repostar = nil
+	if v.nota then
+		h.Nota = true
+	end
 	if v.mochila then
 		h.Mochila = true
 	end
@@ -127,12 +134,33 @@ function PasosTutorial.avanzar(e: Estado, v: Vista): boolean
 end
 
 -- La siguiente meta tras el tutorial (16.5), de más cerca a más lejos como las llaves (docs/diseño.md): la llave del
--- sótano (granja), la del garaje (aserradero), las piezas del coche y su gasolina, y huir. Devuelve un código y un
--- número (Tutorial lo pasa a una frase con Lang.t):
---   "Sotano", "Garaje", "Piezas" (n = piezas que faltan), "Gasolina" (solo falta la del coche) o "Huir" (listo).
---   `cerradas` = llaves de las salas aún cerradas (Casa.cerradas); `piezas` = las que le faltan al coche.
-function PasosTutorial.meta(cerradas: { string }, piezas: number, gasolinaCoche: boolean): (string, number)
-	if table.find(cerradas, "LlaveSotano") then
+-- sótano (granja), la del garaje (aserradero), las piezas del coche y su gasolina, y huir. Antes que todo eso, lo que
+-- hace falta para aguantar la noche que viene: si el generador no la aguanta y hay gasolina a mano, llenarlo (se
+-- empieza con poco y una noche gasta más); si hay ventanas o puertas reventadas, clavarles un tablón (rotas no
+-- protegen: el bicho entra al primer golpe); y, desde que sale el Trepador, troncos junto a la chimenea (el fuego lo
+-- echa y en sus segundos por el tejado no da tiempo a ir a talar). Devuelve un código y un número (Tutorial lo pasa
+-- a una frase con Lang.t):
+--   "Generador", "Reparar" (n = rotas), "Chimenea", "Sotano", "Garaje", "Piezas" (n = piezas que faltan),
+--   "Gasolina" (solo falta la del coche) o "Huir".
+--   `cerradas` = llaves de las salas aún cerradas (Casa.cerradas); `piezas` = las que le faltan al coche; `poca` = de
+--   día, el generador por debajo de Config.Tutorial.Gasolina y queda gasolina que echarle; `rotas` = de día,
+--   ventanas y puertas de abajo sin vida; `chimenea` = de día, ya sale el Trepador, el fuego apagado y sin troncos
+--   cerca del hogar (todo lo calcula Tutorial).
+function PasosTutorial.meta(
+	cerradas: { string },
+	piezas: number,
+	gasolinaCoche: boolean,
+	poca: boolean?,
+	rotas: number,
+	chimenea: boolean
+): (string, number)
+	if poca then
+		return "Generador", 0
+	elseif rotas > 0 then
+		return "Reparar", rotas
+	elseif chimenea then
+		return "Chimenea", 0
+	elseif table.find(cerradas, "LlaveSotano") then
 		return "Sotano", 0
 	elseif table.find(cerradas, "LlaveGaraje") then
 		return "Garaje", 0
@@ -142,6 +170,36 @@ function PasosTutorial.meta(cerradas: { string }, piezas: number, gasolinaCoche:
 		return "Gasolina", 0
 	end
 	return "Huir", 0
+end
+
+-- La meta del final de la Bestia (12.2), cuando ya se ha empezado a preparar la casa (Tutorial decide cuándo). En el
+-- orden en que lo cuentan las pistas: las cruces de gasolina (la 12), el plano de la reja (la 9), montar la reja y
+-- esperarla en el vestíbulo. Antes de soltarla, que alguien lleve lo que la frena y lo que la quema: `pistola` = algún
+-- jugador lleva la pistola con al menos una bengala, `cerillas` = alguien lleva las cerillas (Tutorial lo mira en las
+-- mochilas). `hayBengalas` = queda alguna bengala en el mundo (mochilas o suelta): si se gastaron todas, la pistola
+-- no se pide (el final se hace igual sin ella). Devuelve un código y un número (Tutorial lo pasa a una frase con Lang.t):
+--   "Cruces" (n = cruces que faltan), "Plano" (falta leer la 9), "Reja" (falta montarla), "Pistola", "Cerillas" o
+--   "Esperar".
+function PasosTutorial.metaBestia(
+	cruces: number,
+	reja9Leida: boolean,
+	montada: boolean,
+	pistola: boolean,
+	cerillas: boolean,
+	hayBengalas: boolean
+): (string, number)
+	if cruces > 0 then
+		return "Cruces", cruces
+	elseif not montada and not reja9Leida then
+		return "Plano", 0
+	elseif not montada then
+		return "Reja", 0
+	elseif not pistola and hayBengalas then
+		return "Pistola", 0 -- sin bengalas no hay cómo frenarla hasta el sótano
+	elseif not cerillas then
+		return "Cerillas", 0 -- sin cerillas el rastro del porche no se prende y no hay final
+	end
+	return "Esperar", 0
 end
 
 return PasosTutorial

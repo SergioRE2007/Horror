@@ -39,8 +39,8 @@ local Muerte = require(script.Parent.Muerte)
 local Preparativos = {}
 
 local B = Config.Bestia
--- Parte de un bidón que se echa en cada cruz: solo hay 4 bidones en el mapa y no se rellenan (el generador y el coche
--- también gastan), así que uno lleno da para 3.
+-- Parte de un bidón que se echa en cada cruz: solo hay 4 bidones en el mapa y el depósito de la granja da poco al día
+-- (el generador y el coche también gastan), así que uno lleno da para 3.
 local POR_PUNTO = Config.Bestia.PorPunto
 local MONTAR = Config.Bestia.Montar
 local CAER = Config.Bestia.Caer
@@ -278,7 +278,9 @@ local function dejarCaer()
 		end
 		hoja.CFrame = abajo
 		Remotes.Preparativos:FireAllClients("Reja", abajo.Position)
-		if not Bestia.encerrar(Preparativos.sotano) then
+		if Bestia.encerrar(Preparativos.sotano) then
+			avisarTodos("She's locked in. Light the trail on the porch.") -- lo siguiente del final, para que nadie se pierda
+		else
 			avisarTodos("The gate fell with nothing behind it.")
 		end
 	end)
@@ -380,6 +382,18 @@ end
 
 function Preparativos.listo(): boolean
 	return todos() and rastro and montada
+end
+
+-- Cómo va la preparación (Tutorial: la meta del final de la Bestia): cruces con gasolina, cuántas hay y si la reja
+-- está montada en su marco.
+function Preparativos.estado(): { cruces: number, total: number, montada: boolean }
+	local cruces = 0
+	for _, p in PUNTOS do
+		if llenos[p[1]] then
+			cruces += 1
+		end
+	end
+	return { cruces = cruces, total = #PUNTOS, montada = montada }
 end
 
 -- ¿Está este punto dentro de la sala del sótano (detrás de la reja)?

@@ -8,13 +8,20 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 - Pesados: `Rueda` (cilindro con llanta; una en el garaje y otra en el aserradero) y `TablonReforzado` (con flejes). Más bidones: uno en el garaje y otro en el granero.
 - `Config.Pesados` lleva ahora `Nombre` (para el taller y Lang).
 
+## Depósito de gasoil de la granja (`Recursos`)
+
+- Sin él la gasolina se acababa: 4 bidones en todo el mapa y nada los rellenaba. Depósito viejo de bloques (cilindro oxidado sobre patas, grifo con llave, charco de gasoil y una mano de sangre seca) al sur del granero (`Config.Deposito.Posicion`), hecho por `Recursos` al arrancar dentro de `Mapa/Lugares`, etiqueta `Deposito`.
+- Con un bidón en las manos, R junto al grifo ("Fill can"): el bidón se pone de pie bajo el caño, chorro (`Verter`, el de echar gasolina pero del grifo al bidón) unos segundos (`Llenar`) y cae al lado con lo que quede. Avisos: "The can is full.", "It's dry. Come back tomorrow." o "Someone is already using it." (`Llenando`).
+- Atributo `Litros` (en bidones): `Dia` = 1,5 cada amanecer, sin acumularse y sin guardarse. Números a ojo: da para una noche y media de generador o para empezar el coche/las cruces poco a poco.
 ## Bancos (`Taller`, cliente `TallerUi`, lógica en `shared/Recetas`)
 
 - Dos bancos de bloques (`Mapa.banco`, etiqueta `Banco`, atributo `Banco`): el del sótano (carpintería) y el del garaje (taller del coche). Prompt "Workbench" (E).
 - Panel de papel oscuro abajo con esquina de sangre: título del banco y cada receta "LO QUE SALE: 2 × TABLÓN, 1 × CHATARRA" con HACER (apagada si no llega). Se cierra con CERRAR, al alejarte, al morir o al ponerte a trabajar.
 - Lo que pide sale de la mochila o de las cosas pesadas sueltas junto al banco (`Taller.Radio`). Se trabaja unos segundos a martillazos con chispas (`Fabricar`); al acabar se vuelve a comprobar todo y se gasta. Lo pesado que sale aparece delante del banco; lo demás, a la mochila.
-- Sótano: tablón reforzado (2 tablones + 1 chatarra) y trampa (2 chatarras + 1 tablón). Garaje: radiador (3 chatarras + 1 botella) y batería (4 pilas + 1 chatarra).
+- Sótano: tablón reforzado (2 tablones + 1 chatarra), trampa (2 chatarras + 1 tablón) y cerrojo (2 chatarras, 4 s; a la mochila, 1×1). Garaje: radiador (3 chatarras + 1 botella) y batería (4 pilas + 1 chatarra). La reja del final va siempre detrás de todas (`Recetas.delBanco`).
 - Tablón reforzado (`Casa`, R como el tablón): deja la persiana o puerta como nueva y con ×1,75 de vida (`Config.Taller.Refuerzo`) hasta que el bicho la rompa (`Defensa.reforzar`). Se ve con dos tablones en aspa con flejes (por dentro de la ventana; en la hoja de la puerta, girando con ella).
+- Cerrojo (`Casa`, `Config.Casa.Cerrojo`, a ojo): en las puertas de dentro (no la principal ni las aún cerradas con llave; sí las de las salas ya abiertas y la del balcón) la R dice "Install bolt" mientras no tengan. Con uno en la mochila, 3 s a martillazos (`Fabricar`) y queda puesto (atributo `Cerrojo`; `CasaVista` pinta el pasador en las dos caras, que se echa con un clic al cerrarla). Los jugadores abren y cierran como siempre.
+- Cerrada con cerrojo, el bicho no la abre de un empujón: si a donde va queda al otro lado y está pegado a ella, la aporrea (un golpe cada 1,2 s de 18-24 de vida: unos 10 s, reforzada unos 17; tiembla y suena) hasta reventarla (`Defensa.golpeCerrojo`: salta el cerrojo y hay que repararla y poner otro). Si solo pasa por el pasillo, no la toca. La Bestia la revienta de un golpe (`Opciones.RompeCerrojos`).
 - Trampa: se tira con G como cualquier objeto. Quieta en el suelo, al primer bicho que pasa a 3,5 studs lo deja quieto 6 s y se gasta (golpe y chillido). A los jugadores no les hace nada.
 
 ## Coche (`Coche`, cliente `HuidaVista`)
@@ -36,12 +43,13 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 
 ## Guardado
 
-- `FormatoPartida` sin subir versión: `coche = { piezas, gasolina, porton }` (lo viejo sale sin arreglar), `refuerzo` en la casa y `final = "Huida"`. Lo fabricado se guarda como lo demás (suelto o en la mochila).
+- `FormatoPartida` sin subir versión: `coche = { piezas, gasolina, porton }` (lo viejo sale sin arreglar), `refuerzo` y `cerrojo` en la casa (lo viejo, sin cerrojo) y `final = "Huida"`. Lo fabricado se guarda como lo demás (suelto o en la mochila).
 - Al huir se guarda con `final` y la ranura del dueño queda libre en el lobby; si se vuelve a ella, partida nueva.
 
 ## Arreglado de paso
 
 - El motor arrastrado por uno solo se hundía en el suelo: desde el paso 5 lo que lleva uno no choca con nada, y eso incluía lo que se arrastra. Ahora solo deja de chocar lo que uno levanta del todo (`Cargar.rehacer`).
+- El bidón en el coche: uno a la vez ("Ya lo está usando alguien.") y, si le queda gasolina, vuelve a las manos de quien lo echaba (como en el generador y las cruces).
 - `Cargar.alUsar` admite varios usos por tipo (el bidón: generador y coche) y lo que llevan entre varios lo usa uno y los demás lo sueltan. `Cargar.trabajar` es el "trabajar unos segundos" común (también Taller y Coche).
 
 ## Pruebas (modo de pruebas, `ServerStorage.Prueba`)
@@ -61,5 +69,5 @@ Con bloques grises. Números a ojo, en `Config` (`Taller`, `Coche`, objetos y pe
 ## Pendiente
 
 - Sin probar: dos jugadores de verdad con el motor, volver al lobby tras huir (solo publicado), móvil.
-- Decidir si la huida tiene insignia (lanzamiento.md); las monedas del final ya se pagan (Recompensas.final, desde Coche). Cerrojos del banco del sótano (el diseño los nombra; de momento solo tablón reforzado y trampa).
+- Decidir si la huida tiene insignia (lanzamiento.md); las monedas del final ya se pagan (Recompensas.final, desde Coche). Cerrojos: hechos (sin probar en Studio).
 - Sonido propio de motor del coche, cepo y llave inglesa (ElevenLabs); ahora usa los provisionales.

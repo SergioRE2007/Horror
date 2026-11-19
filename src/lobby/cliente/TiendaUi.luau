@@ -9,7 +9,8 @@
 --   con Robux ya pregunta Roblox.
 --   Sale con un fundido y un pequeño desliz; cambiar de separador pasa la hoja; las monedas saltan al cambiar. Suena el
 --   papel al pasar la hoja y al cerrarla (CLAUDE.md: al pulsar y al cerrar, no al abrir). Con Rendimiento, sin
---   animaciones. Se cierra con la X o al alejarse del mostrador.
+--   animaciones. Se cierra con la X, con B del mando o Escape, o al alejarse del mostrador. Con mando sale elegido el
+--   primer botón que se puede pulsar de la lista (si ninguno, la X): la A ya hace algo (Ui.seleccionar).
 --   En el móvil (docs/sistemas/movil.md): botones de un dedo, por debajo de la barra de Roblox y sin tapar el botón de
 --   saltar (el papel se mide al abrir con lo que cabe en la pantalla).
 local GuiService = game:GetService("GuiService")
@@ -117,6 +118,7 @@ type Fila = {
 
 local panel: CanvasGroup
 local hoja: TextButton
+local cruz: TextButton
 local monedas: TextLabel
 local escalaMonedas: UIScale
 local lista: ScrollingFrame
@@ -501,6 +503,18 @@ local function entradas(): { Entrada }
 	return hay
 end
 
+-- Lo que elige el mando: el primer botón de la lista que se puede pulsar (el de más arriba); si ninguno, la X.
+local function principal(): GuiObject
+	local mejor: Fila? = nil
+	for _, fila in filas do
+		local antes = mejor == nil or fila.marco.LayoutOrder < mejor.marco.LayoutOrder
+		if fila.boton.Visible and fila.boton.Selectable and antes then
+			mejor = fila
+		end
+	end
+	return if mejor then mejor.boton else cruz
+end
+
 -- `deCero`: se tira la hoja y se hace otra (al abrir o al cambiar de separador), arriba del todo. Si no, se repinta
 -- encima de la que hay (sin moverla).
 function pintar(deCero: boolean?)
@@ -528,6 +542,9 @@ function pintar(deCero: boolean?)
 			fila.marco:Destroy()
 			filas[clave] = nil
 		end
+	end
+	if abierta then
+		Ui.mantenerSeleccion(panel, principal) -- lo elegido se ha comprado (sello) o se ha ido con la hoja
 	end
 end
 
@@ -632,6 +649,7 @@ local function cerrar()
 	end
 	abierta = false
 	Ui.ventanaAbierta("Tienda", false)
+	Ui.soltarSeleccion(panel) -- ya al empezar el fundido: que la A no compre en una libreta que se va
 	vez += 1
 	local mia = vez
 	seguro = nil
@@ -673,6 +691,7 @@ local function abrir()
 	monedasAntes = jugador:GetAttribute("Monedas")
 	hoja.Modal = true -- suelta el ratón si estaba en primera persona
 	panel.Visible = true
+	Ui.seleccionar(principal())
 	if rendimiento() then
 		panel.GroupTransparency = 0
 		panel.Position = posicion
@@ -854,7 +873,7 @@ local function construir()
 	escalaMonedas = Instance.new("UIScale")
 	escalaMonedas.Parent = monedas
 	monedas.Parent = hoja
-	local x = Ui.boton("X", {
+	cruz = Ui.boton("X", {
 		Name = "Cerrar",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(1, -14 - CRUZ_ANCHO / 2, 0, 14 + cabeza / 2),
@@ -862,8 +881,8 @@ local function construir()
 		TextSize = 24,
 		ZIndex = 3,
 	})
-	x.Activated:Connect(cerrar)
-	x.Parent = hoja
+	cruz.Activated:Connect(cerrar)
+	cruz.Parent = hoja
 	-- Raya bajo la cabecera, como la de arriba de una hoja de libreta.
 	local raya = Instance.new("Frame")
 	raya.Name = "Raya"
@@ -949,9 +968,11 @@ end
 
 function TiendaUi.start()
 	construir()
-	Ui.cerrarConB(function()
+	local function estaAbierta(): boolean
 		return abierta
-	end, cerrar, true) -- B del mando o Escape
+	end
+	Ui.cerrarConB(estaAbierta, cerrar, true) -- B del mando o Escape
+	Ui.seleccionConMando(panel, estaAbierta, principal)
 	Sonido.precargar({ "Papel" })
 	local atributos = { "Clases", "Cosmeticos", "Clase", "PuestoLinterna" }
 	for _, pase in Config.Compras.Pases do

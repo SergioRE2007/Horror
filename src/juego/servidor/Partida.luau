@@ -7,6 +7,9 @@
 --   Las mochilas son de cada jugador dentro de la partida; lo que lleva el que se va cae al suelo (Mochila) y deja de
 --   ser suyo en la siguiente foto.
 --   Si el dueño se va, se espera Config.Partida.EsperaDueno por si es un corte y luego se acaba para todos.
+--   Volver tras un corte: a cada uno de los que vienen que se va se le apunta la vuelta (Viaje.apuntarVuelta) y se le
+--   renueva cada Config.Partida.VueltaCada s mientras falte; desde el lobby puede volver (lobby/servidor/Regreso). Se
+--   borra al volver a entrar y al acabarse la partida (con o sin final, o al cerrarse el servidor).
 --   Cada guardado apunta en los datos del dueño el resumen de la ranura (lo que enseña el lobby).
 --   Al huir en el coche (Coche.alHuir) o al quemar la casa con la Bestia dentro (Incendio.alTerminar, 12.2) se guarda
 --   con `final` ("Huida" o "Bestia") y se da por terminada: la ranura queda libre.
@@ -55,11 +58,17 @@ local crudo = nil -- lo que había guardado al cargar, tal cual (se devuelve si 
 local ultima = nil -- la foto del último amanecer: lo que se guarda y a lo que se vuelve
 local semilla = 0
 local idos: { [string]: boolean } = {} -- UserIds que se han ido en esta sesión (lo suyo cayó al suelo)
+local bestiaHoy = false -- se pulsó "Wait for her" hoy: al amanecer vuelven las bengalas gastadas (Llaves.repasar)
 local guardando = false
 local cerrando = false -- el servidor se está cerrando (BindToClose)
 local cargandoPartida = false -- cogiendo el candado de la partida
 local esperaDueno = 0 -- sube cada vez que el dueño se va: una espera vieja no acaba la partida
 local almacenPrueba = nil
+-- [UserId] = vez: los que vienen y se han ido con la partida en marcha (se les renueva la vuelta). La vez sube con cada
+-- salida: una renovación vieja que ve la vuelta ya borrada no deja sin vuelta a quien se ha vuelto a ir.
+local ausentes: { [number]: number } = {}
+local vezAusente = 0
+local avisadaGuardada = false -- ya se ha dicho a Viaje que esta partida nueva tiene algo guardado (Viaje.yaGuardada)
 
 local function redondear(n: number, cifras: number): number
 	local m = 10 ^ cifras
@@ -127,8 +136,10 @@ local function ponerMochila(jugador: Player)
 end
 
 -- Deja el mundo como en `d` (ya arreglado con FormatoPartida). El orden importa: el móvil del enchufe (Generador)
--- después de quitar los objetos sueltos (Mochila).
-local function aplicar(d)
+-- después de quitar los objetos sueltos (Mochila). `esperados` (solo al cargar): los UserIds que vienen y aún no han
+-- entrado; Llaves no les quita lo que llevan.
+local function aplicar(d, esperados: { number }?)
+	bestiaHoy = false -- al cargar o al volver al amanecer no ha salido aún
 	Cargar.importar(delMundo(d.pesados))
 	Mochila.importarSueltos(delMundo(d.objetos))
 	Casa.importar(d.casa)
@@ -140,7 +151,7 @@ local function aplicar(d)
 	for _, jugador in Players:GetPlayers() do
 		ponerMochila(jugador)
 	end
-	Llaves.repasar(semilla, d.mochilas) -- la que falte vuelve a su sitio
+	Llaves.repasar(semilla, d.mochilas, esperados) -- la que falte vuelve a su sitio (y lo del que no vuelve)
 end
 
 local acabar: (texto: string) -> ()
@@ -165,6 +176,11 @@ local function guardar(soltar: boolean)
 		op = nil
 		acabar("This game was opened in another server.")
 	elseif estado == "ok" and ultima and info then
+		if info.nueva and not avisadaGuardada then
+			-- Ya hay una foto de esta partida guardada: si el servidor se cierra y alguien vuelve, que la cargue.
+			avisadaGuardada = true
+			task.spawn(Viaje.yaGuardada)
+		end
 		local dueno = Players:GetPlayerByUserId(info.dueno)
 		local ranura, noche, final = tostring(info.ranura), ultima.noche, ultima.final
 		if dueno then
@@ -176,12 +192,24 @@ local function guardar(soltar: boolean)
 	end
 end
 
+-- La partida se acaba: nadie puede volver. Se borran las vueltas de los que faltan (sin esperar).
+local function borrarVueltas()
+	local viaje = info
+	if viaje then
+		for id in ausentes do
+			task.spawn(Viaje.borrarVuelta, id, viaje)
+		end
+	end
+	table.clear(ausentes)
+end
+
 -- Se ha terminado con un final (Coche al huir, Incendio al quemar a la Bestia): se guarda así, se suelta y ya no pasa nada más (Director lo mira).
 local function terminar(final: string)
 	if FinPartida.acabada() then
 		return
 	end
 	FinPartida.marcar()
+	borrarVueltas()
 	ultima = foto()
 	ultima.final = final
 	task.spawn(guardar, true)
@@ -197,16 +225,30 @@ acabar = function(texto: string)
 		return
 	end
 	FinPartida.marcar()
+	borrarVueltas()
 	task.spawn(guardar, true)
 	task.spawn(Viaje.volver, Players:GetPlayers(), texto) -- sin esperar: lo llaman desde el ciclo y el arranque
 end
 
-function Partida.volverAlAmanecer()
+local function volver(esperados: { number }?)
 	if ultima then
-		aplicar(ultima)
+		aplicar(ultima, esperados)
 		-- Lo que tiraron los que se fueron ya no está en el suelo: su mochila vuelve a ser la del amanecer.
 		table.clear(idos)
 	end
+end
+
+function Partida.volverAlAmanecer()
+	volver(nil)
+end
+
+-- Los que vienen a esta sesión según el viaje: los apuntados y el dueño.
+local function esperadosDe(viaje: Viaje.Info): { number }
+	local lista = table.clone(viaje.jugadores)
+	if not table.find(lista, viaje.dueno) then
+		table.insert(lista, viaje.dueno)
+	end
+	return lista
 end
 
 -- Un DataStore de mentira para Studio (una clave, en memoria): pasa por JSON, como el de verdad.
@@ -223,8 +265,22 @@ local function almacenDeMentira()
 	}
 end
 
+-- Apunta la vuelta de `userId` (se acaba de ir). Si mientras tanto ha vuelto o se ha acabado, se quita otra vez: el
+-- borrado pudo llegar antes que esto.
+local function apuntarVuelta(userId: number, viaje: Viaje.Info)
+	Viaje.apuntarVuelta(userId, viaje)
+	if not ausentes[userId] then
+		Viaje.borrarVuelta(userId, viaje)
+	end
+end
+
 local function alEntrar(jugador: Player)
 	local id = tostring(jugador.UserId)
+	-- Ha vuelto (o viene por primera vez): su vuelta a esta partida ya no hace falta.
+	ausentes[jugador.UserId] = nil
+	if info then
+		task.spawn(Viaje.borrarVuelta, jugador.UserId, info)
+	end
 	while not jugador:GetAttribute("Mochila") and jugador.Parent do -- que Mochila le haya preparado la suya
 		task.wait()
 	end
@@ -246,6 +302,14 @@ end
 
 local function alSalir(jugador: Player)
 	idos[tostring(jugador.UserId)] = true
+	-- Por si es un corte: de los que vienen, el que se va con la partida en marcha puede volver desde el lobby (no si
+	-- se le ha mandado al lobby: Viaje.devuelto).
+	if info and not FinPartida.acabada() and not cerrando and not Viaje.devuelto(jugador)
+		and table.find(esperadosDe(info), jugador.UserId) then
+		vezAusente += 1
+		ausentes[jugador.UserId] = vezAusente
+		task.spawn(apuntarVuelta, jugador.UserId, info)
+	end
 	if not info or jugador.UserId ~= info.dueno or FinPartida.acabada() then
 		return
 	end
@@ -276,7 +340,14 @@ function Partida.start(): number
 	end)
 	Ciclo.alCambiar(function(fase)
 		if fase == "Dia" and op and not FinPartida.acabada() then
-			Llaves.repasar(semilla, if ultima then ultima.mochilas else {}) -- la que se haya perdido, a su sitio
+			-- La que se haya perdido, a su sitio. Sin los que se han ido hoy: lo suyo ya está en el suelo (y la foto
+			-- quita su mochila), así que lo único que llevaban no se repone otra vez.
+			local guardadas = table.clone(if ultima then ultima.mochilas else {})
+			for id in idos do
+				guardadas[id] = nil
+			end
+			Llaves.repasar(semilla, guardadas, nil, bestiaHoy)
+			bestiaHoy = false
 			ultima = foto()
 			task.spawn(guardar, false) -- sin frenar al resto de los que escuchan el amanecer
 		end
@@ -285,6 +356,7 @@ function Partida.start(): number
 	-- preparado). Si mueren todos esa noche se vuelve ahí, no al amanecer (14.1, pedido por el usuario). Una vez al día
 	-- como mucho: Preparativos solo deja esperarla de día y una vez.
 	Preparativos.alSoltar(function()
+		bestiaHoy = true
 		if op and not FinPartida.acabada() then
 			ultima = foto()
 			task.spawn(guardar, false)
@@ -298,8 +370,26 @@ function Partida.start(): number
 			end
 		end
 	end)
+	-- Renueva la vuelta de los que faltan (si este servidor se cae, caduca sola a los VueltaCaduca s). La que ya no lleva
+	-- aquí (ha caducado, o se ha ido luego a otra partida) no se renueva más.
+	task.spawn(function()
+		while true do
+			task.wait(P.VueltaCada)
+			local viaje = info
+			if viaje and not FinPartida.acabada() and not cerrando then
+				for id, vez in ausentes do
+					task.spawn(function()
+						if Viaje.renovarVuelta(id, viaje) == "otra" and ausentes[id] == vez then
+							ausentes[id] = nil
+						end
+					end)
+				end
+			end
+		end
+	end)
 	game:BindToClose(function()
 		cerrando = true
+		borrarVueltas() -- el servidor se va: ya no se puede volver a esta partida
 		-- Si aún está cogiendo el candado, se espera: al acabar lo suelta él (abajo) sin escribir nada nuevo.
 		local inicio = os.clock()
 		while cargandoPartida and os.clock() - inicio < Config.Guardado.Cierre do
@@ -312,7 +402,8 @@ function Partida.start(): number
 		local primero = Players:GetPlayers()[1] or Players.PlayerAdded:Wait()
 		info = { dueno = Config.Test.Dueno or primero.UserId, ranura = Config.Test.Ranura, nueva = Config.Test.Nueva, jugadores = {} }
 		almacenPrueba = almacenDeMentira()
-		ServerStorage:WaitForChild("Prueba").Event:Connect(function(que: string)
+		-- ("Cargar", { UserIds }) carga como si esos vinieran y aún no hubieran entrado (Llaves no les quita nada).
+		ServerStorage:WaitForChild("Prueba").Event:Connect(function(que: string, esperados: { number }?)
 			if que == "Guardar" then
 				ultima = foto()
 				guardar(false)
@@ -323,7 +414,7 @@ function Partida.start(): number
 					return nil
 				end)
 				ultima = FormatoPartida.arreglar(leido and leido.datos, CAT)
-				Partida.volverAlAmanecer()
+				volver(if type(esperados) == "table" then esperados else nil)
 			end
 		end)
 	else
@@ -337,6 +428,9 @@ function Partida.start(): number
 	for _, jugador in Players:GetPlayers() do
 		if #viaje.jugadores > 0 and not table.find(viaje.jugadores, jugador.UserId) then
 			Viaje.volver({ jugador }, "This game has already started.")
+		else
+			-- Entró antes de leer el viaje (alEntrar aún no sabía a qué partida): su vuelta aquí, si la tenía, sobra.
+			task.spawn(Viaje.borrarVuelta, jugador.UserId, viaje)
 		end
 	end
 
@@ -386,7 +480,7 @@ function Partida.start(): number
 	if d and not d.final then -- una terminada se empieza de cero
 		semilla = d.semilla
 		ultima = d
-		aplicar(d)
+		aplicar(d, esperadosDe(viaje))
 		return d.noche
 	end
 	semilla = Random.new():NextInteger(1, 2 ^ 31 - 2)

@@ -5,10 +5,14 @@
 --     Lo que levantan los golpes (Efectos.moverPolvoAire) es otra caja y se suma encima.
 --   Haces de luna: cada luz de luna de una ventana (Mapa.luzLuna, etiqueta "Luna") tiene de noche un Beam azulado casi
 --     transparente de la ventana al suelo, con sus propias motas que brillan dentro (como un rayo de luz en una
---     iglesia). Con las cortinas de esa ventana echadas, no.
+--     iglesia). Con las cortinas de esa ventana echadas, no. Con el cielo cerrado de tormenta (AireVista.nublado, lo pone
+--     CieloVista) casi no se ven: Config.Cielo.Tormenta.Haz.
 --   Niebla baja fuera, de noche: partículas grandes y planas a ras de suelo alrededor de la cámara que se arrastran
---     despacio hacia donde sopla el viento (AireVista.viento: rumbo y rachas, el mismo para todos los clientes).
---   Pinocha: bajo los pinos (etiqueta "Pino" de Mapa), en las rachas, cae algo de pinocha.
+--     despacio hacia donde sopla el viento (AireVista.viento: rumbo y rachas, el mismo para todos los clientes). Con
+--     tormenta, más deprisa (AireVista.empuje). Las noches de niebla cerrada (AireVista.neblina, lo pone CieloVista),
+--     más espesa y más alta (AireVista.nieblaBaja, Config.Cielo.Niebla.Baja y Alto).
+--   Pinocha: bajo los pinos (etiqueta "Pino" de Mapa), en las rachas, cae algo de pinocha (con tormenta, más a menudo
+--     y más de lado). Las mismas rachas suben y bajan el viento que se oye (Ambiente.vientoSonido).
 -- Nada en cinemáticas (cámara Scriptable salvo un vistazo por la mirilla o las cortinas). Con Rendimiento, las motas a
 -- Config.Aire.Rendimiento y sin haces, niebla ni pinocha. Un solo Heartbeat que repasa cada Config.Aire.Cada segundos y
 -- solo trabaja con lo que pide el sitio de la cámara. Las partículas nacen en el mundo (no van pegadas a la caja): la
@@ -29,6 +33,11 @@ local CELDA = 32 -- studs de cada celda de la rejilla de pinos
 
 local jugador = Players.LocalPlayer
 
+-- Cielo cerrado de tormenta (CieloVista, cielo.md): de 0 a 1, en rampa. Apaga los haces de luna hasta su parte.
+AireVista.nublado = 0
+-- Noche de niebla cerrada (CieloVista, cielo.md): de 0 a 1, en rampa. Espesa y sube la niebla baja.
+AireVista.neblina = 0
+
 ---------------------------------------------------------------- cuentas (sin Roblox: las usa el banco)
 
 -- Cuánto de noche (0 a 1) según la fase y lo que lleva de ella: las mismas rampas que Ambiente (atardecer al final del
@@ -46,12 +55,13 @@ local function enCaja(p: Vector3, x1: number, x2: number, z1: number, z2: number
 	return p.X > x1 and p.X < x2 and p.Z > z1 and p.Z < z2
 end
 
--- ¿Dentro de la casa (o de una sala de Config.Aire.Salas)? Y cuánto se multiplican las motas ahí. La casa, como
--- Efectos.dentroDeCasa (Config.Casa) más sus anexos (torre, mirador, lavadero).
-function AireVista.dentro(p: Vector3): (boolean, number)
+-- ¿Dentro de la casa (o de una sala de Config.Aire.Salas)? Y cuánto se multiplican las motas ahí, y el nombre de esa
+-- sala (nil en el resto de la casa). La casa, como Efectos.dentroDeCasa (Config.Casa) más sus anexos (torre, mirador,
+-- lavadero).
+function AireVista.dentro(p: Vector3): (boolean, number, string?)
 	for _, s in CFG.Salas do
 		if enCaja(p, s.x1, s.x2, s.z1, s.z2) and p.Y > s.y1 and p.Y < s.y2 then
-			return true, s.Motas
+			return true, s.Motas, s.Nombre
 		end
 	end
 	if p.Y >= 28 then
@@ -79,6 +89,29 @@ function AireVista.vientoEn(t: number): (Vector3, number, number)
 	return Vector3.new(math.cos(rumbo), 0, math.sin(rumbo)), fuerza, racha
 end
 
+-- Cuánto se ve un haz de luna (0 a 1) con la noche `k` y el cielo cerrado `nublado` (0 a 1): con tormenta, su parte.
+function AireVista.fuerzaHaz(k: number, nublado: number): number
+	return k * (1 - (1 - Config.Cielo.Tormenta.Haz) * math.clamp(nublado, 0, 1))
+end
+
+-- La niebla baja con la noche `k` y la niebla cerrada `neblina` (0 a 1): cuántas por segundo y lo alta que es su caja.
+function AireVista.nieblaBaja(k: number, neblina: number): (number, number)
+	local N, B = CFG.Niebla, Config.Cielo.Niebla
+	local n = math.clamp(neblina, 0, 1)
+	return N.Rate * k * (1 + (B.Baja - 1) * n), N.Alto * (1 + (B.Alto - 1) * n)
+end
+
+-- Con el cielo cerrado `nublado` (0 a 1), por cuánto va el viento de abajo (niebla baja y pinocha): en rampa hasta
+-- Config.Cielo.Tormenta.Viento, el mismo que las nubes. Y desde qué racha cae la pinocha (con tormenta, más a menudo).
+function AireVista.empuje(nublado: number): number
+	return 1 + (Config.Cielo.Tormenta.Viento - 1) * math.clamp(nublado, 0, 1)
+end
+
+function AireVista.umbralPinocha(nublado: number): number
+	local p = CFG.Pinocha
+	return p.Racha + (p.RachaTormenta - p.Racha) * math.clamp(nublado, 0, 1)
+end
+
 -- Ancho del haz en la ventana y en el suelo, para un haz de `largo` studs.
 function AireVista.anchoHaz(largo: number): (number, number)
 	local h = CFG.Haz
@@ -103,7 +136,7 @@ type Haz = {
 	emisor: ParticleEmitter?,
 	ventana: Instance?,
 	encendido: boolean,
-	k: number, -- la noche con la que se pintó la transparencia por última vez
+	k: number, -- lo que se veía (AireVista.fuerzaHaz) cuando se pintó la transparencia por última vez
 }
 local haces: { [BasePart]: Haz } = {}
 local pinos: { [string]: { [BasePart]: Vector3 } } = {} -- celda → tronco → su sitio en planta
@@ -409,6 +442,7 @@ end
 
 local function moverHaces(camara: Vector3, k: number, vale: boolean)
 	local cerca2 = CFG.Haz.Cerca * CFG.Haz.Cerca
+	local fuerza = AireVista.fuerzaHaz(k, AireVista.nublado)
 	for luna, h in haces do
 		if not luna.Parent then
 			quitarLuna(luna)
@@ -421,12 +455,12 @@ local function moverHaces(camara: Vector3, k: number, vale: boolean)
 		end
 		on = on and h.beam ~= nil and not tapada(h)
 		if h.beam and h.emisor then
-			if on and (not h.encendido or math.abs(h.k - k) > 0.02) then
-				h.k = k
-				local t = 1 - (1 - CFG.Haz.Transparencia) * k
+			if on and (not h.encendido or math.abs(h.k - fuerza) > 0.01) then
+				h.k = fuerza
+				local t = 1 - (1 - CFG.Haz.Transparencia) * fuerza
 				-- Más transparente en los dos extremos: no se ve dónde empieza ni dónde acaba.
 				h.beam.Transparency = secuencia({ { 0, 1 }, { 0.15, t }, { 0.8, t }, { 1, 1 } })
-				h.emisor.Rate = CFG.Haz.Motas * k
+				h.emisor.Rate = CFG.Haz.Motas * fuerza
 			end
 			if on ~= h.encendido then
 				h.beam.Enabled = on
@@ -453,6 +487,7 @@ local function repasar()
 	local k = nocheAhora()
 	local dentro, cuanto = AireVista.dentro(p)
 	local hacia, fuerza, racha = AireVista.viento()
+	local empuje = AireVista.empuje(AireVista.nublado) -- con tormenta, la niebla y la pinocha van más deprisa
 
 	-- Polvo de dentro.
 	if vale and dentro then
@@ -465,24 +500,28 @@ local function repasar()
 	-- Haces de luna (de noche, sin Rendimiento).
 	moverHaces(p, k, vale and not ligero)
 
-	-- Niebla baja (fuera, de noche, sin Rendimiento).
+	-- Niebla baja (fuera, de noche, sin Rendimiento): las noches de niebla cerrada, más espesa y más alta.
 	if vale and not dentro and not ligero and k > 0.02 then
 		ponerFiltro()
 		local suelo = sueloBajo(p)
-		local centro = Vector3.new(p.X, suelo + CFG.Niebla.Alto / 2, p.Z)
+		local ritmo, alto = AireVista.nieblaBaja(k, AireVista.neblina)
+		if math.abs(cajaNiebla.Size.Y - alto) > 0.05 then
+			cajaNiebla.Size = Vector3.new(CFG.Niebla.Radio * 2, alto, CFG.Niebla.Radio * 2)
+		end
+		local centro = Vector3.new(p.X, suelo + alto / 2, p.Z)
 		cajaNiebla.CFrame = mirando(centro, hacia)
 		local v = CFG.Niebla.Velocidad
-		niebla.Speed = NumberRange.new(v[1] * fuerza, v[2] * fuerza)
-		niebla.Rate = CFG.Niebla.Rate * k
+		niebla.Speed = NumberRange.new(v[1] * fuerza * empuje, v[2] * fuerza * empuje)
+		niebla.Rate = ritmo
 	else
 		niebla.Rate = 0
 	end
 
 	-- Pinocha (fuera, en las rachas y bajo un pino, sin Rendimiento).
-	local umbral = CFG.Pinocha.Racha
+	local umbral = AireVista.umbralPinocha(AireVista.nublado)
 	if vale and not dentro and not ligero and racha > umbral and pinoCerca(p) then
 		cajaPinocha.CFrame = CFrame.new(p + Vector3.new(0, CFG.Pinocha.Alto, 0))
-		pinocha.Acceleration = hacia * (fuerza * 1.5) + Vector3.new(0, -1.2, 0)
+		pinocha.Acceleration = hacia * (fuerza * 1.5 * empuje) + Vector3.new(0, -1.2, 0)
 		pinocha.Rate = CFG.Pinocha.Rate * (racha - umbral) / (1 - umbral)
 	else
 		pinocha.Rate = 0

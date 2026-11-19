@@ -66,6 +66,13 @@ function AdaptarCuentas.rebote(distancia: number?): number
 	return math.clamp(1 - distancia / C.Luz.RebotaHasta, 0, 1)
 end
 
+-- Lo que suma el relámpago (`destello`, 0..1) con `cieloVisto` (0..1, Ambiente.cieloVisto: fuera 1; dentro, en el sótano
+-- o escondido, lo que de él calcula TormentaVista). Así los ojos siguen a la tormenta: en el sótano o en el armario,
+-- casi nada.
+function AdaptarCuentas.rayo(destello: number, cieloVisto: number): number
+	return math.max(bien(destello, 0), 0) * C.Luz.Rayo * math.clamp(bien(cieloVisto, 1), 0, 1)
+end
+
 -- Los ojos, hechos a `hecho`, tras `dt` s con `luz` (las dos de 0 a 1): hacia la luz deprisa, hacia la oscuridad despacio.
 function AdaptarCuentas.acostumbrar(hecho: number, luz: number, dt: number): number
 	luz = math.clamp(bien(luz, 0), 0, 1)

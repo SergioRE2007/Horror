@@ -6,7 +6,7 @@
 --   La linterna y la cámara también son objetos: sin ellas en la mochila no hay luz ni flash. Su carga va con el
 --   objeto, aunque se tire y lo coja otro.
 -- Lo suelto: piezas en workspace.Objetos con atributos Tipo y Carga y un ProximityPrompt "Pick up". Lo tirado sale
--- de delante del jugador con física.
+-- de delante del jugador con física, sin pasar al otro lado de una pared (Mochila.sitioLibre).
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -42,7 +42,46 @@ local COLOR = {
 	Trampa = Color3.fromRGB(85, 82, 78),
 	Bateria = Color3.fromRGB(40, 40, 42),
 	Radiador = Color3.fromRGB(150, 150, 148),
+	Cerrojo = Color3.fromRGB(96, 98, 102), -- hierro gris
 }
+
+-- Lo tirado, lo que se desparrama y las llaves al morir salían a 1,5 studs del jugador sin mirar qué había en medio, y
+-- las paredes miden 1 stud: una llave tirada contra la puerta cerrada de su sala acababa dentro, donde no se puede
+-- coger (Cargar.aLaVista) y Llaves.repasar no la repone porque sigue en el mundo. La partida se atascaba.
+-- sitioLibre(desde, hasta) tira un rayo de `desde` a `hasta` (solo lo que choca; sin personajes, objetos sueltos ni
+-- pesados, los mismos filtros que Cargar.aLaVista) y, si da en algo, devuelve el punto del choque echado DESPEGUE studs
+-- hacia atrás, y `true`. Si no, `hasta` y `false`.
+local DESPEGUE = 0.6
+local rayoLibre = RaycastParams.new()
+rayoLibre.FilterType = Enum.RaycastFilterType.Exclude
+rayoLibre.RespectCanCollide = true
+
+function Mochila.sitioLibre(desde: Vector3, hasta: Vector3): (Vector3, boolean)
+	local dir = hasta - desde
+	if dir.Magnitude < 1e-3 then
+		return hasta, false
+	end
+	local ignorar: { Instance } = {}
+	if carpeta then
+		table.insert(ignorar, carpeta)
+	end
+	local pesados = workspace:FindFirstChild("Pesados") -- la carpeta de Cargar (Cargar no se puede pedir al revés)
+	if pesados then
+		table.insert(ignorar, pesados)
+	end
+	for _, otro in Players:GetPlayers() do
+		if otro.Character then
+			table.insert(ignorar, otro.Character)
+		end
+	end
+	rayoLibre.FilterDescendantsInstances = ignorar
+	local choque = workspace:Raycast(desde, dir, rayoLibre)
+	if not choque then
+		return hasta, false
+	end
+	return choque.Position - dir.Unit * DESPEGUE, true
+end
+-- fin de sitioLibre
 
 -- La carga con la que sale un objeto nuevo (linterna llena, cámara con el carrete entero).
 local function cargaNueva(tipo: string): number?
@@ -100,15 +139,54 @@ function Mochila.contar(jugador: Player, tipo: string): number
 	return if r then Rejilla.contar(r, tipo) else 0
 end
 
--- Le da una cosa nueva (con la carga de empezar); si no le cabe, cae a sus pies.
-function Mochila.dar(jugador: Player, tipo: string)
+-- ¿Cae `punto` dentro de la caja girada `cf` de tamaño `tam`, con `margen` de más por cada lado? Cuenta pura (se
+-- prueba con Lune sacándola del texto).
+function Mochila.dentroDeCaja(cf: CFrame, tam: Vector3, punto: Vector3, margen: number): boolean
+	local p = cf:PointToObjectSpace(punto)
+	return math.abs(p.X) <= tam.X / 2 + margen and math.abs(p.Y) <= tam.Y / 2 + margen
+		and math.abs(p.Z) <= tam.Z / 2 + margen
+end
+
+-- Si `punto` está dentro de un escondite (armario o cama), su Salida; si no, el mismo punto. Quien muere o se va
+-- escondido tiene el personaje metido en el "Dentro" del mueble: lo que se le caía ahí no lo cogía nadie (ni
+-- Llaves.repasar repone una llave que sigue en el mundo) y la sala de esa llave quedaba cerrada para siempre.
+function Mochila.fueraDeEscondite(punto: Vector3): Vector3
+	for _, sitio in CollectionService:GetTagged("Escondite") do
+		local salida = sitio:GetAttribute("Salida")
+		if sitio:IsA("Model") and typeof(salida) == "CFrame" then
+			local cf, tam = sitio:GetBoundingBox()
+			if Mochila.dentroDeCaja(cf, tam, punto, 0.5) then
+				return salida.Position
+			end
+		end
+	end
+	return punto
+end
+
+-- Lo que se le ha dejado en el suelo hace nada (dar sin sitio varias veces seguidas: un trueque de 3, Preparativos):
+-- cada una un poco girada para que no caigan una encima de otra.
+local DAR_SEGUIDAS = 2 -- segundos en los que cuentan como seguidas
+local alSuelo: { [Player]: { n: number, t: number } } = {}
+
+-- Le da una cosa nueva (con la carga de empezar). true si entró en la mochila; si no le cabe, cae a sus pies, un poco
+-- detrás (delante suele estar el banco, el mostrador o la caja fuerte de donde sale: antes se metía dentro) y se le
+-- avisa.
+function Mochila.dar(jugador: Player, tipo: string): boolean
 	local r = rejillas[jugador]
 	local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if r and Rejilla.meter(r, CAT, tipo, cargaNueva(tipo)) then
 		Mochila.publicar(jugador)
+		return true
 	elseif raiz then
-		Mochila.dejar(tipo, cargaNueva(tipo), raiz.CFrame * CFrame.new(0, -1, -2))
+		local ahora = os.clock()
+		local antes = alSuelo[jugador]
+		local n = if antes and ahora - antes.t < DAR_SEGUIDAS then antes.n + 1 else 0
+		alSuelo[jugador] = { n = n, t = ahora }
+		local punto = (raiz.CFrame * CFrame.Angles(0, n * 0.7, 0) * CFrame.new(0, -1.5, 1)).Position
+		Mochila.dejar(tipo, cargaNueva(tipo), CFrame.new((Mochila.sitioLibre(raiz.Position, punto))))
+		Remotes.Aviso:FireClient(jugador, Lang.t(jugador, "No room in your backpack. It's on the floor."))
 	end
+	return false
 end
 
 -- Gasta una pila o un carrete de repuesto. false si no le quedan.
@@ -204,8 +282,12 @@ local function tirar(jugador: Player, id: unknown)
 	if not cosa then
 		return
 	end
-	local cf = cabeza.CFrame * CFrame.new(0, -0.8, -1.6)
-	Mochila.dejar(cosa.tipo, cosa.carga, cf, cabeza.CFrame.LookVector * 8 + Vector3.new(0, 4, 0))
+	local delante = cabeza.CFrame * CFrame.new(0, -0.8, -1.6)
+	local punto, choca = Mochila.sitioLibre(cabeza.Position, delante.Position)
+	-- Pegado a una pared (o a la puerta cerrada de una sala) cae a sus pies: si saliera lanzada hacia delante, la física
+	-- la metía al otro lado.
+	local velocidad = if choca then Vector3.new(0, 2, 0) else cabeza.CFrame.LookVector * 8 + Vector3.new(0, 4, 0)
+	Mochila.dejar(cosa.tipo, cosa.carga, delante.Rotation + punto, velocidad)
 	Mochila.publicar(jugador)
 end
 
@@ -287,12 +369,14 @@ local function deInicio(jugador: Player): Rejilla.Rejilla
 	return r
 end
 
--- Tira al suelo, alrededor de `punto`, una lista de cosas de la rejilla. Devuelve las piezas.
+-- Tira al suelo, alrededor de `punto`, una lista de cosas de la rejilla. Devuelve las piezas. Cada una, del lado de
+-- `punto` de la pared que tenga cerca (sitioLibre): muerto pegado a la puerta de una sala cerrada, no cae dentro.
 local function desparramar(cosas: { Rejilla.Cosa }, punto: Vector3): { BasePart }
 	local piezas = {}
 	for i, cosa in cosas do
 		local angulo = i * 2.4
-		local cf = CFrame.new(punto + Vector3.new(math.cos(angulo) * 1.5, 1 + i * 0.3, math.sin(angulo) * 1.5))
+		local alrededor = punto + Vector3.new(math.cos(angulo) * 1.5, 1 + i * 0.3, math.sin(angulo) * 1.5)
+		local cf = CFrame.new((Mochila.sitioLibre(punto, alrededor)))
 		table.insert(piezas, Mochila.dejar(cosa.tipo, cosa.carga, cf * CFrame.Angles(0, angulo, 0)))
 	end
 	return piezas
@@ -379,7 +463,9 @@ end
 function Mochila.importarSueltos(lista: { { tipo: string, carga: number?, cf: CFrame } })
 	carpeta:ClearAllChildren()
 	for _, o in lista do
-		Mochila.dejar(o.tipo, o.carga, o.cf)
+		-- Partidas guardadas antes de sacarlo del escondite: una llave metida en un armario, a su puerta.
+		local fuera = Mochila.fueraDeEscondite(o.cf.Position)
+		Mochila.dejar(o.tipo, o.carga, if fuera == o.cf.Position then o.cf else o.cf.Rotation + fuera)
 	end
 end
 
@@ -435,7 +521,7 @@ local function alEntrar(jugador: Player)
 	jugador.CharacterRemoving:Connect(function(personaje)
 		local raiz = personaje:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz then
-			ultimaPos[jugador] = raiz.Position
+			ultimaPos[jugador] = Mochila.fueraDeEscondite(raiz.Position)
 		end
 	end)
 	if jugador.Character then
@@ -474,9 +560,9 @@ function Mochila.start()
 		for _, cosa in pendientes[jugador] or {} do
 			table.insert(cosas, cosa)
 		end
-		pendientes[jugador], caidos[jugador] = nil, nil
+		pendientes[jugador], caidos[jugador], alSuelo[jugador] = nil, nil, nil
 		local raiz = raizDe(jugador)
-		local punto = if raiz then raiz.Position else ultimaPos[jugador]
+		local punto = if raiz then Mochila.fueraDeEscondite(raiz.Position) else ultimaPos[jugador]
 		ultimaPos[jugador] = nil
 		if not punto then
 			if not aparicion or not aparicion.Parent then

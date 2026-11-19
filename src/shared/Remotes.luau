@@ -13,7 +13,8 @@ local NOMBRES = {
 	"Linterna", -- cliente -> servidor: enciende o apaga mi linterna (si no tiene pila, la cambia)
 	"Flash", -- cliente -> servidor: (dirección de la cámara) hago una foto; servidor -> todos: (jugador) ha hecho una
 	"Mochila", -- cliente -> servidor: ("Abrir", abierta), ("Mover", id, x, y, girada) o ("Tirar", id)
-	"Cargar", -- cliente -> servidor: suelto lo pesado que llevo, o ("Lanzar", carga 0..1, dirección) lo lanzo (15.8)
+	"Cargar", -- cliente -> servidor: suelto lo pesado que llevo, ("Lanzar", carga 0..1, dirección) lo lanzo (15.8), o
+	-- ("Parar") dejo a medias lo que estoy haciendo
 	"Pesado", -- servidor -> todos: ("Golpe", posición, fuerza 0..1, tipo) algo pesado ha dado contra algo (15.8)
 	"Usar", -- cliente -> servidor: (objetivo) uso lo que llevo en las manos con esto (serrar, clavar, echar gasolina)
 	"Trabajo", -- servidor -> todos: (jugador, que, pieza, segundos) para animar: "Hachazo", "Serrar", "Clavar", "Verter",
@@ -31,7 +32,8 @@ local NOMBRES = {
 	"Clase", -- cliente -> servidor (lobby): (id) elegir una clase que ya tengo ("" = ninguna)
 	"Tienda", -- cliente -> servidor (lobby): ("Clase", id) o ("Cosmetico", id) comprar, ("Poner", tipo, id) ponerme uno
 	"Compra", -- cliente -> servidor: abre una compra con Robux: ("Monedas", n), ("Pase", ventaja) o ("Revivir", jugador)
-	"Pista", -- servidor -> cliente: (n, encontradas) lee la pista n de shared/Historia (lo pide su ProximityPrompt)
+	"Pista", -- servidor -> cliente: (n, encontradas) lee la pista n de shared/Historia (lo pide su ProximityPrompt);
+	-- ("Aviso", texto) un aviso de una línea de las pistas, que PistasUi pone donde no tape el papel
 	-- Final de la Bestia (12.2): cada sistema documenta sus mensajes en la cabecera de su módulo.
 	"Bestia", -- servidor -> todos: animar a la Bestia (Bestia / BestiaVista)
 	"Bengala", -- cliente -> servidor: disparo la pistola; servidor -> todos: el disparo (Bengalas / BengalasVista)
@@ -50,6 +52,8 @@ local NOMBRES = {
 	"Correr", -- cliente -> servidor: (sí/no) quiero correr; Correr lo publica en los atributos Corriendo, Aguante, Agotado, Frena y Tropiezo
 	-- Llegada en coche (16.8).
 	"Llegada", -- cliente -> servidor: ("Saltar") he saltado la escena de llegada (juego/servidor/Llegada)
+	-- Volver tras un corte.
+	"Regreso", -- cliente -> servidor (lobby): GO BACK, llévame a mi partida abierta (lobby/servidor/Regreso)
 }
 
 local Remotes = {}

@@ -310,7 +310,8 @@ end
 
 ---------------------------------------------------------------------------------------------------------------------
 -- Casa de la puerta rota: la cocina de alguien que vivió aquí escondido. La mesa (pista 3) contra la pared este,
--- debajo de la ventana; un colchón sucio en el suelo, la cocina de hierro y la nevera. Comida y chatarra.
+-- debajo de la ventana; un colchón sucio en el suelo, la cocina de hierro, la nevera y el ropero donde se escondía
+-- (escondite). Comida y chatarra.
 local function casaAbierta()
 	local e = C.Plano.buscar("CasaAbierta")
 	local m = modelo("InteriorCasaAbierta")
@@ -324,21 +325,43 @@ local function casaAbierta()
 	}, "SueloDormitorio", "TechoComedor")
 
 	C.Mapa.conPadre(m, function()
-		-- La mesa (su cara de arriba a 4,02, como antes) y una silla
-		-- en su punta sur (el centro, libre para correr).
+		-- La mesa (su cara de arriba a 4,02, como antes) y una silla en su lado oeste, mirándola (el centro, libre
+		-- para correr; en la punta sur ahora está la cocina).
 		mueble("MesaCocina", CFrame.new(24.0, 4.02 - 3.1, -440.1))
-		mueble("SillaCocinaPH", CFrame.new(24.0, F, -436.4) * CFrame.Angles(0, 0.15, 0))
+		mueble("SillaCocinaPH", CFrame.new(21.25, F, -439.6) * CFrame.Angles(0, -math.pi / 2 + 0.15, 0))
 		C.objeto("Lata", Vector3.new(24.4, 4.22, -438.4))
 		C.objeto("Botella", Vector3.new(24.5, 4.22, -441.9))
 		C.objeto("Botella", Vector3.new(21.0, F + 0.2, -444.8)) -- en el suelo, bajo la ventana norte
-		C.objeto("Chatarra", Vector3.new(16.2, F + 0.2, -435.6))
-		-- Nevera en el rincón del noreste y la cocina de hierro contra la pared sur, con una olla.
+		C.objeto("Chatarra", Vector3.new(20.1, F + 0.2, -445.0))
+		-- Nevera en el rincón del noreste y la cocina de hierro contra la pared sur, en el rincón del sureste (pegada a
+		-- la punta de la mesa), con una olla: así cabe el ropero al oeste.
 		contra("NeveraVieja", 23.9, z1, Vector3.zAxis)
-		contra("CocinaHierro", 19.4, z2, -Vector3.zAxis)
-		mueble("OllaPH", CFrame.new(18.6, F + 3.46, z2 - 1.4), true)
-		mueble("SartenPH", CFrame.new(20.4, F + 3.46, z2 - 1.3) * CFrame.Angles(0, 0.6, 0), true)
+		contra("CocinaHierro", 23.15, z2, -Vector3.zAxis)
+		mueble("OllaPH", CFrame.new(22.35, F + 3.46, z2 - 1.4), true)
+		mueble("SartenPH", CFrame.new(24.15, F + 3.46, z2 - 1.3) * CFrame.Angles(0, 0.6, 0), true)
 		-- Un retrato torcido encima de la cocina (mirando a -z, al norte, como viene).
-		mueble("CuadroFamiliaPH2", CFrame.new(19.4, 5.4, z2 - 0.23) * CFrame.Angles(0, 0, math.rad(8)), true)
+		mueble("CuadroFamiliaPH2", CFrame.new(23.15, 5.4, z2 - 0.23) * CFrame.Angles(0, 0, math.rad(8)), true)
+		-- El ropero (escondite) contra la pared sur, entre la ventana del oeste y la cocina. Quien vivió aquí se metía
+		-- dentro cada noche: rayas en el costado contando las noches (en grupos de cinco), arañazos de uñas debajo, una
+		-- manta hecha un ovillo en el fondo y gotas secas delante de las puertas.
+		local ropero = CFrame.lookAt(Vector3.new(18.35, F + 4, z2 - 1.6), Vector3.new(18.35, F + 4, z2 - 10))
+		C.Mapa.armario(ropero.Position, ropero.LookVector)
+		local costado = ropero * CFrame.new(-2.33, 0, 0) * CFrame.Angles(0, math.pi / 2, 0) -- -Z hacia fuera del costado
+		for g = 0, 2 do
+			for r = 0, if g == 2 then 2 else 4 do
+				local cfRaya = costado * CFrame.new(-0.9 + g * 0.75 + r * 0.12, 1.3 - g * 0.05, 0)
+				if r == 4 then -- la quinta, tachando las otras cuatro
+					cfRaya = costado * CFrame.new(-0.9 + g * 0.75 + 0.18, 1.3 - g * 0.05, 0) * CFrame.Angles(0, 0, math.rad(62))
+				end
+				lamina("Raya", Vector3.new(0.05, if r == 4 then 0.75 else 0.6, 0.03), cfRaya, Color3.fromRGB(150, 128, 104), Enum.Material.Wood, m)
+			end
+		end
+		C.Mapa.mancha((costado * CFrame.new(0.2, -2.2, -0.02)).Position, costado.LookVector, 1.4, C.Mapa.MARCAS.Aranazos,
+			Color3.fromRGB(120, 76, 70), 0.2, 2.2)
+		lamina("Manta", Vector3.new(2.6, 0.5, 1.2), ropero * CFrame.new(0.4, -3.45, 0.55) * CFrame.Angles(0, 0.15, math.rad(4)),
+			Color3.fromRGB(64, 56, 46), Enum.Material.Fabric, m)
+		C.Mapa.mancha(Vector3.new(18.6, F + 0.02, -438.6), Vector3.yAxis, 1.6, SANGRE.Gotas, SECA, 0.9)
+		C.Mapa.mancha(Vector3.new(17.3, F + 0.03, -439.9), Vector3.yAxis, 0.9, SANGRE.Gotas, SECA, 2.4)
 		-- El colchón en el suelo, a lo largo de la pared norte (no llega a la puerta), con una manta y sangre seca.
 		local cx, cz = 17.1, z1 + 1.45
 		solido("Colchon", Vector3.new(5, 0.45, 2.6), CFrame.new(cx, F + 0.225, cz) * CFrame.Angles(0, 0.04, 0), Color3.fromRGB(150, 128, 90),
@@ -357,8 +380,8 @@ local function casaAbierta()
 		C.Mapa.mancha(Vector3.new(16, 8.6, z2 - 0.13), -Vector3.zAxis, 3, SANGRE.Desconchon, Color3.fromRGB(170, 160, 145), 0.5)
 		C.Mapa.mancha(Vector3.new(x1 + 0.13, 10.3, -440), Vector3.xAxis, 2.6, C.Mapa.SANGRE[1], HUMEDAD, 0.9)
 		C.Mapa.mancha(Vector3.new(19, F + 0.02, -441), Vector3.yAxis, 2.4, SANGRE.Arrastre, SECA, math.pi / 2 + 0.3, 5)
-		basura(Vector3.new(23.5, F, -436), 1.2, 4, 2, m)
-		basura(Vector3.new(15.6, F, -437), 1, 3, 0, m)
+		basura(Vector3.new(21.6, F, -443.4), 1.2, 4, 2, m)
+		basura(Vector3.new(16.2, F, -441), 1, 3, 0, m)
 	end)
 end
 
@@ -398,10 +421,15 @@ local function iglesia()
 	}, "SueloCocina", "TablasDesvan")
 
 	C.Mapa.conPadre(m, function()
-		-- Bancos: cuatro filas por lado, pasillo central de z -503,5 a -496,5. Uno volcado y otro movido.
+		-- Bancos: cuatro filas por lado, pasillo central de z -503,5 a -496,5. Uno volcado y otro movido. Al fondo del
+		-- lado norte está el confesionario: ahí no hay primera fila y la segunda es más corta (deja libre su salida).
 		local filas = { 24.5, 27.2, 29.9, 32.6 }
 		for i, cx in filas do
-			banco(m, cx, -508.15, 9.1)
+			if i == 2 then
+				banco(m, cx, -503.6 - 5.6 / 2, 5.6)
+			elseif i > 2 then
+				banco(m, cx, -508.15, 9.1)
+			end
 			if i == 3 then
 				-- Volcado hacia atrás, tumbado sobre el canto de atrás entre la fila 2 y la 4.
 				banco(m, 0, 0, 9.1, CFrame.new(31.7, F + 1.03, -491.85) * CFrame.Angles(0, 0, math.pi / 2) * CFrame.new(0, -F, 0))
@@ -411,6 +439,31 @@ local function iglesia()
 				banco(m, cx, -491.85, 9.1)
 			end
 		end
+		-- El confesionario (escondite): al fondo, en el rincón del noroeste, contra la pared norte y mirando a los bancos,
+		-- con la celosía y el reclinatorio hacia el pasillo del lado. Lo que pasó: alguien se escondió dentro y se lo
+		-- llevaron a rastras (arañazos de uñas que salen de las puertas hacia el pasillo, gotas secas), y su rosario
+		-- se quedó en el suelo; en el reclinatorio, más gotas.
+		local conf = CFrame.lookAt(Vector3.new(24.9, F + 4, z1 + 1.5), Vector3.new(24.9, F + 4, z1 + 10))
+		C.Mapa.armario(conf.Position, conf.LookVector, "Confesionario")
+		C.Mapa.mancha(Vector3.new(25.2, F + 0.025, -508.7), Vector3.yAxis, 1.6, C.Mapa.MARCAS.Aranazos, Color3.fromRGB(120, 76, 70),
+			math.pi / 2 + 0.15, 3.4)
+		C.Mapa.mancha(Vector3.new(24.3, F + 0.03, -509.6), Vector3.yAxis, 1.5, SANGRE.Gotas, SECA, 0.4)
+		C.Mapa.mancha((conf * CFrame.new(-2.9, -3.58, -0.1)).Position, Vector3.yAxis, 0.9, SANGRE.Gotas, SECA, 1.9)
+		local rosario = CFrame.new(23.7, F + 0.07, -509.1) * CFrame.Angles(0, 2.2, 0)
+		for k = 0, 15 do
+			local a = k / 16 * math.pi * 2
+			local cuenta = lamina("Cuenta", Vector3.new(0.13, 0.13, 0.13), rosario * CFrame.new(math.cos(a) * 0.5, 0, math.sin(a) * 0.32),
+				Color3.fromRGB(40, 30, 26), Enum.Material.Wood, m)
+			cuenta.Shape = Enum.PartType.Ball
+		end
+		for k = 1, 3 do
+			local cuenta = lamina("Cuenta", Vector3.new(0.13, 0.13, 0.13), rosario * CFrame.new(0.5 + k * 0.16, 0, 0), Color3.fromRGB(40, 30, 26),
+				Enum.Material.Wood, m)
+			cuenta.Shape = Enum.PartType.Ball
+		end
+		lamina("Crucifijo", Vector3.new(0.4, 0.05, 0.07), rosario * CFrame.new(1.2, -0.03, 0), Color3.fromRGB(96, 90, 80), Enum.Material.Metal, m)
+		lamina("Crucifijo", Vector3.new(0.07, 0.05, 0.26), rosario * CFrame.new(1.12, -0.03, 0), Color3.fromRGB(96, 90, 80), Enum.Material.Metal, m)
+
 		-- Alfombra roja del pasillo, gastada.
 		local alfombra = lamina("Alfombra", Vector3.new(10.6, 0.04, 3.4), CFrame.new(28.4, F + 0.02, -500), BLANCO, nil, m)
 		C.Mapa.variante(alfombra, "AlfombraRoja")
@@ -471,7 +524,9 @@ local function iglesia()
 		end
 		-- Libros de cantos y hojas por el suelo, entre los bancos y en los pasillos de los lados.
 		for _ = 1, 6 do
-			local p = Vector3.new(azar:NextNumber(24, 33), F + 0.05, if azar:NextNumber() < 0.5 then -513.1 else -486.9)
+			local x, norte = azar:NextNumber(24, 33), azar:NextNumber() < 0.5
+			-- En el lado norte, del reclinatorio del confesionario hacia el altar (no debajo de él).
+			local p = Vector3.new(if norte then 28.8 + (x - 24) * 0.47 else x, F + 0.05, if norte then -513.1 else -486.9)
 			lamina("Libro", Vector3.new(0.7, 0.1, 0.9), CFrame.new(p) * CFrame.Angles(0, azar:NextNumber(0, math.pi), 0),
 				Color3.fromRGB(70, 40, 34), Enum.Material.Fabric, m)
 		end
@@ -623,6 +678,12 @@ local function caseta()
 		telarana(x2 - 0.3, techo, z1 + 0.3, Vector3.new(-1, 0, 1), 0.3)
 		telarana(x1 + 0.3, techo, z2 - 0.3, Vector3.new(1, 0, -1), 0.3)
 	end)
+end
+
+-- Para Lugares (la granja): forra por dentro uno de sus edificios (con la forma de PuebloPlano.Edificio) con su ctx.
+function PuebloInteriores.forrar(ctx, e, padre: Instance, capas: { Capa }, suelo: string, techo: string?)
+	C = ctx
+	forrar(e, padre, capas, suelo, techo)
 end
 
 function PuebloInteriores.construir(ctx)

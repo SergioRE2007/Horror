@@ -96,6 +96,9 @@ local function crear(cf: CFrame): Caza.Bicho
 		Vista = T.Vista,
 		VioEsconderse = T.VioEsconderse,
 		Fuera = Config.Postura.FueraTrepador,
+		-- La escalera del vestíbulo no: a cuatro patas lleva la raíz casi a ras de suelo (HipHeight 0,7) y se queda
+		-- contra cada peldaño (subiría a empujones, uno cada 0,6 s), y las patas abiertas atraviesan la barandilla.
+		SubeEscalera = false,
 	})
 end
 
@@ -117,15 +120,21 @@ local function sobreTejado(x: number, z: number): (Vector3, Vector3)
 end
 
 -- Lleva la raíz (anclada) hasta `hasta` en `segundos`. Devuelve false si se corta: amanece, le queman (si `fuego`) o
--- desaparece.
+-- desaparece. Aturdido (flash o bengala), se para donde está y sigue cuando se le pasa.
 local function deslizar(b: Caza.Bicho, hasta: CFrame, segundos: number, fuego: boolean?): boolean
 	local desde = b.raiz.CFrame
 	local inicio = os.clock()
+	local antes = inicio
 	while true do
 		if not b.modelo or b.prisa or (fuego and Chimenea.encendida()) then
 			return false
 		end
-		local t = math.min(1, (os.clock() - inicio) / math.max(segundos, 0.01))
+		local ahora = os.clock()
+		if b:quieto() then
+			inicio += ahora - antes -- el rato quieto no cuenta: no avanza
+		end
+		antes = ahora
+		local t = math.min(1, (ahora - inicio) / math.max(segundos, 0.01))
 		b.raiz.CFrame = desde:Lerp(hasta, t)
 		if t >= 1 then
 			return true
@@ -163,7 +172,9 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 	-- por ahí no.
 	local x = if lado > 0 then azar:NextNumber(5, 34) else azar:NextNumber(-37, -33)
 	local pie = Vector3.new(x, 0, lado * (PARED + 4))
-	local inicio = pie + fuera * 70 + Vector3.xAxis * azar:NextNumber(-25, 25)
+	-- Desde donde nadie le vea aparecer (Caza.sitioSinVer): el sitio de siempre u otro más hondo o más a un lado.
+	local inicio = Caza.sitioSinVer(Caza.llegadas(pie + fuera * 70 + Vector3.xAxis * azar:NextNumber(-25, 25), pie, fuera,
+		Vector3.xAxis, ALTURA), ALTURA)
 	local lejos = pie + fuera * 110 + Vector3.xAxis * azar:NextNumber(-40, 40)
 	local alto = Vector3.new(0, ALTURA, 0)
 	local b = crear(CFrame.lookAt(inicio + alto, pie + alto))
@@ -171,15 +182,15 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 	b.prisa = a.prisa
 	local modelo = b.modelo :: Model
 
-	-- Llega desde el bosque; si ve a alguien fuera, va a por él.
-	b:irA(pie, T.Andar, 35, function()
+	-- Llega desde el bosque; si ve a alguien fuera, va a por él. Si se atasca, no trepa desde lejos (Caza.llegarA).
+	b:llegarA(pie, T.Andar, 35, function()
 		return not b.prisa and b:elegirPresa(true) == nil
-	end)
+	end, Vector3.new(x, 0, 0))
 	if b.prisa or b:elegirPresa(true) then
 		if not b.prisa then
 			b:cazar(T.Caza / 2, true)
 		end
-		b:irA(lejos, T.Andar, 25)
+		b:perderse(lejos, T.Andar, 25) -- sin esfumarse a la vista (Caza.perderse)
 		return
 	end
 
@@ -249,7 +260,7 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 		if b.modelo then
 			b.raiz:SetNetworkOwner(nil) -- al anclarla perdió el dueño: que la siga moviendo el servidor
 		end
-		b:irA(lejos, if quemado then T.Huir else T.Andar, 25)
+		b:perderse(lejos, if quemado then T.Huir else T.Andar, 25)
 		return
 	end
 
@@ -263,8 +274,8 @@ local function ataque(a: Ataque, noche: number, paciencia: number)
 	Remotes.Trepador:FireAllClients("Entra", modelo)
 	task.wait(T.Grito)
 	b:cazar(T.Caza, false)
-	-- Se vuelve a meter por la chimenea.
-	b:irA(salida.Position, T.Andar, 25)
+	-- Se vuelve a meter por la chimenea, y solo desaparece cuando nadie le ve (Caza.salir).
+	b:salir(salida.Position, T.Andar)
 	if b.modelo then
 		Remotes.Trepador:FireAllClients("Baja", modelo)
 	end

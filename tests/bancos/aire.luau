@@ -4,7 +4,9 @@
 --   racha de 0 a 1) y el ancho del haz.
 --   Por sitios: motas dentro (el triple en el trastero, el desván y el sótano), nada fuera; niebla solo fuera y de noche;
 --   pinocha solo bajo un pino en una racha; el haz de luna de noche, apagado de día, lejos y con las cortinas echadas;
---   con Rendimiento, motas a Config.Aire.Rendimiento y nada más; en una cinemática, nada (en un vistazo, sí).
+--   con Rendimiento, motas a Config.Aire.Rendimiento y nada más; en una cinemática, nada (en un vistazo, sí); con el
+--   cielo cerrado de tormenta (AireVista.nublado), el haz casi no se ve y vuelve al abrirse, y la niebla baja va más
+--   deprisa (y la pinocha empuja más y cae desde una racha más baja).
 -- Si algo no se cumple, termina con error.
 local crearMundo = require("./_roblox")
 
@@ -84,6 +86,10 @@ d = dentro(0, 20, 0)
 comprobar(d, "dentro: planta de arriba")
 d = dentro(-36, 6, -10)
 comprobar(d, "dentro: mirador del comedor (anexo)")
+local _, _, sala = Aire.dentro(Vector3.new(0, -6, 55))
+comprobar(sala == "Sotano", "dentro: dice la sala (el sótano)")
+local _, _, ninguna = Aire.dentro(Vector3.new(0, 6, 0))
+comprobar(ninguna == nil, "dentro: en el vestíbulo, ninguna sala")
 d = dentro(100, 6, 100)
 comprobar(not d, "fuera: bosque")
 d = dentro(0, 50, 0)
@@ -98,6 +104,19 @@ local a1, a2 = Aire.anchoHaz(12.5)
 comprobar(a1 == CFG.Haz.Ancho[1] and a2 > a1 and a2 <= CFG.Haz.Ancho[2], "haz: se abre hacia el suelo")
 local _, a3 = Aire.anchoHaz(500)
 comprobar(a3 == CFG.Haz.Ancho[2], "haz: con tope")
+local HAZ_TORMENTA = Config.Cielo.Tormenta.Haz
+cerca(Aire.fuerzaHaz(1, 0), 1, "haz: sin tormenta, entero")
+cerca(Aire.fuerzaHaz(1, 1), HAZ_TORMENTA, "haz: con el cielo cerrado, su parte")
+cerca(Aire.fuerzaHaz(0.5, 0.5), 0.5 * (1 - (1 - HAZ_TORMENTA) * 0.5), "haz: a medias, en rampa")
+comprobar(HAZ_TORMENTA > 0 and HAZ_TORMENTA < 0.3, "Config: con tormenta, el haz casi apagado")
+local VIENTO_TORMENTA = Config.Cielo.Tormenta.Viento
+cerca(Aire.empuje(0), 1, "empuje: sin tormenta, el de siempre")
+cerca(Aire.empuje(1), VIENTO_TORMENTA, "empuje: con el cielo cerrado, el de las nubes")
+cerca(Aire.empuje(0.5), 1 + (VIENTO_TORMENTA - 1) * 0.5, "empuje: en rampa")
+cerca(Aire.umbralPinocha(0), CFG.Pinocha.Racha, "pinocha: sin tormenta, desde su racha")
+cerca(Aire.umbralPinocha(1), CFG.Pinocha.RachaTormenta, "pinocha: con tormenta, desde RachaTormenta")
+comprobar(CFG.Pinocha.RachaTormenta < CFG.Pinocha.Racha and CFG.Pinocha.RachaTormenta > 0.2,
+	"Config: con tormenta la pinocha cae algo más a menudo")
 
 -- Por sitios. ---------------------------------------------------------------------------------------------------------
 Aire.start()
@@ -199,6 +218,34 @@ comprobar(niebla.Rate == 0, "cinemática: sin niebla")
 camara.CameraType = Enum.CameraType.Custom
 ir(Vector3.new(0, 6, -10))
 comprobar(motas.Rate == CFG.Motas.Rate and haz().Enabled, "al acabar la cinemática, vuelve")
+
+-- Tormenta (lo pone CieloVista): el cielo cerrado apaga el haz a su parte; al abrirse, vuelve entero.
+local function opacidadHaz(): number
+	return 1 - haz().Transparency.Keypoints[2].Value
+end
+local opacoSin, motasSin = opacidadHaz(), Aire.estado.haces[luna].emisor.Rate
+Aire.nublado = 1
+ir(Vector3.new(0, 6, -10))
+cerca(Aire.estado.haces[luna].emisor.Rate, CFG.Haz.Motas * HAZ_TORMENTA, "tormenta: el haz, con pocas motas")
+comprobar(opacidadHaz() < opacoSin * 0.2, `tormenta: el haz casi no se ve ({opacidadHaz()} de {opacoSin})`)
+Aire.nublado = 0
+ir(Vector3.new(0, 6, -10))
+comprobar(math.abs(opacidadHaz() - opacoSin) < 1e-6 and Aire.estado.haces[luna].emisor.Rate == motasSin,
+	"abierto el cielo, el haz como estaba")
+
+-- Tormenta fuera: la niebla baja va más deprisa (por Config.Cielo.Tormenta.Viento, como las nubes).
+local function rapidezNiebla(): number
+	local _, fuerzaAhora = Aire.viento()
+	return niebla.Speed.Max / (CFG.Niebla.Velocidad[2] * fuerzaAhora)
+end
+ir(Vector3.new(60, 5, 230))
+local sinTormenta = rapidezNiebla()
+Aire.nublado = 1
+ir(Vector3.new(60, 5, 230))
+local conTormenta = rapidezNiebla()
+Aire.nublado = 0
+comprobar(niebla.Rate > 0 and math.abs(sinTormenta - 1) < 0.05, `niebla: sin tormenta, a su paso ({sinTormenta})`)
+comprobar(math.abs(conTormenta - VIENTO_TORMENTA) < 0.08, `niebla: con tormenta, más deprisa ({conTormenta})`)
 
 -- La luna se va (mapa nuevo): su haz se borra.
 local cajaHaz = Aire.estado.haces[luna].caja

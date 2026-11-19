@@ -24,6 +24,8 @@ al principio de cada módulo; los que puede querer tocar Sergio, en `Config.Lobb
 | cliente | `SalidaVista` | La cinemática del coche que se va |
 | cliente | `LlegadaVista` | El coche que llega a la plaza tras un viaje (14.9.3) |
 | cliente | `CocheCopia` | Librería de las dos: la copia del coche, su camino de la plaza al carril (`plaza`, `enPlaza`, `curva`), `mover` (un solo BulkMoveTo), `tapar`/`destapar` del de verdad (lo pueden pedir varios a la vez; escondido tampoco choca) y `apartar` |
+| servidor | `Regreso` | Volver a la partida tras un corte: atributo `PartidaAbierta` y remote `Regreso` (GO BACK) |
+| cliente | `RegresoUi` | El cartel de papel con "Your friends are still playing." y GO BACK |
 
 ## Plano
 
@@ -117,8 +119,9 @@ Hecho sin Studio (sesión en la nube) y con números a ojo: **falta verlo y que 
 juego): el jugador aparece en una explanada oscura con lluvia, sin ninguna pista, y la mitad de los nuevos se iba en 5
 minutos en el primer juego. Pedido por el usuario entonces: muy visible, flecha grande, frases cortas.
 - Una línea de papel arriba en el centro (460 de ancho, esquina de sangre) y una flecha roja grande con un círculo que
-  late, sobre lo que señala y visible a través de las paredes; si no está delante, otra flecha en el borde de la
-  pantalla. En el móvil la del borde no se pega a las esquinas de los botones de Roblox ni al botón de saltar. Con
+  late, sobre lo que señala y visible a través de las paredes; si no está en la pantalla, otra flecha en el borde de la
+  pantalla (si está detrás, a media altura a la izquierda o a la derecha, hacia donde girarse; nunca bajo el cartel;
+  la misma cuenta que el tutorial, banco `tests/bancos/flecha-borde.luau`). En el móvil la del borde no se pega a las esquinas de los botones de Roblox ni al botón de saltar. Con
   Rendimiento, sin vaivén ni deslizamiento. Cuelga de `Ui.hud` (su UIScale) y usa el bucle de `Bucle`.
 - Dos etapas (`lobby/servidor/GuiaLobby` decide al cargar los datos y publica el atributo `GuiaLobby`; las reglas, en
   `lobby/servidor/GuiaReglas`, probadas en `tests/bancos/guia-lobby.luau`):
@@ -139,6 +142,26 @@ minutos en el primer juego. Pedido por el usuario entonces: muy visible, flecha 
   va al mostrador y se va al abrir la tienda. Con la cuenta de verdad (no Studio): cuenta nueva = coche; tras superar una
   noche, tienda una vez. Emulador de móvil: que la línea no pise los botones de Roblox y la flecha del borde no vaya a
   las esquinas. Sin `warn` de `[Bucle]`.
+
+## Volver a la partida tras un corte
+
+Hecho sin Studio (sesión en la nube): **falta verlo y que Sergio lo apruebe**. Antes no se podía volver a un servidor
+reservado: un corte del dueño acababa la partida de todos y salir y entrar no servía de nada.
+- `lobby/servidor/Regreso`: al cargar tus datos (`DatosListos`, como mucho 60 s) y otra vez a los
+  `Config.Partida.VueltaRelee` (30) s (el juego tarda en ver un corte) lee `Viaje.vuelta` y pone el atributo
+  `PartidaAbierta`. Remote `Regreso` (sin datos, al final de `NOMBRES`): `Limite` (`Config.Limites.Regreso`, 2 s,
+  contando los fallidos), vuelve a leer la vuelta (nunca se fía del cliente; el código no sale del servidor), nada si
+  vas sentado (atributo `Coche` o en un asiento) y `Viaje.regresar`. Sin vuelta: "Your game has already ended." y fuera
+  el atributo; si falla la lectura, se deja y se avisa de que lo intente otra vez.
+- `RegresoUi`: con `PartidaAbierta` baja desde arriba (con rebote) un cartel de papel viejo con la esquina de sangre,
+  arriba en el centro bajo la línea de la guía (y = 82): una línea y GO BACK en rojo con el borde latiendo como un
+  corazón. Al pulsar suena el papel, pide al servidor y se apaga 2 s. Sentado en un coche o con una ventana abierta se
+  esconde. Con mando GO BACK sale elegido (una vez por salida: si lo sueltas con B para andar, no vuelve). En el móvil,
+  de un dedo. En primera persona suelta el ratón (`Modal`). Con Rendimiento, sin deslizar ni latir.
+- Probar en Studio (no hay teletransporte): en el lobby poner a mano `PartidaAbierta` = true en tu Player y mirar el
+  cartel; GO BACK con ratón, toque (emulador) y mando: avisa "Your game has already ended." y el cartel se va (en Studio
+  nunca hay vuelta). Subirse a un coche lo esconde y bajarse lo devuelve. La vuelta de verdad, solo publicada con dos
+  cuentas (ver `partida.md`). Banco `tests/bancos/volver-tras-un-corte.luau`.
 
 ## Interfaz (CochesUi y TiendaUi)
 

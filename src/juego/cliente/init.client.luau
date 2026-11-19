@@ -74,9 +74,11 @@ arrancar(Sistemas.CadaverVista) -- Cuerpos que caen de verdad: el muñeco del mu
 arrancar(Sistemas.OjosVista) -- Ojos en la oscuridad: la linterna los hace brillar entre los árboles (ojos.md)
 arrancar(Sistemas.AireVista) -- Aire vivo: polvo siempre en la luz, haces de luna y niebla baja (aire.md)
 arrancar(Sistemas.TormentaVista) -- Tormenta seca: relámpagos que iluminan la casa y recortan a los bichos (tormenta.md)
+arrancar(Sistemas.CieloVista) -- Cielo de la partida: nubes, estrellas y luna según la noche (cielo.md)
 arrancar(Sistemas.AdaptarVista) -- Ojos que se acostumbran a la oscuridad (y deslumbran) (adaptar.md)
 arrancar(Sistemas.Sustos)
 arrancar(Sistemas.AmbienteMiedo)
 arrancar(Sistemas.ClaseVista)
 arrancar(Sistemas.RevivirUi)
 arrancar(Sistemas.TutorialVista) -- los primeros minutos (14.2)
+arrancar(Sistemas.PistasControles) -- la tecla de la linterna, el flash y la pistola, la primera vez

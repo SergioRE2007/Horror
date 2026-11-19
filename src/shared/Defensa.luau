@@ -1,7 +1,8 @@
 -- Reglas de las ventanas y puertas de la casa cuando un bicho golpea. Sin nada de Roblox, para probarlo con Lune.
 -- El estado de cada una es una tabla (la guarda juego/servidor/Casa) y el tiempo llega de fuera (`ahora`).
 --   Ventana: persiana bajada (protege cuando ha terminado de bajar), vida de la persiana y grietas del cristal.
---   Puerta: abierta o cerrada y su vida.
+--   Puerta: abierta o cerrada y su vida. Las de dentro pueden llevar un cerrojo (del banco del sótano): cerrada con él,
+--   el bicho que la cruza no la abre de un empujón, la aporrea (golpeCerrojo) hasta reventarla y el cerrojo salta.
 -- El Golpeador golpea: si lo de delante protege, le quita vida; si no, agrieta el cristal y al romperlo entra.
 -- Si alguien abre la persiana o la puerta mientras golpea, entra en el siguiente golpe (pedido por el usuario).
 local Defensa = {}
@@ -16,6 +17,7 @@ export type Estado = {
 	abierta: boolean, -- puerta
 	bloqueada: boolean, -- puerta cerrada con llave
 	refuerzo: boolean, -- con un tablón reforzado clavado: más vida hasta que la rompan
+	cerrojo: boolean, -- puerta de dentro con cerrojo: cerrada, el bicho tiene que reventarla a golpes
 	cambio: number, -- última vez que se tocó (para no tocarla a medio mover)
 	atacada: boolean,
 	abiertaEnAtaque: boolean,
@@ -33,6 +35,7 @@ function Defensa.nueva(tipo: string, cfg): Estado
 		abierta = false,
 		bloqueada = false,
 		refuerzo = false,
+		cerrojo = false,
 		cambio = -math.huge,
 		atacada = false,
 		abiertaEnAtaque = false,
@@ -127,12 +130,36 @@ function Defensa.puerta(e: Estado, ahora: number, cfg): boolean
 	return true
 end
 
--- El bicho entra: rompe del todo lo que haya.
+-- Pone el cerrojo en una puerta (Casa ya mira que sea de dentro). false si no se puede: ya lo tiene, con llave o rota.
+function Defensa.ponerCerrojo(e: Estado): boolean
+	if e.tipo ~= "Puerta" or e.cerrojo or e.bloqueada or e.vida <= 0 then
+		return false
+	end
+	e.cerrojo = true
+	return true
+end
+
+-- Un golpe del bicho a una puerta de dentro cerrada con cerrojo: le quita vida y, al llegar a 0, la revienta (romper,
+-- que también hace saltar el cerrojo). "Golpe" si aguanta, "Entra" si ya no le para (o no había nada que le parara).
+function Defensa.golpeCerrojo(e: Estado, dano: number, cfg): string
+	if e.tipo ~= "Puerta" or not e.cerrojo or e.abierta or e.vida <= 0 then
+		return "Entra"
+	end
+	e.vida = math.max(0, e.vida - dano)
+	if e.vida > 0 then
+		return "Golpe"
+	end
+	Defensa.romper(e, cfg)
+	return "Entra"
+end
+
+-- El bicho entra: rompe del todo lo que haya (el cerrojo de una puerta salta con ella).
 function Defensa.romper(e: Estado, cfg)
 	e.vida = 0
 	sinRefuerzo(e, cfg)
 	if e.tipo == "Puerta" then
 		e.abierta = true
+		e.cerrojo = false
 	else
 		e.persiana = false
 		e.cristal = cfg.GolpesCristal

@@ -1,7 +1,9 @@
 -- Banco del tutorial, 16.5 (shared/PasosTutorial, sin Roblox):
 --   La gasolina del generador: en marcha con poco depósito, el paso Generador pide echarle un bidón (repostar) hasta
 --   que llega al mínimo o sube; sin bidones con gasolina no lo pide; parado y sin gasolina, primero el bidón.
---   La siguiente meta tras el tutorial: llave del sótano, del garaje, piezas del coche, su gasolina y huir.
+--   La siguiente meta tras el tutorial: llenar el generador si no aguanta la noche, reparar ventanas y puertas rotas,
+--   troncos junto a la chimenea, llave del sótano, del garaje, piezas del coche, su gasolina y huir. Y la del final
+--   de la Bestia: cruces, plano de la reja, reja y esperarla.
 -- Ejecutar desde la raíz: lune run tests/bancos/tutorial-meta.luau (lo corre regressions.luau).
 local PT = require("../../src/shared/PasosTutorial")
 
@@ -12,7 +14,7 @@ local function igual(actual, esperado, etiqueta: string)
 end
 
 local function vista(cambios)
-	local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, mochila = true, hacha = true, corrido = true,
+	local v = { fase = "Dia", noche = 1, quedan = 100, aviso = 20, nota = true, mochila = true, hacha = true, corrido = true,
 		cargando = "Tablon", generador = false, cortinas = 3, gasolina = 0.3, gasolinaMin = 0.45, bidon = true }
 	for clave, valor in cambios do
 		v[clave] = valor
@@ -68,13 +70,59 @@ end
 -- Siguiente meta --------------------------------------------------------------------------------------------------
 do
 	local todas = { "LlaveSotano", "LlaveGaraje", "LlaveDesvan", "LlaveRico" }
-	igual(PT.meta(todas, 5, true), "Sotano", "meta: primero la llave del sótano")
-	igual(PT.meta({ "LlaveGaraje", "LlaveDesvan" }, 5, true), "Garaje", "meta: luego la del garaje")
-	local meta, n = PT.meta({ "LlaveDesvan", "LlaveRico" }, 3, true)
+	igual(PT.meta(todas, 5, true, nil, 0, false), "Sotano", "meta: primero la llave del sótano")
+	igual(PT.meta({ "LlaveGaraje", "LlaveDesvan" }, 5, true, nil, 0, false), "Garaje", "meta: luego la del garaje")
+	local meta, n = PT.meta({ "LlaveDesvan", "LlaveRico" }, 3, true, nil, 0, false)
 	igual(meta, "Piezas", "meta: con el garaje abierto, el coche")
 	igual(n, 3, "meta: cuántas piezas faltan")
-	igual(PT.meta({}, 0, true), "Gasolina", "meta: solo falta la gasolina del coche")
-	igual(PT.meta({}, 0, false), "Huir", "meta: listo para huir")
+	igual(PT.meta({}, 0, true, nil, 0, false), "Gasolina", "meta: solo falta la gasolina del coche")
+	igual(PT.meta({}, 0, false, nil, 0, false), "Huir", "meta: listo para huir")
+	-- El generador no aguanta la noche (Tutorial calcula `poca`: de día, bajo el mínimo y con gasolina a mano)
+	igual(PT.meta(todas, 5, true, true, 0, false), "Generador", "meta: poca gasolina, el generador antes que el sótano")
+	igual(PT.meta({}, 0, false, true, 0, false), "Generador", "meta: poca gasolina, antes incluso que huir")
+	igual(PT.meta(todas, 5, true, false, 0, false), "Sotano", "meta: con gasolina de sobra (o sin nada que echarle), como antes")
+	igual(PT.meta(todas, 5, true, nil, 0, false), "Sotano", "meta: sin el dato, como antes")
+
+	-- Ventanas y puertas rotas (Tutorial cuenta las de abajo sin vida): antes que las llaves, después del generador
+	meta, n = PT.meta(todas, 5, true, false, 1, false)
+	igual(meta, "Reparar", "meta: una rota, repararla antes que la llave")
+	igual(n, 1, "meta: cuántas rotas (1)")
+	meta, n = PT.meta({}, 0, false, false, 3, true)
+	igual(meta, "Reparar", "meta: rotas antes que la chimenea y que huir")
+	igual(n, 3, "meta: cuántas rotas (3)")
+	igual(PT.meta(todas, 5, true, true, 2, true), "Generador", "meta: sin luz no se aguanta: el generador antes que reparar")
+	igual(select(2, PT.meta(todas, 5, true, true, 2, false)), 0, "meta: el generador no lleva número")
+
+	-- Troncos junto a la chimenea (Tutorial: de día, ya sale el Trepador, apagada y sin troncos cerca)
+	meta, n = PT.meta(todas, 5, true, false, 0, true)
+	igual(meta, "Chimenea", "meta: chimenea antes que la llave del sótano")
+	igual(n, 0, "meta: la chimenea no lleva número")
+	igual(PT.meta({}, 0, false, false, 0, true), "Chimenea", "meta: chimenea antes incluso que huir")
+	igual(PT.meta({}, 0, true, true, 0, true), "Generador", "meta: el generador antes que la chimenea")
+	igual(PT.meta({ "LlaveGaraje" }, 5, true, false, 0, false), "Garaje", "meta: con troncos y nada roto, lo de siempre")
+end
+
+-- Meta del final de la Bestia (Tutorial la usa con la 12 leída y la casa ya a medio preparar) ------------------------
+do
+	local meta, n = PT.metaBestia(5, false, false, true, true, true)
+	igual(meta, "Cruces", "bestia: primero las cruces")
+	igual(n, 5, "bestia: cuántas cruces faltan")
+	meta, n = PT.metaBestia(1, true, true, false, false, true)
+	igual(meta, "Cruces", "bestia: con la reja ya montada, aún falta una cruz")
+	igual(n, 1, "bestia: la última cruz")
+	igual(PT.metaBestia(0, false, false, true, true, true), "Plano", "bestia: cruces hechas, falta el plano de la 9")
+	igual(PT.metaBestia(0, true, false, false, false, true), "Reja", "bestia: la reja antes que la pistola y las cerillas")
+	igual(PT.metaBestia(0, false, true, true, true, true), "Esperar", "bestia: reja montada (aunque no se leyera la 9), a esperarla")
+	igual(PT.metaBestia(0, true, true, true, true, true), "Esperar", "bestia: todo listo, a esperarla")
+	igual(select(2, PT.metaBestia(0, true, true, true, true, true)), 0, "bestia: sin número fuera de las cruces")
+	-- Antes de soltarla: la pistola con bengalas y luego las cerillas
+	igual(PT.metaBestia(0, true, true, false, false, true), "Pistola", "bestia: sin pistola ni cerillas, primero la pistola")
+	igual(PT.metaBestia(0, true, true, false, true, true), "Pistola", "bestia: con cerillas pero sin pistola, la pistola")
+	igual(PT.metaBestia(0, true, true, true, false, true), "Cerillas", "bestia: con la pistola, faltan las cerillas")
+	igual(select(2, PT.metaBestia(0, true, true, false, false, true)), 0, "bestia: la pistola sin número")
+	-- Sin ninguna bengala en el mundo (gastadas antes del final) no se pide la pistola: no se atasca la meta
+	igual(PT.metaBestia(0, true, true, false, true, false), "Esperar", "bestia: sin bengalas en el mundo, a esperarla")
+	igual(PT.metaBestia(0, true, true, false, false, false), "Cerillas", "bestia: sin bengalas, solo faltan las cerillas")
 end
 
 print(`tutorial-meta: {cuentas} comprobaciones`)

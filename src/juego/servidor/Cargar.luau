@@ -45,6 +45,7 @@ local C, PESADOS = Config.Cargar, Config.Pesados
 type Agarre = { pieza: BasePart, punto: Attachment, empuje: AlignPosition }
 local agarres: { [Player]: Agarre } = {}
 local quienes: { [BasePart]: { Player } } = {}
+local cortar: { [Player]: boolean } = {} -- pidió dejar el trabajo a medias (se movió o saltó: remote Cargar "Parar")
 local carpeta: Folder
 -- Lo que se acaba de soltar o lanzar: lo simula el servidor hasta que se para (golpes, ruido y que no se pierda).
 type Vuelo = { desde: Vector3, hora: number, antes: Vector3, quieto: number, golpe: number }
@@ -147,7 +148,7 @@ local function rehacer(pieza: BasePart)
 	giro.MaxTorque = fuerzaPeso * (if solo then C.Giro else 40)
 	giro.Responsiveness = if solo then 40 else 15
 	pieza:SetAttribute("Lleva", if solo then lista[1].UserId else nil)
-	pieza:SetAttribute("Llevada", #lista > 0 or nil) -- para el cliente (TallerUi), como Cargar.libre
+	pieza:SetAttribute("Llevada", #lista > 0 or nil) -- para el cliente (TallerUi y TutorialVista), como Cargar.libre
 	if #lista < 1 or #lista >= peso then
 		pieza:SetAttribute("Arrastra", nil)
 	end
@@ -454,8 +455,10 @@ function Cargar.libre(pieza: BasePart): boolean
 end
 
 -- Unos segundos trabajando sin moverse (atributo Trabajando = la acción; los clientes lo animan con el remote Trabajo
--- y la `pieza`). false si se deja a medias (muere, se esconde o la pieza desaparece). Lo usan también Taller y Coche.
+-- y la `pieza`). false si se deja a medias (muere, se esconde, se mueve o salta, o la pieza desaparece). Lo usan
+-- también Taller y Coche.
 function Cargar.trabajar(jugador: Player, accion: string, pieza: Instance, segundos: number): boolean
+	cortar[jugador] = nil
 	jugador:SetAttribute("Trabajando", accion)
 	Cargar.ajustarVelocidad(jugador)
 	Remotes.Trabajo:FireAllClients(jugador, accion, pieza, segundos)
@@ -463,11 +466,12 @@ function Cargar.trabajar(jugador: Player, accion: string, pieza: Instance, segun
 	local bien = true
 	while os.clock() < fin do
 		task.wait(0.1)
-		if not pieza.Parent or not Muerte.vivo(jugador) or jugador:GetAttribute("Escondido") then
+		if not pieza.Parent or not Muerte.vivo(jugador) or jugador:GetAttribute("Escondido") or cortar[jugador] then
 			bien = false
 			break
 		end
 	end
+	cortar[jugador] = nil
 	jugador:SetAttribute("Trabajando", nil)
 	Cargar.ajustarVelocidad(jugador)
 	if not bien then
@@ -483,7 +487,8 @@ end
 --   preparar(jugador, objetivo, pieza) -> (cf, segundos): dónde se queda la pieza mientras se trabaja; nil si no vale
 --   (preparar avisa del porqué). terminar(jugador, objetivo, pieza): al acabar; la pieza sigue anclada ahí, así que
 --   la quita o la devuelve con Cargar.liberar.
--- Mientras se trabaja: atributo Trabajando del jugador (la acción) y no se mueve; si muere o se esconde, se deja.
+-- Mientras se trabaja: atributo Trabajando del jugador (la acción) y no se mueve; si muere, se esconde, o intenta
+-- andar o saltar (el cliente manda "Parar"), se deja a medias.
 -- Lo que llevan entre varios (el motor) lo usa uno y los demás lo sueltan.
 export type Uso = {
 	etiquetas: { string },
@@ -717,6 +722,22 @@ local function grupoPersonaje(personaje: Model)
 	end)
 end
 
+-- Remote Cargar: sin nada, suelta lo que llevas; ("Lanzar", carga, dirección) lo lanza; "Parar" corta el trabajo que
+-- estés haciendo (te has movido o has saltado). Sin Trabajando, "Parar" no hace nada (no suelta: mientras se trabaja no
+-- se lleva nada). Marcar un booleano es barato y no se acumula, así que no hace falta limitar cuántas veces llega.
+function Cargar.pedir(jugador: Player, que: unknown, carga: unknown, direccion: unknown)
+	if que == "Parar" then
+		if jugador:GetAttribute("Trabajando") then
+			cortar[jugador] = true
+		end
+		return
+	elseif que == "Lanzar" then
+		lanzar(jugador, carga, direccion)
+		return
+	end
+	Cargar.soltar(jugador)
+end
+
 function Cargar.start()
 	PhysicsService:RegisterCollisionGroup("Cargado")
 	PhysicsService:RegisterCollisionGroup("Personajes")
@@ -747,14 +768,11 @@ function Cargar.start()
 	for _, jugador in Players:GetPlayers() do
 		alEntrar(jugador)
 	end
-	Players.PlayerRemoving:Connect(Cargar.soltar)
-	Remotes.Cargar.OnServerEvent:Connect(function(jugador: Player, que: unknown, carga: unknown, direccion: unknown)
-		if que == "Lanzar" then
-			lanzar(jugador, carga, direccion)
-		else
-			Cargar.soltar(jugador)
-		end
+	Players.PlayerRemoving:Connect(function(jugador)
+		Cargar.soltar(jugador)
+		cortar[jugador] = nil
 	end)
+	Remotes.Cargar.OnServerEvent:Connect(Cargar.pedir)
 	Remotes.Usar.OnServerEvent:Connect(usar)
 	RunService.Heartbeat:Connect(seguir)
 	RunService.Heartbeat:Connect(seguirVuelos)

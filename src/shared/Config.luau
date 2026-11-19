@@ -45,9 +45,16 @@ Config.Partida = {
 	Almacen = "Partidas_v1", -- DataStore de las partidas; cambiarlo borra todas, no tocar con jugadores reales
 	Viajes = "Viajes_v1", -- MemoryStore donde el lobby apunta quién va a cada servidor reservado
 	Ranuras = 3, -- partidas por jugador
-	EsperaDueno = 60, -- segundos esperando al dueño que se va (por si es un corte) antes de acabar para todos
+	-- Segundos esperando al dueño que se va (por si es un corte) antes de acabar para todos. A ojo: le da tiempo a
+	-- volver a abrir Roblox y pulsar GO BACK en el lobby (lobby/servidor/Regreso).
+	EsperaDueno = 120,
 	CaducaViaje = 86400, -- segundos que vive en MemoryStore lo apuntado de un viaje
 	Sueltos = 400, -- como mucho, cosas sueltas guardadas de cada clase (objetos y pesados)
+	-- Volver tras un corte (a ojo). La vuelta de quien se va vive VueltaCaduca s en MemoryStore y el servidor de la
+	-- partida la renueva cada VueltaCada s mientras falte y no se haya acabado (si se cae, caduca sola).
+	VueltaCaduca = 90,
+	VueltaCada = 30,
+	VueltaRelee = 30, -- el lobby la mira al cargar tus datos y otra vez a los VueltaRelee s (el juego tarda en ver un corte)
 }
 
 -- Coches del lobby (lobby/servidor/Coches): te subes con tus amigos, el primero que sube elige la partida y arranca.
@@ -77,6 +84,14 @@ Config.Casa = {
 	VidaPuerta = 160,
 	GolpesCristal = 3, -- golpes al cristal sin persiana hasta romperlo y entrar
 	Alcance = 8, -- distancia para tocar las cosas (reparar: con un tablón, ver Config.Talar)
+	-- Cerrojo de las puertas de dentro (el objeto Cerrojo, del banco del sótano; R en la puerta): con él cerrada, el bicho
+	-- no la abre de un empujón, la aporrea hasta reventarla (Casa.abrirPuerta, Defensa.golpeCerrojo). A ojo.
+	Cerrojo = {
+		Poner = 3, -- s trabajando para ponerlo
+		Cada = 1.2, -- s entre golpe y golpe a la misma puerta
+		Dano = { 18, 24 }, -- vida que le quita cada golpe (VidaPuerta 160: unos 8 golpes, ~10 s; reforzada, ~17 s)
+		Cerca = 4.5, -- studs de la raíz del bicho al centro de la hoja para aporrearla (más lejos, sigue andando)
+	},
 }
 
 -- El Golpeador (juego/servidor/Golpeador y Director). Rangos {mínimo, máximo}.
@@ -167,6 +182,7 @@ Config.Chimenea = {
 	PorTronco = 50, -- segundos que arde cada tronco
 	Max = 2, -- troncos ardiendo a la vez como mucho
 	Echar = 1.2, -- segundos echándolo
+	Cerca = 12, -- studs: un tronco así de cerca del hogar cuenta como "junto a la chimenea" (la meta del día, a ojo)
 }
 
 -- El Imitador (juego/servidor/Imitador): llama a la puerta principal con la voz de un amigo. Hay que mirar en el móvil
@@ -178,6 +194,9 @@ Config.Imitador = {
 	CadaLlamada = { 7, 10 }, -- segundos entre llamadas
 	Oido = 80, -- studs desde la puerta a los que se le oye (los avisos solo les llegan a esos)
 	AmigoLejos = 25, -- imita a uno que esté al menos así de lejos de la puerta (si no hay, a cualquiera)
+	VozMuerto = 0.7, -- si alguien ha muerto esta noche, probabilidad de que llame con su voz (shared/RepartoBichos.voz)
+	-- Jugando solo y con la foto de Tom vista (pista 2, docs/historia.md), a veces llama con la voz de Tom.
+	Antiguo = { Pista = 2, Probabilidad = 0.5, Nombre = "Tom" },
 	SaleCerca = 22, -- studs: si alguien sale y se le acerca tanto, deja de llamar y va a por él
 	Apagon = 1.5, -- segundos desde la primera llamada hasta "The lights went out." (su primera noche)
 	Grito = 2.5,
@@ -205,9 +224,31 @@ Config.Acechador = {
 	Frena = 2.5, -- segundos quieto al darle la linterna...
 	Inmune = 2.5, -- ...y después, segundos en que no le vuelve a frenar
 	Pillar = 5,
-	MasPillar = 2, -- studs de más al pillar mientras se te echa encima (corriendo se pasa de largo)
+	MasPillar = 2, -- studs de más al echarse encima (corriendo se pasa de largo; sin pared en medio: Caza.alcanza)
 	TrasPillar = 2.5, -- segundos quieto tras pillarte
 	Max = 2, -- como mucho, a la vez en el mapa
+	Cono = 70, -- grados a cada lado de hacia dónde mira la presa en los que nunca sale (su pantalla y algo más)
+	-- Escondido fuera de la casa (armarios de la granja, el granero, la iglesia y la casa abierta): se queda quieto
+	-- cerca, partiendo ramas, y se echa encima si sales antes (a ojo).
+	Aguarda = 20, -- segundos que espera junto al escondite antes de irse
+	AguardaLejos = 28, -- a cuántos studs del escondite se para a esperar
+	Aguardas = 2, -- veces que espera en el mismo ataque (esconderse, salir y volver a esconderse)
+}
+
+-- Al morir (MuerteVista). SustoComun: el susto por fases de los bichos con cara que no son el Golpeador (Acechador,
+-- Raspador, Imitador, Bestia, Trepador), en segundos: quieto mirándote, se abalanza, encima con sangre, tirón y,
+-- tras un fotograma negro, temblando. Todo junto, menos de lo que se queda quieto el bicho al pillarte (2,5 s:
+-- Caza ESPERA, Acechador y Bestia; lo mira tests/regressions). A ojo.
+Config.Muerte = {
+	SustoComun = { Mira = 0.3, Salta = 0.25, Encima = 1.1, Tiron = 0.12, Despues = 0.3 },
+	-- Lo que se nota escondido en un armario (MuerteVista, que lee CasaVista.temblorAhora y ultimoGolpe): la cámara es
+	-- fija y el temblor de siempre no se pinta. Debajo de un mueble no, que ya tiembla. Números a ojo.
+	Escondido = {
+		Temblor = 0.06, -- radianes de temblor por cada punto del temblor de CasaVista (un golpe es 0,5; una pisada, ~0,2)
+		Respingo = 0.05, -- radianes que se va la vista hacia arriba con un golpe fuerte cerca (por su fuerza)
+		LatidoGolpe = 0.7, -- volumen de más del latido tras ese golpe (y tono de más, la mitad), que baja en unos s
+		Cerca = 14, -- studs de la cámara a los que tiene que ser el golpe para el respingo y el latido
+	},
 }
 
 -- Dificultad por número de jugadores (shared/Dificultad), pensada para 2 (pedido por el usuario). Se calcula al
@@ -226,6 +267,44 @@ Config.Director = {
 	Reintento = 2, -- segundos que espera un hueco sin ventana libre o con la Bestia fuera antes de volver a mirar
 }
 
+-- Lo común de los bichos que andan y cazan (juego/servidor/Caza, docs/sistemas/bichos.md). A ojo.
+Config.Caza = {
+	Parada = 2, -- s sin acercarse a donde va (sala o ruido) ni moverse (sin camino, algo en medio): cambia de sala
+	SordoTrasParada = 3, -- s que no hace caso a los ruidos tras atascarse (si no, volvía al mismo ruido sin camino)
+	-- Cuando te pierde de vista (servidor/CazaBusqueda).
+	Busca = {
+		Memoria = 6, -- s que le vale el rastro: si tarda más en llegar a donde te vio, vuelve a la ronda sin buscar
+		Adelante = 12, -- studs que sigue en la dirección que llevaba al llegar a donde te vio
+		Margen = 2, -- studs antes de la pared en que se para si la hay en esa dirección
+		Mirar = 1.5, -- s parado mirando a un lado y a otro
+		Giro = 70, -- grados que gira la vista a cada lado
+		Salas = 2, -- salas de al lado (de esa planta) que recorre antes de volver a la ronda
+		Planta = 6, -- studs de alto para contar una sala como de la misma planta
+		Limite = 8, -- s como mucho yendo a cada punto de la búsqueda (si no llega, al siguiente)
+		Rumbo = 2, -- studs/s a los que tiene que ir para apuntar hacia dónde iba
+	},
+	-- Qué puertas abre a su paso (Caza, CazaBusqueda.cruzaPuerta; a ojo): solo las que cruza camino del punto al que
+	-- anda en ese paso.
+	Puerta = {
+		Tramo = 6, -- studs que mira por delante como mínimo (el siguiente punto del camino puede quedar antes de la hoja)
+		Margen = 0.5, -- studs de más a cada lado del ancho de la hoja para contar que la cruza
+	},
+	-- Llegar, cazar e irse sin saltos (llegarA, cazar, salir), para Golpeador, Raspador, Imitador y Trepador.
+	LlegarMas = 10, -- s que sigue andando hacia donde ataca si se atascó y alguien le ve (luego lo pone allí igual)
+	Prorroga = 8, -- s como mucho que sigue cazando, acabado su tiempo, mientras tenga presa a la vista
+	SalirMax = 10, -- s que sigue hacia la ventana por la que se va mientras alguien le vea (luego sale igual)
+	VerLejos = 160, -- studs hasta los que cuenta que alguien le ve (más lejos, de noche, no se distingue)
+	-- Aparecer y perderse en el bosque sin verse (sitioSinVer, perderse).
+	Candidatos = 6, -- sitios que prueba para aparecer: el primero que nadie ve (si los ven todos, el más apartado)
+	PerderseMax = 12, -- s que sigue alejándose de la casa al irse mientras alguien le vea (luego se quita igual)
+	-- Las noches de niebla cerrada (Caza.esNiebla, la misma que ve el cliente: Config.Cielo.Niebla) tampoco ven lejos
+	-- en el bosque: si el bicho o el jugador están fuera de la casa. El oído no cambia. A ojo.
+	Niebla = {
+		Vista = 0.4, -- la vista por esto (sin bajar de Config.Postura.VerEspalda): el Golpeador de 70 a 28 studs
+		Acechador = 0.6, -- el Acechador acecha y sale tanto más cerca (Config.Acechador.Lejos): que se le vea la silueta
+	},
+}
+
 -- Linterna con pilas (juego/servidor/Equipo): la F, o el botón en el móvil. Con poca pila parpadea.
 Config.Linterna = {
 	Duracion = 150, -- segundos encendida que dura una pila
@@ -234,6 +313,8 @@ Config.Linterna = {
 	Alcance = 55, -- studs que alumbra
 	Angulo = 25, -- grados desde el centro en los que frena a un bicho
 	Brillo = 4, -- de noche la exposición sube (Ambiente): con menos apenas se ve el círculo
+	BichoCerca = 22, -- studs (también a través de paredes) a los que un bicho hace fallar tu linterna a tirones
+	BichoFallo = 0.35, -- segundos que puede quedarse apagada seguidos por un bicho como mucho
 }
 
 -- Cámara con flash (juego/servidor/Equipo): clic, botón en el móvil o R2. Echa al Raspador; al resto lo aturde.
@@ -270,9 +351,11 @@ Config.Objetos = {
 	Radiador = { Tam = { 2, 2 }, Nombre = "Radiator" },
 	-- Final de la Bestia (Config.Bestia, 12.2).
 	Cadena = { Tam = { 2, 1 }, Nombre = "Chain" }, -- para la reja del sótano
-	Pistola = { Tam = { 2, 1 }, Nombre = "Flare gun" }, -- la del rico, en el desván
-	Bengala = { Tam = { 1, 1 }, Nombre = "Flare" }, -- cada disparo gasta una
-	Cerillas = { Tam = { 1, 1 }, Nombre = "Matches" }, -- para prender el rastro de gasolina
+	-- Unica: no hay más que las del mapa; si se las lleva uno que no vuelve, vuelven a su sitio (Llaves.repasar).
+	Pistola = { Tam = { 2, 1 }, Nombre = "Flare gun", Unica = true }, -- la del rico, en el desván
+	Bengala = { Tam = { 1, 1 }, Nombre = "Flare", Unica = true }, -- cada disparo gasta una
+	Cerillas = { Tam = { 1, 1 }, Nombre = "Matches", Unica = true }, -- para prender el rastro de gasolina
+	Cerrojo = { Tam = { 1, 1 }, Nombre = "Door bolt" }, -- del banco del sótano; se pone en una puerta de dentro (Casa)
 }
 
 -- Salas cerradas con llave (pedido por el usuario), de más cerca a más lejos (juego/servidor/Llaves). Cada llave sale
@@ -335,6 +418,7 @@ Config.Cargar = {
 	Fuerza = 0.6, -- parte del peso que levanta cada uno: con 2 que la cogen, 1,2 veces el peso del motor
 	Delante = 1.4, -- studs entre tu cuerpo y lo que llevas
 	Suelta = 9, -- si se queda más lejos (atascada), se te cae
+	Cortar = 0.15, -- segundos queriendo andar mientras trabajas para dejarlo a medias (saltar lo corta enseguida)
 	-- 15.8 (pedido por el usuario: "todo"): físicas de verdad, al hombro, lanzar y ruido (shared/CargarReglas). A ojo.
 	-- Lo que lleva uno solo (Peso 1) lo mueve su cliente (CargarVista) y choca con todo menos con los jugadores.
 	Engancha = 2.5, -- studs (en horizontal) entre donde debería ir y donde está: se ha enganchado en algo
@@ -395,6 +479,18 @@ Config.Generador = {
 	Verter = 3, -- segundos echando gasolina
 	Arranca = 0.4, -- probabilidad de arrancar con cada tirón; al tercero seguido arranca seguro
 	Tiron = 1.1, -- segundos entre tirones
+	-- Apagarlo pide mantener E (a ojo): con un toque se apagaba sin querer al seguir tirando o en cooperativo.
+	Apagar = 1, -- segundos manteniendo E para apagarlo
+	Gracia = 1.5, -- segundos tras arrancar en los que no se puede apagar (quien sigue tirando a ritmo)
+}
+
+-- Depósito viejo de gasoil de la granja (juego/servidor/Recursos): con un bidón en las manos, R junto al grifo y se
+-- llena. Cada amanecer vuelve a tener Dia bidones (no se acumula de un día a otro). Números a ojo: 1,5 bidones dan
+-- para 0,75 depósitos del generador, una noche y media de luz. Posicion = { x, y, z } del suelo bajo el centro.
+Config.Deposito = {
+	Dia = 1.5, -- bidones llenos que da cada día
+	Llenar = 4, -- segundos llenando un bidón
+	Posicion = { 224, 0, 99 }, -- al sur del granero, entre su pared y el campo
 }
 
 -- Bancos del taller (juego/servidor/Taller, cliente TallerUi): el del sótano (carpintería) y el del garaje (piezas
@@ -406,6 +502,7 @@ Config.Taller = {
 		Sotano = {
 			{ Da = "TablonReforzado", Pide = { { "Tablon", 2 }, { "Chatarra", 1 } }, Tiempo = 5 },
 			{ Da = "Trampa", Pide = { { "Chatarra", 2 }, { "Tablon", 1 } }, Tiempo = 5 },
+			{ Da = "Cerrojo", Pide = { { "Chatarra", 2 } }, Tiempo = 4 },
 		},
 		Garaje = {
 			{ Da = "Radiador", Pide = { { "Chatarra", 3 }, { "Botella", 1 } }, Tiempo = 6 },
@@ -455,6 +552,8 @@ Config.Bestia = {
 	PorPunto = 1 / 3, -- parte de un bidón que gasta cada punto (hay pocos bidones y no se rellenan)
 	-- Receta en el banco del sótano; solo sale tras leer la pista Pista (shared/Historia)
 	Reja = { Pide = { { "Chatarra", 4 }, { "Cadena", 2 } }, Tiempo = 8, Pista = 9 },
+	PistaCerillas = 12, -- la caja fuerte del rico: al abrirla por primera vez en la partida, dentro están las cerillas (sin leerla no se reponen)
+	AvisoPlano = 1.5, -- segundos tras leer la pista del plano hasta el aviso de que la reja ya se puede hacer (a ojo)
 	Montar = 4, -- segundos montando la reja en su marco
 	Caer = 0.35, -- segundos que tarda la reja en caer
 	Palanca = 1.5, -- segundos tirando de la palanca
@@ -532,6 +631,13 @@ Config.Postura = {
 	MaxOlor = 0.5, -- segundos de olor como mucho de una vez (si lleva rato sin mirar, golpeando una puerta)
 	Ancho = 1.3, -- media anchura libre que necesita a los lados del borde para meterse (su raíz mide 3)
 	SinSalida = 20, -- segundos sin volver a probar un borde al que no llegó (luego lo vuelve a intentar)
+	-- Los bichos ven de frente (PosturaReglas.vistaDeLado): a su espalda puedes colarte sin correr. A ojo.
+	Campo = 65, -- grados a cada lado de hacia dónde mira en los que ve con su Vista entera
+	VerEspalda = 12, -- studs a los que te ve fuera de ese cono (de lado o de espaldas)
+	Memoria = 2, -- segundos tras verte u oírte en los que te ve hacia cualquier lado (si giras una esquina no te pierde)
+	-- Sigilo (a ojo): quieto no haces ruido, las paredes tapan el oído y la linterna te delata agachado.
+	OirQuieto = 2.5, -- studs a los que te oye un bicho si estás quieto (sin moverte más de Config.Correr.Moverse)
+	OirPared = 0.5, -- con una pared o una puerta en medio te oye a esta parte (corriendo, a 11 en vez de 22)
 }
 
 -- Correr y aguante (14.8, pedido por el usuario: "añadir la mecánica de correr, que tengas una stamina abajo del todo,
@@ -587,6 +693,7 @@ Config.Limites = {
 	Taller = 0.3, -- nuevo
 	Usar = 0.25, -- nuevo: usar lo que se lleva en las manos sobre un sitio
 	Mirar = 0.2, -- nuevo: el muerto cambia a quién mira
+	Regreso = 2, -- nuevo: GO BACK del lobby (cada uno lee MemoryStore), contando los fallidos
 }
 
 -- Modo de pruebas: solo actúa en Studio (shared/Prueba). Con él no se lee ni se guarda nada.
@@ -615,11 +722,18 @@ Config.Tutorial = {
 	Cada = 0.5, -- segundos entre dos miradas del servidor
 	Flecha = 4, -- studs por encima de lo que señala la flecha
 	-- 16.5, a ojo: parte del depósito del generador que pide antes de la noche (una noche gasta 0,5 a ritmo 1; con un
-	-- bidón lleno siempre se llega), segundos tras empezar el día hasta el aviso de la siguiente meta y lo que tarda
+	-- bidón lleno siempre se llega; también la usa la siguiente meta para avisar de llenarlo), segundos tras empezar el día hasta el aviso de la siguiente meta y lo que tarda
 	-- en poder repetirse (que no lleguen dos seguidos al entrar el día 1).
 	Gasolina = 0.45,
 	Meta = 6,
 	MetaOtraVez = 30,
+	-- Avisos de una línea con la tecla de la linterna, el flash y la pistola (cliente/PistasControles). A ojo.
+	PistaControles = {
+		Cada = 1, -- segundos entre dos miradas
+		TrasSol = 5, -- segundos tras empezar a oscurecer: detrás del aviso del sol (3,5 s y 1 s apagándose), sin pisarlo
+		Entre = 6, -- segundos como mínimo entre dos de estos avisos
+		Dura = 4.5, -- segundos que se lee cada uno
+	},
 }
 
 -- Sonidos (juego/cliente/Sonido): de ElevenLabs, elegidos por el usuario de oído (tools/sonidos, docs/sistemas/sonidos.md).
@@ -880,10 +994,12 @@ Config.Aire = {
 		Motas = 3, -- por segundo dentro de cada haz
 		Ventana = 7, -- studs: la ventana (etiqueta Ventana) más cerca que esto la tapa al cerrar la persiana o tablones
 	},
-	-- Niebla baja de fuera, de noche: partículas grandes y planas alrededor de la cámara.
+	-- Niebla baja de fuera, de noche: partículas grandes y planas alrededor de la cámara. Con tormenta, más deprisa
+	-- (Velocidad por Config.Cielo.Tormenta.Viento, como las nubes; también el empuje de la pinocha).
 	Niebla = { Radio = 40, Rate = 5, Alto = 2.2, Velocidad = { 0.5, 1.4 } },
-	-- Pinocha que cae en las rachas, con un pino a menos de `Cerca` studs (en planta).
-	Pinocha = { Cerca = 16, Rate = 12, Racha = 0.55, Alto = 14 },
+	-- Pinocha que cae en las rachas, con un pino a menos de `Cerca` studs (en planta). Con el cielo cerrado de tormenta
+	-- (AireVista.nublado), desde la racha RachaTormenta: cae más a menudo.
+	Pinocha = { Cerca = 16, Rate = 12, Racha = 0.55, RachaTormenta = 0.42, Alto = 14 },
 	-- Viento (no lo había en Ambiente: lo pone AireVista.viento): rumbo en radianes en el plano xz, cuánto se desvía y
 	-- cada cuánto, y fuerza (studs/s de deriva).
 	Viento = { Rumbo = 0.7, Giro = 0.6, Lento = 0.012, Fuerza = { 0.4, 1.6 }, Rachas = 0.16 },
@@ -914,6 +1030,26 @@ Config.Pavor = {
 	-- Al girar rápido la vista se queda atrás: desde `Desde` rad/s, `Tiempo` s de lo girado, `Max` radianes como mucho,
 	-- y lo deprisa que sigue (por segundo).
 	Retraso = { Desde = 1.5, Tiempo = 0.025, Max = math.rad(2.2), Suave = 12 },
+	-- Un bicho que te persigue (atributo Persigue de su modelo, lo pone Caza): el latido entero mientras dure (`Latido`:
+	-- su fuerza) y, al dejarte, se apaga en Latido.Apaga s; al empezar, un golpe flojo (`Sobresalto`, su volumen por
+	-- esto) y un respingo flojo de las manos (`Respingo`) como mucho cada `Cada` s; la respiración más deprisa (`Respira`,
+	-- como la de arriba) y las manos tiemblan algo (`Manos`). Con Rendimiento, solo el latido y el golpe.
+	-- `Tunel`: lo fuerte de la visión de túnel perseguido (1: del todo; ver uno es Tunel.Ver).
+	Persigue = { Cada = 10, Sobresalto = 0.35, Respingo = 0.3, Latido = 1, Respira = 0.95, Manos = 0.35, Tunel = 1 },
+	-- Visión de túnel y color apagado (PavorCuentas.tunel): bordes negros que se cierran y la imagen sin color, para quien
+	-- juega sin cascos. Ver un bicho la pone mientras le dura el latido, con fuerza `Ver` (por lo cerca); perseguido,
+	-- entera (Persigue.Tunel). `Bordes`: lo negro del borde del todo (0..1); `Ancho`: parte de la pantalla, por cada
+	-- lado, que se oscurece (flojo, del todo); `Color`: la Saturation del ColorCorrection (PavorOjos) del todo;
+	-- `Contraste`: el suyo; `Entra`/`Sale`: s en llegar del todo y en irse; `Latir`: golpes del corazón por segundo y
+	-- `Golpe`: lo que se cierran de más en cada uno (del todo y perseguido; viéndolo solo, menos). Con Rendimiento, solo
+	-- los bordes por `Rendimiento`, quietos y sin color. A ojo.
+	Tunel = { Bordes = 0.92, Ancho = { 0.1, 0.3 }, Color = -0.35, Contraste = 0.12, Entra = 0.4, Sale = 2, Latir = 1.6,
+		Golpe = 0.2, Ver = 0.55, Rendimiento = 0.5 },
+	-- Pillan a un compañero (Remotes.Muerte de otro). Si lo ves (a menos de `Lejos` studs, en pantalla y sin paredes;
+	-- su cuerpo y el bicho no tapan), el susto de ver un bicho con la fuerza como poco `Minimo`. Si no lo ves pero está
+	-- a menos de `Oido` studs (tras una pared), solo el latido con fuerza `OidoLatido` y un golpe flojo (`OidoSobresalto`,
+	-- su volumen por esto; respeta SobresaltoCada). A ojo.
+	Companero = { Lejos = 45, Minimo = 0.8, Oido = 22, OidoLatido = 0.6, OidoSobresalto = 0.3 },
 }
 
 -- Cómo se mueven y suenan las latas (juego/cliente/LatasVista, 14.3). A ojo.
@@ -1229,6 +1365,7 @@ Config.AmbienteMiedo = {
 	RafagaAlcance = 30, -- studs: ventanas a esta distancia de la cámara
 	RafagaFuera = 0.8, -- studs por fuera del cristal desde donde suena
 	RafagaTono = { 0.9, 1.08 },
+	TensionPersigueSubir = 1.5, -- por segundo, con un bicho persiguiéndote (atributo Persigue): entera en menos de 1 s
 }
 
 -- Sustos sueltos de noche, cada jugador los suyos (juego/cliente/Sustos, 14.3). Segundos y studs a ojo.
@@ -1402,10 +1539,35 @@ Config.Tormenta = {
 		Angulo = 55,
 		Color = { 205, 215, 255 }, -- RGB
 	},
+	-- Cuánto del destello del ColorCorrection (Luz.Color y Luz.Contraste: la pantalla entera) llega según dónde esté la
+	-- cámara (Ambiente.cieloVisto): fuera, entero; dentro, lo que dé la luna sin persiana más cerca (1 - distancia /
+	-- Fogonazo.Cerca), y nunca menos que Dentro; en una sala sin ventanas (SinCielo, nombres de Config.Aire.Salas) o
+	-- escondido, Escondido. La luz de fuera y las lunas, enteras igual.
+	Pantalla = { Dentro = 0.15, Escondido = 0.05, SinCielo = { "Sotano" } },
 	Ventanas = 22, -- studs: con el trueno vibran los cristales de las ventanas a menos de esto de la cámara
 	VibraSonidos = 2, -- ...y suenan las tantas más cercanas
 	Temblor = { Fuerza = 0.35, Dura = 1.4 }, -- las bombillas tiemblan con el trueno (de 0 a 1 de su brillo) tanto tiempo
 	TemblorCamara = 0.15, -- con un trueno cercano, un temblor de cámara así de flojo (CasaVista.temblar)
+	-- El rayo que se ve en el cielo (Beams quebrados en TormentaLocal), del mismo lado que el trueno cercano (angulo).
+	Rayo = {
+		Desde = 0.3, -- cercanía (0 a 1) desde la que se ve el rayo; más lejos, solo el fogonazo
+		Lejos = 240, -- studs de la cámara (en planta) a los que cae con la cercanía Desde...
+		Cerca = 90, -- ...y a los que cae con la cercanía 1
+		Alto = 200, -- studs desde el suelo hasta donde empieza (sale de las nubes)
+		Suelo = 0, -- altura del suelo si el rayo hacia abajo no da con nada
+		Tramos = { 9, 14 }, -- tramos del tronco
+		Desvio = 0.6, -- cuánto se tuerce cada tramo hacia un lado (de su largo)
+		Inclina = 0.2, -- inclinación de todo el rayo (de su alto)
+		Ramas = { 1, 3 }, -- ramas que salen del tronco (con Rendimiento, ninguna)
+		TramosRama = { 3, 5 },
+		Ancho = { 0.9, 1.5 }, -- studs del tronco: de lejos a cerca
+		Rama = 0.45, -- ancho de las ramas (del tronco), y se afinan hacia la punta
+		Halo = { Ancho = 5, Opacidad = 0.22 }, -- resplandor alrededor del tronco (sin Rendimiento): veces el ancho, opacidad
+		Color = { 220, 230, 255 }, -- RGB, blanco azulado
+		Brillo = 3, -- Beam.Brightness: que pase la niebla sin deslumbrar
+		Realce = 1.5, -- se ve entero con un destello de fuerza 1/Realce o más
+		Resto = 0.12, -- segundos que tarda en apagarse entre destellos (se queda en el ojo un instante)
+	},
 }
 -- El trueno propio de la tormenta, mientras tanto con Id 0 (suena Retumbo): docs/sistemas/sonidos-pendientes.md.
 Config.Sonidos.Trueno = { Id = 0, Volumen = 1, Alcance = 400 }
@@ -1469,8 +1631,7 @@ Config.Adaptar = {
 		RebotaHasta = 10, -- ...a menos de estos studs
 		Bombilla = 0.6, -- cada luz a su alcance y sin pared: brillo × (1 - distancia/alcance)² × esto
 		Luna = 0.5, -- las de luna (etiqueta Luna), igual
-		Rayo = 1.8, -- el relámpago (Ambiente.destello) fuera...
-		RayoDentro = 0.5, -- ...y dentro
+		Rayo = 1.8, -- el relámpago (Ambiente.destello) a cielo abierto, por Ambiente.cieloVisto (dentro, sótano, escondido)
 		Escondido = 0.3, -- metido en un escondite, de todo eso solo llega esta parte
 		Techo = 60, -- studs del rayo hacia arriba para saber si estás bajo techo
 	},
@@ -1486,6 +1647,103 @@ Config.Adaptar = {
 	Deslumbre = { Brillo = 0.3, Contraste = -0.3, Saturacion = -0.15, Calido = { 255, 238, 214 } }, -- RGB, sin Color3
 	-- La linterna de otro a la cara: a menos de Lejos studs y dentro de Angulo grados de su haz.
 	Ajena = { Lejos = 25, Angulo = 12, Fuerza = 0.8, Rendimiento = 0.5, Entra = 0.08, Sale = 0.25 },
+}
+
+-- Cielo de la partida (juego/cliente/CieloVista, docs/sistemas/cielo.md): estrellas, luna, nubes (Clouds del Terrain)
+-- y el viento que las arrastra. Colores en RGB, sin Color3 (para que Lune lo cargue). Números a ojo.
+Config.Cielo = {
+	Cada = 0.1, -- s entre repasos (10 por segundo); mientras dura un relámpago, las nubes cada fotograma
+	Estrellas = 600, -- de noche (las 3000 de serie brillaban demasiado con la exposición alta); de día y con tormenta, 0
+	EstrellasRendimiento = 0.5, -- con Rendimiento, esta parte (y sin nubes)
+	Luna = 15, -- MoonAngularSize (de serie 11): algo mayor
+	Rampa = 25, -- s que tarda el cielo en cerrarse o abrirse con la tormenta
+	-- Clouds: Cover (cuánto cielo tapan), Density (lo gruesas y oscuras que son) y Color (RGB). Día y noche se mezclan con
+	-- la misma rampa que la luz de Ambiente; la tormenta va encima.
+	Nubes = {
+		Dia = { Cover = 0.8, Density = 0.55, Color = { 150, 153, 158 } }, -- gris y casi cerrado
+		Noche = { Cover = 0.56, Density = 0.42, Color = { 104, 111, 132 } }, -- rotas: la luna y algunas estrellas entre ellas
+		Tormenta = { Cover = 0.94, Density = 0.86, Color = { 64, 66, 76 } }, -- cerrado, bajo y pesado
+		Niebla = { Cover = 0.84, Density = 0.5, Color = { 92, 98, 112 } }, -- la noche de niebla: tapado, la luna velada
+	},
+	-- Con cada relámpago (Ambiente.destello, de 0 a 1) la nube se aclara por dentro: el color va hacia Color en esta
+	-- parte (Mezcla) y se hace algo menos densa. Vuelve igual en cuanto acaba.
+	Destello = { Color = { 205, 214, 240 }, Mezcla = 0.8, Densidad = -0.2 },
+	Viento = 6, -- workspace.GlobalWind = AireVista.viento (rumbo × fuerza de 0,4 a 1,6) × esto: las nubes se arrastran
+	Tormenta = {
+		Abre = 0.93, -- parte de la noche desde la que el cielo empieza a abrirse (el último relámpago cae antes del 0,92)
+		Luz = 0.7, -- con el cielo cerrado, Brightness y OutdoorAmbient de Ambiente por esto (el relámpago, entero)
+		Viento = 1.8, -- el viento de las nubes, por esto
+		Lunas = 0.25, -- con el cielo cerrado, el brillo de las luces de luna de las ventanas por esto (el fogonazo, entero)
+		Haz = 0.15, -- ...y lo que se ve de los haces de luna (AireVista) por esto: la sala queda a oscuras
+	},
+	-- Noches de niebla cerrada (CieloVista.hayNiebla): otro tiempo de noche, nunca a la vez que la tormenta. Lo ven todos
+	-- igual (semilla de TormentaVista con otra tirada). La niebla (Ambiente.neblina, de 0 a 1 en rampa) lleva la
+	-- Atmosphere de la noche hacia lo de aquí: el bosque se pierde a pocos metros. Sin estrellas y con las nubes de
+	-- Nubes.Niebla. La niebla baja de AireVista, más espesa y más alta. A ojo.
+	Niebla = {
+		Desde = 3, -- noche desde la que puede haber niebla
+		Probabilidad = 0.35, -- de las noches sin tormenta desde Desde, cuántas tienen niebla
+		Rampa = 40, -- s que tarda en cerrarse o levantarse
+		Abre = 0.9, -- parte de la noche desde la que se levanta (hacia el amanecer)
+		Densidad = 0.58, -- Atmosphere.Density (la noche normal, 0,36)
+		Color = { 46, 53, 66 }, -- gris azulado algo más claro que el de la noche (30, 36, 52): ni lechoso ni negro
+		Haze = 2.6, -- Atmosphere.Haze (de serie, 2)
+		Offset = 0, -- Atmosphere.Offset (de serie, 0,1): el cielo del horizonte también se pierde
+		Baja = 2.5, -- la niebla baja de AireVista: Rate por esto...
+		Alto = 1.8, -- ...y su caja, tantas veces más alta (con Rendimiento no hay niebla baja)
+	},
+	-- El viento que se oye (Sonidos.Viento, Ambiente.vientoSonido). Su volumen de noche por: la racha de AireVista.viento
+	-- (Rachas: con racha 0 y con racha 1; el tono, de 0,96 a 1,04), el cielo cerrado (Tormenta, con nublado 1) y el sitio
+	-- de la cámara: dentro de casa el volumen por Dentro.Volumen y un ecualizador le quita agudos y medios (dB); en el
+	-- sótano, por Sotano. Cambio: segundos en pasar de fuera a dentro (sin saltos en la puerta). Tope: el volumen de fuera
+	-- no pasa de esto (racha y tormenta a la vez, sin saturar). A ojo.
+	VientoSonido = {
+		Rachas = { 0.75, 1.3 },
+		Tormenta = 1.5,
+		Dentro = { Volumen = 0.35, Agudos = -18, Medios = -6 },
+		Sotano = 0.12,
+		Cambio = 1.5,
+		Tope = 1.8,
+	},
+	-- Las luces de luna de las ventanas (etiqueta Luna) de día no son azules: este gris frío de día (RGB) y su azul de
+	-- noche, con la misma rampa que las lámparas.
+	LuzDia = { 175, 178, 186 },
+	-- El sol y la franja cálida del alba y del ocaso (juego/cliente/Ambiente). Sol: horas (ClockTime) a las que el sol
+	-- cruza el horizonte, y cuánto antes y después se va encendiendo o apagando su luz (Margen, horas). Pleno: con el sol
+	-- a partir de esto la exposición ya es la del día. Luna: horas tras ponerse el sol (y antes de que empiece a salir)
+	-- en que la luz sube a la de noche (nunca más que el día con sol).
+	Sol = { Sale = 6.1, Pone = 17.9, Margen = 0.7, Pleno = 0.9, Luna = 1 },
+	-- Franja cálida: una campana de Ancho horas a cada lado de la salida y la puesta. Lleva la niebla (Niebla), la luz
+	-- de fuera (Ambiente) y el tinte de la imagen hacia el color de cada una; algo de reflejo del sol en la niebla
+	-- (Glare) y un poco menos de gris (Saturacion). Flojo y sin Bloom; con la tormenta (Ambiente.nublado) se apaga en
+	-- rampa y el amanecer queda gris, y en la escena final no hay.
+	Alba = {
+		Amanecer = { 150, 120, 105 }, -- colores en RGB (sin Color3, para que Lune cargue Config)
+		Atardecer = { 110, 62, 55 },
+		Tinte = { 255, 236, 222 },
+		Ancho = 1.4,
+		Niebla = 0.55,
+		Ambiente = 0.25,
+		Glare = 0.3,
+		Saturacion = 0.12,
+	},
+}
+
+-- El bosque se calla (Ambiente, sonidos.md): con un bicho cerca de la cámara no suena ningún suelto (lobos, búhos,
+-- ramas, grillos) hasta un rato después de irse; el silencio avisa antes de que llegue. Números a ojo.
+Config.BosqueCalla = {
+	Calla = 110, -- studs en planta de la cámara al bicho más cercano para que se calle
+	Vuelve = { 25, 40 }, -- segundos de silencio tras irse el último bicho
+	RamaAviso = 0.4, -- probabilidad de una ramita hacia el bicho al callarse
+	Rama = { 30, 45 }, -- a qué distancia cruje esa ramita (hacia el bicho)
+	Grillo = { 15, 25 }, -- el primer grillo al volver la calma, cerca
+	Espera = { 6, 16 }, -- segundos entre sueltos de noche en calma (de día, Dia)
+	Dia = { 30, 70 },
+	PesoGrillo = 5, -- peso del grillo de noche (lobo 2, búho 3, ramita 3): el que más se echa de menos
+	Mirar = 1, -- cada cuántos segundos se mira si hay bichos cerca
+	Rugido = { 140, 180 }, -- el rugido del atardecer, desde un sitio del bosque a esta distancia
+	RugidoMin = 60, -- RollOffMinDistance y RollOffMaxDistance del rugido
+	RugidoMax = 400,
 }
 
 return Config

@@ -1,11 +1,14 @@
 -- El bosque alrededor de la casa (suelo, camino, pinos y sotobosque), sacado de Mapa sin cambiar nada. Lo llama
 -- Mapa.start; Mapa.arbol (el pino suelto que usa el pueblo) es MapaBosque.arbol. Ayudas de Mapa por `iniciar`.
 local CollectionService = game:GetService("CollectionService")
+local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Piezas = require(ReplicatedStorage.Shared.Piezas)
+local Linde = require(script.Parent.Linde)
 local Lugares = require(script.Parent.Lugares)
+local MapaSendas = require(script.Parent.MapaSendas)
 local Medidas = require(script.Parent.MapaMedidas)
 local COLOR, HUECO, TRAMPILLA = Medidas.COLOR, Medidas.HUECO, Medidas.TRAMPILLA
 
@@ -30,7 +33,7 @@ local function pino(tronco: BasePart, x: number, z: number, alto: number, grueso
 end
 
 -- Lo que hay por el suelo del bosque: rocas y troncos caídos (chocan) y arbustos y helechos (no). Lejos de la casa,
--- del camino y de los sitios (Lugares), con su propio azar: no mueve nada de lo que ya había.
+-- del camino, de las sendas (MapaSendas) y de los sitios (Lugares), con su propio azar: no mueve nada de lo que ya había.
 -- Junto a la casa, la torre, el garaje, el cobertizo, el sótano o lo que hay delante (el motor está en z = -52, el garaje en x = -59): ahí no salen
 -- árboles ni sotobosque.
 local function junto(x: number, z: number): boolean
@@ -51,7 +54,7 @@ local function sotobosque(bosque: Folder)
 			intentos += 1
 			local angulo, distancia = azar:NextNumber(0, math.pi * 2), azar:NextNumber(22, 330)
 			local x, z = math.cos(angulo) * distancia, math.sin(angulo) * distancia
-			if (math.abs(x) < 10 and z < -24) or junto(x, z) or not Lugares.libre(x, z) then
+			if (math.abs(x) < 10 and z < -24) or junto(x, z) or not Lugares.libre(x, z) or MapaSendas.cerca(x, z, 3) then
 				continue
 			end
 			local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, azar:NextNumber(0, math.pi * 2), 0)
@@ -72,6 +75,63 @@ local function sotobosque(bosque: Folder)
 	suelo.Parent = bosque
 end
 
+-- La linde del mundo (contorno en Linde): el bosque se espesa y una pared invisible no deja pasar a los jugadores. Con
+-- su propio azar (no mueve los pinos ni los talables, que se guardan). Tres cosas, en la carpeta Bosque.Linde:
+--   Pinos espesos (uno cada ~17 studs) en la franja de 4 a 52 studs por dentro de la pared, sin pisar los del bosque,
+--     la carretera ni el pueblo (que ya tiene su cinturón). Se llaman Tronco: el Acechador se asoma tras ellos.
+--   La pared: un tramo por lado, invisible, de ALTO de alto, en el grupo de colisión "Linde", que solo choca con los
+--     jugadores (Personajes y lo que se lleva en las manos; agachado choca su raíz, que sigue en Personajes): los bichos
+--     (Default) la cruzan, así el Acechador que nace a la espalda llega igual. Los caminos de los bichos la ignoran.
+--   Por fuera, de 6 a 50 studs, solo troncos altos que no chocan (una pieza cada uno): desde la pared se ve bosque y
+--     niebla, nunca la llanura ni el borde del suelo.
+local function linde(bosque: Folder, pinos: { Vector3 })
+	if not PhysicsService:IsCollisionGroupRegistered("Linde") then
+		PhysicsService:RegisterCollisionGroup("Linde")
+	end
+	PhysicsService:CollisionGroupSetCollidable("Linde", "Default", false)
+	local carpeta = Instance.new("Folder")
+	carpeta.Name = "Linde"
+	local azar = Random.new(57)
+	for _, s in Linde.sitios(azar, 17, 5, 4, 52, true) do
+		local x, z = s.x, s.z
+		local alto, grueso = azar:NextNumber(55, 90), azar:NextNumber(2.4, 4.6)
+		local lejos = true
+		for _, otro in pinos do
+			if (otro.X - x) ^ 2 + (otro.Z - z) ^ 2 < 64 then
+				lejos = false
+				break
+			end
+		end
+		if lejos and Lugares.libre(x, z) then
+			local tronco = bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
+				COLOR.Tronco, Enum.Material.Wood, carpeta)
+			tronco.Shape = Enum.PartType.Cylinder
+			pino(tronco, x, z, alto, grueso)
+		end
+	end
+	for _, s in Linde.sitios(azar, 21, 6, 6, 50, false) do
+		local alto, grueso = azar:NextNumber(80, 125), azar:NextNumber(2.2, 4.4)
+		local tronco = bloque("TroncoLejos", Vector3.new(alto, grueso, grueso),
+			CFrame.new(s.x, alto / 2 - 1, s.z) * CFrame.Angles(0, 0, math.pi / 2), COLOR.Tronco, Enum.Material.Wood, carpeta)
+		tronco.Shape = Enum.PartType.Cylinder
+		tronco.CanCollide, tronco.CanQuery, tronco.CastShadow = false, false, false
+	end
+	local L = Linde.ALTO
+	for _, t in Linde.tramos() do
+		local a, b = Vector3.new(t.a.x, L / 2 - 1, t.a.z), Vector3.new(t.b.x, L / 2 - 1, t.b.z)
+		-- Un grosor más de largo: los tramos se montan en las esquinas y no queda rendija.
+		local pared = bloque("Pared", Vector3.new(Linde.GROSOR, L, (b - a).Magnitude + Linde.GROSOR), CFrame.lookAt((a + b) / 2, b),
+			nil, Enum.Material.SmoothPlastic, carpeta)
+		pared.Transparency = 1
+		pared.CastShadow, pared.CanQuery, pared.CanTouch = false, false, false
+		pared.CollisionGroup = "Linde"
+		local paso = Instance.new("PathfindingModifier")
+		paso.PassThrough = true
+		paso.Parent = pared
+	end
+	carpeta.Parent = bosque
+end
+
 local function construirBosque(mapa: Folder)
 	local bosque = Instance.new("Folder")
 	bosque.Name = "Bosque"
@@ -88,8 +148,11 @@ local function construirBosque(mapa: Folder)
 	-- La carretera de tierra: de la casa al pueblo.
 	CollectionService:AddTag(bloque("Camino", Vector3.new(12, 0.2, 494), CFrame.new(0, 0.05, -283), COLOR.Camino,
 		Enum.Material.Ground, bosque), "EnMapa")
+	-- Las sendas a la granja, al aserradero y a la torre (MapaSendas): sin pinos ni sotobosque encima.
+	MapaSendas.construir(bosque, bloque)
 	local azar = Random.new(7)
 	local puestos = 0
+	local pinos = {} :: { Vector3 } -- dónde quedan, para que los de la linde no caigan encima
 	while puestos < 260 do
 		local angulo = azar:NextNumber(0, math.pi * 2)
 		local distancia = azar:NextNumber(48, 420)
@@ -97,14 +160,15 @@ local function construirBosque(mapa: Folder)
 		if not (math.abs(x) < 12 and z < -41) then
 			local alto, grueso = azar:NextNumber(50, 85), azar:NextNumber(2, 4.5)
 			puestos += 1
-			-- Dentro de una zona (Lugares) no se pone, pero cuenta igual: los de fuera no se mueven.
-			if not Lugares.libre(x, z) or junto(x, z) then
+			-- Dentro de una zona (Lugares) o a menos de 4 de una senda no se pone, pero cuenta igual: los demás no se mueven.
+			if not Lugares.libre(x, z) or junto(x, z) or MapaSendas.cerca(x, z, 4) then
 				continue
 			end
 			local tronco = bloque("Tronco", Vector3.new(alto, grueso, grueso), CFrame.new(x, alto / 2, z) * CFrame.Angles(0, 0, math.pi / 2),
 				COLOR.Tronco, Enum.Material.Wood, bosque)
 			tronco.Shape = Enum.PartType.Cylinder
 			pino(tronco, x, z, alto, grueso)
+			table.insert(pinos, Vector3.new(x, 0, z))
 		end
 	end
 	-- Árboles finos cerca de la casa: los que se talan (Recursos). Tronco anclado, copa soldada y un mando abajo.
@@ -155,6 +219,7 @@ local function construirBosque(mapa: Folder)
 	end
 	talables.Parent = bosque
 	sotobosque(bosque)
+	linde(bosque, pinos)
 	bosque.Parent = mapa
 end
 

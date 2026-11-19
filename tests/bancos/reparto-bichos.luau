@@ -5,7 +5,9 @@
 --   el Imitador solo con la puerta principal libre; el orden (Imitador, Trepador, Raspador; si no, Golpeador);
 --   con muchas tiradas, cada uno sale cerca de lo que dice su Probabilidad;
 --   el intervalo: dentro del rango la primera noche, cada noche antes, nunca menos del mínimo y por el ritmo;
---   misma semilla, mismo reparto.
+--   misma semilla, mismo reparto;
+--   la voz del Imitador: el muerto de esta noche casi siempre, si no uno lejos de la puerta; solo, tu voz o (con la
+--   pista 2 leída) a veces Tom.
 -- Ejecutar desde la raíz: lune run tests/bancos/reparto-bichos.luau (lo corre regressions.luau).
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
@@ -139,6 +141,53 @@ igual(Reparto.intervalo(1, 1, G, fijo(0.5)) - Reparto.intervalo(2, 1, G, fijo(0.
 igual(Reparto.intervalo(100, 1, G, fijo(0.999)), G.IntervaloMin, "intervalo: nunca menos del mínimo")
 igual(Reparto.intervalo(100, 1.3, G, fijo(0)), G.IntervaloMin * 1.3, "intervalo: por el ritmo")
 igual(Reparto.intervalo(1, 0.8, G, fijo(0)), G.Intervalo[1] * 0.8, "intervalo: ritmo y rango")
+
+-- La voz del Imitador (RepartoBichos.voz).
+igual(I.VozMuerto > 0 and I.VozMuerto < 1, true, "Config: VozMuerto")
+igual(I.Antiguo.Probabilidad > 0 and I.Antiguo.Probabilidad < 1, true, "Config: Antiguo.Probabilidad")
+igual(I.Antiguo.Nombre, "Tom", "Config: Antiguo.Nombre (el de la foto de la pista 2)")
+local ana, luis, eva = { DisplayName = "Ana" }, { DisplayName = "Luis" }, { DisplayName = "Eva" }
+local function contarVoces(muertos, lejos, todos, leida: boolean, semilla: number)
+	local cuenta = {}
+	a = conSemilla(semilla)
+	for _ = 1, N do
+		local nombre, jugador = Reparto.voz(muertos, lejos, todos, leida, a, I)
+		igual(jugador == nil or jugador.DisplayName == nombre, true, "voz: el nombre es el del jugador")
+		cuenta[nombre or "nadie"] = (cuenta[nombre or "nadie"] or 0) + 1
+	end
+	return cuenta
+end
+-- Con un muerto: casi siempre él (VozMuerto); si no, uno de los de lejos.
+local cuenta = contarVoces({ eva }, { luis }, { ana, luis, eva }, true, 7)
+cerca(cuenta.Eva / N, I.VozMuerto, "voz: el muerto")
+cerca((cuenta.Luis or 0) / N, 1 - I.VozMuerto, "voz: si no, el de lejos")
+igual(cuenta.Tom, nil, "voz: con más gente, nunca Tom")
+-- Sin muertos: uno de los de lejos, nunca el de la puerta.
+cuenta = contarVoces({}, { luis, eva }, { ana, luis, eva }, true, 8)
+igual(cuenta.Ana, nil, "voz: nunca el de la puerta")
+cerca(cuenta.Luis / N, 0.5, "voz: entre los de lejos, a partes iguales")
+-- Solo y sin la foto de Tom: tu voz (y el jugador, para el aviso de "tu voz").
+local nombre, jugador = Reparto.voz({}, {}, { ana }, false, fijo(0), I)
+igual(nombre, "Ana", "solo sin la pista 2: tu voz")
+igual(jugador, ana, "solo sin la pista 2: eres tú")
+-- Solo y con la foto: a veces Tom (sin jugador: a nadie le dice que es su voz).
+cuenta = contarVoces({}, {}, { ana }, true, 9)
+cerca(cuenta.Tom / N, I.Antiguo.Probabilidad, "solo con la pista 2: a veces Tom")
+cerca(cuenta.Ana / N, 1 - I.Antiguo.Probabilidad, "solo con la pista 2: si no, tu voz")
+nombre, jugador = Reparto.voz({}, {}, { ana }, true, fijo(0), I)
+igual(nombre, "Tom", "Tom: el nombre")
+igual(jugador, nil, "Tom: sin jugador")
+-- Con dos en la partida y los dos en la puerta, nunca Tom (es solo para jugar solo).
+cuenta = contarVoces({}, {}, { ana, luis }, true, 10)
+igual(cuenta.Tom, nil, "dos en la puerta: nunca Tom")
+-- Nadie en la partida: sin voz.
+igual(Reparto.voz({}, {}, {}, true, fijo(0), I), nil, "sin jugadores: sin voz")
+-- Elegir la voz no toca el reparto: la misma semilla de toca sigue igual.
+uno, dos = conSemilla(99), conSemilla(99)
+for i = 1, 50 do
+	Reparto.voz({ eva }, { luis }, { ana, luis, eva }, true, conSemilla(i), I)
+	igual(Reparto.toca(estado(I.Noche), Config, uno), Reparto.toca(estado(I.Noche), Config, dos), `semilla tras la voz: ataque {i}`)
+end
 
 -- Los require del servidor del juego (hallazgo 17): ninguno dentro de una función (eran para esquivar un círculo) y
 -- ningún círculo entre los de arriba (si los hubiera, el servidor fallaría al arrancar).

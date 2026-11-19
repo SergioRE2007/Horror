@@ -113,7 +113,9 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 	local normal = plano(centro.LookVector).Unit
 	local lado = normal:Cross(Vector3.yAxis)
 	local pegado = fuera - normal * 1.2 -- casi contra la pared, la cara en el cristal
-	local inicio = fuera + normal * 70 + lado * azar:NextNumber(-25, 25)
+	-- Desde donde nadie le vea aparecer (Caza.sitioSinVer): el sitio de siempre u otro más hondo o más a un lado.
+	local inicio = Caza.sitioSinVer(Caza.llegadas(fuera + normal * 70 + lado * azar:NextNumber(-25, 25), fuera, normal, lado,
+		ALTURA), ALTURA)
 	local lejos = fuera + normal * 110 + lado * azar:NextNumber(-40, 40)
 	local b = crear(CFrame.lookAt(inicio + Vector3.new(0, ALTURA, 0), fuera + Vector3.new(0, ALTURA, 0)))
 	a.bicho = b
@@ -129,13 +131,13 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		Remotes.Raspador:FireAllClients("Chilla", modelo)
 	end
 
-	-- Llega desde el bosque; si ve a alguien fuera, va a por él.
-	b:irA(pegado, R.Andar, 35, function()
+	-- Llega desde el bosque; si ve a alguien fuera, va a por él. Si se atasca, nunca raspa desde lejos (Caza.llegarA).
+	b:llegarA(pegado, R.Andar, 35, function()
 		return not b.prisa and b:elegirPresa(true) == nil
-	end)
+	end, centro.Position)
 	if not b.prisa and b:elegirPresa(true) then
 		b:cazar(R.Caza / 2, true)
-		b:irA(lejos, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25)
+		b:perderse(lejos, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25) -- sin esfumarse a la vista
 		return
 	end
 
@@ -162,7 +164,8 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		task.wait(0.25)
 		local ahora = os.clock()
 		local luz = iluminado(b)
-		hecho = math.min(1, hecho + (ahora - antes) / total * (if luz then R.Frena else 1))
+		-- Aturdido (el cepo bajo la ventana): forcejea y no araña, así que el cristal no se agrieta más.
+		hecho = math.min(1, hecho + (ahora - antes) / total * (if b:quieto() then 0 elseif luz then R.Frena else 1))
 		antes = ahora
 		modelo:SetAttribute("Raspado", hecho)
 		modelo:SetAttribute("Iluminado", luz)
@@ -180,12 +183,12 @@ local function ataque(a: Ataque, el: Model, noche: number, paciencia: number)
 		modelo:PivotTo(CFrame.lookAt(pie, pie - normal))
 		task.wait(R.Grito)
 		b:cazar(R.Caza, false)
-		-- Se va por donde entró (corriendo si le han dado con el flash).
-		b:irA(dentro, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25)
+		-- Se va por donde entró (corriendo si le han dado con el flash), sin salir de golpe a la vista (Caza.salir).
+		b:salir(dentro, if modelo:GetAttribute("Huye") then R.Huir else R.Andar)
 		local pieFuera = fuera + Vector3.new(0, ALTURA, 0)
 		modelo:PivotTo(CFrame.lookAt(pieFuera, pieFuera + normal))
 	end
-	b:irA(lejos, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25)
+	b:perderse(lejos, if modelo:GetAttribute("Huye") then R.Huir else R.Andar, 25)
 end
 
 local function terminar(a: Ataque)

@@ -89,6 +89,77 @@ function PavorCuentas.finLatido(fuerza: number): number
 	return lerp(l.Dura[1], l.Dura[2], k) + l.Apaga
 end
 
+-- De 0 a 1, lo que queda de una persecución (el latido, la respiración) a los `t` s de que el bicho deje de perseguirte:
+-- entera hasta entonces (t <= 0) y se apaga en Latido.Apaga s.
+function PavorCuentas.trasPersecucion(t: number): number
+	if t ~= t then
+		return 0
+	end
+	if t <= 0 then
+		return 1
+	end
+	return 1 - suave01(t / C.Latido.Apaga)
+end
+
+-- Lo que debería tener ahora la visión de túnel (0..1): `susto`, lo que queda de ver un bicho (su latido por su fuerza,
+-- 0..1); `sigue`, lo que queda de una persecución (trasPersecucion). Perseguido pesa más que solo verlo.
+function PavorCuentas.tunelMeta(susto: number, sigue: number): number
+	local T = C.Tunel
+	local m = math.max(susto * T.Ver, sigue * C.Persigue.Tunel)
+	if m ~= m then
+		return 0
+	end
+	return math.clamp(m, 0, 1)
+end
+
+-- Un paso de `dt` s de la visión de túnel de `antes` hacia `meta`: entra del todo en Tunel.Entra s y sale en Tunel.Sale.
+function PavorCuentas.acercarTunel(antes: number, meta: number, dt: number): number
+	local T = C.Tunel
+	if antes ~= antes or meta ~= meta or dt ~= dt then
+		return 0
+	end
+	local d = math.clamp(dt, 0, 0.25)
+	if meta > antes then
+		return math.min(meta, antes + d / T.Entra)
+	end
+	return math.max(meta, antes - d / T.Sale)
+end
+
+-- Un golpe del corazón a `x` (0..1) de su vuelta: se cierra deprisa y se abre más despacio.
+local function golpe(x: number): number
+	if x < 0 then
+		return 0
+	end
+	local sube = 0.05
+	if x < sube then
+		return suave01(x / sube)
+	end
+	return math.exp(-(x - sube) / 0.1)
+end
+
+-- Cómo se ve la visión de túnel con `nivel` (0..1, ya suavizado con acercarTunel) y `sigue` (la persecución, 0..1), a los
+-- `t` s (os.clock; nil: sin latir, con Rendimiento). Devuelve lo negro del borde (0..1), la parte de la pantalla que cubre
+-- por cada lado, y la Saturation y el Contrast del ColorCorrection. Late a Tunel.Latir golpes por segundo, cada uno
+-- doble ("pum-pum"), más fuerte perseguido.
+function PavorCuentas.tunel(nivel: number, sigue: number, t: number?): (number, number, number, number)
+	local T = C.Tunel
+	local k = if nivel == nivel then math.clamp(nivel, 0, 1) else 0
+	if k <= 0 then
+		return 0, 0, 0, 0
+	end
+	-- El golpe de ahora (0..1): entero perseguido, algo menos viéndolo solo.
+	local latir = 0
+	if t and t == t and math.abs(t) < 1e9 then
+		local fase = (t * T.Latir) % 1
+		local s = if sigue == sigue then math.clamp(sigue, 0, 1) else 0
+		latir = math.max(golpe(fase), 0.6 * golpe(fase - 0.24)) * (0.4 + 0.6 * s)
+	end
+	-- Sin golpe se queda en (1 - Golpe) de lo suyo; cada golpe lo cierra hasta lo entero.
+	local cierra = math.clamp(k * (1 - T.Golpe + T.Golpe * latir), 0, 1)
+	local oscuro = math.clamp(T.Bordes * math.min(1, cierra * 1.6), 0, 1)
+	return oscuro, lerp(T.Ancho[1], T.Ancho[2], cierra), T.Color * k, T.Contraste * k
+end
+
 -- El temblor de una mano con `pavor` (0..1) a los `t` s (os.clock): giro (cabecea, gira, ladea; radianes) y
 -- desplazamiento (studs, en la cámara). Uno fino y deprisa y otro lento e irregular, con algún tirón. `semilla`: para que
 -- cada mano tiemble a su manera.

@@ -59,7 +59,7 @@ local function queFalta(jugador: Player): string?
 	if not Preparativos.listo() then
 		return "The trail isn't ready yet."
 	elseif not Bestia.atrapada() then
-		return "It must be locked in the basement first."
+		return "She must be locked in the basement first."
 	elseif Mochila.contar(jugador, "Cerillas") == 0 then
 		return "You need matches."
 	end

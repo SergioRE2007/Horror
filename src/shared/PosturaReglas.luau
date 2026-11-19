@@ -97,27 +97,56 @@ end
 -- Esconderse agachado (pedido por el usuario: "que sea útil agacharte"). Lo usan los bichos (Caza, Bestia) con los
 -- atributos Agachado y Cubierto (agachado debajo de un mueble) del jugador.
 
--- Hasta dónde ve un bicho a un jugador, con `vista` la de siempre (de pie).
-function PosturaReglas.alcanceVista(vista: number, agachado: boolean, cubierto: boolean): number
+-- Hasta dónde ve un bicho a un jugador, con `vista` la de siempre (de pie). Con la linterna encendida (`alumbra`, atributo
+-- Linterna) agacharse no esconde: la luz te delata igual que de pie. Debajo de algo sigue mandando (el mueble tapa la luz).
+function PosturaReglas.alcanceVista(vista: number, agachado: boolean, cubierto: boolean, alumbra: boolean?): number
 	if cubierto then
 		return math.min(vista, Config.Postura.VerCubierto)
-	elseif agachado then
+	elseif agachado and not alumbra then
 		return vista * Config.Postura.VistaAgachado
 	end
 	return vista
 end
 
+-- Hasta dónde ve un bicho a un jugador según por dónde le pille (los bichos ven de frente: colarse a su espalda sirve).
+-- `vista` es la de siempre, `cosAngulo` el coseno entre hacia dónde mira el bicho y hacia el jugador (en el plano) y
+-- `recienVisto` si le vio u oyó hace menos de Config.Postura.Memoria s. Dentro de ±`campo` grados (Config.Postura.Campo
+-- si no) o recién visto, entera; fuera del cono, solo Config.Postura.VerEspalda. Se aplica antes que alcanceVista (que
+-- agachado o cubierto siguen mandando). Un coseno raro (NaN) cuenta como de frente: como antes, nunca a ciegas.
+function PosturaReglas.vistaDeLado(vista: number, cosAngulo: number, recienVisto: boolean, campo: number?): number
+	if recienVisto or not (cosAngulo < math.cos(math.rad(campo or Config.Postura.Campo))) then
+		return vista
+	end
+	return math.min(vista, Config.Postura.VerEspalda)
+end
+
 -- Hasta dónde le oye, con `oido` lo de siempre (de pie). Corriendo (atributo Corriendo, 14.8, pedido por el usuario:
 -- correr hace ruido, riesgo y premio) se le oye desde Config.Correr.Oido; agachado o debajo de algo no se corre.
-function PosturaReglas.alcanceOido(oido: number, agachado: boolean, cubierto: boolean, corriendo: boolean?): number
+-- Quieto (`moviendo` false; nil cuenta como que se mueve) y sin correr apenas hace ruido: Config.Postura.OirQuieto como
+-- mucho. Con una pared o una puerta en medio (`tapado`) se oye a Config.Postura.OirPared de eso.
+function PosturaReglas.alcanceOido(
+	oido: number,
+	agachado: boolean,
+	cubierto: boolean,
+	corriendo: boolean?,
+	moviendo: boolean?,
+	tapado: boolean?
+): number
+	local alcance = oido
 	if cubierto then
-		return math.min(oido, Config.Postura.VerCubierto)
+		alcance = math.min(oido, Config.Postura.VerCubierto)
 	elseif agachado then
-		return math.min(oido, Config.Postura.OirAgachado)
+		alcance = math.min(oido, Config.Postura.OirAgachado)
 	elseif corriendo then
-		return math.max(oido, Config.Correr.Oido)
+		alcance = math.max(oido, Config.Correr.Oido)
 	end
-	return oido
+	if moviendo == false and not corriendo then
+		alcance = math.min(alcance, Config.Postura.OirQuieto)
+	end
+	if tapado then
+		alcance *= Config.Postura.OirPared
+	end
+	return alcance
 end
 
 -- Lo que un bicho lleva oliendo a un jugador escondido debajo de algo, tras `dt` s a `distancia` studs: sube 1 por

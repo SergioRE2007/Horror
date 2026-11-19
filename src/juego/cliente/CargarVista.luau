@@ -37,7 +37,8 @@ local USOS: { [string]: { etiquetas: { string }, texto: string, textos: { [strin
 	Tronco = { etiquetas = { "Caballete", "Chimenea" }, texto = "Saw", textos = { Chimenea = "Add to fire" } },
 	Tablon = { etiquetas = { "Ventana", "Puerta" }, texto = "Nail" },
 	TablonReforzado = { etiquetas = { "Ventana", "Puerta" }, texto = "Reinforce" },
-	Bidon = { etiquetas = { "Generador", "Coche", "Gasolina" }, texto = "Refuel", textos = { Gasolina = "Pour fuel" } },
+	Bidon = { etiquetas = { "Generador", "Coche", "Gasolina", "Deposito" }, texto = "Refuel",
+		textos = { Gasolina = "Pour fuel", Deposito = "Fill can" } },
 	Reja = { etiquetas = { "MarcoReja" }, texto = "Mount" },
 	Motor = { etiquetas = { "Coche" }, texto = "Install" },
 	Rueda = { etiquetas = { "Coche" }, texto = "Install" },
@@ -330,6 +331,48 @@ local function moverMia(dt: number)
 	giro.CFrame = cf.Rotation
 end
 
+
+-- Trabajando (clavar, serrar, fabricar...) el servidor te deja quieto; si quieres andar o saltar (teclado, mando o
+-- joystick del móvil) se lo pide con "Parar" y lo deja a medias, para poder huir. La dirección hay que soltarla una
+-- vez antes (si llegaste con W pulsada no se corta solo) y se manda una sola vez por trabajo. Solo vigila trabajando.
+local vigila: RBXScriptConnection? = nil
+local mandado = false
+
+local function pararTrabajo()
+	if not mandado and jugador:GetAttribute("Trabajando") then
+		mandado = true
+		Remotes.Cargar:FireServer("Parar")
+	end
+end
+
+local function alTrabajar()
+	if vigila then
+		vigila:Disconnect()
+		vigila = nil
+	end
+	if not jugador:GetAttribute("Trabajando") then
+		return
+	end
+	mandado = false
+	local armado, queriendo = false, 0
+	vigila = RunService.Heartbeat:Connect(function(dt)
+		local personaje = jugador.Character
+		local humanoide = personaje and personaje:FindFirstChildOfClass("Humanoid")
+		if mandado or not humanoide then
+			return
+		end
+		-- MoveDirection sigue la tecla o el stick aunque WalkSpeed sea 0.
+		if humanoide.MoveDirection.Magnitude <= 0.5 then
+			armado, queriendo = true, 0
+		elseif armado then
+			queriendo += dt
+			if queriendo >= Config.Cargar.Cortar then
+				pararTrabajo()
+			end
+		end
+	end)
+end
+
 -- Vista más baja y balanceo al andar con peso; al hombro, la cabeza algo apartada hacia la izquierda.
 local function mover(dt: number)
 	buscado += dt
@@ -474,6 +517,9 @@ function CargarVista.start()
 		pintarAviso()
 		textoCartel.Text = Ui.pista("R", textoUsar)
 	end)
+	jugador:GetAttributeChangedSignal("Trabajando"):Connect(alTrabajar)
+	-- Llega aunque JumpPower sea 0 (barra, A del mando o botón de saltar del móvil).
+	UserInputService.JumpRequest:Connect(pararTrabajo)
 	UserInputService.InputBegan:Connect(function(entrada, procesado)
 		if procesado then
 			return

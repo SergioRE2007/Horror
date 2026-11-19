@@ -1,7 +1,9 @@
 -- Generador del cobertizo (pedido por el usuario: arranca tirando de la cuerda). Sin gasolina no hay luz en la casa
 -- ni enchufe.
 --   Prompt E: tirar de la cuerda (no siempre arranca: Config.Generador.Arranca; al tercer tirón seguido, seguro) o
---   apagarlo. Con un bidón en las manos, R (Cargar.alUsar "Bidon"): echa su gasolina.
+--   apagarlo manteniendo E (Config.Generador.Apagar; las primeras Gracia s tras arrancar, ni eso: quien sigue tirando
+--   a ritmo no lo apaga sin querer). Con un bidón en las manos, R (Cargar.alUsar "Bidon"): echa su gasolina; si le
+--   queda, sigue en tus manos (como en las cruces); vacío, a los sacos de al lado.
 --   Gasta Deposito segundos de gasolina por depósito, más deprisa con más jugadores (Tareas de Config.Dificultad).
 --   Atributos del modelo: Gasolina (0..1), Encendido, Tirones (cada tirón, para animar la cuerda), Ahogado (se ha
 --   parado por falta de gasolina) y Llenando.
@@ -34,6 +36,7 @@ local gasolina = G.Inicio * G.Deposito -- segundos que le quedan
 local encendido = false
 local seguidos = 0 -- tirones seguidos sin arrancar
 local ultimoTiron = -math.huge
+local arrancado = -math.huge -- os.clock() de cuando arrancó (Gracia)
 local luces = 0 -- sube con cada cambio: un parpadeo viejo se para solo
 local enchufe: Model
 local promptEnchufe: ProximityPrompt
@@ -44,6 +47,7 @@ local function publicar()
 	gen:SetAttribute("Gasolina", gasolina / G.Deposito)
 	gen:SetAttribute("Encendido", encendido)
 	prompt.ActionText = if encendido then "Turn off" else "Pull the cord"
+	prompt.HoldDuration = if encendido then G.Apagar else 0
 end
 
 local function ponerLuces(encendidas: boolean)
@@ -87,6 +91,9 @@ local function tirar(jugador: Player)
 		return
 	end
 	if encendido then
+		if os.clock() - arrancado < G.Gracia then
+			return -- recién arrancado: era el tirón de después
+		end
 		encendido = false
 		cambiarLuces(false)
 		publicar()
@@ -109,6 +116,7 @@ local function tirar(jugador: Player)
 		task.delay(0.4, function() -- después del tirón
 			if gasolina > 0 and not encendido then
 				encendido = true
+				arrancado = os.clock()
 				cambiarLuces(true)
 				publicar()
 			end
@@ -147,13 +155,23 @@ local function bidon()
 			local tapon = (gen:GetAttribute("Tapon") :: CFrame).Position
 			return CFrame.new(tapon + Vector3.new(1.4, 2.4, 0)) * CFrame.Angles(0, 0, math.rad(110)), G.Verter
 		end,
-		terminar = function(_jugador, _gen, pieza)
+		terminar = function(jugador, _gen, pieza)
 			gen:SetAttribute("Llenando", nil)
 			local porBidon = G.PorBidon * G.Deposito
 			local echado = math.min((pieza:GetAttribute("Carga") or 0) * porBidon, G.Deposito - gasolina)
 			gasolina += echado
 			pieza:SetAttribute("Carga", math.max(0, (pieza:GetAttribute("Carga") or 0) - echado / porBidon))
 			publicar()
+			-- Con gasolina de sobra vuelve a las manos de quien la echaba, si sigue vivo y cerca (como en las cruces,
+			-- Preparativos, pedido por el usuario).
+			local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if raiz and (pieza:GetAttribute("Carga") or 0) > 0.01 and Muerte.vivo(jugador)
+				and not jugador:GetAttribute("Escondido")
+				and ((gen:FindFirstChild("Mando") :: BasePart).Position - raiz.Position).Magnitude <= Config.Casa.Alcance + 4 then
+				Cargar.liberar(pieza, raiz.CFrame * CFrame.new(0, 0, -2))
+				Cargar.recoger(jugador, pieza)
+				return
+			end
 			-- Encima de los sacos de al lado (Mapa, vestir el cobertizo: su caja de choque, arriba a 2,4). En el suelo no
 			-- cabe: detrás está la pared, a los lados no hay sitio, el cemento y el otro bidón ocupan la esquina de la
 			-- entrada y delante está el paso, la cuerda y su prompt.
@@ -224,6 +242,7 @@ end
 function Generador.importar(t)
 	gasolina = (t.gasolina or G.Inicio) * G.Deposito
 	encendido = t.encendido == true and gasolina > 0
+	arrancado = if encendido then os.clock() else -math.huge
 	seguidos = 0
 	luces += 1 -- para un parpadeo a medias
 	ponerLuces(encendido)

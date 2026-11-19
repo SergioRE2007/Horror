@@ -17,11 +17,20 @@ Números en `Config.Aire`, a ojo.
   `Beam` azulado casi transparente de la ventana al suelo (un rayo busca la primera cara que mira hacia arriba:
   atraviesa cortinas y marcos), con la textura de humo estirada (bordes suaves) y sus propias motas que brillan dentro.
   Se hace la primera vez que hace falta. Con las cortinas de esa ventana echadas (atributo `Persiana` de la `Ventana` más
-  cerca, a menos de `Haz.Ventana`), apagado. Se aclara y oscurece con el atardecer y el amanecer.
+  cerca, a menos de `Haz.Ventana`), apagado. Se aclara y oscurece con el atardecer y el amanecer. Con el cielo cerrado
+  de tormenta (`AireVista.nublado`, lo pone `CieloVista`) se queda en `Config.Cielo.Tormenta.Haz` (0,15) de lo que se
+  veía, motas incluidas (`AireVista.fuerzaHaz`): no hay luna que lo haga.
 - **Niebla baja**: fuera y de noche, partículas grandes y planas (`Squash` negativo) a ras de suelo en un radio de ~40
-  alrededor de la cámara, que se arrastran despacio hacia donde sopla el viento.
+  alrededor de la cámara, que se arrastran despacio hacia donde sopla el viento. Con tormenta van más deprisa:
+  `AireVista.empuje(nublado)`, en rampa hasta `Config.Cielo.Tormenta.Viento` (x1,8, el de las nubes). Las noches de
+  niebla cerrada (`AireVista.neblina`, lo pone `CieloVista`, cielo.md) es más espesa y más alta:
+  `AireVista.nieblaBaja(k, neblina)` da el `Rate` por `Config.Cielo.Niebla.Baja` (x2,5) y la caja `Niebla.Alto` (x1,8)
+  veces más alta, en rampa. Con Rendimiento no hay niebla baja, tampoco la de más.
 - **Pinocha**: fuera, en las rachas y con un pino a menos de `Pinocha.Cerca` (etiqueta `Pino` en el tronco de cada pino de
-  `Mapa`), cae pinocha fina dando vueltas y de lado con el viento.
+  `Mapa`), cae pinocha fina dando vueltas y de lado con el viento. Con tormenta, más de lado (el mismo empuje) y desde
+  una racha más baja (`AireVista.umbralPinocha`: de `Pinocha.Racha` a `RachaTormenta`).
+- **El viento que se oye** (`Ambiente.vientoSonido`, cielo.md) sube y baja con las mismas rachas: la pinocha cae a la vez
+  que sopla más fuerte.
 - **Viento**: no había dirección de viento en `Ambiente`, así que la pone `AireVista.viento()` (hacia dónde, fuerza y
   racha de 0 a 1): ruido lento con la hora del servidor, el mismo en todos los clientes. Sirve para otros adornos.
 
@@ -34,7 +43,7 @@ Números en `Config.Aire`, a ojo.
 - Rendimiento: motas a `Config.Aire.Rendimiento` (0,3) y sin haces, niebla ni pinocha.
 - La noche sale de los atributos del Ciclo con las mismas rampas que `Ambiente` (`AireVista.noche`).
 - Texturas `rbxasset` (`smoke_main.dds`): no hacen falta imágenes nuevas.
-- Banco: `tests/bancos/aire.luau` (cuentas, cada sitio, Rendimiento, cinemática, cortinas, de día). Ojo: en Lune
+- Banco: `tests/bancos/aire.luau` (cuentas, cada sitio, Rendimiento, cinemática, cortinas, de día, tormenta). Ojo: en Lune
   `CFrame.lookAt` sale al revés en z; el módulo usa `CFrame.fromMatrix` a mano.
 
 ## Probar en Studio

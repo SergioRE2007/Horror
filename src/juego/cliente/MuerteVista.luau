@@ -51,6 +51,7 @@ local TrepadorVista = require(script.Parent.TrepadorVista)
 local ImitadorVista = require(script.Parent.ImitadorVista)
 local AcechadorVista = require(script.Parent.AcechadorVista)
 local BestiaVista = require(script.Parent.BestiaVista)
+local CasaVista = require(script.Parent.CasaVista) -- temblor de golpes y pisadas (CasaVista no requiere este)
 local Sonido = require(script.Parent.Sonido)
 local Ui = require(script.Parent.Parent:WaitForChild("Comun"):WaitForChild("Ui"))
 
@@ -89,6 +90,8 @@ local RESPINGO = 0.06 -- radianes que se va la vista hacia arriba al escapárset
 local RESPINGO_S = 0.7 -- ...y s en volver
 local LATIDO_SUSTO = 0.6 -- volumen de más del latido al escapársete (y tono de más, la mitad)...
 local LATIDO_SUSTO_S = 4 -- ...y s en bajar
+-- Escondido, los golpes y las pisadas de fuera (Config.Muerte.Escondido): la cámara es fija y CasaVista no la toca.
+local ESCONDIDO = Config.Muerte.Escondido
 local LATIDO_SOFOCO = 0.35 -- volumen de más del latido del todo sofocado (aporrea aunque no haya bichos)
 -- El suceso Armario visto desde dentro (14.10). Números a ojo (para mirarlos en Studio).
 local PEGADO_CERCA = 4 -- studs de tu cámara a los que tiene que estar SucesoMira
@@ -303,15 +306,39 @@ local function sobresalto(t: number): (number, number)
 	return math.clamp(1 - (t - escapadoEn) / RESPINGO_S, 0, 1), math.clamp(1 - (t - escapadoEn) / LATIDO_SUSTO_S, 0, 1)
 end
 
+-- Escondido, un golpe fuerte cerca (el bicho revienta la puerta, aporrea la ventana, da un portazo): la vista da un
+-- respingo y el latido se dispara, con la misma curva que al escapársete un jadeo, por lo fuerte y cerca que fue.
+local golpeVisto = -math.huge -- el último CasaVista.ultimoGolpe ya mirado (su os.clock)
+local golpeEn = -math.huge -- el último que te sobresaltó
+local golpeFuerza = 0 -- de 0 a 1
+local function sacudida(t: number): (number, number)
+	local golpe = CasaVista.ultimoGolpe
+	if golpe.en > golpeVisto then
+		golpeVisto = golpe.en
+		if golpe.distancia < ESCONDIDO.Cerca then
+			golpeEn = golpe.en
+			golpeFuerza = math.clamp(golpe.fuerza * (1 - golpe.distancia / ESCONDIDO.Cerca) + 0.5, 0, 1)
+		end
+	end
+	return golpeFuerza * math.clamp(1 - (t - golpeEn) / RESPINGO_S, 0, 1),
+		golpeFuerza * math.clamp(1 - (t - golpeEn) / LATIDO_SUSTO_S, 0, 1)
+end
+
 -- Lo que se oye y se ve del aliento, escondido o debajo de un mueble: conteniendo se cierran los bordes, calla la
 -- respiración y el latido sube; jadeando, la respiración sube. `cerca`: studs del bicho más cercano; `base`: el
 -- volumen del latido sin bichos cerca.
 -- Sofocado (14.8), la respiración va más fuerte y deprisa y el corazón aporrea; si se te escapa un jadeo, los bordes
--- se cierran de golpe y el latido se dispara.
-local function notarAliento(cerca: number, base: number, aprieta: number, jadeo: number)
+-- se cierran de golpe y el latido se dispara. `golpeSalto` y `golpeLatido` (de sacudida, solo escondido): lo mismo con
+-- un golpe fuerte cerca.
+local function notarAliento(cerca: number, base: number, aprieta: number, jadeo: number, golpeSalto: number?,
+	golpeLatido: number?)
 	local respingo, disparado = sobresalto(os.clock())
+	local golpe = golpeLatido or 0
 	-- Con el bicho pegado a las rendijas (suceso Armario), los bordes casi del todo cerrados y el latido a tope.
-	local cierre = math.max(math.min(1, ahogo * (0.7 + 0.3 * aprieta) + 0.6 * respingo) * CIERRA, pegado * PEGADO_CIERRA)
+	local cierre = math.max(
+		math.min(1, ahogo * (0.7 + 0.3 * aprieta) + 0.6 * respingo + 0.5 * (golpeSalto or 0)) * CIERRA,
+		pegado * PEGADO_CIERRA
+	)
 	if math.abs(cierre - cierreVisto) > 0.004 or (cierre == 0 and cierreVisto ~= 0) then
 		cierreVisto = cierre
 		ahogoLados.ImageTransparency = 1 - cierre
@@ -323,9 +350,9 @@ local function notarAliento(cerca: number, base: number, aprieta: number, jadeo:
 	end
 	if latido then
 		latido.Volume = base + 1.2 * math.clamp(1 - cerca / 45, 0, 1) + LATIDO_MAS * ahogo * (1 + aprieta)
-			+ LATIDO_SOFOCO * sofoco + LATIDO_SUSTO * disparado + PEGADO_LATIDO * pegado
+			+ LATIDO_SOFOCO * sofoco + LATIDO_SUSTO * disparado + PEGADO_LATIDO * pegado + ESCONDIDO.LatidoGolpe * golpe
 		latido.PlaybackSpeed = 1 + 0.5 * math.clamp(1 - cerca / 30, 0, 1) + LATIDO_PRISA * (ahogo + aprieta)
-			+ 0.25 * sofoco + LATIDO_SUSTO * 0.5 * disparado + PEGADO_PRISA * pegado
+			+ 0.25 * sofoco + LATIDO_SUSTO * 0.5 * disparado + PEGADO_PRISA * pegado + ESCONDIDO.LatidoGolpe * 0.5 * golpe
 	end
 end
 
@@ -408,17 +435,28 @@ local function enEscondite(dt: number)
 	local aprieta, jadeo, suelta = tramos(t)
 	aprieta = math.max(aprieta, pegado) -- pegado a las rendijas, como al final del aguante (o más)
 	local respingo = sobresalto(t)
+	local golpeSalto, golpeLatido = sacudida(t)
 	-- El leve respirar: más deprisa y más hondo jadeando o sofocado de correr; conteniendo, quieta, con el pecho lleno
 	-- (un poco más arriba) y temblando un poco (más al final). Al soltar el aire, tiembla y baja un momento. Si se te
 	-- escapa un jadeo, la vista da un respingo hacia arriba y vuelve.
-	local sofocoMece = if jugador:GetAttribute("Rendimiento") == true then 0 else sofoco -- Rendimiento: no se mece más
+	local rendimiento = jugador:GetAttribute("Rendimiento") == true
+	local sofocoMece = if rendimiento then 0 else sofoco -- Rendimiento: no se mece más
 	fase += dt * (1 + 0.8 * jadeo + 1.4 * sofocoMece)
 	local mece = (1 - ahogo) * (1 + 0.8 * jadeo + 1.2 * sofocoMece)
 	local salto = respingo * respingo
+	local saltoGolpe = golpeSalto * golpeSalto -- un golpe fuerte cerca: el mismo respingo
 	local alto = math.sin(fase * 1.6) * 0.04 * mece + SUBE * ahogo - 2 * SUBE * math.sin(suelta * math.pi)
-		+ 2 * SUBE * salto
+		+ 2 * SUBE * math.max(salto, saltoGolpe)
 	local destino = vista * CFrame.new(0, alto, 0)
-		* CFrame.Angles(math.sin(fase * 0.8) * 0.01 * mece + RESPINGO * salto, math.sin(fase * 0.5) * 0.02 * mece, 0)
+		* CFrame.Angles(math.sin(fase * 0.8) * 0.01 * mece + RESPINGO * salto + ESCONDIDO.Respingo * saltoGolpe,
+			math.sin(fase * 0.5) * 0.02 * mece, 0)
+	-- Los golpes y las pisadas de fuera hacen temblar el armario (el temblor de CasaVista, que aquí no se pinta), más
+	-- rápido y seco que el de contener el aire. Con Rendimiento, la mitad.
+	local sacude = CasaVista.temblorAhora() * ESCONDIDO.Temblor * (if rendimiento then 0.5 else 1)
+	if sacude > 0 then
+		destino *= CFrame.Angles(math.noise(t * 23, 3.1) * sacude, math.noise(t * 23, 7.7) * sacude,
+			math.noise(t * 17, 11.3) * sacude * 0.5)
+	end
 	local tiembla = ahogo * (TIEMBLA + TIEMBLA_FIN * aprieta) + TIEMBLA_SUELTA * math.max(suelta, respingo)
 		+ PEGADO_TIEMBLA * pegado
 	if tiembla > 0 then
@@ -432,7 +470,7 @@ local function enEscondite(dt: number)
 		destino = e.desde:Lerp(destino, k) * CFrame.new(0, -agacha, 0)
 	end
 	Camara.get().CFrame = destino
-	notarAliento(cerca, 0.25, aprieta, jadeo)
+	notarAliento(cerca, 0.25, aprieta, jadeo, golpeSalto, golpeLatido)
 end
 
 -- Los bordes oscuros: cerrados escondido; flojos debajo de un mueble (que sepas que estás escondido); si no, nada.
@@ -630,9 +668,14 @@ local function destello(transparencia: number, dura: number)
 	TweenService:Create(rojo, TweenInfo.new(dura), { BackgroundTransparency = 1 }):Play()
 end
 
--- El susto del Golpeador (14.10). Números a ojo (para mirarlos en Studio); los tiempos, en Config.Golpeador.Susto.
+-- El susto por fases: el del Golpeador (14.10, Config.Golpeador.Susto) y el de los demás bichos con cara
+-- (Config.Muerte.SustoComun). Números a ojo (para mirarlos en Studio).
 local GOLPEADOR_ENCIMA = 2.6 -- studs delante de su cara al echarse encima...
 local GOLPEADOR_TIRON = 1 -- ...y en el tirón final
+local GOLPEADOR_BOCA = 0.7 -- studs bajo el centro de su cara (Cara3D va a la altura del hocico: probado en Studio)
+local COMUN_BOCA = 0.6 -- lo mismo en los demás (el susto de siempre miraba ahí)
+local COMUN_CABEZA = 1.3 -- en los demás, al menos su cabeza más grande × esto delante de ella (la Bestia, cabezona)
+local COMUN_PALMO = 1.6 -- y el tirón, tanto más cerca (en el Golpeador, de 2,6 a 1)
 local ARRASTRA_TIRONES = 3 -- tirones con los que te saca de debajo del mueble
 local ARRASTRA_HASTA = 1.8 -- studs (en el suelo) de su cara donde te deja
 local ARRASTRA_SUELO = 0.45 -- altura de la cámara sobre el suelo mientras te arrastra
@@ -656,16 +699,25 @@ local function sinPared(centro: Vector3, ojo: Vector3, filtro: RaycastParams): V
 	return if choque then choque.Position - tramo.Unit * 0.3 else ojo
 end
 
-local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, filtro: RaycastParams, quitar: Quitar)
-	local fases = Config.Golpeador.Susto
+-- Cómo es el susto de cada bicho: dónde tiene la boca, a cuánto de su cara se queda la cámara encima y en el tirón,
+-- y sus sonidos (sin `grito`, el Susto ×1,5; sin `golpe`, nada al echarse encima).
+type Fases = { Arrastra: number?, Mira: number, Salta: number, Encima: number, Tiron: number, Despues: number? }
+type OpcionesSusto = { boca: number, encima: number, tiron: number, golpe: string?, grito: string? }
+
+-- Mira (quieto mirándote, un latido), Salta (se abalanza, empujón de FOV y el Susto), Encima (temblando pegado a su
+-- cara, con sangre y destellos), Tiron (hacia él con el chillido), un fotograma negro y Despues (temblando). Antes,
+-- si gatea y hay fases.Arrastra, te saca a rastras de debajo del mueble. Si el bicho se va, se mira donde estaba.
+local function sustoFases(cara: BasePart, desde: Vector3, gatea: boolean, filtro: RaycastParams, quitar: Quitar,
+	fases: Fases, opciones: OpcionesSusto)
 	local foco = quitar.luz and quitar.luz:FindFirstChildOfClass("PointLight")
 	local ultima = cara.Position
+	local aEncima, aPalmo = opciones.encima, opciones.tiron -- studs de su cara encima y en el tirón
 	-- El centro de su cara (si desaparece, donde estaba): la boca, un poco por debajo.
 	local function suCara(): Vector3
 		if cara.Parent then
 			ultima = cara.Position
 		end
-		return ultima - Vector3.new(0, 0.7, 0) -- la boca (Cara3D va a la altura del hocico: probado en Studio)
+		return ultima - Vector3.new(0, opciones.boca, 0)
 	end
 	local function etapa(dura: number, cada: (u: number, dt: number) -> ())
 		local t0 = os.clock()
@@ -679,7 +731,8 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 	local ojo = desde
 	local ladeo = 0
 	-- Arrastra: su mano te agarra debajo del mueble y te saca a tirones por el suelo hacia él, mirándole.
-	if gatea then
+	local arrastra = fases.Arrastra
+	if gatea and arrastra then
 		local suelo = workspace:Raycast(desde, Vector3.new(0, -6, 0), filtro)
 		local alto = (if suelo then suelo.Position.Y else desde.Y - 1.5) + ARRASTRA_SUELO
 		local abajo = Vector3.new(desde.X, math.min(alto, desde.Y), desde.Z)
@@ -692,7 +745,7 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 		pcall(CorrerVista.jadear, nil, 1) -- el respingo al notar la mano
 		destello(0.6, 0.5)
 		local tiron = -1
-		etapa(fases.Arrastra, function(u)
+		etapa(arrastra, function(u)
 			local x = u * ARRASTRA_TIRONES
 			local i = math.min(math.floor(x), ARRASTRA_TIRONES - 1)
 			local f = math.clamp((x - i) / 0.35, 0, 1) -- cada tirón: de golpe al principio y luego quieto
@@ -751,16 +804,16 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 	etapa(fases.Salta, function(u, dt)
 		seguir(dt)
 		local k = 1 - (1 - u) ^ 4
-		local meta = sinPared(suave, suave + frente * GOLPEADOR_ENCIMA, filtro)
+		local meta = sinPared(suave, suave + frente * aEncima, filtro)
 		Camara.get().FieldOfView = 70 - 12 * k - 14 * math.sin(math.pi * u) -- el empujón
 		Camara.get().CFrame = CFrame.lookAt(ojo:Lerp(meta, k), suave) * CFrame.Angles(0, 0, ladeo * (1 - k)) * temblor(0.1 * k)
 	end)
-	-- Encima: temblando delante de su cara, con sangre y destellos rojos (las garras y los tirones de la cabeza son
-	-- cosa de GolpeadorVista).
+	-- Encima: temblando delante de su cara, con sangre y destellos rojos (lo que hace su cuerpo, garras o tirones de
+	-- la cabeza, es cosa de su Vista).
 	quitar.capaSangre = sangre()
 	destello(0.25, 1)
-	local golpe = Sonido.tocar("Golpe")
-	if golpe then
+	if opciones.golpe and Sonido.hay(opciones.golpe) then
+		local golpe = Sonido.tocar(opciones.golpe)
 		golpe.Volume *= 0.4
 	end
 	local pulso = 0
@@ -771,22 +824,24 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 			pulso = n
 			destello(0.55, 0.25)
 		end
-		local cerca = GOLPEADOR_ENCIMA - 0.25 * math.sin(u * math.pi * 6) ^ 2 -- se echa hacia ti a golpes
+		local cerca = aEncima - 0.25 * math.sin(u * math.pi * 6) ^ 2 -- se echa hacia ti a golpes
 		local p = sinPared(suave, suave + frente * cerca, filtro)
 		Camara.get().FieldOfView = 58 + 2 * math.sin(u * 30)
 		Camara.get().CFrame = CFrame.lookAt(p, suave) * temblor(0.08 + 0.06 * math.noise(u * 9, 3.1))
 	end)
 	-- Tirón: hacia él, a un palmo de su cara, con el chillido; luego un fotograma negro del todo.
-	if Sonido.hay("GritoGolpeador") then
-		Sonido.tocar("GritoGolpeador")
+	if opciones.grito and Sonido.hay(opciones.grito) then
+		Sonido.tocar(opciones.grito)
 	else
 		local grito = Sonido.tocar("Susto")
-		grito.Volume *= 1.5
+		if grito then -- (en los bancos, sin sonidos)
+			grito.Volume *= 1.5
+		end
 	end
 	destello(0.15, 0.4)
 	etapa(fases.Tiron, function(u, dt)
 		seguir(dt)
-		local cerca = GOLPEADOR_ENCIMA + (GOLPEADOR_TIRON - GOLPEADOR_ENCIMA) * u * u
+		local cerca = aEncima + (aPalmo - aEncima) * u * u
 		Camara.get().FieldOfView = 58 + 20 * u
 		Camara.get().CFrame = CFrame.lookAt(sinPared(suave, suave + frente * cerca, filtro), suave) * temblor(0.2)
 	end)
@@ -795,11 +850,33 @@ local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, fi
 	RunService.RenderStepped:Wait()
 	negro.BackgroundTransparency = 1
 	destello(0.3, 0.6)
-	etapa(DESPUES_NEGRO, function(u, dt)
+	etapa(fases.Despues or DESPUES_NEGRO, function(u, dt)
 		seguir(dt)
-		local p = sinPared(suave, suave + frente * GOLPEADOR_TIRON, filtro)
+		local p = sinPared(suave, suave + frente * aPalmo, filtro)
 		Camara.get().CFrame = CFrame.lookAt(p, suave) * temblor(0.2 * (1 - u) + 0.05)
 	end)
+end
+
+-- El del Golpeador (14.10): con su golpe y su chillido; los tiempos, en Config.Golpeador.Susto.
+local OPCIONES_GOLPEADOR: OpcionesSusto = {
+	boca = GOLPEADOR_BOCA,
+	encima = GOLPEADOR_ENCIMA,
+	tiron = GOLPEADOR_TIRON,
+	golpe = "Golpe",
+	grito = "GritoGolpeador",
+}
+local function sustoGolpeador(cara: BasePart, desde: Vector3, gatea: boolean, filtro: RaycastParams, quitar: Quitar)
+	sustoFases(cara, desde, gatea, filtro, quitar, Config.Golpeador.Susto, OPCIONES_GOLPEADOR)
+end
+
+-- El de los demás bichos con cara (Config.Muerte.SustoComun): lo mismo sin arrastrarte, con el Susto de golpe y de
+-- chillido. La cámara, más lejos de las cabezas grandes (la Bestia) para no meterse dentro.
+local function sustoComun(cara: BasePart, bicho: Model, desde: Vector3, filtro: RaycastParams, quitar: Quitar)
+	local bloque = bicho:FindFirstChild("Cabeza")
+	local grande = if bloque and bloque:IsA("BasePart") then math.max(bloque.Size.X, bloque.Size.Y, bloque.Size.Z) else 0
+	local encima = math.max(GOLPEADOR_ENCIMA, grande * COMUN_CABEZA)
+	sustoFases(cara, desde, false, filtro, quitar, Config.Muerte.SustoComun,
+		{ boca = COMUN_BOCA, encima = encima, tiron = encima - COMUN_PALMO })
 end
 
 -- La escena del susto. Lo que hay que quitar al acabar se deja en `quitar`. `gatea`: el bicho gateaba al llegar el
@@ -813,21 +890,27 @@ local function escenaPillado(cabeza: Vector3, modelo: Model?, quitar: Quitar, ga
 	local desde = if mia then mia.Position else Camara.get().CFrame.Position
 	local hacia = (desde - cabeza)
 	hacia = if hacia.Magnitude > 0.1 then hacia.Unit else Vector3.zAxis
-	-- ¿Es el Golpeador? Sin llamar a las vistas (eso va después): solo el nombre del modelo o del más cercano.
+	-- ¿Qué bicho es y tiene cara? Sin llamar a las vistas (eso va después): el modelo o el más cercano.
 	local previsto = if typeof(modelo) == "Instance" and modelo:IsA("Model") and modelo.Parent then modelo
 		else cabezaMasCerca(cabeza)
 	local golpeador = previsto ~= nil and previsto.Name == "Golpeador"
+	local conCara = previsto ~= nil and (previsto:FindFirstChild("Cara3D") or previsto:FindFirstChild("Cabeza")) ~= nil
 	-- Antes que buscar al bicho (que llama a las vistas de todos): si una falla, la cámara ya está en el susto y se
-	-- mira desde donde estabas. El del Golpeador empieza callado (Mira): el grito y la sangre van luego.
+	-- mira desde donde estabas. El susto por fases empieza callado (Mira): el grito y la sangre van luego.
 	personajeVisible(false)
 	Camara.get().CameraType = Enum.CameraType.Scriptable
-	local function gritoDeSiempre()
+	local gritado = false
+	local function gritoDeSiempre() -- sin cara a la que mirar
+		if gritado then
+			return
+		end
+		gritado = true
 		Camara.get().FieldOfView = 60
 		Sonido.tocar("Susto")
 		destello(0.35, 1.4)
 		quitar.capaSangre = sangre()
 	end
-	if not golpeador then
+	if not conCara then
 		gritoDeSiempre()
 	end
 	-- La cara del bicho de frente, con la boca abierta, echándose encima; una luz para que se le vea en lo oscuro.
@@ -852,31 +935,19 @@ local function escenaPillado(cabeza: Vector3, modelo: Model?, quitar: Quitar, ga
 	local filtroSusto = RaycastParams.new()
 	filtroSusto.FilterType = Enum.RaycastFilterType.Exclude
 	filtroSusto.FilterDescendantsInstances = { workspace:FindFirstChild("Bichos") :: Instance, personaje :: Instance }
-	if golpeador and cara then
+	if cara and golpeador then
 		sustoGolpeador(cara, desde, gatea or (previsto :: Model):GetAttribute("Gatea") ~= nil, filtroSusto, quitar)
 		return
-	elseif golpeador then
-		gritoDeSiempre() -- sin cara a la que mirar: el de siempre
+	elseif cara then
+		sustoComun(cara, bicho :: Model, desde, filtroSusto, quitar)
+		return
 	end
+	-- Sin cara: el de siempre, temblando delante de donde estaba su cabeza.
+	gritoDeSiempre()
 	local t0 = os.clock()
 	while os.clock() - t0 < 1.8 do
-		local t = os.clock() - t0
-		local fuerza = 0.16 * (1 - t / 1.8) + 0.03
-		local ojo, centro
-		if cara and cara.Parent then
-			local acerca = 1 - math.clamp(t / 0.2, 0, 1)
-			centro = cara.Position - Vector3.new(0, 0.6, 0)
-			ojo = (cara.CFrame * CFrame.new(0, -0.5, -(2.7 + acerca * 3.5))).Position
-			local choque = workspace:Raycast(centro, ojo - centro, filtroSusto) -- sin meterse en las paredes
-			if choque then
-				ojo = choque.Position + (centro - ojo).Unit * 0.3
-			end
-		else
-			centro, ojo = cabeza, cabeza + hacia * 2.4
-		end
-		Camara.get().CFrame = CFrame.lookAt(ojo, centro)
-			* CFrame.new(azar:NextNumber(-fuerza, fuerza), azar:NextNumber(-fuerza, fuerza), 0)
-			* CFrame.Angles(0, 0, azar:NextNumber(-fuerza, fuerza) * 0.5)
+		local fuerza = 0.16 * (1 - (os.clock() - t0) / 1.8) + 0.03
+		Camara.get().CFrame = CFrame.lookAt(cabeza + hacia * 2.4, cabeza) * temblor(fuerza)
 		RunService.RenderStepped:Wait()
 	end
 end
@@ -1046,7 +1117,7 @@ function MuerteVista.start()
 	end)
 	jugador:GetAttributeChangedSignal("Escondido"):Connect(cambiarEscondido)
 	jugador:GetAttributeChangedSignal("Cubierto"):Connect(pintarBordes) -- debajo de un mueble (Postura)
-	jugador:GetAttributeChangedSignal("Muerto"):Connect(function()
+	local function alCambiarMuerto()
 		if not jugador:GetAttribute("Muerto") then
 			mirando.Visible = false
 			jugador.CameraMode = Enum.CameraMode.LockFirstPerson
@@ -1055,7 +1126,11 @@ function MuerteVista.start()
 			jugador.CameraMode = Enum.CameraMode.Classic
 			jugador.CameraMinZoomDistance = 10
 		end
-	end)
+	end
+	jugador:GetAttributeChangedSignal("Muerto"):Connect(alCambiarMuerto)
+	if jugador:GetAttribute("Muerto") then
+		alCambiarMuerto() -- ha vuelto a entrar muerto (Muerte): el atributo llegó antes que esto
+	end
 	jugador.CharacterAdded:Connect(function(personaje)
 		-- Reaparecer en medio de un final (al amanecer reviven los muertos) no le quita la cámara a la escena (HuidaVista,
 		-- IncendioVista): ella la devuelve al acabar. Si no hay escena, la de siempre.

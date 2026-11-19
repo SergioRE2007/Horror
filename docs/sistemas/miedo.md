@@ -16,6 +16,8 @@ Hecho en paralelo con cuatro agentes (pedido por el usuario: "tiene que quedar b
 - Pisadas por encima (Trepador en el tejado o un bicho arriba): polvo y arenilla del techo justo debajo (`Polvo`). Probado: cae cada pocos pasos.
 - Cristales: al romperse, los trozos se quedan en el suelo y picos en el marco hasta el amanecer o la reparación; crujen al pisarlos.
 
+- Linterna (`cliente/EquipoVista`): con un bicho a menos de `Config.Linterna.BichoCerca` (22 studs, también tras una pared) tu linterna tiembla y se apaga a tirones, más seguido cuanto más cerca, nunca más de `BichoFallo` s seguidos. El Imitador que finge en la puerta y los bichos muertos no cuentan. Se combina con el parpadeo de poca pila (el peor de los dos). Los parpadeos de los sustos (`SustosLinterna`, Camera + 7) van después de EquipoVista (Camera + 6).
+
 ## Sustos (`cliente/Sustos/`)
 
 - Cada jugador los suyos, solo en su cliente (el amigo no lo ha visto). El primero a los 45-80 s de la noche y luego uno cada 170-230 s (menos cada noche). Nunca con un bicho a menos de 30 studs o dentro de la casa (ni 8 s después; 16.10: antes 90 y 20 tapaban casi todos en las noches altas), en cinemáticas, la noche final, muerto, escondido o con el móvil o la mochila abiertos, ni lejos de la casa. Todo vuelve a su sitio al amanecer.
@@ -28,7 +30,7 @@ Hecho en paralelo con cuatro agentes (pedido por el usuario: "tiene que quedar b
 
 ## Ambiente (`cliente/AmbienteMiedo`)
 
-- De noche dentro de la casa, `CasaFondo` en bucle bajo. `Tension`: zumbido grave que sube con un bicho cerca (el Imitador no cuenta hasta que le abren, para no delatarlo). Ráfagas (`Rafaga`) contra una ventana cercana cada 35-90 s. Papel al abrir una pista (`PistasUi`).
+- De noche dentro de la casa, `CasaFondo` en bucle bajo. `Tension`: zumbido grave que sube con un bicho cerca (el Imitador no cuenta hasta que le abren, para no delatarlo); si uno te persigue (atributo `Persigue`, de `Caza`), entera en menos de 1 s (`TensionPersigueSubir`): huir no suena como andar por la casa. Ráfagas (`Rafaga`) contra una ventana cercana cada 35-90 s. Papel al abrir una pista (`PistasUi`).
 
 ## Sonidos (tanda `miedo`)
 

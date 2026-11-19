@@ -159,6 +159,8 @@ Lo que puede romper una partida o atascar al jugador:
    morir todos y `Saltar` (sin premio de noche); Golpeador con `Config.Test.Jugadores = 1`; Imitador con el generador
    apagado; manos, mirilla y muerte (Camara); los seis bichos (vaho, gateo, sucesos, susto). Solo publicado: el candado
    al cerrar cargando, revivir pagado y los reintentos del viaje. Falta el sonido `MotorCoche`.
+- **Paso 17 entero (pulido en bucle, 18-11-2026, hecho sin Studio):** antes, `selene src` en Windows; luego, mejora a
+   mejora, lo que hay que mirar en `docs/sistemas/pulido.md`.
 1. Escenas finales y escondites (14.9), probado con un jugador el 04-11-2026 (bien, también la mirilla con el tutorial y sustos seguidos); falta lo de dos jugadores: el fuego con alguien escondido y el fuego cancelado (la cámara no se congela),
    no esconderse en la escena (sí durante el fuego), el susto justo antes de la escena, `EscenaFinal` que vuelve a nil, nadie revive en un
    final. `docs/sistemas/partida.md`, "Muerte y finales", Probar en Studio.
@@ -436,3 +438,61 @@ Por decidir con Sergio: la meta tras el tutorial no habla del desván ni de la h
 el Incendio sigue quitando solo al Golpeador y al Raspador; la clave de LangEs "It doesn't fit there." no la usa nadie.
 Sabido: los bancos de las vistas de bichos solo pasan con la semilla de siempre (con otra, una cabeza o un brazo puede
 entrar unas décimas en la pared o el suelo, `docs/sistemas/bichos.md`).
+
+## 17. Pulido en bucle (pedido por el usuario, 18-11-2026: "pulir todo, absolutamente todo")
+Un bucle de agentes buscó, construyó, verificó y juntó 48 mejoras; luego una revisión con varios agentes arregló 5
+fallos. Hecho sin Studio (en la nube): todo va a "Pendientes para Studio". Detalle en `docs/sistemas/pulido.md`.
+
+| Tarea | Qué | Estado |
+|---|---|---|
+| 17.1 | Los bichos ven de frente: sigilo de verdad a su espalda | hecho |
+| 17.2 | Bichos que no se atascan contra una pared y persecución que se nota | hecho |
+| 17.3 | Cielo propio de la partida: nubes, estrellas y luna según la noche | hecho |
+| 17.4 | Rayo visible en el cielo, del lado de donde viene el trueno | hecho |
+| 17.5 | Depósito de gasoil en la granja para rellenar bidones | hecho |
+| 17.6 | Avisos de una línea que no se pisan entre sí | hecho |
+| 17.7 | Lo tirado de la mochila y lo que cae al morir no atraviesa paredes | hecho |
+| 17.8 | Granja, aserradero y caseta de la torre con fachadas de verdad y su historia | hecho |
+| 17.9 | Atardecer y amanecer que siguen al sol | hecho |
+| 17.10 | La linterna falla con un bicho cerca (y arreglo del parpadeo de los sustos) | hecho |
+| 17.11 | Las cerillas, en la caja fuerte del rico como dice la pista 12 | hecho |
+| 17.12 | Bestia y Acechador no pillan a través de paredes; al perderte, el bicho te busca | hecho |
+| 17.13 | La meta del día avisa si el generador no aguanta la noche | hecho |
+| 17.14 | Flecha del tutorial: a un lado cuando está detrás, márgenes de móvil y Rendimiento | hecho |
+| 17.15 | Con mando, las ventanas abren con un botón ya elegido y B cierra las notas | hecho |
+| 17.16 | Borde del mundo: el bosque se cierra y no se cae al vacío | hecho |
+| 17.17 | Sigilo: quieto no haces ruido, las paredes tapan el oído y la linterna te delata | hecho |
+| 17.18 | El tutorial empieza por la nota del rico y la meta guía el final de la Bestia | hecho |
+| 17.19 | Lo que cae al morir escondido o no cabe en la mochila queda a mano | hecho |
+| 17.20 | Ver morir a un compañero te deja helado | hecho |
+| 17.21 | Libreta de pistas en la mochila (compartida) y aviso del plano de la reja | hecho |
+| 17.22 | Con tormenta la luna se tapa y el relámpago solo destella donde se ve el cielo | hecho |
+| 17.23 | Los bichos no golpean desde lejos, no cortan la caza en seco y no desaparecen a la vista | hecho |
+| 17.24 | El generador no se apaga de un toque y el bidón vuelve a las manos | hecho |
+| 17.25 | Golpeador, Raspador, Trepador e Imitador también suben la escalera del vestíbulo | hecho |
+| 17.26 | Llaves, pistola, bengalas y cerillas no se pierden al cargar ni con el amigo que no vuelve | hecho |
+| 17.27 | Sendas con mojones de la casa a la granja, el aserradero y la torre | hecho |
+| 17.28 | El viento sopla a rachas, más fuerte con tormenta y sordo dentro de casa | hecho |
+| 17.29 | Los bichos no aparecen ni se esfuman a la vista en el bosque | hecho |
+| 17.30 | La meta del día pide reparar lo roto y, tras el Trepador, dejar troncos junto a la chimenea | hecho |
+| 17.31 | El susto al morir de los demás bichos, por fases como el del Golpeador | hecho |
+| 17.32 | El flash y el cepo se notan en todos los bichos, no solo en el Golpeador | hecho |
+| 17.33 | Noches de niebla cerrada: el bosque se pierde a pocos metros | hecho |
+| 17.34 | Los bichos solo abren la puerta que cruzan y no ven a través de la pared que tienen delante | hecho |
+| 17.35 | Visión de túnel y color apagado con el pavor y la persecución | hecho |
+| 17.36 | Escondites fuera de casa: granja, granero, iglesia y casa abierta del pueblo | hecho |
+| 17.37 | Escondido, los golpes y las pisadas se sienten en el armario | hecho |
+| 17.38 | La pistola y las bengalas caen al morir y las gastadas vuelven tras la noche de la Bestia | hecho |
+| 17.39 | La meta del final pide pistola y cerillas, y avisa al atraparla | hecho |
+| 17.40 | Avisos de una línea con la tecla de la linterna, el flash y la pistola de bengalas cuando hacen falta | hecho |
+| 17.41 | Moverse o saltar corta el trabajo a medias (ya no te quedas clavado) | hecho |
+| 17.42 | El paso de serrar pide coger un tablón y señala los tablones | hecho |
+| 17.43 | El bosque se calla cuando se acerca un bicho (y el rugido del atardecer suena desde el bosque) | hecho |
+| 17.44 | Con niebla cerrada los bichos tampoco ven lejos en el bosque | hecho |
+| 17.45 | Volver a la partida desde el lobby tras un corte | hecho |
+| 17.46 | El Imitador llama con la voz del amigo que acaba de morir (o de Tom) | hecho |
+| 17.47 | Cerrojos del banco del sótano: encerrarse en un cuarto de verdad | hecho |
+| 17.48 | La cabaña del cazador en el bosque espeso | hecho |
+
+Por decidir con Sergio (son textos de historia): frases nuevas del vendedor según lo que se ha descubierto, y una línea
+de epílogo bajo cada final.

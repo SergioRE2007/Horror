@@ -29,7 +29,9 @@ Una suma sin unidades (`Config.Adaptar.Luz`) que pasa a 0..1 con `1 - e^(-suma)`
   `Brightness` de verdad, que ya lleva el parpadeo de `Ambiente.factor`, el generador y el trueno. Las de luna
   (etiqueta `Luna`) con su peso; la chimenea, las bengalas y el flash de los demás también son luces. No cuentan las
   linternas (la tuya va aparte) ni lo que cuelga de tu personaje (tu flash ya lo pinta de blanco `EquipoVista`);
-- en cada fotograma, el relámpago (`Ambiente.destello`, menos dentro).
+- en cada fotograma, el relámpago (`Ambiente.destello` × `Luz.Rayo` × `Ambiente.cieloVisto`, el mismo cielo visto que
+  usa el destello de la pantalla de la tormenta, `tormenta.md`: fuera entero, dentro algo y en el sótano o escondido
+  casi nada). Sin eso, los dos `ColorCorrection` se sumaban y en el sótano la pantalla parpadeaba casi como fuera.
 
 Los ojos "hechos" siguen a esa luz: hacia la oscuridad despacio (`Baja`), hacia la luz deprisa (`Sube`).
 

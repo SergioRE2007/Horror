@@ -44,6 +44,10 @@ esquina de arriba a la derecha.
   baja si no cabe bajo la barra de Roblox. Los avisos de una línea suben al 64 % del alto, en un cuadro de 0,56 del
   ancho que acaba antes de `Hud.Acciones`; una frase larga baja a dos renglones y encoge (`Ui.queQuepa`, 26 como
   mucho), pero los avisos se escriben para que quepan en una línea.
+- Avisos que no se pisan (`Ui.aviso`): uno solo en pantalla. La misma frase que ya se ve solo alarga su tiempo (E en
+  una puerta cerrada no parpadea; si se estaba fundiendo, vuelve). Otra distinta espera en una cola (3 como mucho, sin
+  repetir; se olvida la más vieja) a que la de ahora lleve 1,4 s (`MINIMO_AVISO`, a ojo) o los segundos que pidió
+  (morir: 5); entonces se funde en 0,2 s y sale la siguiente. Banco: `tests/bancos/avisos.luau`.
 - Acciones de teclado con botón en el móvil: B (MOCHILA), R/G (GIRAR/TIRAR en la mochila), F (LINTERNA), clic (FLASH),
   Q/clic (BENGALA dispara directamente), M (MÓVIL), C/Ctrl (AGACHARSE), Shift mantenido (CORRER, que en el móvil y con L3 alterna), E/R con peso (SOLTAR / el botón de usar), E en
   el escondite (SALIR) y la E de cada prompt (botón grande de acción). Asomarse (Z/X) es solo de teclado.
@@ -81,8 +85,16 @@ esquina de arriba a la derecha.
 - Mochila con mando: X gira, Y tira, B cierra, cruceta arriba abre (no chocan: con ella abierta no hay carteles de coger ni
   se puede llevar nada en las manos; L1 linterna, R1 bengalas, R2 disparo, L2 mirar, R3 ajustes, L3 correr, cruceta
   izquierda revivir, derecha saltar tutorial, abajo móvil).
-- B (y Escape, salvo en el coche) cierra taller, vendedor y tienda; en el coche, B es BAJAR (`Ui.cerrarConB`). Cada ventana
-  llama a `Ui.ventanaAbierta(nombre, abierta)` para que esa B no agache (atributo `VentanaAbierta`).
+- B (y Escape, salvo en el coche) cierra taller, vendedor, tienda y la nota que lees; en el coche, B es BAJAR
+  (`Ui.cerrarConB`). Cada ventana llama a `Ui.ventanaAbierta(nombre, abierta)` para que esa B no agache (atributo
+  `VentanaAbierta`).
+- Con mando cada ventana sale con un botón ya elegido (`Ui.seleccionar`; la A lo pulsa): coche EMPEZAR (sigue elegido,
+  apagado, en la cuenta atrás: la A no te baja; si no eres el dueño, BAJAR), tienda el primer botón pulsable (si no, la
+  X), taller el primer HACER que te llega, vendedor el primer trato que pagas (si no, CERRAR), nota CERRAR, Ajustes el SÍ/NO. Al cerrar (ya al
+  empezar el fundido) `Ui.soltarSeleccion(panel)`. `Ui.mantenerSeleccion` tras repintar (lo elegido se compró o se
+  ocultó; lo que solo se apaga, con `Interactable = false`, se deja elegido) y `Ui.seleccionConMando` al coger o soltar el mando con la ventana abierta; lo elegido de otra ventana a la
+  vista (Ajustes encima) se respeta. Los papeles de fondo van con `Selectable = false`. El borde del elegido es el del
+  juego (`PlayerGui.SelectionImageObject` en `Ui.hud`: hueso, 3 px, esquinas de 4). Banco `tests/bancos/mando-ventanas`.
 - `Ui.mayusculas` cubre à è ì ò ù â ê î ô û ã õ ç ö ä ü ñ y las tildes del español.
 - Probar en Studio: emulador táctil y con teclado (sin pistas ni cambios raros); con mando, abrir taller o tienda y cerrar
-  con B sin agacharse; mochila abierta: X gira lo cogido, Y lo tira; texto de botón con ç/ã/ö en mayúsculas.
+  con B sin agacharse; coche, tienda, taller, vendedor y nota con el botón útil ya marcado con el borde claro; mochila abierta: X gira lo cogido, Y lo tira; texto de botón con ç/ã/ö en mayúsculas.

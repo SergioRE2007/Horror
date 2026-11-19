@@ -10,7 +10,7 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
 - Probar en Studio (16.15): huir en el coche con un Acechador fuera (se quita); "Bestia" de pruebas y luego "Dia" (se van todos); morir todos con bichos dentro (se vuelve al amanecer sin ninguno); en la Salida, ningún `[Bichos]`.
 - `Trepador` (noche 7): trepa por la pared de delante o de detrás (detrás, nunca por el cobertizo), ronda 24-32 s por el tejado (menos cada noche) parándose a ratos, se mete por el tiro y baja 4 s. Sale al salón por el hogar, ruge y caza 30 s. Con la chimenea encendida (en el tejado o mientras baja) chilla, se tira del tejado y huye. En pared y tejado va anclado y se mueve a mano (`deslizar`); medidas del tejado en la cabecera. Avisos: "Algo anda por el tejado." y "¡Algo baja por la chimenea!" (solo a los de dentro).
 - `Chimenea`: con un tronco en las manos, R (`Cargar.alUsar "Tronco"`, etiqueta `Chimenea`). Cada tronco arde 50 s, como mucho 2 a la vez. Atributo `Fuego` (hora del servidor). El modelo (en `Mapa`) tiene el tiro que sale por el tejado y los atributos `Hogar`, `Tiro` y `Salida`.
-- `Imitador` (noche 10): se planta en la puerta principal y llama 4 veces con la voz de un jugador que no esté junto a la puerta (solo: con la tuya, y te dice "Alguien en la puerta está hablando con tu voz"). Las frases suben de tono; si no le abren: "Sé que estáis ahí dentro." y se va. Si alguien abre (o la encuentra abierta), se le estira el cuello, entra y caza. A quien sale a mirar (a menos de 22 studs), le caza. Avisos solo a los que están a menos de 80 studs.
+- `Imitador` (noche 10): se planta en la puerta principal y llama 4 veces con una voz que elige `RepartoBichos.voz` (pura, en el banco `reparto-bichos`): si alguien ha muerto esta noche (atributo `Muerto`, su cuerpo sigue tirado), con `Config.Imitador.VozMuerto` (0,7) la suya ("Soy Eva. ¡Déjame entrar!"); si no, la de un vivo que no esté junto a la puerta; jugando solo, la tuya (y te dice "Alguien en la puerta está hablando con tu voz") o, si ya se ha leído la foto de la pista 2 (`PistasLeidas`), con `Antiguo.Probabilidad` (0,5) la de Tom, el vigilante de antes. Números a ojo. Las frases suben de tono; si no le abren: "Sé que estáis ahí dentro." y se va. Si alguien abre (o la encuentra abierta), se le estira el cuello, entra y caza. A quien sale a mirar (a menos de 22 studs), le caza. Avisos solo a los que están a menos de 80 studs.
 - Apagón (pedido por el usuario: "esa noche se va la luz"): la primera noche del Imitador, al primer golpe, `Generador.apagon()` para el motor aunque tenga gasolina; hay que salir al cobertizo a arrancarlo. Aviso: "Se ha ido la luz."
 - `Acechador` (cada noche, desde los últimos 20 s del día): a quien lleva 6-12 s fuera, a más de 48 studs del centro de la casa, le sale lejos y del lado contrario a la casa (nunca corta el camino de vuelta). Le sigue a 36 studs 14-20 s partiendo ramas; si le miras se queda quieto. Luego se echa encima a 21 (el jugador anda a 16) durante 22 s como mucho: "Corre. Vuelve a la luz." La linterna lo frena 2,5 s y luego tarda 2,5 s en volver a frenarlo. Al llegar a la luz se queda mirando y se va. Uno por presa, 2 a la vez como mucho.
 - Caminos (`Caza.pasoHacia`, 14.9): guarda el último y lo rehace solo si pasa `RUTA_VIDA` (1 s), si el destino se
@@ -18,6 +18,43 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
   recta. Antes, con tres bichos, 12-20 `ComputeAsync` por segundo (banco `pulido-4`). `Casa.puertas()` da una lista
   guardada y congelada (`puertasSinLlave`): cada vez que una puerta deja de estar bloqueada (con llave, al importar o
   con el modo de pruebas "Abrir") hay que vaciarla (`puertasSinLlave = nil`).
+  Puertas que abre: antes de cada `MoveTo` (`pasoHacia` y `Caza.ir`), solo la cerrada cuya hoja cruza el tramo de la
+  raíz a ese punto, alargado o recortado a `Config.Caza.Puerta.Tramo` (6; sin el recorte, andando en recta sin camino abría puertas lejanas) y con `Margen` (0,5) a cada lado del `Ancho`
+  (`CazaBusqueda.cruzaPuerta`, números a ojo). Antes abría todas las de menos de 5,5 studs: encerrarse no servía y
+  rondando el vestíbulo abría la de la calle. Las de fuera (`Atacable`, la principal) nunca desde fuera: solo las
+  rompen los ataques, y la Bestia (`Opciones.RompePuertas` = `reventar`: dos golpes y `Casa.romper`, como al llegar)
+  si su camino la cruza. `b:abrirPuertas()` sin punto (la Bestia en la escalera del sótano) abre las de cerca.
+  Con cerrojo (`taller.md`): la aporrea pegado a ella (`Config.Casa.Cerrojo`) solo si a donde va (`pasoHacia` le pasa
+  el destino además del punto del camino) queda al otro lado de la hoja; mientras, no cuenta como atasco. La Bestia
+  (`Opciones.RompeCerrojos`) la revienta al cruzarla.
+  Atascos (`Caza.cazar`): sin presa, si yendo a la sala de ronda o a un ruido pasa `Config.Caza.Parada` (2 s) sin
+  acercarse ni moverse 1 stud (sin camino: empujaba la pared el resto de la caza), olvida el ruido, va a otra sala y no
+  oye ruidos `SordoTrasParada` (3 s). Mientras caza, el modelo lleva `Persigue` = UserId de su presa (nil sin ella; el
+  Imitador fingiendo, nunca) para el latido y la tensión del cliente (banco `caza-atasco`).
+- Pillar sin paredes en medio (`Caza.alcanza`): cabeza o raíz a menos de la distancia de pillar y un rayo desde la raíz
+  del bicho sin nada que tape la vista o sin nada que choque (paredes y puertas cerradas tapan; hierba y adornos que no
+  chocan, no). La usan `Caza.cazar`, la Bestia (`Pillar + 1,5`) y el Acechador (`Pillar + MasPillar`): antes estos dos
+  pillaban solo por distancia, a través de puertas cerradas y paredes. Si no alcanza, sigue yendo hacia él.
+  Ver y oír, igual (`ojosDe` en `elegirPresa`): el rayo sale de los ojos, que son la cabeza o, si entre la raíz y ella
+  hay algo que choca, 0,2 studs antes (`CazaBusqueda.ojos`). La cabeza va 1,5-3 studs por delante y, de frente a una
+  pared, se le metía dentro: te veía y te oía al otro lado. El cono de la vista sigue saliendo de la raíz.
+- Búsqueda al perderte (`CazaBusqueda`, `Config.Caza.Busca`, números a ojo; banco `caza-busqueda`): mientras persigue
+  guarda `rastro` (dónde te vio, hacia dónde iba él si iba a más de 2 studs/s, cuándo). Al llegar a donde te vio sin
+  verte, si el rastro es de hace menos de 6 s: sigue 12 studs en esa dirección (cortado 2 antes de la pared, para no
+  empujarla), se para 1,5 s mirando a un lado y a otro (70°) y recorre las 2 salas de `Mapa.salas` más cerca de su
+  planta (8 s como mucho por punto) antes de volver a la ronda. Al sitio hacia el que iba, corriendo; por las salas,
+  andando; al llegar a cada sala salta el suceso "Sala" (el Golpeador: Olfatea). Verte, oírte u olerte manda siempre.
+  La ronda al azar ya no repite la sala de la que viene (`CazaBusqueda.otraSala`). La Bestia tiene su propia ronda.
+- Llegar e irse sin saltos (`Config.Caza`, a ojo): Golpeador, Raspador, Imitador y Trepador llegan con
+  `Caza.llegarA`: si se atascan no golpean, raspan, llaman ni trepan desde lejos; se ponen en su sitio (de cara a la
+  casa) en cuanto nadie les ve a ellos ni ese sitio (`Caza.nadieVe`: rayo desde la cabeza de cada vivo, los cristales
+  no tapan, hasta `VerLejos` 160 studs) o, si les ven, tras `LlegarMas` 10 s más andando. `Caza.cazar` no corta en
+  seco a quien persigue: pasado su tiempo sigue mientras tenga presa (no en un armario), `Prorroga` 8 s como mucho;
+  nunca con prisa (amanecer, flash del Raspador) ni en el bosque. Al irse, `Caza.salir`: andan hasta la ventana o el
+  hogar (con `Caza.ir`: si la caza acaba arriba, bajan por la escalera del vestíbulo) y, si no llegan, siguen hasta
+  que nadie les vea o `SalirMax` 10 s; solo entonces salen fuera de golpe o se quitan.
+- Las dos plantas: todos los que cazan con `Caza.cazar` (Golpeador, Raspador, Imitador) rondan, persiguen y van a por lo último visto también arriba, subiendo la escalera del vestíbulo como la Bestia (`Caza.ir`; el balcón del porche cuenta como arriba y la colina de la torre, aunque esté alta, como abajo); antes arriba se estaba a salvo de todos menos de ella. El Trepador no (`SubeEscalera = false`: a cuatro patas se queda contra cada peldaño) y solo ronda su planta.
+- Aparecer y perderse en el bosque sin verse (`Config.Caza.Candidatos` 6, `PerderseMax` 12 s y `Config.Acechador.Cono` 70°, a ojo): los cuatro nacen en el primero de 6 sitios (`Caza.llegadas`: el de siempre y otros más hondos y a los lados, con hueco, `Caza.cabe`; una bola, como la colina de la torre, se mide con su forma y su ladera no estorba) que nadie ve, cabeza incluida (`Caza.sitioSinVer`; si se ven todos, el más apartado), y al irse `Caza.perderse` sigue alejándose de la casa mientras alguien les vea; el Acechador sale a A.Lejos + 14 de la presa, primero a su espalda, nunca hacia la casa ni en el cono de su cabeza, en el suelo de verdad (rayo corto que solo da en lo que choca: ni copas, ni troncos, ni tejados; desde la torre llega hasta el suelo) y también se pierde al rendirse. Banco `tests/bancos/aparecer.luau`.
 - Modo de pruebas: `ServerStorage.Prueba:Fire("Trepador" | "Imitador" | "Acechador" | "Fuego")`. "Imitador" va con apagón; "Acechador" sale a por el primer jugador (que debe estar en el bosque).
 
 ## Cliente (`src/juego/cliente`)
@@ -31,6 +68,7 @@ Con bloques grises y animaciones sencillas, como los pasos 2 y 3. Números a ojo
 - `BichoComun` (16.19): lo que las Vistas de bichos tenían copiado igual (rango, suave, plano, cercano, dentroDeCasa, el vaho con los números de cada bicho por parámetro, duraGateo y las cuentas del gateo del Golpeador y el Trepador). Lo que cambia de un bicho a otro se queda en su Vista. Su Random se pide después de `Sonido` en cada Vista: así en los bancos de Lune cada bicho sigue con su semilla (los bancos del gateo y de sucesos solo pasan con la de siempre).
 - `GolpeadorVista` partido (16.19), como en el servidor: `GolpeadorVista` (ciclo y estado), `GolpeadorVistaGateo` (gateo y mesas), `GolpeadorVistaSucesos` (sucesos al azar y el toque), `GolpeadorVistaMuerte` (el susto al pillarte) y `GolpeadorVistaCuerpo` (medidas, tipos y alcanzar/noAtravesar). Sin cambios al jugar.
 - Probar en Studio (16.19): el Golpeador golpea, respira con vaho de noche, gatea bajo la mesa y hace un suceso (orden "Suceso"); Raspador, Trepador, Imitador, Acechador y Bestia echan vaho de noche como antes; en la Salida, nada rojo.
+- Aturdidos (flash y cepo: `BichoComun.aturdido` lee `Aturdido`, que pone `Caza.aturdir`): Trepador, Imitador y Raspador se encogen en 0,12 s con su pose de dolor (atrás, cara apartada, patas o brazos delante de la cara, boca abierta, temblando), chillan al empezar, en el cepo forcejean a tirones y se sueltan en los últimos 0,4 s; el Acechador, como con la linterna. Con Rendimiento, la pose quieta. Gateando o recién salidos de debajo de un mueble, sin subir los brazos ni encabritarse (bancos `aturdidos` y `gateo` con el flash). Números a ojo en `ATURDE` de cada Vista. En el servidor, mientras está aturdido (`quieto`), el Imitador no llama (ni golpes ni voz, y ese rato no cuenta entre llamadas), el Raspador no agrieta el cristal y el Trepador se para donde esté (pared, tejado o chimenea).
 - Sonidos nuevos provisionales de la biblioteca (Pro Sound Effects y uno de fuego): `Crujido`, `Hollin`, `Fuego`, `Llamar`, `Rama`.
 
 ## Probado en Studio (22-10-2026)
@@ -68,9 +106,18 @@ agacharte es la finalidad". El cuerpo del jugador (caber debajo, `Cubierto`), en
 `Config.Postura`.
 
 Servidor (`Caza`, `Bestia`):
+- Ven de frente (`PosturaReglas.vistaDeLado`, en `Caza.elegirPresa`): su `Vista` entera solo dentro de ±`Campo` grados
+  (65) de hacia dónde mira su raíz; de lado o a su espalda, solo a `VerEspalda` studs (12), así que colarse por detrás
+  sin correr sirve. Si te vio u oyó hace menos de `Memoria` s (2), te ve hacia cualquier lado (doblar una esquina no le
+  despista). Va antes que agachado y cubierto, que siguen mandando. El oído no cambia. `Opciones.Campo` da otro cono a
+  un bicho (por defecto, el de `Config`). Números a ojo; banco `tests/bancos/vista-bichos.luau`.
+- Niebla cerrada (`Caza.esNiebla`: la de `CieloVista`, con `shared/TiempoNoche`, de noche hasta `Niebla.Abre`; en Studio `NieblaPrueba`): si el bicho o tú estáis fuera, la vista por `Config.Caza.Niebla.Vista` (0,4: el Golpeador de 70 a 28) sin bajar de `VerEspalda`; el oído y dentro, igual. El Acechador acecha y sale a `Niebla.Acechador` (0,6) de su distancia, para que se le vea la silueta. A ojo; banco `niebla-bichos`.
 - Agachado se te ve y se te oye peor (`PosturaReglas.alcanceVista`/`alcanceOido`); corriendo, te oyen a `Config.Correr.Oido` (22 en vez de 8, 14.8: `correr.md`). Debajo de un mueble (atributo
   `Cubierto`) solo te notan muy de cerca (`VerCubierto`) y en tu misma parte del mapa, pero te huelen (`oler`/`huele`:
   a `Olfato` studs, `Huele` s hasta saber dónde estás).
+- Sigilo (`elegirPresa`): quieto (sin pasar de `Config.Correr.Moverse` en planta) te oyen a `OirQuieto` (2,5) como
+  mucho; con una pared o puerta en medio (el mismo rayo de la vista), a `OirPared` (×0,5: corriendo, a 11). Con la
+  linterna encendida (atributo `Linterna`) agacharte ya no te esconde de la vista; debajo de un mueble sigue mandando.
 - Si te huelen o te vieron meterte, van al borde del mueble que da `Caza.borde`: frente a ti, corriéndose entre
   sillas, sin cruzar paredes y con sitio a los lados (`Ancho`), a `Fuera` studs de la zona Debajo (`FueraRaspador`,
   `FueraTrepador` y `FueraBestia` para los que de pie sacan brazos o cabeza: más lejos para no meterlos en el tablero;
@@ -223,3 +270,5 @@ Lo de la 14.9 (igual, en Play y tras `Prueba:Fire("Noche")`; `y` es la altura de
   `MuebleRayo.tablero` los leería primero). Porque `Model:GetPivot` sin PrimaryPart usa WorldPivot, que no llega
   bien al cliente, y entonces `tablero` cae en silencio al saliente de 2.
 - Luces de la cara de Bestia e Imitador solo de noche.
+- El Golpeador aturdido recién salido de gatear mete los brazos en el tablero (hasta 1,4 studs: el banco del gateo con
+  `aturde`, que aún no se le pasa).

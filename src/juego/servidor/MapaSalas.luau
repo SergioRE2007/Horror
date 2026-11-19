@@ -426,6 +426,7 @@ end
 -- (alguien quiso entrar o salir). Una sola bombilla colgando delante. En el baño, el espejo roto de un golpe, una mano
 -- en la cortina de la ducha y la luna por la ventana. Papel desconchado. Moderate como máximo.
 local MARCAS = { Aranazos = "rbxassetid://72113309993798", Grietas = "rbxassetid://113133657830111" }
+MapaSalas.MARCAS = MARCAS -- también para los escondites de fuera (Mapa.MARCAS)
 local function vestirPasillo()
 	local blanco = Color3.new(1, 1, 1)
 	for _, d in {
