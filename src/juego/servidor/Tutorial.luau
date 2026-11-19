@@ -5,7 +5,8 @@
 --   generador y su gasolina, cortinas de abajo y puerta principal abiertas) y publica el paso en atributos del Player:
 --     Tutorial = el paso ("Mochila", "Hacha"…; nil = sin tutorial), TutorialFalta = cortinas (y puerta) que quedan
 --     por cerrar, TutorialPuerta = la puerta principal está abierta (16.5), TutorialGasolina = el paso del generador
---     pide echarle un bidón (16.5).
+--     pide echarle un bidón (16.5), TutorialRecoger = en Serrar sin el tronco en las manos, qué hay que coger:
+--     "Tablon" si ya hay uno suelto (lo serrado cae al suelo) o "Tronco" (lo ha soltado por el camino).
 --   No empieza mientras dura la escena de llegada en coche (atributo EscenaLlegada de workspace; con Config.Llegada
 --   activa, sin poner aún = Llegada no ha decidido: también espera). Si vuelve a haber escena, el cartel se esconde.
 -- Siguiente meta (16.5): quien ya no tiene tutorial recibe al empezar cada día (y al entrar) un aviso de una línea con
@@ -30,6 +31,7 @@ local Comun = ServerScriptService:WaitForChild("Comun")
 local Datos = require(Comun.Datos)
 local Recompensas = require(Comun.Recompensas)
 local Bestia = require(script.Parent.Bestia)
+local Cargar = require(script.Parent.Cargar)
 local Casa = require(script.Parent.Casa)
 local Ciclo = require(script.Parent.Ciclo)
 local Mochila = require(script.Parent.Mochila)
@@ -77,6 +79,7 @@ local function quitar(jugador: Player)
 		jugador:SetAttribute("TutorialFalta", nil)
 		jugador:SetAttribute("TutorialPuerta", nil)
 		jugador:SetAttribute("TutorialGasolina", nil)
+		jugador:SetAttribute("TutorialRecoger", nil)
 	end
 end
 
@@ -144,6 +147,26 @@ local function hayGasolina(): boolean
 	return false
 end
 
+-- ¿Queda algún tablón suelto (nadie lo lleva ni se está clavando; los clavados ya no existen)?
+local function hayTablonSuelto(): boolean
+	for _, pieza in CollectionService:GetTagged("Pesado") do
+		local tipo = pieza:GetAttribute("Tipo")
+		if (tipo == "Tablon" or tipo == "TablonReforzado") and pieza:IsA("BasePart") and Cargar.libre(pieza) then
+			return true
+		end
+	end
+	return false
+end
+
+-- En Serrar, qué le falta coger (nil = lleva el tronco o está serrando: lo de siempre, el caballete).
+local function queRecoger(jugador: Player, paso: string, tablon: boolean): string?
+	if paso ~= "Serrar" or jugador:GetAttribute("Cargando") == "Tronco"
+		or jugador:GetAttribute("Trabajando") == "Serrar" then
+		return nil
+	end
+	return if tablon then "Tablon" else "Tronco"
+end
+
 local function mirar()
 	if next(activos) == nil then
 		return
@@ -165,6 +188,7 @@ local function mirar()
 	local cortinas, puerta = cortinasAbiertas()
 	local generador, gasolina = generadorEncendido()
 	local bidon = hayBidon()
+	local tablon = hayTablonSuelto()
 	for jugador, a in activos do
 		if not jugador.Parent then
 			quitar(jugador)
@@ -197,6 +221,7 @@ local function mirar()
 			jugador:SetAttribute("TutorialFalta", if enCortinas then cortinas else nil)
 			jugador:SetAttribute("TutorialPuerta", if enCortinas and puerta then true else nil)
 			jugador:SetAttribute("TutorialGasolina", if a.estado.repostar then true else nil)
+			jugador:SetAttribute("TutorialRecoger", queRecoger(jugador, a.estado.paso, tablon))
 		end
 	end
 end

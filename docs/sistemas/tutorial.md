@@ -14,7 +14,11 @@ Propuesta de Claude hecha sin poder ver el juego (sesión en la nube, 03-11-2026
      atributo `Corriendo`); se salta si ya había corrido desde que empezó el tutorial o si ya lleva un tronco o un
      tablón. La flecha va al árbol en pie más cercano y, en el móvil, también al botón CORRER (`docs/sistemas/correr.md`).
   5. Talar un árbol y cargar un tronco (vale también uno de los que ya hay delante de la casa).
-  6. Serrarlo en el caballete y coger un tablón.
+  6. Serrarlo en el caballete y coger un tablón. Sin el tronco en las manos, el servidor publica `TutorialRecoger`
+     (propuesta de Claude, 18-11-2026, sin probar en Studio): `Tablon` si hay uno suelto (lo serrado cae al suelo:
+     "Coge un tablón.", flecha y contorno al tablón suelto más cercano) o `Tronco` si no (lo soltó por el camino:
+     "Lleva un tronco al caballete.", flecha al tronco suelto más cercano o a un árbol en pie). Suelto = sin
+     `Llevada` (atributo que pone `Cargar` mientras alguien lo lleva) ni `Trabajo`.
   7. Arrancar el generador del cobertizo.
   8. "No te alejes de la casa. Se acerca la noche." hasta que se pone el sol.
   9. Al ponerse el sol (`Config.Ciclo.Aviso` s antes), cerrar las cortinas de abajo ("quedan 3").
@@ -31,7 +35,7 @@ Propuesta de Claude hecha sin poder ver el juego (sesión en la nube, 03-11-2026
 
 ## Quién hace qué
 
-- Servidor (`juego/servidor/Tutorial`): cada `Config.Tutorial.Cada` s mira a cada jugador con tutorial y publica `Tutorial` (el paso) y `TutorialFalta` (cortinas) en el `Player`. Todo lo que da premio lo mira el servidor. Remote `Tutorial` ("Saltar").
+- Servidor (`juego/servidor/Tutorial`): cada `Config.Tutorial.Cada` s mira a cada jugador con tutorial y publica `Tutorial` (el paso), `TutorialFalta` (cortinas) y `TutorialRecoger` (paso 6) en el `Player`. Todo lo que da premio lo mira el servidor. Remote `Tutorial` ("Saltar").
 - Cliente (`juego/cliente/TutorialVista`): cartel de papel arriba en el centro (paso "4/10", frase, SALTAR), flecha roja grande sobre lo más cercano que pide el paso (a través de las paredes) con contorno, flecha en el borde de la pantalla si no está delante y, en el móvil, flecha sobre el botón MOCHILA. Suena `Papel` al pasar de paso. Las cinemáticas lo esconden con el resto (está en `PlayerGui`).
 - En Studio solo sale con `Config.Test.Tutorial = true`.
 
