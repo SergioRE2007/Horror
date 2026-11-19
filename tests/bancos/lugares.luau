@@ -9,7 +9,12 @@
 --   - los dos agujeros (granero y aserradero): hondos (sin suelo hasta el fondo, a -1,5) y con una tapa que choca a
 --     ras del suelo (nadie se cae);
 --   - las puertas de los cuatro edificios, libres para pasar;
---   - el sitio del depósito de gasoil (5 studs alrededor de (212, 98)) sin nada nuevo.
+--   - el sitio del depósito de gasoil (5 studs alrededor de (212, 98)) sin nada nuevo;
+--   - la cabaña del cazador (LugarCazador): su zona igual en Lugares, dentro de la linde, lejos de las sendas y del
+--     anillo de los árboles que se talan (no los mueve); la trampa, la chatarra, la lata y la botella encima de algo; la
+--     puerta libre, el armario con el frente libre, el agujero hondo con su tapa, los troncos de las paredes sin tapar la
+--     puerta ni la ventana, los cortes de hacha pegados a su pino de la senda del aserradero al claro, ningún pino en el
+--     claro, el suelo en el mapa del móvil y nada que brille.
 -- Ejecutar desde la raíz: lune run tests/bancos/lugares.luau (lo corre regressions.luau).
 local fs = require("@lune/fs")
 local roblox = require("@lune/roblox")
@@ -153,7 +158,7 @@ comprueba(#m.errores == 0, "construir: sin errores\n" .. table.concat(m.errores,
 comprueba(#m.avisos == 0, "construir: sin avisos\n" .. table.concat(m.avisos, "\n"))
 local lugares = mapa:FindFirstChild("Lugares")
 comprueba(lugares, "construir: la carpeta Lugares")
-for _, nombre in { "CasaGranja", "Granero", "Oficina", "CasetaGuarda" } do
+for _, nombre in { "CasaGranja", "Granero", "Oficina", "CasetaGuarda", "CabanaCazador" } do
 	local e = lugares:FindFirstChild(nombre)
 	comprueba(e and e:IsA("Model") and e:FindFirstChild("Tejado") and e:FindFirstChild("Cristal"), `{nombre}: con fachada (tejado y ventanas)`)
 end
@@ -262,7 +267,7 @@ end
 
 -- Llaves y objetos de la granja, el aserradero y la torre: encima de algo (a menos de 1,2) y sin nada que choque donde
 -- están.
-local ZONAS = { { 205, 75, 55 }, { -232, -86, 45 }, { 90, 285, 70 } }
+local ZONAS = { { 205, 75, 55 }, { -232, -86, 45 }, { 90, 285, 70 }, { -215, 235, 34 } }
 local function enZona(p: any): boolean
 	for _, zona in ZONAS do
 		if (p.X - zona[1]) ^ 2 + (p.Z - zona[2]) ^ 2 < zona[3] ^ 2 then
@@ -294,11 +299,14 @@ for _, s in sitios do
 		comprueba(not metido, `{nombre} en {pos}: metido en {metido and metido:GetFullName()} (encima de {debajo and debajo:GetFullName()})`)
 	end
 end
-comprueba(mirados == 23, `llaves, objetos y pesados de los tres sitios: 23 (salen {mirados})`)
+comprueba(mirados == 28, `llaves, objetos y pesados de los cuatro sitios: 28 (salen {mirados})`)
 
 -- Los agujeros: tapa que choca a ras del suelo y hondos (ni el piso, ni su forro, ni el suelo del bosque por encima del
 -- fondo, a -1,5).
-for _, h in { { "granero", 234.9, 80.9, 1.06, lugares.Granero }, { "aserradero", -241.5, -73.5, 0.15, lugares.Oficina } } do
+local fondoCazador = lugares.PatioCazador and lugares.PatioCazador:FindFirstChild("Fondo")
+comprueba(fondoCazador, "cazador: el agujero del final del arrastre")
+for _, h in { { "granero", 234.9, 80.9, 1.06, lugares.Granero }, { "aserradero", -241.5, -73.5, 0.15, lugares.Oficina },
+	{ "cazador", fondoCazador.Position.X, fondoCazador.Position.Z, 0, lugares.PatioCazador } } do
 	local nombre, x, z, y = h[1], h[2], h[3], h[4]
 	local arriba, tapa = soporte(x, z, y + 0.02)
 	comprueba(arriba and math.abs(arriba - y) < 0.02 and tapa.Name == "Tapa", `agujero del {nombre}: la tapa, a ras del suelo ({arriba})`)
@@ -319,6 +327,7 @@ for _, e in {
 	{ nombre = "Granero", x = 228, z = 80, ancho = 20, largo = 24, puerta = "O" },
 	{ nombre = "Oficina", x = -252, z = -74, ancho = 8, largo = 8, puerta = "E" },
 	{ nombre = "CasetaGuarda", x = 90, z = 238, ancho = 8, largo = 8, puerta = "N" },
+	m.cargar("src/juego/servidor/LugarCazador").EDIFICIO,
 } do
 	local cf = PuebloPlano.puertaCF(e :: any)
 	local a, b = cf * Vector3.new(-1.7, 0.2, -2.5), cf * Vector3.new(1.7, 6.8, 2.5)
@@ -346,6 +355,162 @@ do
 	end
 	comprueba(#rotas == 0, "piezas con NaN:\n" .. table.concat(rotas, "\n"))
 	comprueba(#estorban == 0, "depósito de gasoil: se meten en su sitio\n" .. table.concat(estorban, "\n"))
+end
+
+-- La cabaña del cazador (LugarCazador).
+do
+	local CS = m.game:GetService("CollectionService")
+	local Cazador = m.cargar("src/juego/servidor/LugarCazador")
+	local Linde = m.cargar("src/juego/servidor/Linde")
+	local MapaSendas = m.cargar("src/juego/servidor/MapaSendas")
+	local Z, RADIO = Cazador.ZONA, 34
+	local cabana, patio, suyos = lugares.CabanaCazador, lugares.PatioCazador, bosque:FindFirstChild("Cazador")
+	comprueba(cabana and patio and suyos, "cazador: la cabaña, el patio y sus pinos (en el Bosque del mapa)")
+	-- Su zona en Lugares (la que no deja poner pinos del bosque), la misma que usa LugarCazador.
+	local x, z, r = string.match(fs.readFile("src/juego/servidor/Lugares.luau"), "Cazador = { (%-?[%d%.]+), (%-?[%d%.]+), ([%d%.]+) }")
+	comprueba(tonumber(x) == Z.X and tonumber(z) == Z.Z and tonumber(r) == RADIO, `cazador: la zona de Lugares es la de LugarCazador ({x}, {z}, {r})`)
+	-- Lejos del anillo de los árboles que se talan (42 a 170 de la casa): Lugares.libre no cambia para ninguno de sus
+	-- sitios, así que no se mueven los guardados. Dentro de la linde con holgura y sin tocar ninguna senda.
+	comprueba(Z.Magnitude - RADIO > 175, `cazador: la zona no llega al anillo de los que se talan ({Z.Magnitude - RADIO})`)
+	local fuera, enSenda = 0, 0
+	for dx = -RADIO, RADIO, 2 do
+		for dz = -RADIO, RADIO, 2 do
+			if dx * dx + dz * dz <= RADIO * RADIO then
+				if not Linde.dentro(Z.X + dx, Z.Z + dz) or Linde.distancia(Z.X + dx, Z.Z + dz) < 40 then
+					fuera += 1
+				end
+				if MapaSendas.cerca(Z.X + dx, Z.Z + dz, 4) then
+					enSenda += 1
+				end
+			end
+		end
+	end
+	comprueba(fuera == 0, `cazador: toda la zona, dentro de la linde (fuera: {fuera})`)
+	comprueba(enSenda == 0, `cazador: la zona no toca ninguna senda ({enSenda})`)
+
+	-- Los recursos: la trampa, dos de chatarra, una lata y una botella (encima de algo: lo mira el bucle de arriba).
+	local cuenta = {}
+	for _, o in Mapa.objetos do
+		if (o.cf.Position - Z).Magnitude < RADIO then
+			cuenta[o.tipo] = (cuenta[o.tipo] or 0) + 1
+		end
+	end
+	comprueba(cuenta.Trampa == 1 and cuenta.Chatarra == 2 and cuenta.Lata == 1 and cuenta.Botella == 1,
+		`cazador: trampa, 2 de chatarra, lata y botella ({cuenta.Trampa}, {cuenta.Chatarra}, {cuenta.Lata}, {cuenta.Botella})`)
+
+	-- El armario: la Salida dentro y delante libre, de su frente a pasada la Salida (de su ancho, de los pies a la cabeza).
+	local armario = cabana:FindFirstChild("Armario")
+	comprueba(armario, "cazador: el armario de los escondites, dentro de la cabaña")
+	local x1, x2, z1, z2 = PuebloPlano.dentro(Cazador.EDIFICIO)
+	local salida = armario:GetAttribute("Salida").Position
+	comprueba(salida.X > x1 + 1 and salida.X < x2 - 1 and salida.Z > z1 + 1 and salida.Z < z2 - 1, `cazador: la Salida del armario, dentro ({salida})`)
+	local cf = armario:FindFirstChild("Armario").CFrame
+	local a, b = cf * Vector3.new(-1.8, -3.7, -1.55), cf * Vector3.new(1.8, 2, -4.6)
+	local estorba = dentroDe(chocan, a:Min(b), a:Max(b), function(p)
+		return p:IsDescendantOf(armario)
+	end)
+	comprueba(not estorba, `cazador: delante del armario, libre ({estorba and estorba:GetFullName()})`)
+
+	-- Los troncos de las paredes (no chocan) no tapan la puerta ni la ventana.
+	local tapan = {}
+	local w = PuebloPlano.ventanaCF(Cazador.EDIFICIO, Cazador.EDIFICIO.ventanas[1]).Position
+	local puerta = PuebloPlano.puertaCF(Cazador.EDIFICIO).Position
+	local troncosPared = 0
+	for _, p in cabana:GetChildren() do
+		if p:IsA("BasePart") and p.Name == "TroncoPared" then
+			troncosPared += 1
+			local c = cajaDe(p)
+			local enPuerta = c.max.Z < puerta.Z + 0.1 and c.min.X < puerta.X + 2 and c.max.X > puerta.X - 2 and c.min.Y < puerta.Y + 8
+			local enVentana = c.min.X > w.X - 0.1 and c.min.Z < w.Z + 1.5 and c.max.Z > w.Z - 1.5 and c.min.Y < w.Y + 2 and c.max.Y > w.Y - 2
+			if enPuerta or enVentana or p.CanCollide then
+				table.insert(tapan, `{p.Position}`)
+			end
+		end
+	end
+	comprueba(troncosPared >= 30, `cazador: la cabaña, de troncos ({troncosPared})`)
+	comprueba(#tapan == 0, "cazador: troncos que tapan la puerta o la ventana (o chocan):\n" .. table.concat(tapan, "\n"))
+
+	-- Los cortes de hacha: uno o dos por pino (pegados a su tronco, a la altura de los ojos, sin chocar); el primero, junto
+	-- a la senda del aserradero, y el último, al borde del claro; ninguno a más de 50 del siguiente.
+	local pinos = {}
+	for _, p in suyos:GetChildren() do
+		if p.Name == "PinoCortado" then
+			local tronco = p:FindFirstChild("Tronco")
+			local cortes = 0
+			for _, c in p:GetChildren() do
+				if c.Name == "Corte" then
+					cortes += 1
+					local s = tronco.Size
+					local radio = math.min(s.X, s.Y, s.Z) / 2
+					local d = ((c.Position - tronco.Position) * Vector3.new(1, 0, 1)).Magnitude
+					assert(d > radio and d < radio + 0.12 and c.Position.Y > 3.5 and c.Position.Y < 6.5 and not c.CanCollide,
+						`cazador: corte pegado a su pino ({d} del eje; radio {radio}, a {c.Position.Y})`)
+				end
+			end
+			comprueba(cortes >= 3, `cazador: el pino de {tronco.Position} tiene su corte ({cortes} tiras)`)
+			table.insert(pinos, tronco.Position * Vector3.new(1, 0, 1))
+		end
+	end
+	comprueba(#pinos == Cazador.CORTES.n, `cazador: {Cazador.CORTES.n} pinos con corte (hay {#pinos})`)
+	table.sort(pinos, function(p, q)
+		return p.Z < q.Z
+	end)
+	local senda = MapaSendas.trazados.Aserradero
+	local cercaSenda = math.huge
+	for i = 1, #senda - 1 do
+		cercaSenda = math.min(cercaSenda, MapaSendas.aTramo(pinos[1].X, pinos[1].Z, senda[i], senda[i + 1]))
+	end
+	comprueba(cercaSenda < 15, `cazador: el primer corte se ve desde la senda del aserradero (a {cercaSenda})`)
+	comprueba((pinos[#pinos] - Z).Magnitude < 35, `cazador: el último corte, al borde del claro ({(pinos[#pinos] - Z).Magnitude})`)
+	for i, p in pinos do
+		comprueba(Linde.dentro(p.X, p.Z) and p.Magnitude > 175 and not MapaSendas.cerca(p.X, p.Z, 3),
+			`cazador: el corte {i} ({p}), dentro de la linde, fuera del anillo de los que se talan y de las sendas`)
+		if i > 1 then
+			comprueba((p - pinos[i - 1]).Magnitude < 50, `cazador: del corte {i - 1} al {i}, menos de 50 ({(p - pinos[i - 1]).Magnitude})`)
+		end
+	end
+
+	-- Ningún pino en el claro (a menos de CLARO de la cabaña: las copas pasarían por el tejado), ni en el patio ni en el
+	-- agujero; y los de la espesura, juntos (bosque espeso).
+	local caja, corral = Cazador.CAJA, Cazador.PATIO
+	local hoyo = fondoCazador.Position * Vector3.new(1, 0, 1)
+	local malos, espesos = {}, 0
+	for _, t in bosque:GetDescendants() do
+		if t:IsA("BasePart") and t.Name == "Tronco" then
+			local p = t.Position * Vector3.new(1, 0, 1)
+			local radio = math.min(t.Size.X, t.Size.Y, t.Size.Z) / 2
+			local dx = math.max(caja.x1 - p.X, 0, p.X - caja.x2)
+			local dz = math.max(caja.z1 - p.Z, 0, p.Z - caja.z2)
+			if math.sqrt(dx * dx + dz * dz) - radio < Cazador.CLARO - 0.01 or (p.X - corral.x) ^ 2 + (p.Z - corral.z) ^ 2 < corral.radio ^ 2
+				or (p - hoyo).Magnitude < 4 then
+				table.insert(malos, `{t:GetFullName()} en {p}`)
+			end
+			if t:IsDescendantOf(suyos) and (p - Z).Magnitude < 52 then
+				espesos += 1
+			end
+		end
+	end
+	comprueba(#malos == 0, "cazador: pinos en el claro:\n" .. table.concat(malos, "\n"))
+	comprueba(espesos >= 30, `cazador: la espesura alrededor del claro ({espesos} pinos)`)
+
+	-- El suelo de la cabaña y la senda del patio, en el mapa del móvil; nada que brille ni dé luz; ninguna pieza con NaN.
+	comprueba(CS:HasTag(cabana:FindFirstChild("Piso"), "EnMapa"), "cazador: el suelo de la cabaña sale en el mapa del móvil")
+	local enMapa = 0
+	for _, p in patio:GetChildren() do
+		if CS:HasTag(p, "EnMapa") then
+			enMapa += 1
+		end
+	end
+	comprueba(enMapa >= 1, "cazador: la senda del patio sale en el mapa del móvil")
+	local brillan = {}
+	for _, raiz in { cabana, patio, suyos } do
+		for _, d in raiz:GetDescendants() do
+			if string.find(d.ClassName, "Light$") or (d:IsA("BasePart") and (d.Material == g.Enum.Material.Neon or m.roto(d.CFrame) or m.roto(d.Size))) then
+				table.insert(brillan, d:GetFullName())
+			end
+		end
+	end
+	comprueba(#brillan == 0, "cazador: piezas que brillan, dan luz o tienen NaN:\n" .. table.concat(brillan, "\n"))
 end
 
 -- Sin caras que parpadeen (Mapa avisa "quedan N caras que parpadean"): Separar.caras de verdad sobre lo construido.
