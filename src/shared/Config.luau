@@ -186,6 +186,9 @@ Config.Imitador = {
 	CadaLlamada = { 7, 10 }, -- segundos entre llamadas
 	Oido = 80, -- studs desde la puerta a los que se le oye (los avisos solo les llegan a esos)
 	AmigoLejos = 25, -- imita a uno que esté al menos así de lejos de la puerta (si no hay, a cualquiera)
+	VozMuerto = 0.7, -- si alguien ha muerto esta noche, probabilidad de que llame con su voz (shared/RepartoBichos.voz)
+	-- Jugando solo y con la foto de Tom vista (pista 2, docs/historia.md), a veces llama con la voz de Tom.
+	Antiguo = { Pista = 2, Probabilidad = 0.5, Nombre = "Tom" },
 	SaleCerca = 22, -- studs: si alguien sale y se le acerca tanto, deja de llamar y va a por él
 	Apagon = 1.5, -- segundos desde la primera llamada hasta "The lights went out." (su primera noche)
 	Grito = 2.5,

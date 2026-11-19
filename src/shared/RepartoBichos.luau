@@ -39,4 +39,34 @@ function RepartoBichos.intervalo(noche: number, ritmo: number, g: any, azar: any
 	return math.max(g.IntervaloMin, azar:NextNumber(g.Intervalo[1], g.Intervalo[2]) - g.MenosPorNoche * (noche - 1)) * ritmo
 end
 
+-- Uno al azar de una lista (solo con NextNumber(), para que sirva cualquier azar del banco).
+local function uno<T>(lista: { T }, azar: any): T?
+	if #lista == 0 then
+		return nil
+	end
+	return lista[math.min(#lista, math.floor(azar:NextNumber() * #lista) + 1)]
+end
+
+-- Con qué voz llama el Imitador (juego/servidor/Imitador). Devuelve el nombre que dice y el jugador al que imita (nil
+-- si no es ninguno de la partida: Tom). `muertos`: los que han muerto esta noche (su cuerpo sigue ahí); `lejos`: los
+-- vivos lejos de la puerta; `todos`: los de la partida; `tomLeida`: alguien ha visto la foto de Tom (pista
+-- cfg.Antiguo.Pista). `cfg` es Config.Imitador. Cada jugador es algo con DisplayName.
+--   Si hay muertos, con cfg.VozMuerto uno de ellos ("soy yo, ábreme"); si no, uno de los vivos lejos de la puerta;
+--   jugando solo y con la foto vista, con cfg.Antiguo.Probabilidad el vigilante de antes; si no, cualquiera (solo: tú).
+function RepartoBichos.voz(muertos: { any }, lejos: { any }, todos: { any }, tomLeida: boolean, azar: any, cfg: any): (string?, any?)
+	local elegido = nil
+	if #muertos > 0 and azar:NextNumber() < cfg.VozMuerto then
+		elegido = uno(muertos, azar)
+	end
+	elegido = elegido or uno(lejos, azar)
+	if not elegido and #todos == 1 and tomLeida and azar:NextNumber() < cfg.Antiguo.Probabilidad then
+		return cfg.Antiguo.Nombre, nil
+	end
+	elegido = elegido or uno(todos, azar)
+	if not elegido then
+		return nil, nil
+	end
+	return elegido.DisplayName, elegido
+end
+
 return RepartoBichos
