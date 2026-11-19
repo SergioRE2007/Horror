@@ -148,7 +148,7 @@ local function rehacer(pieza: BasePart)
 	giro.MaxTorque = fuerzaPeso * (if solo then C.Giro else 40)
 	giro.Responsiveness = if solo then 40 else 15
 	pieza:SetAttribute("Lleva", if solo then lista[1].UserId else nil)
-	pieza:SetAttribute("Llevada", #lista > 0 or nil) -- para el cliente (TallerUi), como Cargar.libre
+	pieza:SetAttribute("Llevada", #lista > 0 or nil) -- para el cliente (TallerUi y TutorialVista), como Cargar.libre
 	if #lista < 1 or #lista >= peso then
 		pieza:SetAttribute("Arrastra", nil)
 	end

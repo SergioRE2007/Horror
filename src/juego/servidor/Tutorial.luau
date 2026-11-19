@@ -178,6 +178,7 @@ local function mirar()
 				jugador:SetAttribute("TutorialFalta", nil)
 				jugador:SetAttribute("TutorialPuerta", nil)
 				jugador:SetAttribute("TutorialGasolina", nil)
+				jugador:SetAttribute("TutorialRecoger", nil)
 			end
 		end
 		return
