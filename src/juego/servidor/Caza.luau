@@ -891,11 +891,18 @@ local function enEscalera(p: Vector3): boolean
 	return math.abs(p.X) < 4.8 and p.Z > -19 and p.Z < 4.5 and p.Y > 1.6 and p.Y < 14.6
 end
 
--- Planta de un punto (pies): 1 arriba (y el desván), 0 abajo, el sótano y fuera. Fuera de la casa siempre 0, aunque
--- esté en alto (la colina y la escalera de la torre, el balcón del porche): si no, a por quien sube la colina se iba a
--- la escalera del vestíbulo (ANTE_PIE) en vez de subir la ladera por los caminos.
+-- El balcón encima del porche (Mapa: x -30,5..27,5, z -41,5..-33): está fuera de la casa, pero solo se llega por la
+-- puerta de arriba, así que es de la planta de arriba.
+local function enBalcon(p: Vector3): boolean
+	return p.X > -30.5 and p.X < 27.5 and p.Z > -41.5 and p.Z < -33
+end
+
+-- Planta de un punto (pies): 1 arriba (el desván y el balcón), 0 abajo, el sótano y fuera. Fuera de la casa siempre 0,
+-- aunque esté en alto (la colina y la escalera de la torre): si no, a por quien sube la colina se iba a la escalera del
+-- vestíbulo (ANTE_PIE) en vez de subir la ladera por los caminos. El balcón no: con la 0, quien salía a él estaba a
+-- salvo (el bicho de arriba bajaba la escalera y desde abajo no llega).
 local function planta(p: Vector3): number
-	return if p.Y > 8 and (Caza.dentroDeCasa(p) or enEscalera(p)) then 1 else 0
+	return if p.Y > 8 and (Caza.dentroDeCasa(p) or enEscalera(p) or enBalcon(p)) then 1 else 0
 end
 
 -- Como Caza.cerca a 3 studs, desde unos pies en `suelo`.

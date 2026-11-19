@@ -1531,6 +1531,12 @@ do -- Caza.tramoEscalera: todos los que cazan suben la escalera del vestíbulo (
 	va(V3.new(80, 0, 230), V3.new(90, 12, 270), V3.new(90, 12, 270), false, "escalera: a por quien sube la colina, hacia él")
 	va(V3.new(90, 12, 270), salon, salon, false, "escalera: de la colina a la casa, por los caminos")
 	va(V3.new(90, 12, 270), galeria, ANTE, false, "escalera: de la colina arriba de la casa, por el pie")
+	-- El balcón (encima del porche) está fuera pero es de arriba: solo se llega por su puerta de la planta de arriba.
+	local balcon = V3.new(-5, 14, -37)
+	va(galeria, balcon, balcon, false, "escalera: de arriba al balcón, por los caminos (sin bajar)")
+	va(salon, balcon, ANTE, false, "escalera: de abajo al balcón, por la escalera del vestíbulo")
+	va(balcon, salon, CIMA, false, "escalera: del balcón abajo, primero a lo alto")
+	va(V3.new(-5, 1, -37), salon, salon, false, "escalera: el porche de abajo, abajo")
 end
 
 do -- MuebleRayo: rayos que ven los muebles (en el juego tienen CanQuery false y workspace:Raycast no los ve)
