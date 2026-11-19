@@ -126,7 +126,7 @@ local function buscarBicho(ahora: number)
 	if not carpeta then
 		return
 	end
-	local desde = camara.CFrame.Position
+	local desde = Camara.get().CFrame.Position
 	for _, bicho in carpeta:GetChildren() do
 		if not bicho:IsA("Model") or (bicho.Name == "Imitador" and not bicho:GetAttribute("Abierto")) then
 			continue

@@ -11,6 +11,7 @@
 --   lo que llevas tiembla y va y viene corriendo, y deja de hacerlo al parar;
 --   las manos no se meten en la cámara ni salen disparadas (ni lejos del hombro ni de un salto entre fotogramas);
 --   la luz sale de la punta de la linterna (con su temblor) y nunca detrás de una pared;
+--   con un bicho cerca (workspace.Bichos), tu luz falla a tirones sin quedarse a oscuras; lejos o el Imitador cerrado, no;
 --   con Rendimiento, ni braceo ni temblor (el tropiezo sí); escondido o en una cinemática, nada.
 -- Si algo no se cumple, termina con error.
 local crearMundo = require("./_roblox")
@@ -592,6 +593,79 @@ do
 	comprueba(n.salto < SALTO * 4, `a 15 fps: una palma salta {n.salto} studs en un fotograma`)
 	comprueba(n.temblor < 3 and n.luz < 0.005 and n.giroLuz < 0.01, "a 15 fps: el temblor y la luz, bien")
 	sinAvisos(b, "a 15 fps")
+end
+
+-- ===== 8. Con un bicho cerca (workspace.Bichos, como en la partida): tu linterna falla a tirones =====
+-- El servidor crea workspace.Bichos al arrancar (Bestia.start), así que EquipoVista la busca desde el primer
+-- fotograma: un fallo ahí (pasó: `camara` sin definir) llena la consola y deja la linterna sin el fallo por bicho.
+do
+	local b = montar()
+	local m, g = b.m, b.g
+	local L = m.cargar("src/shared/Config").Linterna
+	local carpeta = g.Instance.new("Folder")
+	carpeta.Name = "Bichos"
+	carpeta.Parent = m.workspace
+	local function bicho(nombre: string, lejos: number): any
+		local modelo = g.Instance.new("Model")
+		modelo.Name = nombre
+		local raiz = g.Instance.new("Part")
+		raiz.Name = "HumanoidRootPart"
+		raiz.Anchored = true
+		raiz.CanCollide = false
+		raiz.CFrame = CFrame.new(m.camara.CFrame.Position + Vector3.new(0, 0, -lejos))
+		raiz.Parent = modelo
+		modelo.PrimaryPart = raiz
+		modelo.Parent = carpeta
+		return modelo
+	end
+	b.jugador:SetAttribute("Linterna", true)
+	escena(b, 1, "bicho, sube la linterna")
+
+	-- Mide el brillo de tu luz fotograma a fotograma: el más alto, el más bajo y el apagón seguido más largo.
+	local function medir(seg: number, etiqueta: string): (number, number, number)
+		local alto, bajo, apagada, peor = 0, math.huge, 0, 0
+		escena(b, seg, etiqueta, function()
+			local luz = terreno(b):FindFirstChild("Linterna")
+			local foco = luz and luz:FindFirstChildOfClass("SpotLight")
+			if foco then
+				alto, bajo = math.max(alto, foco.Brightness), math.min(bajo, foco.Brightness)
+				apagada = if foco.Brightness < L.Brillo * 0.1 then apagada + DT else 0
+				peor = math.max(peor, apagada)
+			end
+		end)
+		return alto, bajo, peor
+	end
+
+	-- Sin bichos (la carpeta vacía): brillo fijo.
+	local alto, bajo = medir(1.5, "bicho, carpeta vacía")
+	comprueba(alto > 0 and alto - bajo < 1e-6, "sin bichos, tu linterna no falla")
+	local normal = alto
+
+	-- Uno a 6 studs: se apaga a tirones, pero nunca más de L.BichoFallo seguidos.
+	local cerca = bicho("Bicho", 6)
+	local _, bajo2, peor = medir(4, "bicho cerca")
+	if VER then
+		print("bicho cerca", normal, bajo2, peor)
+	end
+	comprueba(bajo2 < normal * 0.1, "con un bicho cerca, tu linterna se apaga a tirones")
+	comprueba(peor <= L.BichoFallo + 2 * DT, `con un bicho cerca, nunca a oscuras más de {L.BichoFallo} s ({peor} s)`)
+
+	-- Lejos (más allá de L.BichoCerca): vuelve a brillar fija.
+	cerca:Destroy()
+	bicho("Bicho", L.BichoCerca + 20)
+	medir(0.5, "bicho se aleja")
+	alto, bajo = medir(1.5, "bicho lejos")
+	comprueba(math.abs(alto - normal) < 1e-6 and math.abs(bajo - normal) < 1e-6, "con el bicho lejos, tu linterna no falla")
+
+	-- El Imitador cerrado (fingiendo ser una persona en la puerta) no la hace fallar: lo delataría.
+	local imitador = bicho("Imitador", 6)
+	medir(0.5, "imitador cerrado, llega")
+	alto, bajo = medir(1.5, "imitador cerrado")
+	comprueba(math.abs(bajo - normal) < 1e-6, "el Imitador cerrado no hace fallar tu linterna")
+	imitador:SetAttribute("Abierto", true)
+	_, bajo2 = medir(4, "imitador abierto")
+	comprueba(bajo2 < normal * 0.1, "el Imitador abierto sí la hace fallar")
+	sinAvisos(b, "bicho cerca")
 end
 
 print(`correr-manos: {cuentas} comprobaciones bien`)
