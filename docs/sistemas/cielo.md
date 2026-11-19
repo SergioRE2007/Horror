@@ -30,6 +30,7 @@ noches de tormenta. Todo en el cliente y solo de adorno: `src/juego/cliente/Ciel
   horizonte también se pierde). Sin estrellas y con las nubes de `Nubes.Niebla`. La niebla baja de `AireVista`, por
   `Baja` (2,5) y con la caja `Alto` (1,8) veces más alta (aire.md). No toca las lámparas ni la luz de fuera: la linterna
   es la que sirve.
+- **La cuenta, compartida** (`shared/TiempoNoche`: `semilla`, `hayTormenta`, `hayNiebla`): `TormentaVista` y `CieloVista` la usan sin cambiarla y el servidor también (`Caza.esNiebla`: con niebla los bichos tampoco ven lejos fuera, bichos.md). Banco `niebla-bichos`.
 - **El relámpago**: mientras `Ambiente.destello` > 0 la nube se aclara por dentro (el color va hacia `Destello.Color` y
   baja algo la densidad), cada fotograma; en cuanto acaba vuelve igual.
 - **Luz**: `Ambiente.nublado` y `AireVista.nublado` (de 0 a 1, la tormenta en rampa). `Ambiente` multiplica con él
