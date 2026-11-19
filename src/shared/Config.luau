@@ -393,6 +393,7 @@ Config.Cargar = {
 	Fuerza = 0.6, -- parte del peso que levanta cada uno: con 2 que la cogen, 1,2 veces el peso del motor
 	Delante = 1.4, -- studs entre tu cuerpo y lo que llevas
 	Suelta = 9, -- si se queda más lejos (atascada), se te cae
+	Cortar = 0.15, -- segundos queriendo andar mientras trabajas para dejarlo a medias (saltar lo corta enseguida)
 	-- 15.8 (pedido por el usuario: "todo"): físicas de verdad, al hombro, lanzar y ruido (shared/CargarReglas). A ojo.
 	-- Lo que lleva uno solo (Peso 1) lo mueve su cliente (CargarVista) y choca con todo menos con los jugadores.
 	Engancha = 2.5, -- studs (en horizontal) entre donde debería ir y donde está: se ha enganchado en algo
