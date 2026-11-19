@@ -4,7 +4,8 @@
 --   la cabeza asoma tras lo bajo); si se ven todos, el más apartado del vivo más cercano (a igualdad, el primero).
 --   Caza.cabe y Caza.llegadas: sin sitio dentro de un tronco; si no cabe en ninguno, el de siempre.
 --   Acechador (salidas): nunca entre la presa y la casa ni delante de ella (su cono), primero a su espalda, a
---   A.Lejos + 14, y nunca sobre un tejado ni dentro de un tronco.
+--   A.Lejos + 14, y nunca sobre un tejado ni dentro de un tronco. En la colina de la torre (una bola) sale en la ladera
+--   o en el suelo de al lado, también desde lo alto de la torre.
 -- Con un mundo de cajas de mentira (rayos y solapes). Sacadas del texto: Caza y Acechador necesitan Roblox.
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
@@ -54,12 +55,36 @@ local EMPATE = numero(caza, "local EMPATE = ([%d%.]+)")
 
 -- El mundo: cajas { min, max, t (Transparency), choca (CanCollide) }. Un rayo no ve la caja de la que sale (como en
 -- Roblox) y, con RespectCanCollide, tampoco las que no chocan.
+-- Las bolas (como la colina de la torre) llevan `centro` y `radio`: los rayos las ven redondas y GetPartBoundsInBox,
+-- como el de Roblox, solo por su caja.
 local cajas: { any } = {}
+local function esPart(_, clase: string): boolean
+	return clase == "Part" or clase == "BasePart"
+end
 local function caja(a: any, b: any, t: number?, choca: boolean?)
-	table.insert(cajas, { min = a, max = b, t = t or 0, choca = choca ~= false })
+	table.insert(cajas, { min = a, max = b, t = t or 0, choca = choca ~= false, Shape = "Block", IsA = esPart })
+end
+local function bola(centro: any, radio: number)
+	local r = V3.new(radio, radio, radio)
+	table.insert(cajas, { min = centro - r, max = centro + r, t = 0, choca = true, Shape = "Ball", IsA = esPart,
+		centro = centro, radio = radio, Position = centro, Size = r * 2 })
 end
 local function dentro(c: any, p: any): boolean
+	if c.radio then
+		return (p - c.centro).Magnitude < c.radio
+	end
 	return p.X > c.min.X and p.X < c.max.X and p.Y > c.min.Y and p.Y < c.max.Y and p.Z > c.min.Z and p.Z < c.max.Z
+end
+-- Dónde (de 0 a 1 a lo largo de `dir`) entra el rayo en la bola `c`, o nil.
+local function entraBola(c: any, origen: any, dir: any): number?
+	local o = origen - c.centro
+	local a, b, k = dir:Dot(dir), 2 * o:Dot(dir), o:Dot(o) - c.radio * c.radio
+	local disc = b * b - 4 * a * k
+	if disc < 0 then
+		return nil
+	end
+	local t = (-b - math.sqrt(disc)) / (2 * a)
+	return if t >= 0 and t <= 1 then t else nil
 end
 local rayos = 0
 local mundo = {}
@@ -68,6 +93,13 @@ function mundo.Raycast(_, origen: any, dir: any, params: any): any
 	local mejor, golpe = math.huge, nil
 	for _, c in cajas do
 		if dentro(c, origen) or (params.RespectCanCollide and not c.choca) then
+			continue
+		end
+		if c.radio then
+			local t = entraBola(c, origen, dir)
+			if t and t < mejor then
+				mejor, golpe = t, c
+			end
 			continue
 		end
 		local t0, t1 = 0, 1
@@ -142,7 +174,7 @@ local entorno: { [string]: any } = {
 	CFrame = CF,
 	RaycastParams = params(),
 	OverlapParams = params(),
-	Enum = { RaycastFilterType = { Exclude = "Exclude" } },
+	Enum = { RaycastFilterType = { Exclude = "Exclude" }, PartType = { Ball = "Ball", Block = "Block" } },
 	workspace = mundo,
 	Players = Players,
 	Muerte = { vivo = function(j: any): boolean
@@ -326,6 +358,43 @@ do -- Una copa que no choca encima: sale en el suelo, debajo (antes caía en lo 
 	p = S.suelo(V3.new(0, 3, 120 + DIST), 0)
 	comprueba(p == nil, "suelo: sobre algo alto, no")
 	comprueba(#S.salidas(j, j.raiz) > 0, "salidas: hay más sitios")
+end
+
+do -- La colina de la torre (Lugares.torre: una bola de 140 studs con la cima en y = 20) con su plataforma arriba. Antes
+	-- su caja (GetPartBoundsInBox) daba "no cabe" en todo un cubo alrededor y el rayo corto no llegaba al suelo desde
+	-- la torre: el Acechador no salía nunca allí.
+	nuevoMundo()
+	local centro, radio = V3.new(90, -50, 300), 70
+	bola(centro, radio)
+	caja(V3.new(85, 43.5, 295), V3.new(95, 44.5, 305)) -- la plataforma
+	local function ladera(h: number): any -- un punto de la ladera a `h` del centro (en x)
+		return V3.new(centro.X + h, centro.Y + math.sqrt(radio * radio - h * h), centro.Z)
+	end
+	for _, h in { 0, 15, 30, 40, 48 } do
+		comprueba(C.cabe(ladera(h), ALTURA_A), `colina: cabe en la ladera a {h} del centro`)
+	end
+	comprueba(C.cabe(V3.new(25, 0, 300), ALTURA_A), "colina: cabe en el suelo de al lado (dentro de su caja)")
+	comprueba(not C.cabe(V3.new(90, 0, 300), ALTURA_A) and not C.cabe(V3.new(60, 0, 300), ALTURA_A),
+		"colina: no cabe dentro de ella")
+	comprueba(S.suelo(V3.new(90, 3, 290), 0) == nil, "colina: el rayo que nace dentro no sale dentro")
+	local function enSuperficie(s: any): boolean
+		return math.abs(s.Y) < 0.01 or math.abs((s - centro).Magnitude - radio) < 0.01
+	end
+	local function probarDesde(cabeza: any, mira: any, dist: number?, etiqueta: string)
+		for _ = 1, 10 do
+			local j = jugador(cabeza, mira)
+			local sitios = S.salidas(j, j.raiz, dist)
+			comprueba(#sitios > 0, `{etiqueta}: tiene sitio`)
+			for _, s in sitios do
+				comprueba(enSuperficie(s), `{etiqueta}: en el suelo o en la ladera, no dentro`)
+			end
+			table.clear(jugadores)
+		end
+	end
+	probarDesde(V3.new(90, 25, 270), V3.new(0, 0, 1), nil, "colina: subiendo la escalera")
+	probarDesde(V3.new(90, 25, 270), V3.new(0, 0, -1), nil, "colina: bajando la escalera")
+	probarDesde(V3.new(90, 49, 300), V3.new(1, 0, 0), nil, "colina: en la torre")
+	probarDesde(V3.new(90, 49, 300), V3.new(0, 0, 1), 30, "colina: en la torre, con niebla")
 end
 
 do -- En el texto: los cuatro que atacan llegan desde sitioSinVer y se van con perderse; el Acechador también.

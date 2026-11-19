@@ -762,15 +762,37 @@ end
 
 -- ¿Cabe de pie en `pie` (a ras de suelo) un bicho de `alto`? Nada que choque en su sitio: ni un tronco, ni una roca, ni
 -- una pared o un techo (un rayo que nace dentro de una pieza no la ve; esto sí). Lo que no choca (hierba, copas, la
--- linde, que no es para ellos) no estorba.
+-- linde, que no es para ellos) no estorba. GetPartBoundsInBox compara cajas: una bola se mide con su forma de verdad
+-- (bolaEstorba); si no, la colina de la torre (una bola de 140 studs) tapaba un cubo entero a su alrededor y el
+-- Acechador no salía nunca cerca de la torre.
 local filtroHueco = OverlapParams.new()
 filtroHueco.FilterType = Enum.RaycastFilterType.Exclude
 filtroHueco.RespectCanCollide = true
+-- Una bola grande es suelo y en cuesta: por el lado de arriba de la ladera se mete un poco en el cuerpo. Solo estorba si
+-- entra por encima de CUESTA studs sobre lo de abajo del cuerpo (cuestas de hasta unos 45°; si no, ninguna ladera valía).
+local CUESTA = ANCHO_CUERPO / 2
+local function bolaEstorba(bola: Part, pie: Vector3, total: number): boolean
+	local c, medio = bola.Position, ANCHO_CUERPO / 2
+	local radio = math.min(bola.Size.X, bola.Size.Y, bola.Size.Z) / 2
+	-- El punto del cuerpo (una caja sin girar) más cerca del centro de la bola.
+	local cerca = Vector3.new(
+		math.clamp(c.X, pie.X - medio, pie.X + medio),
+		math.clamp(c.Y, pie.Y + 0.5 + CUESTA, pie.Y + 0.5 + total),
+		math.clamp(c.Z, pie.Z - medio, pie.Z + medio)
+	)
+	return (cerca - c).Magnitude < radio
+end
 function Caza.cabe(pie: Vector3, alto: number): boolean
 	filtroHueco.FilterDescendantsInstances = sinPersonajes()
 	local total = alto * CABEZA
 	local caja = CFrame.new(pie + Vector3.new(0, 0.5 + total / 2, 0))
-	return #workspace:GetPartBoundsInBox(caja, Vector3.new(ANCHO_CUERPO, total, ANCHO_CUERPO), filtroHueco) == 0
+	for _, pieza in workspace:GetPartBoundsInBox(caja, Vector3.new(ANCHO_CUERPO, total, ANCHO_CUERPO), filtroHueco) do
+		local bola = pieza:IsA("Part") and (pieza :: Part).Shape == Enum.PartType.Ball
+		if not bola or bolaEstorba(pieza :: Part, pie, total) then
+			return false
+		end
+	end
+	return true
 end
 
 -- Por dónde llega desde el bosque a `fuera` (la ventana, la puerta o el pie de la pared; `normal` hacia fuera y `lado`

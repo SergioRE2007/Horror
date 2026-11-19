@@ -134,8 +134,9 @@ local function oscuro(): boolean
 	return (workspace:GetAttribute("FaseFin") or 0) - workspace:GetServerTimeNow() < Config.Ciclo.Aviso
 end
 
--- El suelo de verdad debajo de `p` (el bosque no es del todo plano): un rayo corto desde poco más arriba (p.Y + 8) y
--- solo contra lo que choca. Antes tiraba desde y = 120 contra todo y salía en las copas, los troncos o los tejados.
+-- El suelo de verdad debajo de `p` (el bosque no es del todo plano): un rayo desde poco más arriba (p.Y + 8) y solo
+-- contra lo que choca. Antes tiraba desde y = 120 contra todo y salía en las copas, los troncos o los tejados. Baja 40
+-- studs y, si la presa está en alto (la torre de la colina, a 44 studs del suelo), hasta y = -30 como poco.
 -- nil si da en algo a más de 3 studs por encima de los pies de la presa (`pies`: un tronco caído, un tejado) o si no
 -- cabe de pie (Caza.cabe: dentro de un tronco, una roca o una casa, que el rayo no ve desde dentro).
 local filtro = RaycastParams.new()
@@ -149,7 +150,8 @@ local function suelo(p: Vector3, pies: number): Vector3?
 		end
 	end
 	filtro.FilterDescendantsInstances = ignorar
-	local golpe = workspace:Raycast(Vector3.new(p.X, p.Y + 8, p.Z), Vector3.new(0, -40, 0), filtro)
+	local desde = p.Y + 8
+	local golpe = workspace:Raycast(Vector3.new(p.X, desde, p.Z), Vector3.new(0, -math.max(40, desde + 30), 0), filtro)
 	if not golpe or golpe.Position.Y > pies + 3 or not Caza.cabe(golpe.Position, ALTURA) then
 		return nil
 	end
