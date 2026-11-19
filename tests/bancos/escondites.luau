@@ -1,6 +1,6 @@
 -- Banco de los escondites de fuera de la casa: Mapa.armario (el armario de lamas de siempre, también dentro de
--- Mapa.conPadre) y los cuatro de Lugares y PuebloInteriores (la cocina de la granja, el granero, el confesionario de la
--- iglesia y el ropero de la casa abierta del pueblo). Carga Mapa, Lugares y el pueblo de verdad con el Roblox de mentira
+-- Mapa.conPadre) y los cinco de Lugares y PuebloInteriores (la cocina de la granja, el granero, la cabaña del cazador,
+-- el confesionario de la iglesia y el ropero de la casa abierta del pueblo). Carga Mapa, Lugares y el pueblo de verdad con el Roblox de mentira
 -- (tests/bancos/_roblox.luau); los muebles de la tienda, con su tamaño de verdad (atributo Tam de src/muebles), para
 -- que choquen sus cajas. Comprueba de cada escondite nuevo:
 --   - que está dentro de su edificio y su Salida también (y libre: nada que choque donde aparece el jugador);
@@ -182,12 +182,13 @@ for i, p in pistas do
 end
 
 -- Los edificios: lo de dentro (x1, x2, z1, z2), la puerta ("N" -z, "S" +z, "E" +x, "O" -x) y las ventanas. Los de la
--- granja, de Lugares.EDIFICIOS (con fachada, como los del pueblo).
+-- granja, de Lugares.EDIFICIOS (con fachada, como los del pueblo); la cabaña, de LugarCazador.
 type Edificio = { nombre: string, x1: number, x2: number, z1: number, z2: number, puerta: string, ancho: number, cx: number,
 	cz: number,
 	ventanas: { { lado: string, en: number, ancho: number, y1: number, y2: number } } }
 local function edificio(nombre: string): Edificio
-	local e = Lugares.EDIFICIOS[nombre] or Plano.buscar(nombre)
+	local cazador = m.cargar("src/juego/servidor/LugarCazador").EDIFICIO
+	local e = Lugares.EDIFICIOS[nombre] or (if nombre == cazador.nombre then cazador else nil) or Plano.buscar(nombre)
 	local x1, x2, z1, z2 = Plano.dentro(e)
 	local med = if nombre == "Iglesia" then Plano.VENTANA_IGLESIA else Plano.VENTANA
 	local ventanas = {}
@@ -202,6 +203,7 @@ end
 local EDIFICIOS = {
 	edificio("CasaGranja"),
 	edificio("Granero"),
+	edificio("CabanaCazador"),
 	edificio("Iglesia"),
 	edificio("CasaAbierta"),
 }

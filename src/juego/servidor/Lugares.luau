@@ -6,13 +6,14 @@
 -- La casa de la granja, el granero, la oficina del aserradero y la caseta del guarda tienen fachada de verdad, como las
 -- del pueblo (PuebloFachadas.uno), y cuentan su parte de la historia (docs/historia.md: pistas 6 a 8): la cocina que
 -- el granjero dejó deprisa, el boquete por el que algo se llevó a las vacas, el hoyo que cavó Harlan y el mapa del
--- guarda. Medidas a ojo (docs/sistemas/llaves.md).
+-- guarda. Medidas a ojo (docs/sistemas/llaves.md). La cabaña del cazador, en LugarCazador.
 local CollectionService = game:GetService("CollectionService")
 
 local PuebloPlano = require(script.Parent.PuebloPlano)
 local PuebloFachadas = require(script.Parent.PuebloFachadas)
 local PuebloInteriores = require(script.Parent.PuebloInteriores)
 local PuebloCalle = require(script.Parent.PuebloCalle)
+local LugarCazador = require(script.Parent.LugarCazador)
 
 local Lugares = {}
 
@@ -55,6 +56,7 @@ local ZONAS = {
 	Torre = { 90, 285, 70 },
 	Pueblo = { 28, -480, 88 }, -- 11.5: llega a las casas nuevas de la entrada y del final de la calle
 	Garaje = { -49, 18, 20 }, -- el de la casa (Mapa)
+	Cazador = { -215, 235, 34 }, -- la cabaña del cazador (LugarCazador): lejos del anillo de los que se talan (42-170)
 }
 
 function Lugares.libre(x: number, z: number): boolean
@@ -1005,6 +1007,9 @@ function Lugares.construir(mapa: Folder, modulo)
 	granja()
 	aserradero()
 	torre()
+	LugarCazador.construir(ctx, { raiz = raiz, COLOR = COLOR, SANGRE = SANGRE, SECA = SECA, adorno = adorno, choque = choque, monton = monton,
+		liston = liston, enCara = enCara, zarpazo = zarpazo, telarana = telarana, agujero = agujero, tierraRemovida = tierraRemovida,
+		objeto = objeto })
 	pueblo()
 	carpeta.Parent = mapa
 end
