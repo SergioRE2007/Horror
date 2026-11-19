@@ -84,6 +84,14 @@ Config.Casa = {
 	VidaPuerta = 160,
 	GolpesCristal = 3, -- golpes al cristal sin persiana hasta romperlo y entrar
 	Alcance = 8, -- distancia para tocar las cosas (reparar: con un tablón, ver Config.Talar)
+	-- Cerrojo de las puertas de dentro (el objeto Cerrojo, del banco del sótano; R en la puerta): con él cerrada, el bicho
+	-- no la abre de un empujón, la aporrea hasta reventarla (Casa.abrirPuerta, Defensa.golpeCerrojo). A ojo.
+	Cerrojo = {
+		Poner = 3, -- s trabajando para ponerlo
+		Cada = 1.2, -- s entre golpe y golpe a la misma puerta
+		Dano = { 18, 24 }, -- vida que le quita cada golpe (VidaPuerta 160: unos 8 golpes, ~10 s; reforzada, ~17 s)
+		Cerca = 4.5, -- studs de la raíz del bicho al centro de la hoja para aporrearla (más lejos, sigue andando)
+	},
 }
 
 -- El Golpeador (juego/servidor/Golpeador y Director). Rangos {mínimo, máximo}.
@@ -347,6 +355,7 @@ Config.Objetos = {
 	Pistola = { Tam = { 2, 1 }, Nombre = "Flare gun", Unica = true }, -- la del rico, en el desván
 	Bengala = { Tam = { 1, 1 }, Nombre = "Flare", Unica = true }, -- cada disparo gasta una
 	Cerillas = { Tam = { 1, 1 }, Nombre = "Matches", Unica = true }, -- para prender el rastro de gasolina
+	Cerrojo = { Tam = { 1, 1 }, Nombre = "Door bolt" }, -- del banco del sótano; se pone en una puerta de dentro (Casa)
 }
 
 -- Salas cerradas con llave (pedido por el usuario), de más cerca a más lejos (juego/servidor/Llaves). Cada llave sale
@@ -493,6 +502,7 @@ Config.Taller = {
 		Sotano = {
 			{ Da = "TablonReforzado", Pide = { { "Tablon", 2 }, { "Chatarra", 1 } }, Tiempo = 5 },
 			{ Da = "Trampa", Pide = { { "Chatarra", 2 }, { "Tablon", 1 } }, Tiempo = 5 },
+			{ Da = "Cerrojo", Pide = { { "Chatarra", 2 } }, Tiempo = 4 },
 		},
 		Garaje = {
 			{ Da = "Radiador", Pide = { { "Chatarra", 3 }, { "Botella", 1 } }, Tiempo = 6 },

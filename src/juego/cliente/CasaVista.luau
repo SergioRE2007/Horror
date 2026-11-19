@@ -3,6 +3,8 @@
 --     El cristal se agrieta por golpes y estalla al romperse; roto, quedan picos de cristal en el marco hasta repararlo.
 --   Puerta: la hoja gira en la bisagra (de golpe si la abre el bicho); con llave, el pomo traquetea.
 --   Con un tablón reforzado clavado (atributo Refuerzo): tablones en aspa con flejes (por dentro o en la hoja).
+--   Puerta con cerrojo (atributo Cerrojo): pasador de hierro en las dos caras, encima del pomo, que se echa en su
+--   cerradero del marco al cerrarla (clic) y se descorre al abrirla; al reventarla, el pasador y la placa saltan.
 --   Cada golpe del bicho (atributo Golpes): tiembla, suena, cae polvo del marco y tiembla la cámara si estás cerca.
 -- Avisos sin sonido (14.3, para quien juega sin cascos; los dispara Efectos con CasaVista.acecho cada fotograma):
 --   Algo se acerca o se planta fuera: las cortinas se mecen hacia dentro como por una corriente, el cristal vibra en el
@@ -43,6 +45,12 @@ local BRISA_ALETEO = 0.12
 local ONDEA_MAX = 0.45
 local TELA = Color3.fromRGB(86, 40, 36) -- terciopelo granate viejo
 local TELA_OSCURA = Color3.fromRGB(62, 28, 26)
+-- Cerrojo de las puertas de dentro: a qué altura de la hoja va (desde su centro; el pomo está a -0,4 y los tablones
+-- del refuerzo no llegan tan arriba en el borde), cuánto se echa el pasador y sus colores (hierro viejo, sin brillo).
+local CERROJO_ALTO = 1.5
+local CERROJO_ECHADO = 0.3
+local HIERRO = Color3.fromRGB(46, 44, 42)
+local PASADOR = Color3.fromRGB(84, 82, 78)
 -- Terciopelo de verdad (MaterialVariant de Poly Haven, 11.8.2): con el Fabric de serie en un color tan oscuro las
 -- cortinas se veían como ruido negro con brillos. Sin él (lugar sin Rojo), Fabric con los colores de arriba.
 -- Se mira al hacer cada cortina, no al cargar: la carpeta puede llegar después.
@@ -658,6 +666,10 @@ local function puerta(el: Model)
 	local tablones: { { parte: BasePart, rel: CFrame } } = {} -- los del refuerzo, que giran con la hoja
 	local piezas: { { parte: BasePart, rel: CFrame } } = {} -- las de PuertaRotaVista (tablas de la hoja que cede)
 	local colgada: CFrame? = nil -- echada abajo: la bisagra la pone PuertaRotaVista (colgando) y el ángulo no cuenta
+	-- Las del cerrojo que giran con la hoja (`corre`: el pasador y su tirador, que además se echan `echado` studs).
+	local cerrojo: { { parte: BasePart, rel: CFrame, corre: boolean } } = {}
+	local cerraderos: { BasePart } = {} -- en el marco: no giran
+	local echado = Instance.new("NumberValue")
 	local function colocar(a: number)
 		local cf = colgada or bisagra * CFrame.Angles(0, math.rad(a), 0)
 		hoja.CFrame = cf * hojaRel
@@ -667,6 +679,9 @@ local function puerta(el: Model)
 		end
 		for _, t in piezas do
 			t.parte.CFrame = cf * t.rel
+		end
+		for _, t in cerrojo do
+			t.parte.CFrame = cf * t.rel * (if t.corre then CFrame.new(echado.Value, 0, 0) else CFrame.identity)
 		end
 	end
 	-- Tablones reforzados (atributo Refuerzo): dos en aspa en cada cara de la hoja.
@@ -687,6 +702,96 @@ local function puerta(el: Model)
 		colocar(angulo.Value)
 	end
 	el:GetAttributeChangedSignal("Refuerzo"):Connect(reforzar)
+	-- Cerrojo (atributo Cerrojo): placa, dos guías y el pasador con su tirador en cada cara, por encima del pomo y de
+	-- los tablones del refuerzo; el cerradero, fijo en el marco. Hierro oscuro, sin brillo.
+	local function quitarCerrojo()
+		for _, t in cerrojo do
+			t.parte:Destroy()
+		end
+		for _, c in cerraderos do
+			c:Destroy()
+		end
+		table.clear(cerrojo)
+		table.clear(cerraderos)
+	end
+	local function pintarCerrojo()
+		quitarCerrojo()
+		if not el:GetAttribute("Cerrojo") then
+			return
+		end
+		local hx, grueso = hoja.Size.X / 2, hoja.Size.Z / 2
+		for _, cara in { -1, 1 } do
+			local function trozo(tamano: Vector3, x: number, z: number, color: Color3, corre: boolean)
+				local rel = hojaRel * CFrame.new(x, CERROJO_ALTO, cara * (grueso + z))
+				table.insert(cerrojo, { parte = pieza(tamano, bisagra * rel, color, el), rel = rel, corre = corre })
+			end
+			trozo(Vector3.new(1, 0.44, 0.05), hx - 0.65, 0.025, HIERRO, false) -- placa
+			trozo(Vector3.new(0.12, 0.3, 0.16), hx - 0.85, 0.08, HIERRO, false) -- guías
+			trozo(Vector3.new(0.12, 0.3, 0.16), hx - 0.35, 0.08, HIERRO, false)
+			trozo(Vector3.new(0.85, 0.13, 0.13), hx - 0.6, 0.11, PASADOR, true) -- pasador
+			trozo(Vector3.new(0.1, 0.1, 0.24), hx - 0.85, 0.24, PASADOR, true) -- tirador
+			table.insert(cerraderos, pieza(Vector3.new(0.12, 0.34, 0.26),
+				bisagra * hojaRel * CFrame.new(hx + 0.1, CERROJO_ALTO, cara * (grueso + 0.11)), HIERRO, el))
+		end
+		echado.Value = if el:GetAttribute("Abierta") then 0 else CERROJO_ECHADO
+		colocar(angulo.Value)
+	end
+	-- Reventada (sin cerrojo y sin vida): el pasador y la placa salen volando (con Rendimiento, no); luego se quita todo.
+	local function saltarCerrojo()
+		if not poco() then
+			for _, t in cerrojo do
+				if t.parte.Size.X >= 0.8 then
+					local suelto = t.parte:Clone()
+					suelto.Anchored = false
+					suelto.CanCollide = true
+					suelto.CollisionGroup = "Cargado" -- no choca con los jugadores
+					suelto.Parent = workspace.Terrain
+					suelto.AssemblyLinearVelocity = hoja.CFrame.LookVector * azar:NextNumber(-14, 14)
+						+ Vector3.new(azar:NextNumber(-4, 4), azar:NextNumber(4, 9), azar:NextNumber(-4, 4))
+					suelto.AssemblyAngularVelocity = Vector3.new(azar:NextNumber(-15, 15), azar:NextNumber(-15, 15), azar:NextNumber(-15, 15))
+					task.delay(6, function()
+						TweenService:Create(suelto, TweenInfo.new(1), { Transparency = 1 }):Play()
+						task.delay(1, suelto.Destroy, suelto)
+					end)
+				end
+			end
+		end
+		if #cerrojo > 0 then
+			Sonido.en("GolpeMetal", hoja.Position, 1.25)
+		end
+		quitarCerrojo()
+	end
+	el:GetAttributeChangedSignal("Cerrojo"):Connect(function()
+		if not el:GetAttribute("Cerrojo") and (el:GetAttribute("Vida") or 1) <= 0 then
+			saltarCerrojo()
+			return
+		end
+		local nuevo = el:GetAttribute("Cerrojo") and #cerrojo == 0
+		pintarCerrojo()
+		if nuevo then
+			Sonido.en("Martillo", hoja.Position, 1.6) -- recién puesto: el clic del pasador
+		end
+	end)
+	-- Se descorre al empezar a abrirla y se echa al acabar de cerrarla.
+	el:GetAttributeChangedSignal("Abierta"):Connect(function()
+		if #cerrojo == 0 then
+			return
+		end
+		if el:GetAttribute("Abierta") then
+			TweenService:Create(echado, TweenInfo.new(0.1), { Value = 0 }):Play()
+			return
+		end
+		task.delay(cfg.TiempoPuerta, function()
+			if #cerrojo > 0 and not el:GetAttribute("Abierta") then
+				TweenService:Create(echado, TweenInfo.new(0.15, Enum.EasingStyle.Quad), { Value = CERROJO_ECHADO }):Play()
+				local s = Sonido.en("Martillo", hoja.Position, 1.6)
+				s.Volume *= 0.5
+			end
+		end)
+	end)
+	echado.Changed:Connect(function()
+		colocar(angulo.Value)
+	end)
 	angulo.Changed:Connect(colocar)
 	local function destino(): number
 		return if el:GetAttribute("Abierta") then 100 * giro else 0
@@ -694,6 +799,7 @@ local function puerta(el: Model)
 	angulo.Value = destino()
 	colocar(angulo.Value)
 	reforzar()
+	pintarCerrojo()
 
 	-- Para PuertaRotaVista (puerta-rota.md).
 	local datos: Puerta = {

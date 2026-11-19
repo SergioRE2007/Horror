@@ -603,7 +603,7 @@ local function alPulsar(prompt: ProximityPrompt, quien: Player)
 	local puertaEl = etiquetado(mando, "Puerta")
 	if ventana and (texto == "Open curtains" or texto == "Close curtains") then
 		cortinas(ventana)
-	elseif puertaEl and texto ~= "Repair" then
+	elseif puertaEl and texto ~= "Repair" and texto ~= "Install bolt" then
 		puerta(puertaEl)
 	elseif texto == "Pick up" and mando and mando:IsA("BasePart") then
 		coger(mando)

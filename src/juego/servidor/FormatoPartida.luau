@@ -9,7 +9,8 @@
 --   objetos y pesados: listas de { tipo, carga, sitio = { x, y, z, rx, ry, rz } } (lo suelto por el mapa).
 --   mochilas: [UserId en texto] = { cosas = las de shared/Rejilla } (de todos los que han jugado en ella).
 --   coche: { piezas = [tipo] = cuántas montadas, gasolina, porton } (shared/Recetas). Desde el paso 8, sin subir versión:
---   lo viejo no lo tiene y sale el coche sin arreglar. La casa lleva también `refuerzo` (tablón reforzado).
+--   lo viejo no lo tiene y sale el coche sin arreglar. La casa lleva también `refuerzo` (tablón reforzado) y `cerrojo`
+--   (puertas de dentro; sin subir versión: lo viejo sale sin cerrojo).
 --   final: "Huida" o "Bestia" si ya se terminó (al volver a esa ranura se empieza de cero).
 --   pistas: lista de los números de shared/Historia ya leídos (12.1, sin subir versión: lo viejo no la tiene = ninguna).
 --   preparativos: { gasolina = claves de los puntos con gasolina, rastro, reja } (12.2, Preparativos; sin subir versión:
@@ -131,6 +132,7 @@ function FormatoPartida.arreglar(guardado: unknown, cat)
 					abierta = e.abierta == true,
 					bloqueada = if type(e.bloqueada) == "boolean" then e.bloqueada else nil,
 					refuerzo = if e.refuerzo == true then true else nil,
+					cerrojo = if e.cerrojo == true then true else nil,
 				}
 			end
 		end

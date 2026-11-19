@@ -846,6 +846,49 @@ do
 	Defensa.romper(puerta, cfgCasa)
 	igual(puerta.refuerzo, false, "puerta echada abajo: sin refuerzo")
 
+	-- Cerrojo de las puertas de dentro: se pone una vez, aguanta golpes y al reventar la puerta salta.
+	local CC = cfgCasa.Cerrojo
+	igual(CC.Dano[1] > 0 and CC.Dano[2] >= CC.Dano[1] and CC.Cada > 0 and CC.Poner > 0, true, "números del cerrojo con sentido")
+	local dentro = Defensa.nueva("Puerta", cfgCasa)
+	igual(dentro.cerrojo, false, "puerta nueva: sin cerrojo")
+	igual(Defensa.golpeCerrojo(dentro, CC.Dano[2], cfgCasa), "Entra", "sin cerrojo no la para")
+	igual(dentro.vida, cfgCasa.VidaPuerta, "y no le quita vida")
+	igual(Defensa.ponerCerrojo(dentro), true, "se pone el cerrojo")
+	igual(Defensa.ponerCerrojo(dentro), false, "no dos veces")
+	local golpes, resultado = 0, "Golpe"
+	while resultado == "Golpe" and golpes < 100 do
+		resultado = Defensa.golpeCerrojo(dentro, CC.Dano[2], cfgCasa)
+		golpes += 1
+	end
+	igual(resultado, "Entra", "a golpes acaba reventándola")
+	igual(golpes, math.ceil(cfgCasa.VidaPuerta / CC.Dano[2]), "con los golpes que le tocan por su vida")
+	igual(golpes >= 4, true, "aguanta unos cuantos golpes (da tiempo a esconderse)")
+	igual(dentro.cerrojo, false, "reventada: el cerrojo salta")
+	igual(dentro.abierta and dentro.vida == 0, true, "y queda abierta y rota")
+	igual(Defensa.ponerCerrojo(dentro), false, "rota no se le pone otro")
+	Defensa.reparar(dentro)
+	dentro.abierta = false
+	igual(Defensa.ponerCerrojo(dentro), true, "reparada sí")
+	dentro.abierta = true
+	igual(Defensa.golpeCerrojo(dentro, CC.Dano[1], cfgCasa), "Entra", "abierta, el cerrojo no sirve")
+	igual(dentro.vida, cfgCasa.VidaPuerta, "abierta no se golpea")
+	dentro.abierta = false
+	Defensa.reforzar(dentro, cfgCasa, Config.Taller.Refuerzo)
+	igual(dentro.cerrojo, true, "reforzarla no quita el cerrojo")
+	igual(Defensa.golpeCerrojo(dentro, cfgCasa.VidaPuerta, cfgCasa), "Golpe", "reforzada aguanta más con cerrojo")
+	local conLlave = Defensa.nueva("Puerta", cfgCasa)
+	conLlave.bloqueada = true
+	igual(Defensa.ponerCerrojo(conLlave), false, "con llave no se pone")
+	igual(Defensa.ponerCerrojo(Defensa.nueva("Ventana", cfgCasa)), false, "en una ventana no")
+
+	-- El cerrojo sale del banco del sótano, al final de sus recetas (antes que la reja, que va detrás de todas).
+	local recetasSotano = Recetas.delBanco("Sotano", Config)
+	local cerrojo = recetasSotano[#Config.Taller.Bancos.Sotano]
+	igual(cerrojo.Da, "Cerrojo", "el cerrojo, última receta del sótano")
+	igual(cerrojo.Pide[1][1], "Chatarra", "pide chatarra")
+	igual(recetasSotano[#recetasSotano].Da, "Reja", "la reja sigue al final")
+	igual(Config.Objetos.Cerrojo ~= nil and Lang.es[Config.Objetos.Cerrojo.Nombre] ~= nil, true, "objeto de la mochila con español")
+
 	-- Se guarda con la partida: piezas del coche, gasolina, portón, refuerzo y lo fabricado (suelto o en la mochila).
 	local cat = { objetos = Config.Objetos, pesados = Config.Pesados, maximo = Config.Partida.Sueltos, coche = C,
 		arreglarCoche = Recetas.arreglarCoche }
@@ -861,6 +904,17 @@ do
 	}, "partida del paso 8"), cat)
 	igual(d.casa.V1_2_3.refuerzo, true, "ventana reforzada guardada")
 	igual(d.casa.V4_5_6.refuerzo, nil, "refuerzo que no es booleano: fuera")
+	igual(d.casa.V1_2_3.cerrojo, nil, "partida de antes de los cerrojos: sin cerrojo")
+	local conCerrojo = FP.arreglar(guardable({
+		noche = 5,
+		casa = { P1_2_3 = { vida = 120, abierta = false, cerrojo = true }, P4_5_6 = { vida = 160, cerrojo = "si" },
+			P7_8_9 = { vida = 160, cerrojo = false } },
+	}, "partida con cerrojos"), cat)
+	igual(conCerrojo.casa.P1_2_3.cerrojo, true, "puerta con cerrojo guardada")
+	igual(conCerrojo.casa.P1_2_3.vida, 120, "con la vida que le quedaba")
+	igual(conCerrojo.casa.P4_5_6.cerrojo, nil, "cerrojo que no es booleano: fuera")
+	igual(conCerrojo.casa.P7_8_9.cerrojo, nil, "sin cerrojo: no se guarda nada")
+	guardable(conCerrojo, "partida con cerrojos arreglada")
 	igual(d.coche.piezas.Motor, 1, "motor montado guardado")
 	igual(d.coche.piezas.Rueda, 1, "una rueda guardada")
 	igual(d.coche.gasolina, 0.5, "gasolina del coche guardada")
@@ -1102,7 +1156,9 @@ do
 	igual(sotano[1].Da, Config.Taller.Bancos.Sotano[1].Da, "la primera receta sigue siendo la primera")
 	igual(sotano[#sotano].Pide, Config.Bestia.Reja.Pide, "la reja pide lo de Config.Bestia.Reja")
 	igual(Config.Pesados.Reja ~= nil, true, "la reja es pesada")
-	igual(#Config.Taller.Bancos.Sotano, 2, "delBanco no toca Config")
+	local cuantasSotano = #Config.Taller.Bancos.Sotano
+	Recetas.delBanco("Sotano", Config)
+	igual(#Config.Taller.Bancos.Sotano, cuantasSotano, "delBanco no toca Config")
 	igual(#Recetas.delBanco("Garaje", Config), #Config.Taller.Bancos.Garaje, "el garaje, sin reja")
 	local pista = Historia[sotano[#sotano].Pista]
 	igual(pista ~= nil and string.find(pista.texto, "gate") ~= nil, true, "la pista de la reja habla de la reja")

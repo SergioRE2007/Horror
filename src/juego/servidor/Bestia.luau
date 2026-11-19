@@ -209,6 +209,7 @@ local function crear(cf: CFrame): Caza.Bicho
 		AltoCamino = B.AltoCamino,
 		Fuera = FUERA_MUEBLE,
 		RompePuertas = reventar,
+		RompeCerrojos = true, -- las de dentro con cerrojo, de un golpe: el final no se para en una puerta
 	})
 end
 
