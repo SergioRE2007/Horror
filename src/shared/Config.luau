@@ -1632,8 +1632,7 @@ Config.Adaptar = {
 		RebotaHasta = 10, -- ...a menos de estos studs
 		Bombilla = 0.6, -- cada luz a su alcance y sin pared: brillo × (1 - distancia/alcance)² × esto
 		Luna = 0.5, -- las de luna (etiqueta Luna), igual
-		Rayo = 1.8, -- el relámpago (Ambiente.destello) fuera...
-		RayoDentro = 0.5, -- ...y dentro
+		Rayo = 1.8, -- el relámpago (Ambiente.destello) a cielo abierto, por Ambiente.cieloVisto (dentro, sótano, escondido)
 		Escondido = 0.3, -- metido en un escondite, de todo eso solo llega esta parte
 		Techo = 60, -- studs del rayo hacia arriba para saber si estás bajo techo
 	},

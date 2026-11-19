@@ -10,7 +10,8 @@
 -- La luz que te llega, cada Config.Adaptar.Cada s: de día fuera (rayo hacia arriba: techo o no), tu linterna (y su
 -- rebote si da contra algo cerca), las luces del mundo a su alcance y sin pared (su Brightness de verdad: ya lleva el
 -- parpadeo de Ambiente.factor y el generador; las de luna, etiqueta Luna, con su peso; la chimenea, las bengalas y el
--- flash de los demás también son luces) y, en cada fotograma, el relámpago (Ambiente.destello).
+-- flash de los demás también son luces) y, en cada fotograma, el relámpago (Ambiente.destello, por el cielo que se ve:
+-- Ambiente.cieloVisto, el mismo del destello de la pantalla; en el sótano o escondido, casi nada).
 -- Escondido sigue (con menos luz: Luz.Escondido). Muerto, en cinemáticas (cámara Scriptable sin vistazo ni escondite) o
 -- mirando por la mirilla (Mirilla), a cero; al volver, los ojos ya están hechos a la luz de entonces (sin deslumbre).
 -- Con Rendimiento igual (cuesta poco), salvo la linterna de otro: Ajena.Rendimiento de fuerte.
@@ -52,8 +53,6 @@ local filtroDe: Model? = nil
 -- El estado.
 local hecho = 0 -- a qué luz están hechos los ojos (0..1)
 local suma = 0 -- la luz medida (sin el relámpago)
-local fuera = true -- sin techo encima en la última medida
-local escondido = false
 local ajena = 0 -- la linterna de otro a la cara, ya suavizada
 local ajenaMeta = 0
 local proxima = 0
@@ -195,7 +194,7 @@ local function medir()
 	local s = C.Base
 	-- El día (rayo hacia arriba: bajo techo o no; los cristales no cuentan como techo).
 	local techo = workspace:Raycast(ojo, Vector3.new(0, L.Techo, 0), rayo)
-	fuera = techo == nil or techo.Instance.Transparency >= CRISTAL
+	local fuera = techo == nil or techo.Instance.Transparency >= CRISTAL
 	local fase, inicio, fin = workspace:GetAttribute("Fase"), workspace:GetAttribute("FaseInicio"),
 		workspace:GetAttribute("FaseFin")
 	if type(inicio) == "number" and type(fin) == "number" then
@@ -210,7 +209,7 @@ local function medir()
 		s += L.Linterna + L.Rebote * AdaptarCuentas.rebote(if choque then choque.Distance else nil)
 	end
 	s += delMundo(ojo)
-	escondido = jugador:GetAttribute("Escondido") ~= nil
+	local escondido = jugador:GetAttribute("Escondido") ~= nil
 	if escondido then
 		s *= L.Escondido
 	end
@@ -244,14 +243,10 @@ local function quitar()
 	end
 end
 
--- La luz de ahora (0..1), con el relámpago de este fotograma.
+-- La luz de ahora (0..1), con el relámpago de este fotograma por lo que se ve del cielo (Ambiente.cieloVisto, que ya
+-- tiene en cuenta dentro, el sótano y el escondite: el mismo que el destello de la pantalla de Ambiente).
 local function luzAhora(): number
-	local L = C.Luz
-	local rayoAhora = (Ambiente.destello or 0) * (if fuera then L.Rayo else L.RayoDentro)
-	if escondido then
-		rayoAhora *= L.Escondido
-	end
-	return AdaptarCuentas.juntar(suma + rayoAhora)
+	return AdaptarCuentas.juntar(suma + AdaptarCuentas.rayo(Ambiente.destello or 0, Ambiente.cieloVisto or 1))
 end
 
 local function paso(dt: number)

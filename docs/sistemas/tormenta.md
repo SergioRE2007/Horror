@@ -17,7 +17,8 @@ Pedido por el usuario: "mejorar la inmersión del juego". Todo en el cliente y s
   `1 - distancia / Fogonazo.Cerca` a la luna sin persiana más cercana, con suelo `Pantalla.Dentro` (0,15); en una sala sin
   ventanas (`Pantalla.SinCielo`: el sótano) o escondido (atributo `Escondido`), `Pantalla.Escondido` (0,05). Al acabar
   vuelve a 1. La luz de fuera, la niebla y las lunas, enteras igual: la ventana se enciende, pero en el sótano o en el
-  armario la pantalla ya no parpadea entera.
+  armario la pantalla ya no parpadea entera. El deslumbre de los ojos (`AdaptarVista`, `adaptar.md`) usa el mismo
+  `cieloVisto`: si no, los dos `ColorCorrection` se suman y el sótano vuelve a parpadear casi como fuera.
 - **Las lunas**: las luces de luna (etiqueta `Luna`, `Mapa.luzLuna`) a menos de `Fogonazo.Cerca` suben su brillo con el
   destello (`Ambiente.lunas`). Con las cortinas de esa ventana echadas (`Persiana`), no.
 - **Fogonazo con sombras** (sin Rendimiento): para las 3 lunas más cercanas, un `SpotLight` con sombras en la misma
