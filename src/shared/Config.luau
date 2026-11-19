@@ -552,7 +552,7 @@ Config.Bestia = {
 	PorPunto = 1 / 3, -- parte de un bidón que gasta cada punto (hay pocos bidones y no se rellenan)
 	-- Receta en el banco del sótano; solo sale tras leer la pista Pista (shared/Historia)
 	Reja = { Pide = { { "Chatarra", 4 }, { "Cadena", 2 } }, Tiempo = 8, Pista = 9 },
-	PistaCerillas = 12, -- la caja fuerte del rico: al abrirla por primera vez en la partida, dentro están las cerillas
+	PistaCerillas = 12, -- la caja fuerte del rico: al abrirla por primera vez en la partida, dentro están las cerillas (sin leerla no se reponen)
 	AvisoPlano = 1.5, -- segundos tras leer la pista del plano hasta el aviso de que la reja ya se puede hacer (a ojo)
 	Montar = 4, -- segundos montando la reja en su marco
 	Caer = 0.35, -- segundos que tarda la reja en caer
@@ -593,7 +593,6 @@ Config.Bestia = {
 	Luz = 22, -- alcance de esa luz
 	-- Incendio
 	Prender = 2, -- segundos con la cerilla en el rastro
-	PistaCerillas = 12, -- la pista que dice dónde hay más cerillas (la caja fuerte): sin leerla no se reponen
 	PorSala = 1.6, -- segundos que tarda el fuego en pasar de un punto al siguiente
 	Chillido = 1.5, -- segundos entre que ella se quema y la escena final
 	ArdeCasa = 5, -- segundos con la casa entera ardiendo (y su chillido dentro) antes de la escena final
