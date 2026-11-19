@@ -32,6 +32,7 @@ Antes el bosque acababa a ~420 de la casa y luego había llanura hasta el borde 
 - Cada una: tiras de `Ground` algo más claras que el suelo (3,5 a 5 de ancho, curva Catmull-Rom con un punto cada ~7 studs, tres alturas que se turnan para que no parpadeen), un mojón cada ~30 studs (estaca vieja con un trapo rojo desvaído, a un lado y al otro) y al principio un poste sin letras con la tabla en flecha y el dibujo de bloques de adónde va (la X del granero, un disco de sierra, una torrecita). Nada choca ni hace sombra; las tiras llevan `EnMapa` (salen en el móvil).
 - El bosque no pone pinos a menos de 4 del borde de una senda (el intento cuenta igual: los demás pinos no se mueven) ni sotobosque a menos de 3. Los talables no cambian (se guardan por su `Clave`): alguno puede quedar al lado de una senda.
 - Banco: `tests/bancos/sendas.luau` (empiezan en el claro o la carretera, acaban en su zona, no pisan la casa ni lo de alrededor, tramos de 10 como mucho). Números a ojo.
+- A la cabaña del cazador no va ninguna senda: se llega siguiendo 8 pinos con un corte de hacha desde la senda del aserradero (`LugarCazador`, carpeta `Bosque.Cazador` con su espesura; ver `llaves.md`).
 
 ## Cliente (`src/juego/cliente`)
 
