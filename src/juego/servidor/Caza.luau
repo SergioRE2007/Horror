@@ -857,14 +857,21 @@ function Caza.llegarA(self: Bicho, destino: Vector3, velocidad: number, limite: 
 	return self.modelo ~= nil and self:cerca(destino, 3)
 end
 
--- Se va por `dentro` (la ventana o la puerta por la que entró, o el hogar): anda hasta allí y, si no llega, sigue
--- andando hacia allí hasta que nadie le vea (ni a él ni ese sitio) o hasta SALIR_MAX s. Solo después se le puede poner
--- fuera de golpe o quitar: así no desaparece delante de nadie.
+-- Se va por `dentro` (la ventana o la puerta por la que entró, o el hogar): anda hasta allí (hasta IR_SALIDA s) y, si
+-- no llega, sigue andando hacia allí hasta que nadie le vea (ni a él ni ese sitio) o hasta SALIR_MAX s. Solo después se
+-- le puede poner fuera de golpe o quitar: así no desaparece delante de nadie. Anda con Caza.ir y no con irA/pasoHacia:
+-- la caza acaba a menudo arriba (persiguen por la escalera del vestíbulo) y las salidas están abajo; los caminos no
+-- bajan esa escalera y se quedaba empujando la barandilla de la galería hasta salir de golpe a la vista.
 function Caza.salir(self: Bicho, dentro: Vector3, velocidad: number)
-	self:irA(dentro, velocidad, IR_SALIDA)
-	local hasta = os.clock() + SALIR_MAX
+	self.humanoide.WalkSpeed = velocidad
+	local hasta = os.clock() + IR_SALIDA
+	while self.modelo and os.clock() < hasta and not self:cerca(dentro, 3) do
+		self:ir(dentro)
+		task.wait(0.25)
+	end
+	hasta = os.clock() + SALIR_MAX
 	while self.modelo and os.clock() < hasta and not self:cerca(dentro, 3) and not self:nadieVe(dentro) do
-		self:pasoHacia(dentro)
+		self:ir(dentro)
 		task.wait(0.25)
 	end
 	if self.modelo then

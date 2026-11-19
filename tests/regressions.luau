@@ -1790,6 +1790,43 @@ do
 	local trepador = fs.readFile("src/juego/servidor/Trepador.luau")
 	local s = string.find(trepador, "b:salir(salida.Position", 1, true) :: number
 	igual((string.find(trepador, "\"Baja\", modelo", s, true) or 0) > s, true, "Trepador: sale antes de 'Baja'")
+	-- Caza.salir anda con Caza.ir, que baja la escalera del vestíbulo: la caza acaba a menudo arriba y las salidas están
+	-- abajo. Con irA o pasoHacia (los caminos no bajan esa escalera) se quedaba empujando la barandilla de la galería
+	-- 25 + 10 s y luego salía de golpe a la vista. Sacada del texto, con un reloj y un bicho de mentira.
+	local a = string.find(caza, "function Caza.salir(", 1, true) :: number
+	local _, z = string.find(caza, "\r?\nend\r?\n", a)
+	local reloj = 0
+	local salir = luau.load("local Caza = {}\n" .. string.sub(caza, a, z) .. "\nreturn Caza.salir", {
+		debugName = "Caza.salir",
+		environment = {
+			IR_SALIDA = 25,
+			SALIR_MAX = Config.Caza.SalirMax,
+			os = { clock = function() return reloj end },
+			task = { wait = function(t) reloj += t end },
+		},
+	})()
+	local usa, pasos = {}, 0
+	local function bicho(llega: number?, leVen: boolean)
+		pasos = 0
+		return {
+			modelo = {},
+			humanoide = { WalkSpeed = 0, MoveTo = function() end },
+			raiz = { Position = 0 },
+			cerca = function() return llega ~= nil and pasos >= llega end,
+			nadieVe = function() return not leVen end,
+			ir = function() pasos += 1; usa.ir = true end,
+			pasoHacia = function() usa.pasoHacia = true end,
+			irA = function() usa.irA = true end,
+		}
+	end
+	local b = bicho(nil, true) -- no llega y le ven: anda los 25 s y luego hasta SalirMax más
+	salir(b, 0, 7)
+	igual(b.humanoide.WalkSpeed, 7, "salir: a su velocidad")
+	igual(usa.ir == true and usa.pasoHacia == nil and usa.irA == nil, true, "salir: con Caza.ir (baja la escalera)")
+	igual(math.abs(reloj - (25 + Config.Caza.SalirMax)) < 1e-6, true, "salir: si le ven, hasta SalirMax más")
+	reloj = 0
+	salir(bicho(3, true), 0, 7) -- llega a la salida: para enseguida
+	igual(pasos == 3 and reloj < 1, true, "salir: al llegar, para")
 end
 
 -- Bancos (tests/bancos, 14.8): módulos del cliente con un Roblox de mentira (tests/bancos/_roblox.luau) y cuentas,
